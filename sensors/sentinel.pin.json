@@ -1,10 +1,16 @@
 {
   "sensor": "sentinel",
+  "version": "3.3.1",
   "role": "detection + correlation + response",
   "required": true,
-  "min_version": "3.3.0",
-  "source": "https://github.com/psihijatrija/Sentinel/releases",
-  "install": "service",
   "license": "MIT",
-  "notes": "Installed by the site; Plasma never re-bundles Sentinel binaries. Tier1 response stays deterministic and outside the model path."
+  "source": "https://github.com/psihijatrija/Sentinel/releases/tag/v3.3.1",
+  "install": "service",
+  "payload": {
+    "file": "SentinelSetup-3.3.1.exe",
+    "sha256": "cb17a2775b834331b7d0108be84090a8d7450108552328d8d31b961ab9f5e46f",
+    "silent_args": ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-"],
+    "sidecar": ["LICENSE", "SHA256SUMS.txt"]
+  },
+  "notes": "Bundled under the MIT license with LICENSE and published SHA256SUMS. The setup is Inno Setup; it installs Sentinel.Service.exe and runs `--install`. Tier1 response stays deterministic and outside the model path."
 }

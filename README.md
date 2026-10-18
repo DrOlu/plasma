@@ -23,8 +23,9 @@ job; response remains policy-driven and, for model recommendations, human-approv
 ```
 instance/          frozen neuralOS artifact (menu, models, bridges, graph)
 packaging/         installer + post-install verifier + config example
-sensors/           pins for Sentinel/Sysmon/Sealighter (installed, never re-bundled)
+sensors/           pins + bundled Sentinel payload (MIT, checksum-verified)
 plasma/            Python package: manifest, bundler, CLI (plasma ask/probe/status)
+plasma_entry.py    entry point for the one-file executable
 samples/           deterministic normalized-event corpus used for build + tests
 tests/             pytest suite (models, bridge, menu, manifest, bundle, selection, PS)
 .github/workflows/ CI (ubuntu + windows) and release packaging
@@ -74,9 +75,24 @@ Ten read-only probes: `plasma_overview`, `plasma_recent`, `plasma_alerts`,
 
 | Sensor | Required | Bundled | Why |
 |---|---|---|---|
-| Sentinel | yes | installed as a service | the detection/response brain |
+| Sentinel | yes | **yes — setup EXE + LICENSE + checksums** | the detection/response brain |
 | Sysmon | no | installed from the official package | optional kernel-level baseline |
 | Sealighter | no | on-demand only | deep ETW/WPP research, not an agent |
+
+The bundled Sentinel setup is MIT-licensed (LICENSE travels with it) and is
+SHA256-verified both by the bundle manifest and by `sensors/sentinel.pin.json`.
+The installer runs it silently (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`),
+waits for the service, and fails closed if the service does not appear.
+
+## Standalone executable
+
+`plasma` ships as a one-file executable per platform (PyInstaller), with
+Python and Pydantic embedded — no interpreter required on the host. The frozen
+binary re-enters itself through a hidden `_bridge` mode to execute the bundle's
+`bridge.py`, so `ask`, `probe` and `status` work identically to the Python
+install. Release assets: `plasma-<version>-linux-x86_64` and
+`plasma-<version>-windows-x86_64.exe`; the same binaries also live inside the
+bundle under `bin/`.
 
 ## CI
 

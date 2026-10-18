@@ -54,6 +54,8 @@ def build_bundle(
     repo_root: str | Path | None = None,
     engines_dir: str | Path | None = None,
     platforms: list[str] | None = None,
+    sentinel_payload: str | Path | None = None,
+    binaries: list[str | Path] | None = None,
     make_zip: bool = True,
     strict: bool = True,
 ) -> dict:
@@ -82,6 +84,24 @@ def build_bundle(
         take(repo / "docs" / name, f"docs/{name}")
     take(repo / "README.md", "README.md")
     take(repo / "LICENSE", "LICENSE")
+
+    # Sentinel payload (MIT): setup EXE + LICENSE + published checksums.
+    payload_files = 0
+    if sentinel_payload and Path(sentinel_payload).is_dir():
+        for child in sorted(Path(sentinel_payload).iterdir()):
+            if child.is_file():
+                _copy(child, stage / "sensors" / "sentinel" / child.name)
+                payload_files += 1
+
+    # Plasma standalone executables (plasma / plasma.exe), per platform.
+    binary_names = []
+    for binary in binaries or []:
+        p = Path(binary)
+        if p.is_file():
+            _copy(p, stage / "bin" / p.name)
+            binary_names.append(p.name)
+        elif strict:
+            missing.append(f"bin/{p.name}")
 
     engine_platforms = []
     if engines_dir and Path(engines_dir).is_dir():
@@ -127,5 +147,7 @@ def build_bundle(
         "files": len(manifest["files"]),
         "probes": probes,
         "engine_platforms": engine_platforms,
+        "sentinel_payload_files": payload_files,
+        "binaries": binary_names,
         "missing": missing,
     }

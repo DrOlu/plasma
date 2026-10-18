@@ -16,3 +16,6 @@ engines/*/needle3.cact
 engines/*/libneedle.a
 engines/*/needle.h
 .tool_index.json
+*.spec
+sensors/sentinel/*.exe
+sensors/sentinel/*.zip

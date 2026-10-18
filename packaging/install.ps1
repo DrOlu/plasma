@@ -24,6 +24,7 @@ param(
     [string]$EventsPath = '',
     [switch]$DryRun,
     [switch]$SkipSensorCheck,
+    [switch]$SkipSentinelInstall,
     [switch]$Force
 )
 
@@ -74,6 +75,8 @@ if (-not $integrityOk) {
 $sensors = $manifest.sensor_requirements
 $sensorState = @()
 $requiredMissing = @()
+$plannedActions = @()
+$sentinelWillInstall = $false
 foreach ($name in @('sentinel', 'sysmon', 'sealighter')) {
     $req = $sensors.$name
     if ($null -eq $req) { continue }
@@ -82,8 +85,49 @@ foreach ($name in @('sentinel', 'sysmon', 'sealighter')) {
         $svc = Get-Service -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'Sentinel*' -or $_.DisplayName -like '*Sentinel*' } | Select-Object -First 1
         $presentSensor = ($null -ne $svc)
     }
-    $sensorState += @{ sensor = $name; required = [bool]$req.required; present = $presentSensor; mode = "$($req.install)$($req.mode)" }
-    if ($req.required -and -not $presentSensor -and -not $SkipSensorCheck) {
+
+    if ($name -eq 'sentinel' -and -not $presentSensor -and $IsWindows -and -not $SkipSentinelInstall) {
+        $pinPath = Join-Path $bundlePath 'sensors/sentinel.pin.json'
+        $payload = $null
+        if (Test-Path -LiteralPath $pinPath) {
+            $pin = Get-Content -LiteralPath $pinPath -Raw | ConvertFrom-Json
+            $setup = Join-Path $bundlePath (Join-Path 'sensors/sentinel' $pin.payload.file)
+            if (Test-Path -LiteralPath $setup) {
+                $hash = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+                if ($hash -ne ([string]$pin.payload.sha256).ToLowerInvariant()) {
+                    Out-Plan @{ ok = $false; stage = 'sentinel_payload'; error = 'Sentinel setup hash mismatch'; expected = $pin.payload.sha256; actual = $hash }
+                    exit 2
+                }
+                $payload = @{ setup = $setup; args = @($pin.payload.silent_args); version = [string]$pin.version }
+                $sentinelWillInstall = $true
+                $plannedActions += "install Sentinel $($pin.version) (silent): $setup"
+            }
+        }
+        if (-not $payload) {
+            $plannedActions += "Sentinel payload absent and service not installed"
+        } elseif (-not $DryRun) {
+            $argList = @($payload.args)
+            $proc = Start-Process -FilePath $payload.setup -ArgumentList $argList -Wait -PassThru
+            if ($proc.ExitCode -ne 0) {
+                Out-Plan @{ ok = $false; stage = 'sentinel_install'; error = "Sentinel setup exited $($proc.ExitCode)" }
+                exit 3
+            }
+            $deadline = (Get-Date).AddSeconds(30)
+            do {
+                $svc = Get-Service -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'Sentinel*' -or $_.DisplayName -like '*Sentinel*' } | Select-Object -First 1
+                $presentSensor = ($null -ne $svc)
+                if (-not $presentSensor) { Start-Sleep -Seconds 2 }
+            } while (-not $presentSensor -and (Get-Date) -lt $deadline)
+            $sentinelWillInstall = $presentSensor
+        }
+    }
+
+    $sensorState += @{
+        sensor = $name; required = [bool]$req.required; present = $presentSensor
+        will_install = ($name -eq 'sentinel' -and $sentinelWillInstall)
+        mode = "$($req.install)$($req.mode)"
+    }
+    if ($req.required -and -not $presentSensor -and -not $sentinelWillInstall -and -not $SkipSensorCheck) {
         $requiredMissing += $name
     }
 }
@@ -118,7 +162,7 @@ $plan = @{
         "copy $checked verified files",
         "write $configPath",
         "point $current -> $target"
-    )
+    ) + $plannedActions
 }
 if ($DryRun) { Out-Plan $plan; exit 0 }
 

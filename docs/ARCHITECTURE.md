@@ -41,6 +41,21 @@ The bundle is versioned and immutable; `manifest.json` records SHA256 for
 every file. Endpoints receive the same artifacts; the local event store is the
 only per-host data.
 
+## Bundle contents
+
+```
+instance/          frozen neuralOS artifact
+packaging/         install.ps1, verify.ps1, config.example.json
+sensors/           pins + SentinelSetup-3.3.1.exe + LICENSE + SHA256SUMS
+engines/<platform>/  needle binary + needle3.cact + library/header
+bin/               Plasma one-file executable (linux/windows/macos)
+manifest.json      SHA256 of every file + sensor requirements
+```
+
+The Sentinel payload is MIT-licensed, checksum-verified at build and install
+time, and executed silently by the installer. Sysmon is never redistributed;
+Sealighter is on-demand only.
+
 ## Runtimes
 
 | Endpoint | Selection | Execution |

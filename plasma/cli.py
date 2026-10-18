@@ -29,6 +29,11 @@ def _instance_dir(bundle: str) -> Path:
     return Path(bundle) / "instance"
 
 
+def _frozen() -> bool:
+    """True when running from a PyInstaller one-file executable."""
+    return bool(getattr(sys, "frozen", False))
+
+
 def _engine_names() -> list[str]:
     return ["needle.exe", "neural.exe", "needle", "neural"] if os.name == "nt" else [
         "needle", "neural", "needle.exe", "neural.exe"
@@ -97,7 +102,13 @@ def _run_bridge(bundle: str, tool: str, args: dict, events: str | None) -> dict:
     payload = json.dumps(args or {}, separators=(",", ":"))
     py_bridge = inst / "bridge.py"
     ps_bridge = inst / "bridge.ps1"
-    if py_bridge.exists():
+    if _frozen():
+        # A one-file executable contains Python + Pydantic; re-enter itself
+        # through the hidden `_bridge` subcommand instead of spawning python.
+        cmd = [sys.executable, "_bridge", "--dir", str(inst), "--tool", tool, "--args", payload]
+        if events:
+            cmd += ["--events", events]
+    elif py_bridge.exists():
         cmd = [sys.executable, str(py_bridge), "--tool", tool, "--args", payload]
         if events:
             cmd += ["--events", events]
@@ -135,7 +146,8 @@ def cmd_bundle(args) -> int:
     platforms = args.platform or None
     result = build_bundle(
         args.out, args.version, engines_dir=args.engines,
-        platforms=platforms, make_zip=not args.no_zip,
+        platforms=platforms, sentinel_payload=args.sentinel_payload,
+        binaries=args.binary, make_zip=not args.no_zip,
     )
     print(json.dumps(result, indent=2))
     return 0
@@ -207,9 +219,12 @@ def cmd_status(args) -> int:
     coverage = None
     py_bridge = inst / "bridge.py"
     if py_bridge.exists():
-        cmd = [sys.executable, str(py_bridge), "--coverage"] + (
-            ["--events", args.events] if args.events else []
-        )
+        if _frozen():
+            cmd = [sys.executable, "_bridge", "--dir", str(inst), "--coverage"]
+        else:
+            cmd = [sys.executable, str(py_bridge), "--coverage"]
+        if args.events:
+            cmd += ["--events", args.events]
         env = os.environ.copy()
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         try:
@@ -225,6 +240,33 @@ def cmd_status(args) -> int:
         "engine": str(_find_engine(args.bundle, None) or "not bundled"),
     }, indent=2))
     return 0 if result.get("ok") else 2
+
+
+def cmd_internal_bridge(args) -> int:
+    """Hidden entry point used by the frozen executable (`plasma _bridge`)."""
+    import importlib.util
+
+    inst = Path(args.dir)
+    bridge_file = inst / "bridge.py"
+    if not bridge_file.exists():
+        print(json.dumps({"error": f"bridge not found: {bridge_file}"}))
+        return 2
+    if args.events:
+        os.environ["PLASMA_EVENTS"] = args.events
+    sys.path.insert(0, str(inst))
+    try:
+        spec = importlib.util.spec_from_file_location("plasma_frozen_bridge", bridge_file)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        if args.coverage:
+            result = module.coverage()
+        else:
+            result = module.run_tool(args.tool, json.loads(args.args))
+    except Exception as exc:  # noqa: BLE001 - errors are data
+        print(json.dumps({"error": f"{type(exc).__name__}: {exc}"[:300]}))
+        return 1
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 1
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -245,6 +287,10 @@ def build_parser() -> argparse.ArgumentParser:
     bb.add_argument("--version", default=__version__)
     bb.add_argument("--engines", default=None, help="directory of <platform>/ engine bundles")
     bb.add_argument("--platform", action="append", default=None)
+    bb.add_argument("--sentinel-payload", default=None,
+                    help="directory with the Sentinel setup EXE, LICENSE and SHA256SUMS")
+    bb.add_argument("--binary", action="append", default=None,
+                    help="Plasma executable to include under bin/ (repeatable)")
     bb.add_argument("--no-zip", action="store_true")
     bb.set_defaults(func=cmd_bundle)
 
@@ -268,6 +314,16 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--bundle", required=True)
     s.add_argument("--events", default=None)
     s.set_defaults(func=cmd_status)
+
+    # Hidden: the frozen executable re-enters itself to execute the bundle's
+    # bridge with the Python runtime embedded in the one-file binary.
+    hb = sub.add_parser("_bridge", help=argparse.SUPPRESS)
+    hb.add_argument("--dir", required=True)
+    hb.add_argument("--tool", default=None)
+    hb.add_argument("--args", default="{}")
+    hb.add_argument("--events", default=None)
+    hb.add_argument("--coverage", action="store_true")
+    hb.set_defaults(func=cmd_internal_bridge)
     return p
 
 

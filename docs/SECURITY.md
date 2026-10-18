@@ -17,6 +17,13 @@
    model-facing arguments or the bundle.
 5. **Capped answers.** 25 rows plus counts; the model sees digests, not dumps.
    No log lake is created by the instance.
+6. **Bundled third-party payloads are verified twice.** The Sentinel setup EXE
+   is covered by the bundle manifest (SHA256) and by its own pin file. The
+   installer refuses to execute it on a hash mismatch. The MIT LICENSE and the
+   upstream SHA256SUMS travel beside the payload.
+7. **The standalone executable embeds its runtime.** PyInstaller bundles Python
+   and Pydantic into one signed-able binary; it executes the bundle's bridge in
+   its own process, so no system Python is needed and no interpreter is exposed.
 
 ## Threat model
 

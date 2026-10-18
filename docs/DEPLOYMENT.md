@@ -1,12 +1,41 @@
 # Deploying Plasma
 
+## 0. Fetch the Sentinel payload (MIT)
+
+```bash
+mkdir -p sensors/sentinel
+BASE=https://github.com/psihijatrija/Sentinel/releases/download/v3.3.1
+curl -fsSL -o sensors/sentinel/SentinelSetup-3.3.1.exe "$BASE/SentinelSetup-3.3.1.exe"
+curl -fsSL -o sensors/sentinel/SHA256SUMS.txt "$BASE/SHA256SUMS.txt"
+curl -fsSL -o sensors/sentinel/LICENSE \
+  https://raw.githubusercontent.com/psihijatrija/Sentinel/v3.3.1/LICENSE
+(cd sensors/sentinel && shasum -a 256 -c <(grep SentinelSetup SHA256SUMS.txt))
+```
+
+The pin in `sensors/sentinel.pin.json` records the expected SHA256; the
+installer re-verifies it before executing the setup.
+
 ## 1. Build the bundle (CI or workstation)
 
 ```bash
 pip install -e .[dev]
-plasma bundle build --out dist --version 0.1.0 \
-  --engines ./engines --platform windows-x86_64
+plasma bundle build --out dist --version 0.2.0 \
+  --engines ./engines --platform windows-x86_64 \
+  --sentinel-payload sensors/sentinel \
+  --binary ./dist/plasma
 ```
+
+### Standalone executable (optional)
+
+```bash
+pip install -e ".[dev,build]"
+pyinstaller --onefile --name plasma \
+  --collect-all pydantic --collect-all pydantic_core plasma_entry.py
+./dist/plasma --version
+```
+
+The one-file binary embeds Python + Pydantic and needs no interpreter on the
+host. `--binary` copies it into the bundle under `bin/`.
 
 `--engines` expects `<platform>/needle.exe|needle`, `needle3.cact` (weights),
 and optionally `libneedle.a` / `needle.h`.
@@ -41,7 +70,11 @@ The verifier checks every listed hash and rejects missing or extra files.
 Behaviour:
 
 * integrity failure → exit 2, nothing written;
-* required sensor (Sentinel) missing → exit 3 (use `-SkipSensorCheck` only in a lab);
+* Sentinel service missing and a verified payload is present → the installer
+  runs `SentinelSetup-3.3.1.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`,
+  waits up to 30s for the service, and fails closed (exit 3) if it never appears;
+* `-SkipSentinelInstall` leaves sensor installation to the site;
+* required sensor still missing → exit 3 (use `-SkipSensorCheck` only in a lab);
 * existing target without `-Force` → exit 4;
 * versioned install at `C:\ProgramData\Plasma\instances\plasma-<version>`;
 * `current` junction flips atomically; rollback = point it back.
