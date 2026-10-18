@@ -119,6 +119,15 @@ def test_low_confidence_excluded():
     assert sentinel.extract_indicators(rows, min_confidence=85) == []
 
 
+def test_none_indicators_excluded():
+    rows = [{"dns_query": None, "dest_ip": None, "file_hash": None,
+             "severity": "critical", "score": 0.97, "alert_id": "SENT-002"}]
+    assert sentinel.extract_indicators(rows, min_confidence=85) == []
+    merged = sentinel.merge_bundle(
+        [{"Indicator": "None", "IocType": "domain", "Confidence": 88, "Source": "Plasma"}], [])
+    assert merged == []
+
+
 def test_merge_prefers_higher_confidence():
     existing = [{"Indicator": PUBLIC_IP, "IocType": "ip", "Confidence": 60, "Source": "Bundled"}]
     new = [{"Indicator": PUBLIC_IP, "IocType": "ip", "Confidence": 95, "Source": "Plasma"}]
@@ -178,7 +187,9 @@ def test_push_apply_backs_up_merges_and_journals(tmp_path):
 
 def test_status_reports_both_sides(tmp_path):
     sentinel_root = tmp_path / "Sentinel"
-    write_sentinel_events(sentinel_root, [detection()])
+    write_sentinel_events(sentinel_root, [detection(metadata={
+        "RemoteIp": PUBLIC_IP, "Domain": BAD_DOMAIN, "Sha256": HASH,
+    })])
     events = tmp_path / "plasma" / "events.jsonl"
     sentinel.pull(sentinel_root, events)
     sentinel.push(events, sentinel_root, apply=True)
@@ -187,5 +198,5 @@ def test_status_reports_both_sides(tmp_path):
     assert result["sentinel_detections"] == 1
     assert result["plasma_events_present"] is True
     assert result["bundle_present"] is True
-    assert result["bundle_iocs"] >= 1
+    assert result["bundle_iocs"] == 3
     assert result["last_push"]["action"] == "sentinel.push"

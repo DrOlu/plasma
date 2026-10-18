@@ -438,12 +438,19 @@ def cmd_install(args) -> int:
                               "error": "hash mismatch", "expected": expected, "actual": actual}, indent=2))
             return 2
         try:
-            subprocess.run(
+            setup_proc = subprocess.run(
                 [str(setup_path), *pin["payload"]["silent_args"]],
                 capture_output=True, text=True, timeout=600,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             print(json.dumps({"ok": False, "stage": "sentinel_install", "error": str(exc)[:300]}, indent=2))
+            return 3
+        if setup_proc.returncode != 0:
+            print(json.dumps({
+                "ok": False, "stage": "sentinel_install",
+                "error": f"Sentinel setup exited {setup_proc.returncode}",
+                "stderr": (setup_proc.stderr or "")[:300],
+            }, indent=2))
             return 3
         deadline = __import__("time").time() + 60
         while not _windows_service_present() and __import__("time").time() < deadline:

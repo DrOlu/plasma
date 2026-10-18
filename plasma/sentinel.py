@@ -308,8 +308,10 @@ def extract_indicators(rows, min_confidence: int = DEFAULT_MIN_CONFIDENCE) -> li
     found: dict[str, dict] = {}
 
     def add(indicator, ioc_type, confidence, family, row):
+        if indicator is None:
+            return
         indicator = str(indicator).strip()
-        if not indicator:
+        if not indicator or indicator.lower() in ("none", "null"):
             return
         if ioc_type == "ip" and not _is_public_ip(indicator):
             return
@@ -359,7 +361,7 @@ def merge_bundle(existing: list[dict], new: list[dict], max_iocs: int = DEFAULT_
         if not isinstance(item, dict):
             continue
         indicator = _get(item, "Indicator")
-        if not indicator:
+        if not indicator or str(indicator).strip().lower() in ("none", "null"):
             continue
         key = str(indicator).lower()
         record = {
