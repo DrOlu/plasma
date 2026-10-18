@@ -32,6 +32,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
+      - name: Fetch Sentinel payload (Windows, py3.12)
+        if: runner.os == 'Windows' && matrix.python == '3.12'
+        shell: bash
+        run: |
+          mkdir -p sensors/sentinel
+          curl -fsSL -o "sensors/sentinel/${SENTINEL_SETUP}" "${SENTINEL_BASE}/${SENTINEL_SETUP}"
+          curl -fsSL -o sensors/sentinel/SHA256SUMS.txt "${SENTINEL_BASE}/SHA256SUMS.txt"
+          curl -fsSL -o sensors/sentinel/LICENSE \
+            "https://raw.githubusercontent.com/psihijatrija/Sentinel/v3.3.1/LICENSE"
       - name: Unit + bridge + packaging tests
         run: pytest -q
 
