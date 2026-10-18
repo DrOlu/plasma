@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plasma-edr"
+version = "0.1.0"
+description = "Plasma — an agent-based EDR bundle: Sentinel detection layer + a frozen neuralOS instance"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = ["pydantic>=2.6"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov>=5"]
+
+[project.scripts]
+plasma = "plasma.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["plasma*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "items": [
+    {"q": "show me the alerts", "expect_probe": "plasma_alerts"},
+    {"q": "critical alerts", "expect_probe": "plasma_alerts"},
+    {"q": "security overview", "expect_probe": "plasma_overview"},
+    {"q": "what happened on this endpoint", "expect_probe": "plasma_overview"},
+    {"q": "recent events", "expect_probe": "plasma_recent"},
+    {"q": "latest events on WS1", "expect_probe": "plasma_recent"},
+    {"q": "which processes ran", "expect_probe": "plasma_processes"},
+    {"q": "suspicious processes", "expect_probe": "plasma_processes"},
+    {"q": "outbound connections", "expect_probe": "plasma_network"},
+    {"q": "network traffic", "expect_probe": "plasma_network"},
+    {"q": "dns lookups", "expect_probe": "plasma_dns"},
+    {"q": "which domains were resolved", "expect_probe": "plasma_dns"},
+    {"q": "any persistence", "expect_probe": "plasma_persistence"},
+    {"q": "run key persistence", "expect_probe": "plasma_persistence"},
+    {"q": "find encoded powershell", "expect_probe": "plasma_search"},
+    {"q": "search for certutil", "expect_probe": "plasma_search"},
+    {"q": "graph overview", "expect_probe": "plasma_graph_overview"},
+    {"q": "neighbors of p.exe", "expect_probe": "plasma_graph_neighbors"},
+    {"q": "what connects to 185.220.101.4", "expect_probe": "plasma_graph_neighbors"}
+  ]
+}

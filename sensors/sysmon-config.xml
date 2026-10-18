@@ -1,0 +1,23 @@
+<Sysmon schemaversion="4.90">
+  <!-- Plasma optional baseline. Installed from the official Sysinternals
+       package; never redistributed with Plasma. Keep volume bounded. -->
+  <HashAlgorithms>SHA256</HashAlgorithms>
+  <CheckRevocation>true</CheckRevocation>
+  <EventFiltering>
+    <ProcessCreate onmatch="exclude">
+      <Image condition="is">C:\Windows\System32\backgroundTaskHost.exe</Image>
+    </ProcessCreate>
+    <NetworkConnect onmatch="exclude">
+      <DestinationIsIPv6 condition="is">true</DestinationIsIPv6>
+    </NetworkConnect>
+    <FileCreate onmatch="exclude">
+      <TargetFilename condition="begin with">C:\Windows\Temp\</TargetFilename>
+    </FileCreate>
+    <RegistryEvent onmatch="exclude">
+      <TargetObject condition="begin with">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\</TargetObject>
+    </RegistryEvent>
+    <DnsQuery onmatch="exclude">
+      <QueryName condition="is">*.microsoft.com</QueryName>
+    </DnsQuery>
+  </EventFiltering>
+</Sysmon>

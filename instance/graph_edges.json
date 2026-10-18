@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "source": "samples/plasma_events.jsonl",
+  "nodes": {
+    "host": {"key": "host", "tier": "entity"},
+    "process": {"key": "process", "tier": "entity"},
+    "user": {"key": "user", "tier": "entity"},
+    "ip": {"key": "dest_ip", "tier": "entity"},
+    "dns": {"key": "dns_query", "tier": "entity"},
+    "file": {"key": "file_path", "tier": "artifact"},
+    "registry": {"key": "registry_path", "tier": "artifact"},
+    "technique": {"key": "technique", "tier": "classification"}
+  },
+  "edges": [
+    {"from": "process", "to": "host", "type": "runs_on", "rule": "same_record", "confidence": "exact_fk"},
+    {"from": "process", "to": "parent", "type": "spawned_by", "rule": "same_record", "confidence": "exact_fk"},
+    {"from": "process", "to": "user", "type": "runs_as", "rule": "same_record", "confidence": "exact_fk"},
+    {"from": "process", "to": "ip", "type": "connects_to", "rule": "same_record.dest_ip", "confidence": "exact_fk"},
+    {"from": "process", "to": "dns", "type": "resolves", "rule": "same_record.dns_query", "confidence": "exact_fk"},
+    {"from": "process", "to": "file", "type": "writes", "rule": "same_record.file_path", "confidence": "exact_fk"},
+    {"from": "process", "to": "registry", "type": "writes", "rule": "same_record.registry_path", "confidence": "exact_fk"},
+    {"from": "host", "to": "ip", "type": "observed_remote", "rule": "same_record.dest_ip", "confidence": "exact_fk"},
+    {"from": "host", "to": "technique", "type": "exhibits", "rule": "same_record.technique", "confidence": "exact_fk"}
+  ],
+  "disjoint": []
+}

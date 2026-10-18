@@ -1,0 +1,10 @@
+{
+  "sensor": "sentinel",
+  "role": "detection + correlation + response",
+  "required": true,
+  "min_version": "3.3.0",
+  "source": "https://github.com/psihijatrija/Sentinel/releases",
+  "install": "service",
+  "license": "MIT",
+  "notes": "Installed by the site; Plasma never re-bundles Sentinel binaries. Tier1 response stays deterministic and outside the model path."
+}

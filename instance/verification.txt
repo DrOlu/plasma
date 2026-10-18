@@ -1,0 +1,31 @@
+Plasma — Phase-4 verification record
+Instance : neuralOS/needle frozen instance over normalized EDR events
+Corpus   : samples/plasma_events.jsonl — 107 events (3 hosts, 8 kinds, 2 sources)
+Built    : 2026-10-18
+Runtime  : engine (selection-only) + Python bridge / PowerShell bridge
+
+1. COVERAGE — PASS
+   107 / 107 records parsed through models.PlasmaEvent (100.0%, gate >= 95%).
+   PowerShell bridge parity: 107 / 107 shape-checked (100.0%).
+
+2. SELECTION — PASS (probe level 19/19)
+   Matrix in instance/golden.json. All phrasings selected the intended probe.
+   Known small-model argument quirks observed and mitigated:
+   - "processes run by svcbackup" initially bound user text to host;
+     process/user descriptions and a "processes run by" trigger were added.
+   - "connections to port 4444" initially placed 4444 in dest_ip;
+     dest_ip now carries an IPv4 pattern in the menu grammar.
+   Determinism: repeated identical prompts produce identical selections.
+
+3. TRUTH CHECK — PASS
+   plasma_overview.events = 107 = raw JSONL line count.
+   plasma_alerts(critical) = 4; plasma_search("certutil") = 2; both verified
+   against direct reads of the corpus.
+
+4. GRAPH GATE — PASS (declaration)
+   graph_edges.json declares 9 exact_fk edges; graph_probes = 2
+   (overview, neighbors); disjoint = [] (single-source corpus).
+
+5. INTEGRITY
+   manifest.json lists every frozen artifact with SHA256; install.ps1 verifies
+   all hashes and rejects missing or extra files before staging.

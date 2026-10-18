@@ -1,0 +1,9 @@
+{
+  "sensor": "sealighter",
+  "role": "on-demand deep ETW/WPP tracing",
+  "required": false,
+  "mode": "on-demand",
+  "source": "https://github.com/pathtofile/Sealighter/releases",
+  "license": "verify upstream before redistribution",
+  "notes": "Not part of the baseline bundle. Install on support/jump hosts or only on endpoints that run live-capture probes."
+}

@@ -1,0 +1,140 @@
+[
+  {
+    "name": "plasma_overview",
+    "description": "Endpoint security overview: event, alert and kill counts, breakdowns by kind, severity, host and source, and top ATT&CK techniques.",
+    "parameters": {"type": "object", "properties": {}},
+    "triggers": [
+      "overview", "security overview", "what happened", "summarize events",
+      "event summary", "triage", "what is happening", "hosts summary"
+    ]
+  },
+  {
+    "name": "plasma_recent",
+    "description": "Most recent normalized events, newest first, optionally for one host.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "limit": {"type": "integer", "minimum": 1, "maximum": 25, "description": "How many events to return, newest first."},
+        "host": {"type": "string", "minLength": 1, "maxLength": 63, "description": "Endpoint name such as WS1, WS2 or DC1."}
+      },
+      "required": []
+    },
+    "triggers": [
+      "recent events", "latest events", "show recent", "last events",
+      "newest events", "what just happened"
+    ]
+  },
+  {
+    "name": "plasma_alerts",
+    "description": "Sentinel detections with score, action and ATT&CK technique, filterable by severity and technique.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "severity": {"type": "string", "enum": ["info", "low", "medium", "high", "critical"]},
+        "technique": {"type": "string", "minLength": 2, "maxLength": 12}
+      },
+      "required": []
+    },
+    "triggers": [
+      "alerts", "detections", "sentinel alerts", "security alerts",
+      "what fired", "high severity alerts", "critical alerts"
+    ]
+  },
+  {
+    "name": "plasma_processes",
+    "description": "Process creation and image-load events with parent, command line and technique, filterable by host, process or user.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "host": {"type": "string", "minLength": 1, "maxLength": 63, "description": "Endpoint name such as WS1."},
+        "process": {"type": "string", "minLength": 1, "maxLength": 260, "description": "Process image name such as powershell.exe or p.exe."},
+        "user": {"type": "string", "minLength": 1, "maxLength": 128, "description": "Account that ran the process, such as CORP\\\\svcbackup."}
+      },
+      "required": []
+    },
+    "triggers": [
+      "processes", "process events", "process tree", "what processes",
+      "suspicious process", "which process", "process created",
+      "processes run by", "executed by user"
+    ]
+  },
+  {
+    "name": "plasma_network",
+    "description": "Outbound network connections with destination IP and port, filterable by destination or port.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "dest_ip": {"type": "string", "minLength": 7, "maxLength": 45, "pattern": "^[0-9]{1,3}(\\.[0-9]{1,3}){3}$", "description": "Destination IPv4 address such as 185.220.101.4."},
+        "dest_port": {"type": "integer", "minimum": 0, "maximum": 65535, "description": "Destination TCP/UDP port."}
+      },
+      "required": []
+    },
+    "triggers": [
+      "network connections", "outbound connections", "connections",
+      "network traffic", "what connected", "c2 traffic", "remote ports"
+    ]
+  },
+  {
+    "name": "plasma_dns",
+    "description": "DNS lookups grouped by query, optionally filtered by domain fragment.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": {"type": "string", "minLength": 1, "maxLength": 253}
+      },
+      "required": []
+    },
+    "triggers": [
+      "dns", "dns queries", "lookups", "domains", "what domains",
+      "dns lookups"
+    ]
+  },
+  {
+    "name": "plasma_persistence",
+    "description": "Persistence indicators: registry writes, Run keys, IFEO hijacks, scheduled tasks, grouped by ATT&CK technique.",
+    "parameters": {"type": "object", "properties": {}},
+    "triggers": [
+      "persistence", "autoruns", "run key", "scheduled tasks",
+      "registry persistence", "startup items", "ifeo"
+    ]
+  },
+  {
+    "name": "plasma_search",
+    "description": "Free-text search across command lines, descriptions, paths, domains, users and techniques.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "text": {"type": "string", "minLength": 1, "maxLength": 200}
+      },
+      "required": ["text"]
+    },
+    "triggers": [
+      "search", "find", "look for", "grep", "anything mentioning",
+      "search events"
+    ]
+  },
+  {
+    "name": "plasma_graph_overview",
+    "description": "Relationship graph overview: entity nodes (hosts, processes, users, IPs, domains, files, registry, techniques) and observed edge types.",
+    "parameters": {"type": "object", "properties": {}},
+    "triggers": [
+      "graph", "relationship map", "entities", "attack graph",
+      "graph overview", "entity graph"
+    ]
+  },
+  {
+    "name": "plasma_graph_neighbors",
+    "description": "One-hop neighbors of an entity: everything connected to a host, process, user, IP, domain, file, registry path or technique.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "node": {"type": "string", "minLength": 1, "maxLength": 260}
+      },
+      "required": ["node"]
+    },
+    "triggers": [
+      "neighbors", "neighbours", "connected to", "related to",
+      "what connects", "who talked to"
+    ]
+  }
+]

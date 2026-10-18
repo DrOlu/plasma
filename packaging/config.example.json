@@ -1,0 +1,26 @@
+{
+  "product": "Plasma",
+  "version": "0.1.0",
+  "instance": "C:\\ProgramData\\Plasma\\current",
+  "events_path": "C:\\ProgramData\\Plasma\\data\\events.jsonl",
+  "retention_days": 7,
+  "response": {
+    "mode": "advisory",
+    "require_human_approval": true
+  },
+  "sensors": {
+    "sentinel": {
+      "required": true,
+      "min_version": "3.3.0",
+      "install": "service"
+    },
+    "sysmon": {
+      "required": false,
+      "install": "official-package"
+    },
+    "sealighter": {
+      "required": false,
+      "mode": "on-demand"
+    }
+  }
+}
