@@ -66,6 +66,7 @@ class PlasmaEvent(BaseModel):
     dest_port: Optional[int] = Field(default=None, ge=0, le=65535)
     dns_query: Optional[str] = Field(default=None, max_length=253)
     file_path: Optional[str] = Field(default=None, max_length=4096)
+    file_hash: Optional[str] = Field(default=None, pattern=r"^[A-Fa-f0-9]{64}$")
     registry_path: Optional[str] = Field(default=None, max_length=4096)
     technique: Optional[str] = Field(
         default=None, pattern=r"^T\d{4}(\.\d{3})?$"

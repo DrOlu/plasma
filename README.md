@@ -71,6 +71,38 @@ Ten read-only probes: `plasma_overview`, `plasma_recent`, `plasma_alerts`,
 * build once, freeze, deploy identical artifacts fleet-wide; per-host values
   live in `config.json`, never in the instance.
 
+## Sentinel integration (two-way)
+
+```powershell
+# Pull: Sentinel detections -> normalized Plasma events
+plasma sentinel pull --sentinel-root C:\ProgramData\Sentinel `
+  --out C:\ProgramData\Plasma\data\events.jsonl
+
+# Push: high-confidence Plasma indicators -> Sentinel's local IOC bundle (dry-run first)
+plasma sentinel push --events C:\ProgramData\Plasma\data\events.jsonl `
+  --min-confidence 85
+plasma sentinel push --events C:\ProgramData\Plasma\data\events.jsonl `
+  --min-confidence 85 --apply --reason "IR-2026-042" --restart-service
+
+# State
+plasma sentinel status
+```
+
+**Pull** reads `%ProgramData%\Sentinel\events.jsonl` (DetectionEvent records) and
+maps them to the Plasma schema: Tier1→critical/high, `AuthorizedResponse`→
+killed/quarantined/blocked/logged, metadata→IP/domain/hash/technique.
+
+**Push** writes `%ProgramData%\Sentinel\threatfox-bundle.json.gz` — the
+unsigned local IOC snapshot Sentinel loads at start. SHA-256 entries feed
+`IoCScanner`; domain entries feed `DnsQueryMonitor`. Sentinel 3.3.1 exposes no
+active IP query, so IP entries are stored for future/other consumers.
+
+Safety: dry-run by default; private/reserved IPs and benign domains excluded;
+existing bundle merged by highest confidence; backup written; every apply
+journaled; **signed rule packs are never touched**. Requires administrator
+rights (Sentinel's ProgramData ACL) and a service restart for Sentinel to load
+the new bundle.
+
 ## Sensor policy
 
 | Sensor | Required | Bundled | Why |

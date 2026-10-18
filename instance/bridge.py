@@ -31,7 +31,7 @@ VALIDATION = {"parsed": 0, "failed": 0, "errors": []}
 DIGEST_FIELDS = (
     "ts", "host", "source", "kind", "event_id", "severity", "user",
     "process", "pid", "parent", "cmdline", "dest_ip", "dest_port",
-    "dns_query", "file_path", "registry_path", "technique",
+    "dns_query", "file_path", "file_hash", "registry_path", "technique",
     "alert_id", "score", "action", "description",
 )
 
@@ -292,7 +292,7 @@ def plasma_search(text: str = "") -> dict:
     if err:
         return err
     fields = (
-        "cmdline", "description", "file_path", "registry_path",
+        "cmdline", "description", "file_path", "file_hash", "registry_path",
         "dns_query", "user", "process", "image", "technique", "alert_id",
     )
     if not text:

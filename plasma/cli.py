@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__
+from . import __version__, sentinel
 from .bundle import build_bundle
 from .manifest import create_manifest, sha256_file, verify_manifest
 
@@ -481,6 +481,27 @@ def cmd_install(args) -> int:
     return 0
 
 
+def cmd_sentinel_pull(args) -> int:
+    result = sentinel.pull(args.sentinel_root, args.out, args.host)
+    print(json.dumps(result, indent=2))
+    return 0 if "error" not in result else 1
+
+
+def cmd_sentinel_push(args) -> int:
+    result = sentinel.push(
+        events_path=args.events, sentinel_root=args.sentinel_root,
+        min_confidence=args.min_confidence, max_iocs=args.max_iocs,
+        apply=args.apply, restart_service=args.restart_service, reason=args.reason,
+    )
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 1
+
+
+def cmd_sentinel_status(args) -> int:
+    print(json.dumps(sentinel.status(args.sentinel_root, args.events), indent=2))
+    return 0
+
+
 def cmd_internal_bridge(args) -> int:
     """Hidden entry point used by the frozen executable (`plasma _bridge`)."""
     import importlib.util
@@ -561,6 +582,30 @@ def build_parser() -> argparse.ArgumentParser:
     ins.add_argument("--skip-sentinel", action="store_true")
     ins.add_argument("--force", action="store_true")
     ins.set_defaults(func=cmd_install)
+
+    sn = sub.add_parser("sentinel", help="Sentinel integration: pull detections, push IOC intelligence")
+    sns = sn.add_subparsers(dest="sentinel_action", required=True)
+
+    sp = sns.add_parser("pull", help="normalize Sentinel detections into the Plasma event store")
+    sp.add_argument("--sentinel-root", default=None)
+    sp.add_argument("--out", default=None)
+    sp.add_argument("--host", default=None)
+    sp.set_defaults(func=cmd_sentinel_pull)
+
+    spu = sns.add_parser("push", help="push high-confidence indicators into Sentinel's local IOC bundle")
+    spu.add_argument("--sentinel-root", default=None)
+    spu.add_argument("--events", default=None)
+    spu.add_argument("--min-confidence", type=int, default=sentinel.DEFAULT_MIN_CONFIDENCE)
+    spu.add_argument("--max-iocs", type=int, default=sentinel.DEFAULT_MAX_IOCS)
+    spu.add_argument("--reason", default="")
+    spu.add_argument("--restart-service", action="store_true")
+    spu.add_argument("--apply", action="store_true", help="write the bundle (default is dry-run)")
+    spu.set_defaults(func=cmd_sentinel_push)
+
+    sps = sns.add_parser("status", help="show Sentinel + Plasma integration state")
+    sps.add_argument("--sentinel-root", default=None)
+    sps.add_argument("--events", default=None)
+    sps.set_defaults(func=cmd_sentinel_status)
 
     # Hidden: the frozen executable re-enters itself to execute the bundle's
     # bridge with the Python runtime embedded in the one-file binary.

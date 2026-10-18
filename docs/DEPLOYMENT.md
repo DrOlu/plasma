@@ -114,7 +114,31 @@ $env:PLASMA_MODEL  = 'C:\ProgramData\Plasma\current\engines\windows-x86_64\needl
 plasma ask --bundle C:\ProgramData\Plasma\current --prompt "what happened on WS1?"
 ```
 
-## 6. Fleet updates
+## 6. Wire Sentinel intelligence (two-way)
+
+```powershell
+# Detections -> Plasma
+plasma.exe sentinel pull --sentinel-root C:\ProgramData\Sentinel `
+  --out C:\ProgramData\Plasma\data\events.jsonl
+
+# Plasma indicators -> Sentinel local IOC bundle
+plasma.exe sentinel push --events C:\ProgramData\Plasma\data\events.jsonl --min-confidence 85
+plasma.exe sentinel push --events C:\ProgramData\Plasma\data\events.jsonl --min-confidence 85 `
+  --apply --reason "IR-2026-042" --restart-service
+
+plasma.exe sentinel status
+```
+
+Push behaviour:
+
+* dry-run unless `--apply`;
+* excludes RFC1918/loopback/link-local/reserved IPs and benign domains;
+* merges with the existing bundle, preferring higher confidence, cap `--max-iocs`;
+* writes a timestamped backup and appends to `sentinel-intel-journal.jsonl`;
+* restarts the Sentinel service only with `--restart-service`;
+* never writes vendor-signed rule packs.
+
+## 7. Fleet updates
 
 Ship a new bundle version, install alongside, verify, flip `current`, keep the
 old version for rollback. Never edit files inside an installed version.

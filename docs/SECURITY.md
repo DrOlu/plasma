@@ -36,6 +36,20 @@
 | Response overreach | no response probes by default; Sentinel Tier-1 only; human approval for advisories |
 | Sensor tampering | Sentinel is the required sensor; optional Sysmon gives an independent baseline; post-install verification detects blindness |
 
+## Intelligence writes to Sentinel
+
+`plasma sentinel push` changes a file Sentinel consumes, so it is treated as a
+response-adjacent action:
+
+* **dry-run by default** — `--apply` is required;
+* only indicators at/above `--min-confidence` (default 85);
+* private, loopback, link-local, multicast and reserved IPs are refused;
+* benign domain suffixes (Microsoft/Office/Google/Cloudflare/local) are refused;
+* the existing bundle is backed up and merged, never overwritten blindly;
+* every apply is journaled with bundle hash, counts, reason and service result;
+* vendor-RSA-signed rule packs are never modified — only the unsigned local
+  IOC snapshot that Sentinel documents as the supported offline input.
+
 ## Operational cautions
 
 * Test on non-production endpoints first. Sentinel can terminate processes.

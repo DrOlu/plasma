@@ -31,7 +31,7 @@ $KINDS = @('alert','auth','dns','file','image_load','network','process','registr
 $SEVERITIES = @('info','low','medium','high','critical')
 $SOURCES = @('sentinel','sysmon','sealighter','plasma')
 $ACTIONS = @('allowed','blocked','quarantined','killed','logged')
-$DIGEST_FIELDS = @('ts','host','source','kind','event_id','severity','user','process','pid','parent','cmdline','dest_ip','dest_port','dns_query','file_path','registry_path','technique','alert_id','score','action','description')
+$DIGEST_FIELDS = @('ts','host','source','kind','event_id','severity','user','process','pid','parent','cmdline','dest_ip','dest_port','dns_query','file_path','file_hash','registry_path','technique','alert_id','score','action','description')
 
 $script:Validation = @{ parsed = 0; failed = 0; errors = @() }
 
@@ -58,6 +58,7 @@ function Test-EventShape {
     if ($Row.severity -notin $SEVERITIES) { return "bad severity: $($Row.severity)" }
     if (-not ($Row.event_id -as [int])) { return 'bad event_id' }
     if ($null -ne $Row.technique -and $Row.technique -notmatch '^T\d{4}(\.\d{3})?$') { return 'bad technique' }
+    if ($null -ne $Row.file_hash -and $Row.file_hash -notmatch '^[A-Fa-f0-9]{64}$') { return 'bad file_hash' }
     if ($null -ne $Row.score -and ([double]$Row.score -lt 0 -or [double]$Row.score -gt 1)) { return 'bad score' }
     if ($null -ne $Row.dest_port -and ([int]$Row.dest_port -lt 0 -or [int]$Row.dest_port -gt 65535)) { return 'bad dest_port' }
     if ($null -ne $Row.action -and $Row.action -notin $ACTIONS) { return 'bad action' }
@@ -229,7 +230,8 @@ function Invoke-Probe {
             $text = $ProbeArgs.text
             $h = @($rows | Where-Object {
                 (Match-Text $_.cmdline $text) -or (Match-Text $_.description $text) -or
-                (Match-Text $_.file_path $text) -or (Match-Text $_.registry_path $text) -or
+                (Match-Text $_.file_path $text) -or (Match-Text $_.file_hash $text) -or
+                (Match-Text $_.registry_path $text) -or
                 (Match-Text $_.dns_query $text) -or (Match-Text $_.user $text) -or
                 (Match-Text $_.process $text) -or (Match-Text $_.image $text) -or
                 (Match-Text $_.technique $text) -or (Match-Text $_.alert_id $text)

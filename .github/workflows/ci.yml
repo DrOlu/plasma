@@ -116,6 +116,15 @@ jobs:
           ./dist/plasma.exe probe --tool plasma_overview --events samples/plasma_events.jsonl
           ./dist/plasma.exe ask --prompt "critical alerts" --events samples/plasma_events.jsonl
           ./dist/plasma.exe install --dry-run --root "$RUNNER_TEMP/plasma-install"
+      - name: Sentinel integration smoke (pull -> push -> status)
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/sentinel"
+          cp tests/fixtures/sentinel_events.jsonl "$RUNNER_TEMP/sentinel/events.jsonl"
+          ./dist/plasma.exe sentinel pull --sentinel-root "$RUNNER_TEMP/sentinel" --out "$RUNNER_TEMP/plasma-events.jsonl"
+          ./dist/plasma.exe sentinel push --events "$RUNNER_TEMP/plasma-events.jsonl" --sentinel-root "$RUNNER_TEMP/sentinel" --min-confidence 85
+          ./dist/plasma.exe sentinel push --events "$RUNNER_TEMP/plasma-events.jsonl" --sentinel-root "$RUNNER_TEMP/sentinel" --min-confidence 85 --apply --reason "ci smoke"
+          ./dist/plasma.exe sentinel status --sentinel-root "$RUNNER_TEMP/sentinel" --events "$RUNNER_TEMP/plasma-events.jsonl"
       - uses: actions/upload-artifact@v4
         with:
           name: plasma-windows-x64

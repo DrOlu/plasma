@@ -16,7 +16,7 @@ import os
 FIELDS = [
     "ts", "host", "source", "kind", "event_id", "severity", "user",
     "process", "pid", "ppid", "parent", "image", "cmdline",
-    "dest_ip", "dest_port", "dns_query", "file_path", "registry_path",
+    "dest_ip", "dest_port", "dns_query", "file_path", "file_hash", "registry_path",
     "technique", "alert_id", "score", "action", "description",
 ]
 
@@ -96,8 +96,9 @@ def build():
         ev(ts="2026-10-16T09:14:22Z", host="WS1", source="sysmon", kind="file",
            event_id=11, severity="high", user="CORP\\olu", process="certutil.exe",
            pid=4908, ppid=4832, parent="powershell.exe",
-           file_path="C:\\Users\\Public\\p.exe", technique="T1105",
-           description="Executable written to public directory"),
+           file_path="C:\\Users\\Public\\p.exe",
+           file_hash="9f2c8e14d7b3a6c5e8f1042736b9adc2e5f7081a3b6d9c4e7f2a5b8d1c4e7f09",
+           technique="T1105", description="Executable written to public directory"),
         ev(ts="2026-10-16T09:14:30Z", host="WS1", source="sysmon", kind="process",
            event_id=1, severity="critical", user="CORP\\olu", process="p.exe",
            pid=5011, ppid=4908, parent="certutil.exe",
