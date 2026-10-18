@@ -25,17 +25,33 @@ plasma bundle build --out dist --version 0.2.0 \
   --binary ./dist/plasma
 ```
 
-### Standalone executable (optional)
+### Single self-contained Windows x64 executable (primary artifact)
 
-```bash
-pip install -e ".[dev,build]"
-pyinstaller --onefile --name plasma \
-  --collect-all pydantic --collect-all pydantic_core plasma_entry.py
-./dist/plasma --version
+Build on Windows (PyInstaller does not cross-compile):
+
+```powershell
+pip install -e ".[dev,build]" neuralos==3.10.2
+python -c "from needle.agent import fetch; fetch.download_platform('windows-x86_64','engines',generation=3)"
+# copy needle3.cact from the installed needle package into engines/windows-x86_64/
+python tools/build_embedded_windows.py `
+  --engine-dir engines/windows-x86_64 `
+  --sentinel-payload sensors/sentinel `
+  --dist dist --name plasma
 ```
 
-The one-file binary embeds Python + Pydantic and needs no interpreter on the
-host. `--binary` copies it into the bundle under `bin/`.
+Result: `dist/plasma.exe` (~57 MB) containing the Python runtime, Pydantic, the
+frozen instance, the Windows engine + weights, and the Sentinel payload.
+
+```powershell
+.\plasma.exe status --events C:\ProgramData\Plasma\data\events.jsonl
+.\plasma.exe ask --prompt "critical alerts"
+.\plasma.exe install --dry-run
+.\plasma.exe install
+```
+
+Native executables are embedded gzipped (`needle.gz`, `SentinelSetup-*.exe.gz`)
+and materialized to a temp directory at runtime; this keeps the embedded
+SHA256 manifest valid even though PyInstaller rewrites native binaries.
 
 `--engines` expects `<platform>/needle.exe|needle`, `needle3.cact` (weights),
 and optionally `libneedle.a` / `needle.h`.

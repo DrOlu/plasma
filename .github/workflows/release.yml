@@ -6,81 +6,45 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Bundle version (e.g. 0.1.0)"
+        description: "Version (e.g. 0.3.0)"
         required: true
-        default: "0.1.0"
+        default: "0.3.0"
 
 permissions:
   contents: write
 
 env:
-  SENTINEL_VERSION: "3.3.1"
   SENTINEL_SETUP: "SentinelSetup-3.3.1.exe"
   SENTINEL_BASE: "https://github.com/psihijatrija/Sentinel/releases/download/v3.3.1"
 
 jobs:
-  binaries:
-    name: plasma binary (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+  windows-x64:
+    name: build + publish Windows x64 single exe
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install build deps
+      - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev,build]"
-      - name: Build one-file executable
+          pip install -e ".[dev,build]" neuralos==3.10.2
+
+      - name: Fetch Windows engine + weights
         shell: bash
         run: |
-          pyinstaller --onefile --name plasma \
-            --collect-all pydantic --collect-all pydantic_core \
-            plasma_entry.py
-      - name: Rename + smoke test
-        shell: bash
-        run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            mv dist/plasma.exe dist/plasma-windows-x86_64.exe
-            ./dist/plasma-windows-x86_64.exe --version
-          else
-            mv dist/plasma dist/plasma-linux-x86_64
-            ./dist/plasma-linux-x86_64 --version
-          fi
-      - uses: actions/upload-artifact@v4
-        with:
-          name: plasma-${{ runner.os }}
-          path: |
-            dist/plasma-linux-x86_64
-            dist/plasma-windows-x86_64.exe
-          if-no-files-found: error
-
-  release:
-    name: build, verify, publish
-    runs-on: ubuntu-latest
-    needs: [binaries]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install Plasma + neuralOS
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]" neuralos==3.10.2
-
-      - name: Download Plasma binaries
-        uses: actions/download-artifact@v4
-        with:
-          path: bin
-          pattern: plasma-*
-          merge-multiple: true
+          python - <<'PY'
+          import os, shutil
+          from needle.agent import fetch
+          fetch.download_platform("windows-x86_64", "engines", generation=3)
+          import needle
+          weights = os.path.join(os.path.dirname(needle.__file__), "needle3.cact")
+          shutil.copy(weights, "engines/windows-x86_64/needle3.cact")
+          PY
 
       - name: Fetch Sentinel payload (MIT, checksum-verified)
+        shell: bash
         run: |
           mkdir -p sensors/sentinel
           curl -fsSL -o "sensors/sentinel/${SENTINEL_SETUP}" "${SENTINEL_BASE}/${SENTINEL_SETUP}"
@@ -90,21 +54,9 @@ jobs:
           cd sensors/sentinel
           sha256sum -c <(grep "${SENTINEL_SETUP}" SHA256SUMS.txt)
 
-      - name: Fetch Windows and Linux engines
-        run: |
-          python - <<'PY'
-          import os, shutil
-          from needle.agent import fetch
-          import needle
-          weights = os.path.join(os.path.dirname(needle.__file__), "needle3.cact")
-          for platform in ("windows-x86_64", "linux-x86_64"):
-              fetch.download_platform(platform, "engines", generation=3)
-              shutil.copy(weights, f"engines/{platform}/needle3.cact")
-          os.chmod("engines/linux-x86_64/needle", 0o755)
-          PY
-
       - name: Resolve version
         id: version
+        shell: bash
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "value=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
@@ -112,36 +64,32 @@ jobs:
             echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build + verify bundle
+      - name: Build embedded executable
+        run: |
+          python tools/build_embedded_windows.py --engine-dir engines/windows-x86_64 `
+            --sentinel-payload sensors/sentinel --dist dist --name plasma
+
+      - name: Rename, hash and smoke test
+        shell: bash
         run: |
           VERSION="${{ steps.version.outputs.value }}"
-          chmod +x bin/plasma-linux-x86_64
-          plasma bundle build --out dist --version "$VERSION" --engines engines \
-            --sentinel-payload sensors/sentinel \
-            --binary bin/plasma-linux-x86_64 \
-            --binary bin/plasma-windows-x86_64.exe
-          plasma manifest verify --dir "dist/plasma-$VERSION"
-          ./bin/plasma-linux-x86_64 status \
-            --bundle "dist/plasma-$VERSION" --events samples/plasma_events.jsonl
-          (cd dist && sha256sum "plasma-$VERSION.zip" > SHA256SUMS)
-          cp bin/plasma-linux-x86_64 "dist/plasma-$VERSION-linux-x86_64"
-          cp bin/plasma-windows-x86_64.exe "dist/plasma-$VERSION-windows-x86_64.exe"
-          (cd dist && sha256sum "plasma-$VERSION-linux-x86_64" "plasma-$VERSION-windows-x86_64.exe" >> SHA256SUMS)
+          mv dist/plasma.exe "dist/plasma-$VERSION-windows-x64.exe"
+          (cd dist && sha256sum "plasma-$VERSION-windows-x64.exe" > SHA256SUMS)
+          ./dist/plasma-$VERSION-windows-x64.exe --version
+          ./dist/plasma-$VERSION-windows-x64.exe status --events samples/plasma_events.jsonl
+          ./dist/plasma-$VERSION-windows-x64.exe ask --prompt "critical alerts" --events samples/plasma_events.jsonl
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           VERSION="${{ steps.version.outputs.value }}"
           TAG="v$VERSION"
-          FILES=(
-            "dist/plasma-$VERSION.zip"
-            "dist/plasma-$VERSION-linux-x86_64"
-            "dist/plasma-$VERSION-windows-x86_64.exe"
-            "dist/SHA256SUMS"
-          )
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "${FILES[@]}" --clobber
+            gh release upload "$TAG" "dist/plasma-$VERSION-windows-x64.exe" dist/SHA256SUMS --clobber
           else
-            gh release create "$TAG" "${FILES[@]}" --title "Plasma $VERSION" --generate-notes
+            gh release create "$TAG" \
+              "dist/plasma-$VERSION-windows-x64.exe" dist/SHA256SUMS \
+              --title "Plasma $VERSION (Windows x64)" --generate-notes
           fi

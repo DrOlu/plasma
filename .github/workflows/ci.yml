@@ -10,7 +10,6 @@ permissions:
   contents: read
 
 env:
-  SENTINEL_VERSION: "3.3.1"
   SENTINEL_SETUP: "SentinelSetup-3.3.1.exe"
   SENTINEL_BASE: "https://github.com/psihijatrija/Sentinel/releases/download/v3.3.1"
 
@@ -73,66 +72,32 @@ jobs:
           PLASMA_MODEL: ${{ github.workspace }}/engines/linux-x86_64/needle3.cact
         run: pytest -q tests/test_selection.py
 
-  binary:
-    name: plasma binary (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+  windows-embedded:
+    name: build + smoke test Windows x64 single exe
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install build deps
+      - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev,build]"
-      - name: Build one-file executable
+          pip install -e ".[dev,build]" neuralos==3.10.2
+      - name: Fetch Windows engine + weights
         shell: bash
         run: |
-          pyinstaller --onefile --name plasma \
-            --collect-all pydantic --collect-all pydantic_core \
-            plasma_entry.py
-      - name: Rename + smoke test
+          python - <<'PY'
+          import os, shutil
+          from needle.agent import fetch
+          fetch.download_platform("windows-x86_64", "engines", generation=3)
+          import needle
+          weights = os.path.join(os.path.dirname(needle.__file__), "needle3.cact")
+          shutil.copy(weights, "engines/windows-x86_64/needle3.cact")
+          print(os.listdir("engines/windows-x86_64"))
+          PY
+      - name: Fetch Sentinel payload
         shell: bash
-        run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            mv dist/plasma.exe dist/plasma-windows-x86_64.exe
-            ./dist/plasma-windows-x86_64.exe --version
-          else
-            mv dist/plasma dist/plasma-linux-x86_64
-            ./dist/plasma-linux-x86_64 --version
-          fi
-      - uses: actions/upload-artifact@v4
-        with:
-          name: plasma-${{ runner.os }}
-          path: |
-            dist/plasma-linux-x86_64
-            dist/plasma-windows-x86_64.exe
-          if-no-files-found: error
-
-  package:
-    name: build + verify bundle
-    runs-on: ubuntu-latest
-    needs: [test, binary]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install Plasma
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-      - name: Download Plasma binaries
-        uses: actions/download-artifact@v4
-        with:
-          path: bin
-          pattern: plasma-*
-          merge-multiple: true
-      - name: Fetch bundled Sentinel payload
         run: |
           mkdir -p sensors/sentinel
           curl -fsSL -o "sensors/sentinel/${SENTINEL_SETUP}" "${SENTINEL_BASE}/${SENTINEL_SETUP}"
@@ -141,24 +106,18 @@ jobs:
             "https://raw.githubusercontent.com/psihijatrija/Sentinel/v3.3.1/LICENSE"
           cd sensors/sentinel
           sha256sum -c <(grep "${SENTINEL_SETUP}" SHA256SUMS.txt)
-      - name: Build bundle with Sentinel + binaries
+      - name: Build single self-contained exe
+        run: python tools/build_embedded_windows.py --engine-dir engines/windows-x86_64 --sentinel-payload sensors/sentinel --dist dist --name plasma
+      - name: Smoke test the embedded executable
+        shell: bash
         run: |
-          chmod +x bin/plasma-linux-x86_64
-          plasma bundle build --out dist --version 0.1.0 \
-            --sentinel-payload sensors/sentinel \
-            --binary bin/plasma-linux-x86_64 \
-            --binary bin/plasma-windows-x86_64.exe
-      - name: Verify manifest
-        run: plasma manifest verify --dir dist/plasma-0.1.0
-      - name: Frozen binary executes the bundle bridge
-        run: |
-          ./bin/plasma-linux-x86_64 status \
-            --bundle dist/plasma-0.1.0 --events samples/plasma_events.jsonl
+          ./dist/plasma.exe --version
+          ./dist/plasma.exe status --events samples/plasma_events.jsonl
+          ./dist/plasma.exe probe --tool plasma_overview --events samples/plasma_events.jsonl
+          ./dist/plasma.exe ask --prompt "critical alerts" --events samples/plasma_events.jsonl
+          ./dist/plasma.exe install --dry-run --root "$RUNNER_TEMP/plasma-install"
       - uses: actions/upload-artifact@v4
         with:
-          name: plasma-bundle
-          path: |
-            dist/plasma-0.1.0.zip
-            bin/plasma-linux-x86_64
-            bin/plasma-windows-x86_64.exe
+          name: plasma-windows-x64
+          path: dist/plasma.exe
           if-no-files-found: error

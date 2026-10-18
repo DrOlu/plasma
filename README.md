@@ -84,15 +84,28 @@ SHA256-verified both by the bundle manifest and by `sensors/sentinel.pin.json`.
 The installer runs it silently (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`),
 waits for the service, and fails closed if the service does not appear.
 
-## Standalone executable
+## Single self-contained Windows x64 executable
 
-`plasma` ships as a one-file executable per platform (PyInstaller), with
-Python and Pydantic embedded — no interpreter required on the host. The frozen
-binary re-enters itself through a hidden `_bridge` mode to execute the bundle's
-`bridge.py`, so `ask`, `probe` and `status` work identically to the Python
-install. Release assets: `plasma-<version>-linux-x86_64` and
-`plasma-<version>-windows-x86_64.exe`; the same binaries also live inside the
-bundle under `bin/`.
+The release artifact `plasma-<version>-windows-x64.exe` is the whole product
+in one file:
+
+* Python + Pydantic runtime (PyInstaller one-file)
+* frozen instance (`models.py`, menu, bridges, graph)
+* Windows neuralOS engine + `needle3.cact` weights
+* Sentinel setup payload (MIT, checksum-verified) + pin file
+
+Native executables are stored gzipped inside the binary (PyInstaller rewrites
+Mach-O/PE payloads and would break the manifest); the CLI unpacks them to a
+temporary runtime directory and executes them. `plasma status` verifies the
+embedded SHA256 manifest; `plasma install` stages the instance, writes config,
+installs Sentinel silently, and flips a `current` junction.
+
+```powershell
+.\plasma-0.3.0-windows-x64.exe status --events C:\ProgramData\Plasma\data\events.jsonl
+.\plasma-0.3.0-windows-x64.exe ask --prompt "critical alerts"
+.\plasma-0.3.0-windows-x64.exe install --dry-run
+.\plasma-0.3.0-windows-x64.exe install
+```
 
 ## CI
 
