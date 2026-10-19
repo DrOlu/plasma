@@ -152,11 +152,11 @@ def test_apply_twice_creates_backup(tmp_path):
 
 def test_status(tmp_path):
     events = tmp_path / "plasma" / "events.jsonl"
-    seed(tmp_path / "whids")
-    whids.pull(tmp_path / "whids", events, host="WS1")
-    whids.push(events, tmp_path / "Whids", min_confidence=8, apply=True)
+    root = seed(tmp_path / "whids")
+    whids.pull(root, events, host="WS1")
+    whids.push(events, root, min_confidence=8, apply=True)
 
-    result = whids.status(tmp_path / "Whids", events)
+    result = whids.status(root, events)
     assert result["whids_alerts"] == 4
     assert result["plasma_events_present"] is True
     assert result["rules_present"] is True
