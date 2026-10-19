@@ -403,27 +403,36 @@ def whids_install_decision(sysmon_present: bool, whids_present: bool,
                            payload_present: bool, skip_whids: bool,
                            internet_ok: bool = True,
                            sysmon_install_ok: bool | None = None) -> dict:
-    """Pure decision: FULL (whids+sysmon) where feasible, MINIMAL otherwise."""
-    if whids_present:
-        return {"decision": "already_present", "degraded": False}
+    """Pure decision: FULL (whids+sysmon) where feasible, MINIMAL otherwise.
+
+    WHIDS cannot start without Sysmon, so "WHIDS present but Sysmon absent"
+    is a broken state the installer must REPAIR (acquire Sysmon) rather than
+    honor as already_present."""
     if skip_whids:
         return {"decision": "skipped", "degraded": True,
                 "reason": "--skip-whids requested"}
-    if not payload_present:
-        return {"decision": "skipped", "degraded": True,
-                "reason": "no WHIDS payload in bundle"}
     if sysmon_present:
+        if whids_present:
+            return {"decision": "already_present", "degraded": False}
+        if not payload_present:
+            return {"decision": "skipped", "degraded": True,
+                    "reason": "no WHIDS payload in bundle"}
         return {"decision": "full", "degraded": False}
+    # Sysmon absent: acquire it (repairing a WHIDS-without-Sysmon box too)
     if sysmon_install_ok is True:
         return {"decision": "full", "degraded": False,
-                "sysmon": "installed at install time (EULA accepted via -accepteula)"}
+                "sysmon": "installed at install time (EULA accepted via -accepteula)",
+                "repair": whids_present}
     if sysmon_install_ok is False:
         return {"decision": "skipped", "degraded": True,
-                "reason": "Sysmon download/install failed"}
+                "reason": ("Sysmon download/install failed — WHIDS present but "
+                           "cannot start without Sysmon" if whids_present else
+                           "Sysmon download/install failed")}
     if not internet_ok:
         return {"decision": "skipped", "degraded": True,
                 "reason": "no internet: Sysmon cannot be downloaded and may not "
-                          "be redistributed with Plasma"}
+                          "be redistributed with Plasma"
+                          + (" — WHIDS present but cannot start" if whids_present else "")}
     return {"decision": "attempt_sysmon_install", "degraded": False}
 
 

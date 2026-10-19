@@ -18,9 +18,23 @@ def test_full_when_sysmon_present():
 
 
 def test_already_present_when_whids_running():
-    d = decide(sysmon_present=False, whids_present=True, payload_present=True,
+    d = decide(sysmon_present=True, whids_present=True, payload_present=True,
                skip_whids=False)
     assert d["decision"] == "already_present" and not d["degraded"]
+
+
+def test_whids_present_but_sysmon_absent_is_a_repair():
+    """WHIDS cannot start without Sysmon: the installer must acquire Sysmon,
+    not honor the broken state as already_present (WS1 field lesson)."""
+    d = decide(sysmon_present=False, whids_present=True, payload_present=True,
+               skip_whids=False, internet_ok=True)
+    assert d["decision"] == "attempt_sysmon_install"
+    d2 = decide(sysmon_present=False, whids_present=True, payload_present=True,
+                skip_whids=False, sysmon_install_ok=True)
+    assert d2["decision"] == "full" and d2.get("repair") is True
+    d3 = decide(sysmon_present=False, whids_present=True, payload_present=True,
+                skip_whids=False, internet_ok=False)
+    assert d3["decision"] == "skipped" and "WHIDS present but cannot start" in d3["reason"]
 
 
 def test_skip_flag_forces_minimal():
