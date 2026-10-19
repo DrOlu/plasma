@@ -604,7 +604,8 @@ def status(root: str | Path | None = None, events_path: str | Path | None = None
         with open(path, "r", encoding="utf-8", errors="replace") as fh:
             for line in fh:
                 line = line.strip()
-                if line and '"Detection"' in line:
+                # v1.7.0 nests match info under GeneInfo; later lines use Detection
+                if line and ('"Detection"' in line or '"GeneInfo"' in line):
                     alert_count += 1
 
     rules_file = whids_root / "Database" / "Rules" / "plasma-iocs.gen"

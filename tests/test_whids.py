@@ -189,8 +189,11 @@ def test_status(tmp_path):
     whids.pull(root, events, host="WS1")
     whids.push(events, root, min_confidence=8, apply=True)
 
+    # live v1.7.0 alerts (GeneInfo, not Detection) count too
+    shutil.copy("tests/fixtures/whids_alerts_v170_live.jsonl",
+                root / "Logs" / "Alerts" / "2026-10-19" / "alerts.log")
     result = whids.status(root, events)
-    assert result["whids_alerts"] == 4
+    assert result["whids_alerts"] == 5
     assert result["plasma_events_present"] is True
     assert result["rules_present"] is True
     assert result["rules_expressions"] >= 2
