@@ -102,6 +102,28 @@ Safety: dry-run by default; private/reserved IPs and benign domains excluded;
 expressions merged and deduplicated; the previous rule file is backed up; every
 apply is journaled. WHIDS owns response actions — Plasma never drives them.
 
+## Observatory, drift and actuation (rmagent lineage)
+
+Read-only host questions answered locally by fixed PowerShell payloads
+(`plasma observe attest|sketch|edges|explain|pslogs|attackmap|regedges|flowstats|canary|sysmon_health`),
+baselines + deterministic drift scoring
+(`plasma drift record|score|list --question attest`), and scoped response:
+
+```bash
+plasma actuate actions                                              # the allowlist
+plasma actuate apply isolate_host --reason "ransomware"             # dry-run (default)
+plasma actuate apply isolate_host --reason "ransomware" --apply     # execute
+plasma actuate undo --id 3 --apply
+plasma actuate journal --last 10
+```
+
+Lockout-proof by construction: protected services/processes/accounts are
+refused (WinRM, TermService, WHIDS, Sysmon, BFE, MpsSvc, lsass, ...);
+`isolate_host` creates RDP-3389 + WinRM-5985 allow rules before any block
+rule so management access survives isolation; `--reason` is mandatory;
+every apply and undo is journaled (`actuate-journal.jsonl`) with its
+verification result; nothing runs without an explicit `--apply`.
+
 ## Sensor policy
 
 ## Requirements

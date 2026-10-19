@@ -15,5 +15,5 @@
   "requirements": {
     "sysmon": "required — WHIDS depends on Sysmon for kernel telemetry (ProcessCreate/ProcessTerminate logging mandatory)"
   },
-  "notes": "Installed by Plasma from the release bundle (AGPL-3.0, LICENSE travels with it). Plasma pulls alerts from Logs\\Alerts and pushes IOC gene rules into Database\\Rules\\plasma-iocs.gen. WHIDS owns response actions; Plasma stays advisory."
+  "notes": "Installed by Plasma from the release bundle (AGPL-3.0, LICENSE travels with it). Plasma pulls alerts from Logs\\Alerts and pushes IOC gene rules into Database\\Rules\\plasma-iocs.gen. DEPLOYED IN DETECT-ONLY MODE: the [actions] config restricts every criticality band to 'report' — WHIDS cannot kill, blacklist, dump or block. Response actions belong to a human operator."
 }

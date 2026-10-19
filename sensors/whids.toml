@@ -42,3 +42,15 @@ dump-untracked = false
 rules-db = "C:\\Program Files\\Whids\\Database\\Rules"
 containers-db = "C:\\Program Files\\Whids\\Database\\Containers"
 update-interval = "1m0s0s"
+
+# PLASMA DETECT-ONLY MODE
+# Every criticality band is restricted to logging actions. No kill, no
+# blacklist, no process dumps, no network blocking — WHIDS alerts, it does
+# not act. This is deliberate: an EDR that cannot remove remote access can
+# never lock its operators out.
+[actions]
+available-actions = ["brief", "report"]
+low = ["report"]
+medium = ["report"]
+high = ["report"]
+critical = ["report"]

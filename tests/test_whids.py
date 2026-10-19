@@ -81,6 +81,21 @@ def test_extract_indicators_filters():
         assert ioc["criticality"] >= 8
 
 
+def test_detect_only_posture():
+    """WHIDS ships neutered: no kill/blacklist/dump actions anywhere."""
+    lines = [ln for ln in open("sensors/whids.toml", encoding="utf-8")
+             if ln.strip() and not ln.strip().startswith("#")]
+    toml = "\n".join(lines)
+    for forbidden in ("kill", "blacklist", "memdump", "filedump", "regdump"):
+        assert forbidden not in toml
+    assert 'critical = ["report"]' in toml
+    rule = whids.build_gene_rule([
+        {"indicator": "9f2c8e14d7b3a6c5e8f1042736b9adc2e5f7081a3b6d9c4e7f2a5b8d1c4e7f09",
+         "ioc_type": "sha256", "criticality": 10, "family": "x"},
+    ])
+    assert rule["Actions"] == ["report"]
+
+
 def test_gene_rule_shape():
     iocs = [
         {"indicator": "9f2c8e14d7b3a6c5e8f1042736b9adc2e5f7081a3b6d9c4e7f2a5b8d1c4e7f09",

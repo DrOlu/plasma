@@ -3,8 +3,12 @@
 ## Design rules
 
 1. **Read-only instance.** Every probe in the frozen menu is a query. There is
-   no write, kill, block or isolate probe. Response lives in WHIDS's
-   deterministic policy layer.
+   no write, kill, block or isolate probe in the instance. Response lives in
+   WHIDS's deterministic policy layer (deployed detect-only, see below) and
+   in the `plasma actuate` module — which is human-invoked, allowlisted,
+   dry-run-first, journaled with verified undo, and lockout-proof
+   (protected services/processes/accounts are refused; `isolate_host` keeps
+   RDP 3389 + WinRM 5985 reachable by design).
 2. **Model out of the control path.** neuralOS selects a probe and fills
    arguments. It never executes anything and never authorizes a response. Any
    model-suggested action (future work) must sit behind an allowlist, a
@@ -59,3 +63,20 @@ as a response-adjacent action:
 * Rotate and sign release artifacts; verify `SHA256SUMS` on the endpoint.
 * Legal: deploy only on endpoints you administer, with notice/consent where
   required. Sysmon is installed under Microsoft's EULA, not redistributed.
+
+## Detect-only WHIDS (no kill sensors)
+
+Plasma ships WHIDS in **detect-only mode**: the `[actions]` section of
+`whids.toml` restricts every criticality band to `["report"]`, and the Plasma
+gene rule carries `"Actions": ["report"]`. WHIDS therefore:
+
+- raises alerts (JSONL in `Logs\Alerts`) — nothing more;
+- **cannot** kill processes, blacklist indicators, dump memory, or modify the
+  network — no matter what any rule or event criticality requests;
+- cannot be the cause of a lockout (its actions cannot touch services,
+  remote access, or the firewall).
+
+This was a deliberate design decision after Sentinel 3.3.1's always-on
+hardening + remote-session guard locked remote operators out of a host.
+If kill/dump actions are ever wanted, they must be enabled deliberately in
+`whids.toml` by the operator, never by default.

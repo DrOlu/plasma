@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, whids
+from . import __version__, whids, observatory, actuate, drift
 from .bundle import build_bundle
 from .manifest import create_manifest, sha256_file, verify_manifest
 
@@ -521,6 +521,67 @@ def cmd_whids_status(args) -> int:
     return 0
 
 
+def _canaries(args):
+    return tuple(args.canary) if getattr(args, "canary", None) else ()
+
+
+def cmd_observe(args) -> int:
+    answer = observatory.run_question(args.question, canaries=_canaries(args))
+    print(json.dumps(answer, indent=2, default=str))
+    print(observatory.summarize(answer), file=sys.stderr)
+    return 0 if "error" not in answer else 1
+
+
+def cmd_drift_record(args) -> int:
+    answer = observatory.run_question(args.question, canaries=_canaries(args))
+    result = drift.record(args.root, args.question, answer)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 1
+
+
+def cmd_drift_score(args) -> int:
+    answer = observatory.run_question(args.question, canaries=_canaries(args))
+    result = drift.score(args.root, args.question, answer)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if result.get("top_score", 0) == 0 else 2
+
+
+def cmd_drift_list(args) -> int:
+    rows = drift.baselines(args.root)
+    print(json.dumps({"root": str(args.root), "baselines": rows}, indent=2))
+    return 0
+
+
+def cmd_actuate_actions(args) -> int:
+    print(json.dumps(actuate.actions(), indent=2))
+    return 0
+
+
+def cmd_actuate_apply(args) -> int:
+    result = actuate.execute(
+        args.action, args.root, target=args.target, reason=args.reason,
+        apply=args.apply, timeout=args.timeout)
+    print(json.dumps(result, indent=2, default=str))
+    # dry-runs succeed by definition; applied actions report via "error"/rc
+    if "error" in result:
+        return 1
+    if args.apply and (result.get("result", {}).get("rc") not in (None, 0)):
+        return 3
+    return 0
+
+
+def cmd_actuate_journal(args) -> int:
+    rows = actuate.journal_read(args.root, last=args.last)
+    print(json.dumps(rows, indent=2, default=str))
+    return 0
+
+
+def cmd_actuate_undo(args) -> int:
+    result = actuate.undo(args.root, args.id, apply=args.apply, timeout=args.timeout)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 1
+
+
 def cmd_internal_bridge(args) -> int:
     """Hidden entry point used by the frozen executable (`plasma _bridge`)."""
     import importlib.util
@@ -630,6 +691,52 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Hidden: the frozen executable re-enters itself to execute the bundle's
     # bridge with the Python runtime embedded in the one-file binary.
+    ob = sub.add_parser("observe", help="run a read-only observatory question on this host (rmagent-so lineage)")
+    ob.add_argument("question", choices=observatory.questions(),
+                    help="attest|sketch|edges|explain|pslogs|attackmap|regedges|flowstats|canary|sysmon_health")
+    ob.add_argument("--canary", nargs="*", default=[],
+                    help="canary usernames for the canary question")
+    ob.set_defaults(func=cmd_observe)
+
+    dr = sub.add_parser("drift", help="baseline and diff observatory answers (what changed since I last looked)")
+    drs = dr.add_subparsers(dest="drift_action", required=True)
+    drp = drs.add_parser("record", help="record a question's answer as the new baseline")
+    drp.add_argument("question", choices=observatory.questions())
+    drp.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    drp.add_argument("--canary", nargs="*", default=[])
+    drp.set_defaults(func=cmd_drift_record)
+    drsc = drs.add_parser("score", help="re-run a question and score drift against the baseline")
+    drsc.add_argument("question")
+    drsc.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    drsc.add_argument("--canary", nargs="*", default=[])
+    drsc.set_defaults(func=cmd_drift_score)
+    drl = drs.add_parser("list", help="list stored baselines")
+    drl.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    drl.set_defaults(func=cmd_drift_list)
+
+    ac = sub.add_parser("actuate", help="scoped, journaled, reversible response actions (dry-run by default)")
+    acs = ac.add_subparsers(dest="actuate_action", required=True)
+    aca = acs.add_parser("actions", help="list the allowlisted actions")
+    aca.set_defaults(func=cmd_actuate_actions)
+    acx = acs.add_parser("apply", help="dry-run (default) or apply (--apply) one action")
+    acx.add_argument("action", choices=sorted(actuate.ACTIONS))
+    acx.add_argument("--target", default=None, help="ip | user | service | pid | path | task (per action)")
+    acx.add_argument("--reason", required=True, help="mandatory: why this action")
+    acx.add_argument("--apply", action="store_true", help="actually execute (default: dry-run only)")
+    acx.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    acx.add_argument("--timeout", type=int, default=60)
+    acx.set_defaults(func=cmd_actuate_apply)
+    acj = acs.add_parser("journal", help="read the actuate journal")
+    acj.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    acj.add_argument("--last", type=int, default=None)
+    acj.set_defaults(func=cmd_actuate_journal)
+    acu = acs.add_parser("undo", help="undo a journaled applied action (dry-run by default)")
+    acu.add_argument("--id", type=int, required=True)
+    acu.add_argument("--apply", action="store_true")
+    acu.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    acu.add_argument("--timeout", type=int, default=60)
+    acu.set_defaults(func=cmd_actuate_undo)
+
     hb = sub.add_parser("_bridge", help=argparse.SUPPRESS)
     hb.add_argument("--dir", required=True)
     hb.add_argument("--tool", default=None)

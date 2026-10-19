@@ -413,6 +413,7 @@ def build_gene_rule(indicators: list[dict]) -> dict:
     return {
         "Name": "Plasma IOC Feed",
         "Tags": tags,
+        "Actions": ["report"],
         "Meta": {
             "Events": {"Microsoft-Windows-Sysmon/Operational": [1, 3, 6, 7, 15, 22]},
             "Computers": [],

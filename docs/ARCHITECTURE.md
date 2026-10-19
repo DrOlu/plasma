@@ -74,3 +74,21 @@ package (never redistributed); Sealighter is on-demand only.
 
 Results are recorded in `instance/verification.txt` at build time and
 re-checked at install time.
+## Observatory, drift, actuate (rmagent lineage)
+
+Three operator-side modules complement the frozen instance:
+
+* `plasma/observatory.py` — named, read-only PowerShell collectors
+  (attest + blind_check, sketch, edges, explain, pslogs, attackmap,
+  regedges, flowstats, canary, sysmon_health). Fields are parsed by name
+  from event XML so Windows schema drift cannot corrupt answers. Failures
+  return as data — a blind witness is a finding, not an exception.
+* `plasma/drift.py` — baselines + deterministic scoring (canary_tripped 10,
+  sensor_down 10, admin_added 9, new_persistence 9, blind_drift 8,
+  new_service 8, new_task 7 ...).
+* `plasma/actuate.py` — allowlisted reversible actions, dry-run by default,
+  journal with undo payloads and verification, protected-target refusal,
+  management-preserving host isolation.
+
+Overlap with WHIDS is deliberate-free: WHIDS senses (detect-only) and
+correlates; Plasma observes, drifts and acts only on human instruction.
