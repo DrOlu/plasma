@@ -81,6 +81,22 @@ def test_extract_indicators_filters():
         assert ioc["criticality"] >= 8
 
 
+def test_normalize_v170_live_alert():
+    """Real WHIDS v1.7.0 alert (Event.GeneInfo, no Detection wrapper)."""
+    rows = [json.loads(ln) for ln in
+            open("tests/fixtures/whids_alerts_v170_live.jsonl", encoding="utf-8").read().splitlines()
+            if ln.strip()]
+    event = whids.normalize_alert(rows[0], host="WS2")
+    assert event is not None
+    assert event["source"] == "whids"
+    assert event["severity"] == "critical"       # GeneInfo.Criticality 9
+    assert event["event_id"] == 22               # Sysmon DnsQuery
+    assert event["dns_query"] == "plasma-drill.example.top"
+    assert event["pid"] == 5460
+    assert event["action"] == "logged"           # no Actions in v1.7.0 alerts
+    PlasmaEvent(**event)
+
+
 def test_detect_only_posture():
     """WHIDS ships neutered: no kill/blacklist/dump actions anywhere."""
     lines = [ln for ln in open("sensors/whids.toml", encoding="utf-8")

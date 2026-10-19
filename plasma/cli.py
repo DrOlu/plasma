@@ -515,9 +515,10 @@ def cmd_install(args) -> int:
             print(json.dumps({"ok": False, "stage": "current",
                               "error": f"{current} exists and is not a link"}, indent=2))
             return 4
+        # PS5.1's Remove-Item hangs non-interactively on reparse points;
+        # a junction is removed with its own single-purpose verb instead.
         subprocess.run(
-            ["powershell.exe", "-NoProfile", "-Command",
-             f"Remove-Item -LiteralPath '{current}' -Force"],
+            ["cmd.exe", "/c", "rmdir", str(current)],
             capture_output=True, text=True, timeout=20,
         )
     subprocess.run(

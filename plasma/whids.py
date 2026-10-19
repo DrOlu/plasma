@@ -134,7 +134,11 @@ def normalize_alert(alert: dict, host: str | None = None):
     """
     if not isinstance(alert, dict):
         return None
+    # WHIDS v1.7.0 nests match info under Event.GeneInfo; the later rewrite
+    # uses Event.Detection. Accept both — same Criticality/Signature keys.
     detection = _dig(alert, "Detection")
+    if not isinstance(detection, dict):
+        detection = _dig(alert, "GeneInfo")
     if not isinstance(detection, dict):
         return None
     signature = detection.get("Signature") or []
