@@ -82,6 +82,9 @@ def test_health_ok_when_minimal_mode(tmp_path, monkeypatch):
     (tmp_path / "config.json").write_text(json.dumps({
         "events_path": str(tmp_path / "e.jsonl"), "degraded": True,
         "sensors": {"whids": {"status": "skipped"}}}))
+    # pin the desk world: endpoint checks must not depend on the CI host's
+    # real services (Windows runners HAVE PowerShell and no Whids service)
+    monkeypatch.setattr(health, "IS_WINDOWS", False)
     monkeypatch.setattr(health, "_ps", lambda s, timeout=60: "")
     monkeypatch.setattr("plasma.cli._locate_tap_exe", lambda: None)
     v = health.verdict(tmp_path)
@@ -92,6 +95,7 @@ def test_health_degraded_on_sensor_gap(tmp_path, monkeypatch):
     (tmp_path / "config.json").write_text(json.dumps({
         "events_path": str(tmp_path / "e.jsonl"), "degraded": False,
         "sensors": {"whids": {"status": "active"}}}))
+    monkeypatch.setattr(health, "IS_WINDOWS", True)
     states = {"Whids": "Running"}
     monkeypatch.setattr(health, "_ps",
                         lambda s, timeout=60: next((v for k, v in states.items() if k in s), ""))
