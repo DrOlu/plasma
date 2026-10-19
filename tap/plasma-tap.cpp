@@ -191,8 +191,8 @@ void JsonEscape(const std::wstring& in, std::string& out) {
 
 std::string IsoFromFT(const LARGE_INTEGER& li) {
     FILETIME ft;
-    ft.QuadPart = li.QuadPart;  // same 8-byte layout, different union spelling
-    SYSTEMTIME st;
+    ft.dwLowDateTime = li.LowPart;      // same 8-byte layout, different union
+    ft.dwHighDateTime = li.HighPart;    // spelling across SDK headers
     SYSTEMTIME st;
     FileTimeToSystemTime(&ft, &st);
     char buf[40];
