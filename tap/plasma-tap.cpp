@@ -189,7 +189,10 @@ void JsonEscape(const std::wstring& in, std::string& out) {
     out.push_back('"');
 }
 
-std::string IsoFromFT(const FILETIME& ft) {
+std::string IsoFromFT(const LARGE_INTEGER& li) {
+    FILETIME ft;
+    ft.QuadPart = li.QuadPart;  // same 8-byte layout, different union spelling
+    SYSTEMTIME st;
     SYSTEMTIME st;
     FileTimeToSystemTime(&ft, &st);
     char buf[40];
@@ -310,8 +313,7 @@ int main(int argc, char** argv) {
         if (!GuidFromName(canonical, &g)) { unresolved.push_back(canonical); continue; }
         auto p = std::make_unique<krabs::provider<>>(g);
         p->any(KeywordsFor(canonical));
-        p->trace_level(krabs::trace_level::verbose);
-        p->add_callback([&](const EVENT_RECORD& record, const krabs::trace_context& ctx) {
+        p->add_on_event_callback([&](const EVENT_RECORD& record, const krabs::trace_context& ctx) {
             try {
                 stats.events++;
                 krabs::schema schema(record, ctx.schema_locator);

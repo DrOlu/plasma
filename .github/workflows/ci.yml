@@ -83,7 +83,7 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
       - name: Compile plasma-tap.exe
         shell: cmd
-        run: cl /nologo /std:c++17 /EHsc /O2 /W3 /I krabsetw-src\krabs tap\plasma-tap.cpp /Fe:plasma-tap.exe tdh.lib advapi32.lib
+        run: cl /nologo /std:c++17 /EHsc /O2 /W3 /DUNICODE /D_UNICODE /I krabsetw-src\krabs tap\plasma-tap.cpp /Fe:plasma-tap.exe tdh.lib advapi32.lib
       - name: Render rules + selftest (no trace needed)
         shell: bash
         run: |
@@ -139,7 +139,7 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/microsoft/krabsetw krabsetw-src
           mkdir sensors\tap
-          cl /nologo /std:c++17 /EHsc /O2 /W3 /I krabsetw-src\krabs tap\plasma-tap.cpp /Fe:sensors\tap\plasma-tap.exe tdh.lib advapi32.lib
+          cl /nologo /std:c++17 /EHsc /O2 /W3 /DUNICODE /D_UNICODE /I krabsetw-src\krabs tap\plasma-tap.cpp /Fe:sensors\tap\plasma-tap.exe tdh.lib advapi32.lib
       - name: Build single self-contained exe
         run: python tools/build_embedded_windows.py --engine-dir engines/windows-x86_64 --whids-payload sensors/whids --tap-payload sensors/tap --dist dist --name plasma
       - name: Smoke test the embedded executable

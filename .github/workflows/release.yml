@@ -56,7 +56,7 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/microsoft/krabsetw krabsetw-src
           mkdir sensors\tap
-          cl /nologo /std:c++17 /EHsc /O2 /W3 /I krabsetw-src\krabs tap\plasma-tap.cpp /Fe:sensors\tap\plasma-tap.exe tdh.lib advapi32.lib
+          cl /nologo /std:c++17 /EHsc /O2 /W3 /DUNICODE /D_UNICODE /I krabsetw-src\krabs tap\plasma-tap.cpp /Fe:sensors\tap\plasma-tap.exe tdh.lib advapi32.lib
       - name: Resolve version
         id: version
         shell: bash
