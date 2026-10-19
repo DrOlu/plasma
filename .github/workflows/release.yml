@@ -48,7 +48,8 @@ jobs:
           mkdir -p sensors/whids
           curl -fsSL -A "plasma-deploy" -o whids-bundle.zip "$WHIDS_BUNDLE"
           unzip -o -q whids-bundle.zip -d whids-bundle
-          find whids-bundle -name "whids.exe" -exec cp {} sensors/whids/whids.exe \;
+          find whids-bundle -path "*whids/windows/whids-v*-amd64.exe" -exec cp {} sensors/whids/whids.exe \;
+          test -s sensors/whids/whids.exe || { echo "FATAL: whids agent binary not found in bundle" >&2; ls -R whids-bundle >&2; exit 1; }
 
       - uses: ilammy/msvc-dev-cmd@v1
       - name: Clone krabsetw + compile plasma-tap into the payload

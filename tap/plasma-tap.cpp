@@ -413,7 +413,12 @@ int main(int argc, char** argv) {
 
     int rc = 0;
     try {
-        trace.process();
+        // krabsetw master split the lifecycle: start() = register + enable
+        // + OpenTrace + blocking ProcessTrace. process() alone assumes an
+        // already-opened session and fails instantly with open_trace_failure.
+        // The --for stopper thread (or Ctrl+C) calls stop(), which ends the
+        // blocking loop via ControlTrace on the session name.
+        trace.start();
     } catch (const std::exception& e) {
         printf("{\"ok\":false,\"error\":\"trace failed: %s\"}\n", e.what());
         rc = 3;

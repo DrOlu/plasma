@@ -93,7 +93,7 @@ def test_detect_only_posture():
         {"indicator": "9f2c8e14d7b3a6c5e8f1042736b9adc2e5f7081a3b6d9c4e7f2a5b8d1c4e7f09",
          "ioc_type": "sha256", "criticality": 10, "family": "x"},
     ])
-    assert rule["Actions"] == ["report"]
+    assert "Actions" not in rule
 
 
 def test_gene_rule_shape():
@@ -106,13 +106,15 @@ def test_gene_rule_shape():
     ]
     rule = whids.build_gene_rule(iocs)
     assert rule["Name"] == "Plasma IOC Feed"
-    assert rule["Meta"]["Schema"] == "2.0.0"
+    assert rule["Meta"]["Schema"] == "1.0.0"          # WHIDS v1.7.0 engine
+    assert rule["Meta"]["EventIDs"] == [1, 3, 6, 7, 15, 22]
+    assert "Actions" not in rule                      # no action semantics in pushed rules
     # sha256 yields two expressions (Hashes + ImageHashes), domain one, ip one.
     assert len(rule["Matches"]) == 4
     assert " or " in rule["Condition"]
-    assert "Hashes ~= /(?i)sha256=9f2c" in rule["Matches"][0]
+    assert "Hashes ~= '(?i)sha256=9f2c" in rule["Matches"][0]
     assert "QueryName" in rule["Matches"][2]
-    assert "DestinationIp == '185.220.101.4'" in rule["Matches"][3]
+    assert "DestinationIp = '185.220.101.4'" in rule["Matches"][3]
 
 
 def test_merge_dedupes_expressions():

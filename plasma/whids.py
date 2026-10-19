@@ -383,7 +383,15 @@ def extract_indicators(rows, min_confidence: int = DEFAULT_MIN_CONFIDENCE) -> li
 
 
 def build_gene_rule(indicators: list[dict]) -> dict:
-    """Build a gene schema-2.0.0 rule from Plasma indicators."""
+    """Build a gene schema-1.0.0 rule from Plasma indicators.
+
+    Schema 1.0.0 is what WHIDS v1.7.0's engine (gene v1.6.10) compiles:
+    Meta.EventIDs (list, not the 2.0 Events{channel: ids} map), equality
+    via a single '=', regex via '~=' with /.../ delimiters and single-quoted
+    regex bodies. Field names are bare Sysmon fields (gene prepends
+    EventData). Rules carry no action semantics: v1.7.0 has no action
+    system, and later schemas must never auto-arm one from a pushed IOC.
+    """
     matches, conditions = [], []
     index = 0
 
@@ -397,13 +405,13 @@ def build_gene_rule(indicators: list[dict]) -> dict:
     for ioc in indicators:
         value = ioc["indicator"]
         if ioc["ioc_type"] == "sha256":
-            add(f"Hashes ~= /(?i)sha256={value}/")
-            add(f"ImageHashes ~= /(?i)sha256={value}/")
+            add(f"Hashes ~= '(?i)sha256={value}'")
+            add(f"ImageHashes ~= '(?i)sha256={value}'")
         elif ioc["ioc_type"] == "domain":
             escaped = value.replace(".", r"\.")
-            add(f"QueryName ~= /(?i)^{escaped}$/")
+            add(f"QueryName ~= '(?i)^{escaped}$'")
         else:
-            add(f"DestinationIp == '{value}'")
+            add(f"DestinationIp = '{value}'")
 
     tags = ["Plasma", "IOC"]
     techniques = sorted({i["family"] for i in indicators
@@ -413,14 +421,14 @@ def build_gene_rule(indicators: list[dict]) -> dict:
     return {
         "Name": "Plasma IOC Feed",
         "Tags": tags,
-        "Actions": ["report"],
         "Meta": {
-            "Events": {"Microsoft-Windows-Sysmon/Operational": [1, 3, 6, 7, 15, 22]},
+            "EventIDs": [1, 3, 6, 7, 15, 22],
+            "Channels": ["Microsoft-Windows-Sysmon/Operational"],
             "Computers": [],
             "Criticality": 9,
             "Author": "Plasma",
             "Comment": "Indicators pushed by 'plasma whids push'. Regenerated on every apply.",
-            "Schema": "2.0.0",
+            "Schema": "1.0.0",
         },
         "Matches": matches,
         "Condition": " or ".join(conditions),

@@ -1,5 +1,9 @@
 # Plasma-managed WHIDS configuration
-# Installed to C:\Program Files\Whids\whids.toml by the Plasma installer.
+# The installer deploys this as C:\Program Files\Whids\config.toml — the
+# default config path for WHIDS v1.7.0 (which ships no -install verb and is
+# registered with the SCM directly). v1.7.0 has NO response-action system:
+# the [actions] block below is inert at this tag and documents Plasma's
+# intent for any future WHIDS line that grows one.
 
 # Windows log channels to listen to ("all" = every channel Sysmon provides).
 channels = ["all"]

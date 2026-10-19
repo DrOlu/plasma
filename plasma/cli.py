@@ -451,7 +451,10 @@ def cmd_install(args) -> int:
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
 
-    # 3. WHIDS (materialize, configure, install service, fail closed).
+    # 3. WHIDS (materialize, configure, register service, fail closed).
+    # v1.7.0 has no `-install` verb: the agent is service-less by design and
+    # its default config path is `<dir>\config.toml`. Registration goes
+    # through the SCM (New-Service) with failure-restart recovery.
     if whids_planned:
         install_dir = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Whids"
         install_dir.mkdir(parents=True, exist_ok=True)
@@ -462,26 +465,34 @@ def cmd_install(args) -> int:
             src = whids_dir / name
             if src.exists():
                 shutil.copy2(src, install_dir / name)
+        # v1.7.0 loads config.toml next to the binary
+        if (install_dir / "whids.toml").exists():
+            shutil.copy2(install_dir / "whids.toml", install_dir / "config.toml")
         rules_db = install_dir / "Database" / "Rules"
         rules_db.mkdir(parents=True, exist_ok=True)
         if (whids_dir / "plasma-iocs.gen").exists():
             shutil.copy2(whids_dir / "plasma-iocs.gen",
                          rules_db / "plasma-iocs.gen")
-        try:
-            setup_proc = subprocess.run(
-                [str(exe), "-install"],
-                capture_output=True, text=True, timeout=300,
-            )
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            print(json.dumps({"ok": False, "stage": "whids_install", "error": str(exc)[:300]}, indent=2))
-            return 3
-        if setup_proc.returncode != 0:
-            print(json.dumps({
-                "ok": False, "stage": "whids_install",
-                "error": f"whids -install exited {setup_proc.returncode}",
-                "stderr": (setup_proc.stderr or "")[:300],
-            }, indent=2))
-            return 3
+        bin_path = f'"{exe}" -c "{install_dir}\\config.toml"'
+        if not _service_present("Whids*"):
+            try:
+                setup_proc = subprocess.run(
+                    ["powershell.exe", "-NoProfile", "-Command",
+                     f"New-Service -Name Whids -BinaryPathName '{bin_path}' "
+                     f"-DisplayName 'WHIDS (Plasma sensor)' -StartupType Automatic | Out-Null; "
+                     f"sc.exe failure Whids reset= 9999 actions= restart/5000 | Out-Null"],
+                    capture_output=True, text=True, timeout=120,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                print(json.dumps({"ok": False, "stage": "whids_install", "error": str(exc)[:300]}, indent=2))
+                return 3
+            if setup_proc.returncode != 0 or _service_present("Whids*") is False:
+                print(json.dumps({
+                    "ok": False, "stage": "whids_install",
+                    "error": "New-Service registration failed",
+                    "stderr": (setup_proc.stderr or setup_proc.stdout or "")[:300],
+                }, indent=2))
+                return 3
         deadline = __import__("time").time() + 60
         while not _service_present("Whids*") and __import__("time").time() < deadline:
             __import__("time").sleep(2)
