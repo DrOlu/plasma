@@ -96,7 +96,9 @@ def test_health_degraded_on_sensor_gap(tmp_path, monkeypatch):
         "events_path": str(tmp_path / "e.jsonl"), "degraded": False,
         "sensors": {"whids": {"status": "active"}}}))
     monkeypatch.setattr(health, "IS_WINDOWS", True)
-    states = {"Whids": "Running"}
+    # Sysmon64 first: the mock matches by substring, and health falls back to
+    # probing "Sysmon" when "Sysmon64" is absent — both must answer Running
+    states = {"Whids": "Running", "Sysmon64": "Running", "Sysmon": "Running"}
     monkeypatch.setattr(health, "_ps",
                         lambda s, timeout=60: next((v for k, v in states.items() if k in s), ""))
 
