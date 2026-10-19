@@ -28,7 +28,7 @@ INSTANCE_FILES = [
 ]
 
 PACKAGING_FILES = ["install.ps1", "verify.ps1", "config.example.json"]
-SENSOR_FILES = ["sentinel.pin.json", "sysmon-config.xml", "sealighter.pin.json"]
+SENSOR_FILES = ["whids.pin.json", "whids.toml", "plasma-iocs.gen", "sealighter.pin.json"]
 DOC_FILES = ["ARCHITECTURE.md", "DEPLOYMENT.md", "SECURITY.md"]
 
 
@@ -55,6 +55,7 @@ def build_bundle(
     engines_dir: str | Path | None = None,
     platforms: list[str] | None = None,
     sentinel_payload: str | Path | None = None,
+    whids_payload: str | Path | None = None,
     binaries: list[str | Path] | None = None,
     make_zip: bool = True,
     strict: bool = True,
@@ -85,12 +86,12 @@ def build_bundle(
     take(repo / "README.md", "README.md")
     take(repo / "LICENSE", "LICENSE")
 
-    # Sentinel payload (MIT): setup EXE + LICENSE + published checksums.
+    # WHIDS payload (AGPL-3.0): whids.exe + LICENSE, dropped in sensors/whids/.
     payload_files = 0
-    if sentinel_payload and Path(sentinel_payload).is_dir():
-        for child in sorted(Path(sentinel_payload).iterdir()):
+    if whids_payload and Path(whids_payload).is_dir():
+        for child in sorted(Path(whids_payload).iterdir()):
             if child.is_file():
-                _copy(child, stage / "sensors" / "sentinel" / child.name)
+                _copy(child, stage / "sensors" / "whids" / child.name)
                 payload_files += 1
 
     # Plasma standalone executables (plasma / plasma.exe), per platform.
@@ -147,7 +148,7 @@ def build_bundle(
         "files": len(manifest["files"]),
         "probes": probes,
         "engine_platforms": engine_platforms,
-        "sentinel_payload_files": payload_files,
+        "whids_payload_files": payload_files,
         "binaries": binary_names,
         "missing": missing,
     }

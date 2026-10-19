@@ -2,11 +2,11 @@
 
 ```
 ┌─ SENSOR LAYER ──────────────────────────────────────────────┐
-│ Sentinel service (required)                                 │
-│   - 10 ETW providers, behavioral rules, weighted correlation│
-│   - offline ML scoring, ATT&CK mapping                      │
-│   - deterministic Tier-1 response (process-tree kill)       │
-│ Sysmon (optional)     kernel-level telemetry baseline       │
+│ WHIDS agent (required)                                      │
+│   - Sysmon/ETW telemetry, gene detection rules              │
+│   - artifact collection driven by detection, ATT&CK mapping │
+│   - response actions (kill/dump/quarantine) via its rules   │
+│ Sysmon (required)     kernel telemetry WHIDS depends on     │
 │ Sealighter (optional) on-demand ETW/WPP deep traces         │
 └──────────────────────────┬──────────────────────────────────┘
                            ▼ normalize
@@ -28,7 +28,7 @@
 └──────────────────────────┬──────────────────────────────────┘
                            ▼ advisory output
 ┌─ RESPONSE BOUNDARY ─────────────────────────────────────────┐
-│ Deterministic policy (Sentinel Tier-1) may act.             │
+│ Deterministic WHIDS rules may act (kill/dump/quarantine).   │
 │ Model output is advisory; any model-suggested action is     │
 │ human-approved. The model cannot kill, block or isolate.    │
 └─────────────────────────────────────────────────────────────┘
@@ -46,15 +46,15 @@ only per-host data.
 ```
 instance/          frozen neuralOS artifact
 packaging/         install.ps1, verify.ps1, config.example.json
-sensors/           pins + SentinelSetup-3.3.1.exe + LICENSE + SHA256SUMS
+sensors/           pins + whids payload + whids.toml + plasma-iocs.gen
 engines/<platform>/  needle binary + needle3.cact + library/header
 bin/               Plasma one-file executable (linux/windows/macos)
 manifest.json      SHA256 of every file + sensor requirements
 ```
 
-The Sentinel payload is MIT-licensed, checksum-verified at build and install
-time, and executed silently by the installer. Sysmon is never redistributed;
-Sealighter is on-demand only.
+The WHIDS payload is AGPL-3.0-licensed, covered by the bundle manifest, and
+installed by the installer as a service. Sysmon is installed from the official
+package (never redistributed); Sealighter is on-demand only.
 
 ## Runtimes
 

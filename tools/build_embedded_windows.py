@@ -8,7 +8,7 @@ Run on a Windows machine/runner (PyInstaller does not cross-compile):
 
     python tools/build_embedded_windows.py \
         --engine-dir engines/windows-x86_64 \
-        --sentinel-payload sensors/sentinel
+        --whids-payload sensors/whids
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ INSTANCE_FILES = [
     "models.py", "needle_menu.json", "graph_edges.json", "graph_bridge.py",
     "bridge.py", "bridge.ps1", "README.md", "golden.json", "verification.txt",
 ]
-SENSOR_ROOT_FILES = ["sentinel.pin.json", "sealighter.pin.json", "sysmon-config.xml"]
+SENSOR_ROOT_FILES = ["whids.pin.json", "whids.toml", "plasma-iocs.gen", "sealighter.pin.json"]
 
 
 def gzip_file(src: Path, dst: Path):
@@ -60,12 +60,12 @@ def copy_engine(engine_dir: Path, dest: Path, platform: str):
             shutil.copy2(src, dest / optional)
 
 
-def assemble(engine_dir: Path, sentinel_payload: Path | None, out: Path, platform: str) -> dict:
+def assemble(engine_dir: Path, whids_payload: Path | None, out: Path, platform: str) -> dict:
     if out.exists():
         shutil.rmtree(out)
     (out / "instance").mkdir(parents=True)
     (out / "engines" / platform).mkdir(parents=True)
-    (out / "sensors" / "sentinel").mkdir(parents=True)
+    (out / "sensors" / "whids").mkdir(parents=True)
 
     missing = []
     for name in INSTANCE_FILES:
@@ -83,13 +83,13 @@ def assemble(engine_dir: Path, sentinel_payload: Path | None, out: Path, platfor
     copy_engine(engine_dir, out / "engines" / platform, platform)
 
     payload_files = 0
-    if sentinel_payload and sentinel_payload.is_dir():
-        for child in sorted(sentinel_payload.iterdir()):
+    if whids_payload and whids_payload.is_dir():
+        for child in sorted(whids_payload.iterdir()):
             if child.is_file():
                 if child.suffix.lower() == ".exe":
-                    gzip_file(child, out / "sensors" / "sentinel" / (child.name + ".gz"))
+                    gzip_file(child, out / "sensors" / "whids" / (child.name + ".gz"))
                 else:
-                    shutil.copy2(child, out / "sensors" / "sentinel" / child.name)
+                    shutil.copy2(child, out / "sensors" / "whids" / child.name)
                 payload_files += 1
 
     probes = len(json.loads((out / "instance" / "needle_menu.json").read_text(encoding="utf-8")))
@@ -100,7 +100,7 @@ def assemble(engine_dir: Path, sentinel_payload: Path | None, out: Path, platfor
         "missing": missing,
         "files": manifest["file_count"],
         "probes": probes,
-        "sentinel_payload_files": payload_files,
+        "whids_payload_files": payload_files,
         "platform": platform,
     }
 
@@ -127,7 +127,7 @@ def build(out: Path, dist: Path, name: str) -> Path:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--engine-dir", default="engines/windows-x86_64")
-    ap.add_argument("--sentinel-payload", default="sensors/sentinel")
+    ap.add_argument("--whids-payload", default="sensors/whids")
     ap.add_argument("--platform", default="windows-x86_64")
     ap.add_argument("--out", default="build/embedded")
     ap.add_argument("--dist", default="dist")
@@ -138,7 +138,7 @@ def main() -> int:
     out = (ROOT / a.out).resolve()
     dist = (ROOT / a.dist).resolve()
     engine_dir = (ROOT / a.engine_dir).resolve()
-    payload = (ROOT / a.sentinel_payload).resolve()
+    payload = (ROOT / a.whids_payload).resolve()
 
     info = assemble(engine_dir, payload if payload.is_dir() else None, out, a.platform)
     if info["missing"]:
@@ -156,7 +156,7 @@ def main() -> int:
         "embedded_files": info["files"],
         "probes": info["probes"],
         "platform": info["platform"],
-        "sentinel_payload_files": info["sentinel_payload_files"],
+        "whids_payload_files": info["whids_payload_files"],
     }, indent=2))
     return 0
 

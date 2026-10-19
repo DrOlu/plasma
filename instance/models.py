@@ -14,6 +14,7 @@ failure is counted into _VALIDATION, never silently accepted.
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any, Literal, Optional
 
@@ -29,9 +30,12 @@ DT_FORMATS = [
 def _parse_dt(value: Any) -> Any:
     if isinstance(value, datetime) or not isinstance(value, str):
         return value
+    text = value.strip()
+    # Windows/ETW timestamps carry 7-digit fractional seconds; trim to 6.
+    text = re.sub(r"(\.\d{6})\d+", r"\1", text)
     for fmt in DT_FORMATS:
         try:
-            return datetime.strptime(value.strip(), fmt)
+            return datetime.strptime(text, fmt)
         except ValueError:
             continue
     raise ValueError(f"unrecognized datetime spelling: {value!r}")
@@ -46,7 +50,7 @@ class PlasmaEvent(BaseModel):
 
     ts: datetime
     host: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$")
-    source: Literal["sentinel", "sysmon", "sealighter", "plasma"]
+    source: Literal["sentinel", "sysmon", "sealighter", "whids", "plasma"]
     kind: Literal[
         "alert", "auth", "dns", "file", "image_load",
         "network", "process", "registry",

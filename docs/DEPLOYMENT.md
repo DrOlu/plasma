@@ -1,15 +1,13 @@
 # Deploying Plasma
 
-## 0. Fetch the Sentinel payload (MIT)
+## 0. Fetch the WHIDS payload (AGPL-3.0)
 
 ```bash
-mkdir -p sensors/sentinel
-BASE=https://github.com/psihijatrija/Sentinel/releases/download/v3.3.1
-curl -fsSL -o sensors/sentinel/SentinelSetup-3.3.1.exe "$BASE/SentinelSetup-3.3.1.exe"
-curl -fsSL -o sensors/sentinel/SHA256SUMS.txt "$BASE/SHA256SUMS.txt"
-curl -fsSL -o sensors/sentinel/LICENSE \
-  https://raw.githubusercontent.com/psihijatrija/Sentinel/v3.3.1/LICENSE
-(cd sensors/sentinel && shasum -a 256 -c <(grep SentinelSetup SHA256SUMS.txt))
+mkdir -p sensors/whids
+curl -fsSL -A "plasma-deploy" -o whids-bundle.zip \
+  https://github.com/0xrawsec/whids/releases/download/v1.7.0/whids-v1.7.0-release-bundle.zip
+unzip -o -q whids-bundle.zip -d whids-bundle
+find whids-bundle -name "whids.exe" -exec cp {} sensors/whids/whids.exe \;
 ```
 
 The pin in `sensors/sentinel.pin.json` records the expected SHA256; the
@@ -40,7 +38,7 @@ python tools/build_embedded_windows.py `
 ```
 
 Result: `dist/plasma.exe` (~57 MB) containing the Python runtime, Pydantic, the
-frozen instance, the Windows engine + weights, and the Sentinel payload.
+frozen instance, the Windows engine + weights, and the WHIDS payload.
 
 ```powershell
 .\plasma.exe status --events C:\ProgramData\Plasma\data\events.jsonl
@@ -49,7 +47,7 @@ frozen instance, the Windows engine + weights, and the Sentinel payload.
 .\plasma.exe install
 ```
 
-Native executables are embedded gzipped (`needle.gz`, `SentinelSetup-*.exe.gz`)
+Native executables are embedded gzipped (`needle.gz`, `whids.exe.gz`)
 and materialized to a temp directory at runtime; this keeps the embedded
 SHA256 manifest valid even though PyInstaller rewrites native binaries.
 
@@ -78,7 +76,7 @@ The verifier checks every listed hash and rejects missing or extra files.
 # Plan first — writes nothing
 .\packaging\install.ps1 -Bundle .\dist\plasma-0.1.0 -DryRun
 
-# Apply — verifies hashes, checks Sentinel, stages the version, flips `current`
+# Apply — verifies hashes, checks WHIDS, stages the version, flips `current`
 .\packaging\install.ps1 -Bundle .\dist\plasma-0.1.0 `
   -EventsPath C:\ProgramData\Plasma\data\events.jsonl
 ```
@@ -86,10 +84,10 @@ The verifier checks every listed hash and rejects missing or extra files.
 Behaviour:
 
 * integrity failure → exit 2, nothing written;
-* Sentinel service missing and a verified payload is present → the installer
-  runs `SentinelSetup-3.3.1.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`,
-  waits up to 30s for the service, and fails closed (exit 3) if it never appears;
-* `-SkipSentinelInstall` leaves sensor installation to the site;
+* WHIDS service missing and a verified payload is present → the installer
+  deploys `whids.exe`, runs `whids -install`, and waits for the `Whids`
+  service (fail closed, exit 3);
+* `-SkipWhidsInstall` leaves sensor installation to the site;
 * required sensor still missing → exit 3 (use `-SkipSensorCheck` only in a lab);
 * existing target without `-Force` → exit 4;
 * versioned install at `C:\ProgramData\Plasma\instances\plasma-<version>`;
@@ -114,29 +112,29 @@ $env:PLASMA_MODEL  = 'C:\ProgramData\Plasma\current\engines\windows-x86_64\needl
 plasma ask --bundle C:\ProgramData\Plasma\current --prompt "what happened on WS1?"
 ```
 
-## 6. Wire Sentinel intelligence (two-way)
+## 6. Wire WHIDS intelligence (two-way)
 
 ```powershell
-# Detections -> Plasma
-plasma.exe sentinel pull --sentinel-root C:\ProgramData\Sentinel `
+# Alerts -> Plasma
+plasma.exe whids pull --root "C:\Program Files\Whids" `
   --out C:\ProgramData\Plasma\data\events.jsonl
 
-# Plasma indicators -> Sentinel local IOC bundle
-plasma.exe sentinel push --events C:\ProgramData\Plasma\data\events.jsonl --min-confidence 85
-plasma.exe sentinel push --events C:\ProgramData\Plasma\data\events.jsonl --min-confidence 85 `
+# Plasma indicators -> WHIDS gene rule
+plasma.exe whids push --events C:\ProgramData\Plasma\data\events.jsonl --min-confidence 8
+plasma.exe whids push --events C:\ProgramData\Plasma\data\events.jsonl --min-confidence 8 `
   --apply --reason "IR-2026-042" --restart-service
 
-plasma.exe sentinel status
+plasma.exe whids status
 ```
 
 Push behaviour:
 
 * dry-run unless `--apply`;
 * excludes RFC1918/loopback/link-local/reserved IPs and benign domains;
-* merges with the existing bundle, preferring higher confidence, cap `--max-iocs`;
-* writes a timestamped backup and appends to `sentinel-intel-journal.jsonl`;
-* restarts the Sentinel service only with `--restart-service`;
-* never writes vendor-signed rule packs.
+* merges gene expressions with the existing rule, cap `--max-indicators`;
+* writes a timestamped backup and appends to `whids-intel-journal.jsonl`;
+* restarts the WHIDS service only with `--restart-service`;
+* WHIDS owns response actions — Plasma stays advisory.
 
 ## 7. Fleet updates
 

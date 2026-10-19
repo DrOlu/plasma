@@ -21,8 +21,9 @@ EXCLUDE_SUFFIXES = {".pyc", ".pyo", ".zip", ".msi", ".DS_Store"}
 EXCLUDE_FILES = {MANIFEST_NAME}
 
 SENSOR_REQUIREMENTS = {
-    "sentinel": {"required": True, "min_version": "3.3.0", "install": "service"},
-    "sysmon": {"required": False, "install": "official-package"},
+    "whids": {"required": True, "min_version": "1.7.0", "install": "service"},
+    "sysmon": {"required": True, "install": "official-package",
+               "notes": "WHIDS depends on Sysmon for kernel telemetry"},
     "sealighter": {"required": False, "mode": "on-demand"},
 }
 

@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, sentinel
+from . import __version__, whids
 from .bundle import build_bundle
 from .manifest import create_manifest, sha256_file, verify_manifest
 
@@ -200,7 +200,7 @@ def cmd_bundle(args) -> int:
     platforms = args.platform or None
     result = build_bundle(
         args.out, args.version, engines_dir=args.engines,
-        platforms=platforms, sentinel_payload=args.sentinel_payload,
+        platforms=platforms, whids_payload=args.whids_payload,
         binaries=args.binary, make_zip=not args.no_zip,
     )
     print(json.dumps(result, indent=2))
@@ -307,12 +307,12 @@ def cmd_status(args) -> int:
     return 0 if result.get("ok") else 2
 
 
-def _windows_service_present() -> bool:
+def _service_present(pattern: str) -> bool:
     try:
         proc = subprocess.run(
             ["powershell.exe", "-NoProfile", "-Command",
-             "Get-Service | Where-Object { $_.Name -like 'Sentinel*' -or "
-             "$_.DisplayName -like '*Sentinel*' } | Select-Object -First 1 "
+             "Get-Service | Where-Object { $_.Name -like '" + pattern + "' -or "
+             "$_.DisplayName -like '" + pattern + "' } | Select-Object -First 1 "
              "-ExpandProperty Name"],
             capture_output=True, text=True, timeout=20,
         )
@@ -360,15 +360,14 @@ def cmd_install(args) -> int:
     config_path = root / "config.json"
     events_path = Path(args.events) if args.events else root / "data" / "events.jsonl"
 
-    sentinel_present = _windows_service_present()
-    sentinel_dir = embedded / "sensors" / "sentinel"
-    sentinel_setup = sentinel_dir / "SentinelSetup-3.3.1.exe"
-    sentinel_gz = sentinel_dir / "SentinelSetup-3.3.1.exe.gz"
-    pin_path = embedded / "sensors" / "sentinel.pin.json"
-    sentinel_planned = (
-        not sentinel_present and not args.skip_sentinel
-        and (sentinel_setup.exists() or sentinel_gz.exists())
+    whids_present = _service_present("Whids*")
+    sysmon_present = _service_present("Sysmon*")
+    whids_dir = embedded / "sensors" / "whids"
+    whids_gz = whids_dir / "whids.exe.gz"
+    whids_planned = (
+        not whids_present and not args.skip_whids and whids_gz.exists()
     )
+    sysmon_missing_fatal = not sysmon_present and not whids_present and not args.skip_whids
 
     plan = {
         "ok": True,
@@ -380,15 +379,16 @@ def cmd_install(args) -> int:
         "config": str(config_path),
         "events_path": str(events_path),
         "files_verified": verification["checked"],
-        "sentinel_present": sentinel_present,
-        "sentinel_will_install": bool(sentinel_planned),
+        "whids_present": whids_present,
+        "sysmon_present": sysmon_present,
+        "whids_will_install": bool(whids_planned),
         "actions": [
             f"create {target}",
             "extract embedded instance + engines",
             f"copy {Path(sys.executable).name} to {root / 'bin'}",
             f"write {config_path}",
             f"point {current} -> {target}",
-        ] + ([f"install Sentinel {version} silently from embedded payload"] if sentinel_planned else []),
+        ] + ([f"install WHIDS from embedded payload (service '{whids.SERVICE_NAME}')"] if whids_planned else []),
     }
     if args.dry_run:
         print(json.dumps(plan, indent=2))
@@ -417,48 +417,60 @@ def cmd_install(args) -> int:
         "retention_days": 7,
         "response": {"mode": "advisory", "require_human_approval": True},
         "sensors": {
-            "sentinel": {"required": True, "min_version": "3.3.1"},
-            "sysmon": {"required": False},
+            "whids": {"required": True, "min_version": "1.7.0"},
+            "sysmon": {"required": True},
             "sealighter": {"required": False, "mode": "on-demand"},
         },
     }
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
 
-    # 3. Sentinel (silent, hash-verified, fail closed).
-    if sentinel_planned:
-        pin = json.loads(pin_path.read_text(encoding="utf-8"))
-        setup_path = sentinel_setup
-        if not setup_path.exists() and sentinel_gz.exists():
-            setup_path = _materialize_gzip(sentinel_gz, sentinel_setup.name)
-        actual = sha256_file(setup_path)
-        expected = pin["payload"]["sha256"].lower()
-        if actual != expected:
-            print(json.dumps({"ok": False, "stage": "sentinel_payload",
-                              "error": "hash mismatch", "expected": expected, "actual": actual}, indent=2))
-            return 2
+    # 3. WHIDS (materialize, configure, install service, fail closed).
+    if whids_planned:
+        install_dir = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Whids"
+        install_dir.mkdir(parents=True, exist_ok=True)
+        exe = install_dir / "whids.exe"
+        whids_exe_gz = _materialize_gzip(whids_gz, "whids.exe")
+        shutil.copy2(whids_exe_gz, exe)
+        for name in ("whids.toml", "plasma-iocs.gen", "LICENSE"):
+            src = whids_dir / name
+            if src.exists():
+                shutil.copy2(src, install_dir / name)
+        rules_db = install_dir / "Database" / "Rules"
+        rules_db.mkdir(parents=True, exist_ok=True)
+        if (whids_dir / "plasma-iocs.gen").exists():
+            shutil.copy2(whids_dir / "plasma-iocs.gen",
+                         rules_db / "plasma-iocs.gen")
         try:
             setup_proc = subprocess.run(
-                [str(setup_path), *pin["payload"]["silent_args"]],
-                capture_output=True, text=True, timeout=600,
+                [str(exe), "-install"],
+                capture_output=True, text=True, timeout=300,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
-            print(json.dumps({"ok": False, "stage": "sentinel_install", "error": str(exc)[:300]}, indent=2))
+            print(json.dumps({"ok": False, "stage": "whids_install", "error": str(exc)[:300]}, indent=2))
             return 3
         if setup_proc.returncode != 0:
             print(json.dumps({
-                "ok": False, "stage": "sentinel_install",
-                "error": f"Sentinel setup exited {setup_proc.returncode}",
+                "ok": False, "stage": "whids_install",
+                "error": f"whids -install exited {setup_proc.returncode}",
                 "stderr": (setup_proc.stderr or "")[:300],
             }, indent=2))
             return 3
         deadline = __import__("time").time() + 60
-        while not _windows_service_present() and __import__("time").time() < deadline:
+        while not _service_present("Whids*") and __import__("time").time() < deadline:
             __import__("time").sleep(2)
-        if not _windows_service_present():
-            print(json.dumps({"ok": False, "stage": "sentinel_install",
-                              "error": "Sentinel service did not appear within 60s"}, indent=2))
+        if not _service_present("Whids*"):
+            print(json.dumps({"ok": False, "stage": "whids_install",
+                              "error": "WHIDS service did not appear within 60s"}, indent=2))
             return 3
+        try:
+            subprocess.run(
+                ["powershell.exe", "-NoProfile", "-Command",
+                 "Start-Service -Name 'Whids' -ErrorAction Stop"],
+                capture_output=True, text=True, timeout=60,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
 
     # 4. Flip current (only replace an existing link).
     if current.exists() or current.is_symlink():
@@ -482,30 +494,30 @@ def cmd_install(args) -> int:
         "installed": str(target),
         "current": str(current),
         "config": str(config_path),
-        "sentinel_installed": sentinel_planned or sentinel_present,
+        "whids_installed": whids_planned or whids_present,
         "files_verified": verification["checked"],
     }, indent=2))
     return 0
 
 
-def cmd_sentinel_pull(args) -> int:
-    result = sentinel.pull(args.sentinel_root, args.out, args.host)
+def cmd_whids_pull(args) -> int:
+    result = whids.pull(args.root, args.out, args.host)
     print(json.dumps(result, indent=2))
     return 0 if "error" not in result else 1
 
 
-def cmd_sentinel_push(args) -> int:
-    result = sentinel.push(
-        events_path=args.events, sentinel_root=args.sentinel_root,
-        min_confidence=args.min_confidence, max_iocs=args.max_iocs,
+def cmd_whids_push(args) -> int:
+    result = whids.push(
+        events_path=args.events, root=args.root,
+        min_confidence=args.min_confidence, max_indicators=args.max_indicators,
         apply=args.apply, restart_service=args.restart_service, reason=args.reason,
     )
     print(json.dumps(result, indent=2, default=str))
     return 0 if "error" not in result else 1
 
 
-def cmd_sentinel_status(args) -> int:
-    print(json.dumps(sentinel.status(args.sentinel_root, args.events), indent=2))
+def cmd_whids_status(args) -> int:
+    print(json.dumps(whids.status(args.root, args.events), indent=2))
     return 0
 
 
@@ -554,8 +566,8 @@ def build_parser() -> argparse.ArgumentParser:
     bb.add_argument("--version", default=__version__)
     bb.add_argument("--engines", default=None, help="directory of <platform>/ engine bundles")
     bb.add_argument("--platform", action="append", default=None)
-    bb.add_argument("--sentinel-payload", default=None,
-                    help="directory with the Sentinel setup EXE, LICENSE and SHA256SUMS")
+    bb.add_argument("--whids-payload", default=None,
+                    help="directory with the WHIDS payload (whids.exe, LICENSE)")
     bb.add_argument("--binary", action="append", default=None,
                     help="Plasma executable to include under bin/ (repeatable)")
     bb.add_argument("--no-zip", action="store_true")
@@ -586,33 +598,35 @@ def build_parser() -> argparse.ArgumentParser:
     ins.add_argument("--root", default=None, help="install root (default: C:\\ProgramData\\Plasma)")
     ins.add_argument("--events", default=None, help="event store path")
     ins.add_argument("--dry-run", action="store_true")
-    ins.add_argument("--skip-sentinel", action="store_true")
+    ins.add_argument("--skip-whids", action="store_true")
+    ins.add_argument("--skip-sysmon-check", action="store_true")
     ins.add_argument("--force", action="store_true")
     ins.set_defaults(func=cmd_install)
 
-    sn = sub.add_parser("sentinel", help="Sentinel integration: pull detections, push IOC intelligence")
-    sns = sn.add_subparsers(dest="sentinel_action", required=True)
+    sn = sub.add_parser("whids", help="WHIDS integration: pull alerts, push IOC gene rules")
+    sns = sn.add_subparsers(dest="whids_action", required=True)
 
-    sp = sns.add_parser("pull", help="normalize Sentinel detections into the Plasma event store")
-    sp.add_argument("--sentinel-root", default=None)
+    sp = sns.add_parser("pull", help="normalize WHIDS alerts into the Plasma event store")
+    sp.add_argument("--root", default=None, help="WHIDS install root (default: C:\\Program Files\\Whids)")
     sp.add_argument("--out", default=None)
     sp.add_argument("--host", default=None)
-    sp.set_defaults(func=cmd_sentinel_pull)
+    sp.set_defaults(func=cmd_whids_pull)
 
-    spu = sns.add_parser("push", help="push high-confidence indicators into Sentinel's local IOC bundle")
-    spu.add_argument("--sentinel-root", default=None)
+    spu = sns.add_parser("push", help="push high-confidence indicators as a WHIDS gene rule")
+    spu.add_argument("--root", default=None)
     spu.add_argument("--events", default=None)
-    spu.add_argument("--min-confidence", type=int, default=sentinel.DEFAULT_MIN_CONFIDENCE)
-    spu.add_argument("--max-iocs", type=int, default=sentinel.DEFAULT_MAX_IOCS)
+    spu.add_argument("--min-confidence", type=int, default=whids.DEFAULT_MIN_CONFIDENCE,
+                     help="criticality threshold on the gene 0-10 scale (default 8)")
+    spu.add_argument("--max-indicators", type=int, default=whids.DEFAULT_MAX_INDICATORS)
     spu.add_argument("--reason", default="")
     spu.add_argument("--restart-service", action="store_true")
-    spu.add_argument("--apply", action="store_true", help="write the bundle (default is dry-run)")
-    spu.set_defaults(func=cmd_sentinel_push)
+    spu.add_argument("--apply", action="store_true", help="write the rule file (default is dry-run)")
+    spu.set_defaults(func=cmd_whids_push)
 
-    sps = sns.add_parser("status", help="show Sentinel + Plasma integration state")
-    sps.add_argument("--sentinel-root", default=None)
+    sps = sns.add_parser("status", help="show WHIDS + Plasma integration state")
+    sps.add_argument("--root", default=None)
     sps.add_argument("--events", default=None)
-    sps.set_defaults(func=cmd_sentinel_status)
+    sps.set_defaults(func=cmd_whids_status)
 
     # Hidden: the frozen executable re-enters itself to execute the bundle's
     # bridge with the Python runtime embedded in the one-file binary.

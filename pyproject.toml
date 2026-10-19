@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "plasma-edr"
-version = "0.4.1"
+version = "0.5.0"
 description = "Plasma — an agent-based EDR bundle: Sentinel detection layer + a frozen neuralOS instance"
 readme = "README.md"
 requires-python = ">=3.9"

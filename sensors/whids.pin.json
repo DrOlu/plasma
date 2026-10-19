@@ -1,0 +1,19 @@
+{
+  "sensor": "whids",
+  "version": "1.7.0",
+  "role": "open-source EDR: Sysmon/ETW detection (gene rules), artifact collection, response",
+  "required": true,
+  "min_version": "1.7.0",
+  "license": "AGPL-3.0",
+  "source": "https://github.com/0xrawsec/whids/releases/tag/v1.7.0",
+  "payload": {
+    "bundle": "whids-v1.7.0-release-bundle.zip",
+    "binary": "whids.exe",
+    "service": "Whids",
+    "install": "whids.exe -install"
+  },
+  "requirements": {
+    "sysmon": "required — WHIDS depends on Sysmon for kernel telemetry (ProcessCreate/ProcessTerminate logging mandatory)"
+  },
+  "notes": "Installed by Plasma from the release bundle (AGPL-3.0, LICENSE travels with it). Plasma pulls alerts from Logs\\Alerts and pushes IOC gene rules into Database\\Rules\\plasma-iocs.gen. WHIDS owns response actions; Plasma stays advisory."
+}

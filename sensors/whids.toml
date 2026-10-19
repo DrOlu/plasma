@@ -1,0 +1,44 @@
+# Plasma-managed WHIDS configuration
+# Installed to C:\Program Files\Whids\whids.toml by the Plasma installer.
+
+# Windows log channels to listen to ("all" = every channel Sysmon provides).
+channels = ["all"]
+
+# Forward alerts above this criticality (gene 0-10 scale).
+criticality-treshold = 5
+
+# Enable enrichment/dump hooks and gene filtering rules.
+en-hooks = true
+en-filters = true
+
+# Engine messages.
+logfile = "C:\\Program Files\\Whids\\Logs\\whids.log"
+
+# This host generates the logs.
+endpoint = true
+
+[forwarder]
+# Standalone mode: alerts are written locally, not forwarded to a manager.
+local = true
+
+[forwarder.logging]
+dir = "C:\\Program Files\\Whids\\Logs\\Alerts"
+rotation-interval = "1h0m0s"
+
+[sysmon]
+bin = "C:\\Windows\\Sysmon64.exe"
+archive-directory = "C:\\Sysmon\\"
+clean-archived = true
+
+[dump]
+mode = "file|registry"
+dir = "C:\\Program Files\\Whids\\Dumps"
+treshold = 8
+max-dumps = 4
+compression = true
+dump-untracked = false
+
+[rules]
+rules-db = "C:\\Program Files\\Whids\\Database\\Rules"
+containers-db = "C:\\Program Files\\Whids\\Database\\Containers"
+update-interval = "1m0s0s"

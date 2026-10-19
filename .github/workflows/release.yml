@@ -6,16 +6,15 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version (e.g. 0.4.0)"
+        description: "Version (e.g. 0.5.0)"
         required: true
-        default: "0.4.0"
+        default: "0.5.0"
 
 permissions:
   contents: write
 
 env:
-  SENTINEL_SETUP: "SentinelSetup-3.3.1.exe"
-  SENTINEL_BASE: "https://github.com/psihijatrija/Sentinel/releases/download/v3.3.1"
+  WHIDS_BUNDLE: "https://github.com/0xrawsec/whids/releases/download/v1.7.0/whids-v1.7.0-release-bundle.zip"
 
 jobs:
   windows-x64:
@@ -43,16 +42,13 @@ jobs:
           shutil.copy(weights, "engines/windows-x86_64/needle3.cact")
           PY
 
-      - name: Fetch Sentinel payload (MIT, checksum-verified)
+      - name: Fetch WHIDS payload (AGPL-3.0)
         shell: bash
         run: |
-          mkdir -p sensors/sentinel
-          curl -fsSL -o "sensors/sentinel/${SENTINEL_SETUP}" "${SENTINEL_BASE}/${SENTINEL_SETUP}"
-          curl -fsSL -o sensors/sentinel/SHA256SUMS.txt "${SENTINEL_BASE}/SHA256SUMS.txt"
-          curl -fsSL -o sensors/sentinel/LICENSE \
-            "https://raw.githubusercontent.com/psihijatrija/Sentinel/v3.3.1/LICENSE"
-          cd sensors/sentinel
-          sha256sum -c <(grep "${SENTINEL_SETUP}" SHA256SUMS.txt)
+          mkdir -p sensors/whids
+          curl -fsSL -A "plasma-deploy" -o whids-bundle.zip "$WHIDS_BUNDLE"
+          unzip -o -q whids-bundle.zip -d whids-bundle
+          find whids-bundle -name "whids.exe" -exec cp {} sensors/whids/whids.exe \;
 
       - name: Resolve version
         id: version
@@ -67,7 +63,7 @@ jobs:
       - name: Build embedded executable
         run: |
           python tools/build_embedded_windows.py --engine-dir engines/windows-x86_64 `
-            --sentinel-payload sensors/sentinel --dist dist --name plasma
+            --whids-payload sensors/whids --dist dist --name plasma
 
       - name: Rename, hash and smoke test
         shell: bash

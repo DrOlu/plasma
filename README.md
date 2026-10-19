@@ -5,14 +5,14 @@
 Plasma packages three layers into one installable product:
 
 ```
-Sentinel service        detection + correlation + deterministic response (sensor layer)
+WHIDS agent             detection (gene rules) + artifact collection + response
 neuralOS engine         on-device 121M tool-calling model (selection only)
 frozen instance         Pydantic contract + probe menu + bridge + graph layer
 ```
 
 The result is an endpoint agent whose detection and containment stay
-deterministic (Sentinel Tier-1), while operators can ask plain-English
-questions about what happened: *"why did Sentinel kill PID 4832?"*,
+deterministic (WHIDS actionable rules), while operators can ask plain-English
+questions about what happened: *"why did WHIDS kill PID 4832?"*,
 *"which processes made outbound connections?"*, *"any persistence on WS2?"*
 
 The model is **never** in the kill path. Situational awareness is the model's
@@ -23,7 +23,7 @@ job; response remains policy-driven and, for model recommendations, human-approv
 ```
 instance/          frozen neuralOS artifact (menu, models, bridges, graph)
 packaging/         installer + post-install verifier + config example
-sensors/           pins + bundled Sentinel payload (MIT, checksum-verified)
+sensors/           pins + bundled WHIDS payload (AGPL-3.0) + IOC gene rule
 plasma/            Python package: manifest, bundler, CLI (plasma ask/probe/status)
 plasma_entry.py    entry point for the one-file executable
 samples/           deterministic normalized-event corpus used for build + tests
@@ -71,50 +71,45 @@ Ten read-only probes: `plasma_overview`, `plasma_recent`, `plasma_alerts`,
 * build once, freeze, deploy identical artifacts fleet-wide; per-host values
   live in `config.json`, never in the instance.
 
-## Sentinel integration (two-way)
+## WHIDS integration (two-way)
 
 ```powershell
-# Pull: Sentinel detections -> normalized Plasma events
-plasma sentinel pull --sentinel-root C:\ProgramData\Sentinel `
+# Pull: WHIDS alerts -> normalized Plasma events
+plasma whids pull --root "C:\Program Files\Whids" `
   --out C:\ProgramData\Plasma\data\events.jsonl
 
-# Push: high-confidence Plasma indicators -> Sentinel's local IOC bundle (dry-run first)
-plasma sentinel push --events C:\ProgramData\Plasma\data\events.jsonl `
-  --min-confidence 85
-plasma sentinel push --events C:\ProgramData\Plasma\data\events.jsonl `
-  --min-confidence 85 --apply --reason "IR-2026-042" --restart-service
+# Push: high-confidence Plasma indicators -> WHIDS gene rule (dry-run first)
+plasma whids push --events C:\ProgramData\Plasma\data\events.jsonl --min-confidence 8
+plasma whids push --events C:\ProgramData\Plasma\data\events.jsonl `
+  --min-confidence 8 --apply --reason "IR-2026-042" --restart-service
 
 # State
-plasma sentinel status
+plasma whids status
 ```
 
-**Pull** reads `%ProgramData%\Sentinel\events.jsonl` (DetectionEvent records) and
-maps them to the Plasma schema: Tier1→critical/high, `AuthorizedResponse`→
-killed/quarantined/blocked/logged, metadata→IP/domain/hash/technique.
+**Pull** reads the WHIDS alert JSONL under `Logs\Alerts` (gene `EdrEvent`
+records) and maps them to the Plasma schema: gene `Criticality` (0-10) →
+severity/score, `ATTACK[].ID` → technique, `Actions` → killed/blocked/logged,
+event fields → process/hash/network context.
 
-**Push** writes `%ProgramData%\Sentinel\threatfox-bundle.json.gz` — the
-unsigned local IOC snapshot Sentinel loads at start. SHA-256 entries feed
-`IoCScanner`; domain entries feed `DnsQueryMonitor`. Sentinel 3.3.1 exposes no
-active IP query, so IP entries are stored for future/other consumers.
+**Push** writes `Database\Rules\plasma-iocs.gen` — a gene schema-2.0.0 rule
+WHIDS compiles at start. SHA-256 indicators match `Hashes`/`ImageHashes`
+(process, image load, file); domain indicators match `QueryName` (DNS);
+IP indicators match `DestinationIp` (network). Matching events raise WHIDS
+alerts carrying the Plasma signature.
 
 Safety: dry-run by default; private/reserved IPs and benign domains excluded;
-existing bundle merged by highest confidence; backup written; every apply
-journaled; **signed rule packs are never touched**. Requires administrator
-rights (Sentinel's ProgramData ACL) and a service restart for Sentinel to load
-the new bundle.
+expressions merged and deduplicated; the previous rule file is backed up; every
+apply is journaled. WHIDS owns response actions — Plasma never drives them.
 
 ## Sensor policy
 
-| Sensor | Required | Bundled | Why |
-|---|---|---|---|
-| Sentinel | yes | **yes — setup EXE + LICENSE + checksums** | the detection/response brain |
-| Sysmon | no | installed from the official package | optional kernel-level baseline |
-| Sealighter | no | on-demand only | deep ETW/WPP research, not an agent |
+## Requirements
 
-The bundled Sentinel setup is MIT-licensed (LICENSE travels with it) and is
-SHA256-verified both by the bundle manifest and by `sensors/sentinel.pin.json`.
-The installer runs it silently (`/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-`),
-waits for the service, and fails closed if the service does not appear.
+- Windows 10/11 x64
+- **Sysmon** installed and logging `ProcessCreate`/`ProcessTerminate`
+  (WHIDS makes the Sysmon service dependent on the WHIDS service at install)
+- Administrator rights for `install`
 
 ## Single self-contained Windows x64 executable
 

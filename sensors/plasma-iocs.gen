@@ -1,0 +1,28 @@
+{
+  "Name": "Plasma IOC Feed",
+  "Tags": [
+    "Plasma",
+    "IOC"
+  ],
+  "Meta": {
+    "Events": {
+      "Microsoft-Windows-Sysmon/Operational": [
+        1,
+        3,
+        6,
+        7,
+        15,
+        22
+      ]
+    },
+    "Computers": [],
+    "Criticality": 9,
+    "Author": "Plasma",
+    "Comment": "Indicators pushed by 'plasma whids push'. Regenerated on every apply. Seed expression points at a TEST-NET address and never matches real traffic.",
+    "Schema": "2.0.0"
+  },
+  "Matches": [
+    "$plasma0: DestinationIp == '203.0.113.253'"
+  ],
+  "Condition": "$plasma0"
+}

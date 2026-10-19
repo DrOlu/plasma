@@ -7,15 +7,17 @@
   `current` junction at it. The installer is safe by default:
 
     1. every file is SHA256-verified against manifest.json;
-    2. required sensor dependencies are checked (Sentinel service);
-    3. -DryRun prints the exact plan and writes nothing.
+    2. sensor dependencies are checked (WHIDS service; Sysmon is a WHIDS
+       requirement);
+    3. when a WHIDS payload is bundled and the service is missing, WHIDS is
+       installed from the payload and its service started;
+    4. -DryRun prints the exact plan and writes nothing.
 
   Exit codes: 0 success/dry-run, 2 manifest verification failed,
-  3 required sensor missing, 4 install target conflict.
+  3 sensor dependency failure, 4 install target conflict.
 
 .EXAMPLE
-  .\install.ps1 -Bundle .\plasma-0.1.0 -DryRun
-  .\install.ps1 -Bundle .\plasma-0.1.0 -EventsPath C:\ProgramData\Plasma\data\events.jsonl
+  .\install.ps1 -Bundle .\plasma-0.5.0 -DryRun
 #>
 [CmdletBinding()]
 param(
@@ -24,7 +26,7 @@ param(
     [string]$EventsPath = '',
     [switch]$DryRun,
     [switch]$SkipSensorCheck,
-    [switch]$SkipSentinelInstall,
+    [switch]$SkipWhidsInstall,
     [switch]$Force
 )
 
@@ -52,7 +54,6 @@ foreach ($prop in $manifest.files.PSObject.Properties) {
     }
 }
 $recorded = @($manifest.files.PSObject.Properties.Name)
-# Runtime artifacts are never part of the frozen manifest.
 function Test-RuntimeArtifact($rel) {
     return ($rel -match '(^|/)__pycache__/' -or $rel -match '\.py[co]$' -or
             $rel -match '(^|/)\.DS_Store$' -or $rel -match '(^|/)\.tool_index\.json$')
@@ -76,58 +77,52 @@ $sensors = $manifest.sensor_requirements
 $sensorState = @()
 $requiredMissing = @()
 $plannedActions = @()
-$sentinelWillInstall = $false
-foreach ($name in @('sentinel', 'sysmon', 'sealighter')) {
+$whidsWillInstall = $false
+foreach ($name in @('whids', 'sysmon', 'sealighter')) {
     $req = $sensors.$name
     if ($null -eq $req) { continue }
     $presentSensor = $false
-    if ($name -eq 'sentinel' -and $IsWindows) {
-        $svc = Get-Service -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'Sentinel*' -or $_.DisplayName -like '*Sentinel*' } | Select-Object -First 1
+    if ($IsWindows) {
+        $pattern = if ($name -eq 'whids') { 'Whids*' } elseif ($name -eq 'sysmon') { 'Sysmon*' } else { 'Sealighter*' }
+        $svc = Get-Service -ErrorAction SilentlyContinue | Where-Object { $_.Name -like $pattern -or $_.DisplayName -like $pattern } | Select-Object -First 1
         $presentSensor = ($null -ne $svc)
     }
 
-    if ($name -eq 'sentinel' -and -not $presentSensor -and $IsWindows -and -not $SkipSentinelInstall) {
-        $pinPath = Join-Path $bundlePath 'sensors/sentinel.pin.json'
-        $payload = $null
-        if (Test-Path -LiteralPath $pinPath) {
-            $pin = Get-Content -LiteralPath $pinPath -Raw | ConvertFrom-Json
-            $setup = Join-Path $bundlePath (Join-Path 'sensors/sentinel' $pin.payload.file)
-            if (Test-Path -LiteralPath $setup) {
-                $hash = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
-                if ($hash -ne ([string]$pin.payload.sha256).ToLowerInvariant()) {
-                    Out-Plan @{ ok = $false; stage = 'sentinel_payload'; error = 'Sentinel setup hash mismatch'; expected = $pin.payload.sha256; actual = $hash }
-                    exit 2
+    if ($name -eq 'whids' -and -not $presentSensor -and $IsWindows -and -not $SkipWhidsInstall) {
+        $payloadDir = Join-Path $bundlePath 'sensors/whids'
+        $exe = Join-Path $payloadDir 'whids.exe'
+        if (Test-Path -LiteralPath $exe) {
+            $whidsWillInstall = $true
+            $plannedActions += "install WHIDS from embedded bundle payload: $exe"
+            if (-not $DryRun) {
+                New-Item -ItemType Directory -Force -Path 'C:\Program Files\Whids' | Out-Null
+                Copy-Item -Path (Join-Path $payloadDir '*') -Destination 'C:\Program Files\Whids' -Recurse -Force -ErrorAction SilentlyContinue
+                $proc = Start-Process -FilePath 'C:\Program Files\Whids\whids.exe' -ArgumentList '-install' -Wait -PassThru
+                if ($proc.ExitCode -ne 0) {
+                    Out-Plan @{ ok = $false; stage = 'whids_install'; error = "whids -install exited $($proc.ExitCode)" }
+                    exit 3
                 }
-                $payload = @{ setup = $setup; args = @($pin.payload.silent_args); version = [string]$pin.version }
-                $sentinelWillInstall = $true
-                $plannedActions += "install Sentinel $($pin.version) (silent): $setup"
+                $deadline = (Get-Date).AddSeconds(60)
+                do {
+                    $svc = Get-Service -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'Whids*' } | Select-Object -First 1
+                    $presentSensor = ($null -ne $svc)
+                    if (-not $presentSensor) { Start-Sleep -Seconds 2 }
+                } while (-not $presentSensor -and (Get-Date) -lt $deadline)
+                $whidsWillInstall = $presentSensor
+                if (-not $presentSensor) {
+                    Out-Plan @{ ok = $false; stage = 'whids_install'; error = 'WHIDS service did not appear within 60s' }
+                    exit 3
+                }
             }
-        }
-        if (-not $payload) {
-            $plannedActions += "Sentinel payload absent and service not installed"
-        } elseif (-not $DryRun) {
-            $argList = @($payload.args)
-            $proc = Start-Process -FilePath $payload.setup -ArgumentList $argList -Wait -PassThru
-            if ($proc.ExitCode -ne 0) {
-                Out-Plan @{ ok = $false; stage = 'sentinel_install'; error = "Sentinel setup exited $($proc.ExitCode)" }
-                exit 3
-            }
-            $deadline = (Get-Date).AddSeconds(30)
-            do {
-                $svc = Get-Service -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'Sentinel*' -or $_.DisplayName -like '*Sentinel*' } | Select-Object -First 1
-                $presentSensor = ($null -ne $svc)
-                if (-not $presentSensor) { Start-Sleep -Seconds 2 }
-            } while (-not $presentSensor -and (Get-Date) -lt $deadline)
-            $sentinelWillInstall = $presentSensor
         }
     }
 
     $sensorState += @{
         sensor = $name; required = [bool]$req.required; present = $presentSensor
-        will_install = ($name -eq 'sentinel' -and $sentinelWillInstall)
+        will_install = ($name -eq 'whids' -and $whidsWillInstall)
         mode = "$($req.install)$($req.mode)"
     }
-    if ($req.required -and -not $presentSensor -and -not $sentinelWillInstall -and -not $SkipSensorCheck) {
+    if ($req.required -and -not $presentSensor -and -not $whidsWillInstall -and -not $SkipSensorCheck) {
         $requiredMissing += $name
     }
 }
@@ -187,10 +182,10 @@ $config = @{
     instance = $target
     events_path = $EventsPath
     retention_days = 7
-    response = @{ mode = 'advisory'; require_human_approval = $true }
+    response = @{ mode = 'advisory'; require_human_approval = true }
     sensors = @{
-        sentinel = @{ required = $true; min_version = '3.3.0' }
-        sysmon = @{ required = $false }
+        whids = @{ required = $true; min_version = '1.7.0' }
+        sysmon = @{ required = $true }
         sealighter = @{ required = $false; mode = 'on-demand' }
     }
 }

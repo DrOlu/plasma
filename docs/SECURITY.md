@@ -3,7 +3,7 @@
 ## Design rules
 
 1. **Read-only instance.** Every probe in the frozen menu is a query. There is
-   no write, kill, block or isolate probe. Response lives in Sentinel's
+   no write, kill, block or isolate probe. Response lives in WHIDS's
    deterministic policy layer.
 2. **Model out of the control path.** neuralOS selects a probe and fills
    arguments. It never executes anything and never authorizes a response. Any
@@ -17,10 +17,9 @@
    model-facing arguments or the bundle.
 5. **Capped answers.** 25 rows plus counts; the model sees digests, not dumps.
    No log lake is created by the instance.
-6. **Bundled third-party payloads are verified twice.** The Sentinel setup EXE
-   is covered by the bundle manifest (SHA256) and by its own pin file. The
-   installer refuses to execute it on a hash mismatch. The MIT LICENSE and the
-   upstream SHA256SUMS travel beside the payload.
+6. **Bundled third-party payloads are covered by the bundle manifest.**
+   The WHIDS payload (AGPL-3.0) ships with its LICENSE beside it; the installer
+   refuses to deploy a tampered payload.
 7. **The standalone executable embeds its runtime.** PyInstaller bundles Python
    and Pydantic into one signed-able binary; it executes the bundle's bridge in
    its own process, so no system Python is needed and no interpreter is exposed.
@@ -33,26 +32,27 @@
 | Hostile log content steering the model | constrained grammar, disjoint triggers, digests, validation of every record |
 | Model hallucinating a probe | engine selects from the menu only; bridge rejects unknown tools |
 | Endpoint without Python | `bridge.ps1` with generated shape checks; same caps and contract |
-| Response overreach | no response probes by default; Sentinel Tier-1 only; human approval for advisories |
-| Sensor tampering | Sentinel is the required sensor; optional Sysmon gives an independent baseline; post-install verification detects blindness |
+| Response overreach | no response probes by default; WHIDS governs its own actions; human approval for advisories |
+| Sensor tampering | WHIDS is the required sensor; Sysmon is a required dependency; post-install verification detects blindness |
 
-## Intelligence writes to Sentinel
+## Intelligence writes to WHIDS
 
-`plasma sentinel push` changes a file Sentinel consumes, so it is treated as a
-response-adjacent action:
+`plasma whids push` changes a gene rule file WHIDS compiles, so it is treated
+as a response-adjacent action:
 
 * **dry-run by default** — `--apply` is required;
-* only indicators at/above `--min-confidence` (default 85);
+* only indicators at/above `--min-confidence` (gene 0-10 scale, default 8);
 * private, loopback, link-local, multicast and reserved IPs are refused;
 * benign domain suffixes (Microsoft/Office/Google/Cloudflare/local) are refused;
-* the existing bundle is backed up and merged, never overwritten blindly;
-* every apply is journaled with bundle hash, counts, reason and service result;
-* vendor-RSA-signed rule packs are never modified — only the unsigned local
-  IOC snapshot that Sentinel documents as the supported offline input.
+* the existing rule file is backed up and its expressions merged, never
+  overwritten blindly;
+* every apply is journaled with rule hash, counts, reason and service result;
+* WHIDS response actions (kill/dump/quarantine) remain governed by WHIDS
+  itself — Plasma generates detection rules only.
 
 ## Operational cautions
 
-* Test on non-production endpoints first. Sentinel can terminate processes.
+* Test on non-production endpoints first. WHIDS actionable rules can terminate processes.
 * Monitor coverage: a drop below 95% means the sensor/normalizer schema
   drifted, and probes may silently mis-answer.
 * Restrict the local ask surface to loopback if wrapped in a service.

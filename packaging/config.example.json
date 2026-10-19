@@ -1,6 +1,6 @@
 {
   "product": "Plasma",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "instance": "C:\\ProgramData\\Plasma\\current",
   "events_path": "C:\\ProgramData\\Plasma\\data\\events.jsonl",
   "retention_days": 7,
@@ -9,14 +9,15 @@
     "require_human_approval": true
   },
   "sensors": {
-    "sentinel": {
+    "whids": {
       "required": true,
-      "min_version": "3.3.0",
+      "min_version": "1.7.0",
       "install": "service"
     },
     "sysmon": {
-      "required": false,
-      "install": "official-package"
+      "required": true,
+      "install": "official-package",
+      "notes": "WHIDS depends on Sysmon for kernel telemetry"
     },
     "sealighter": {
       "required": false,
