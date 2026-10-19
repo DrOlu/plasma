@@ -90,7 +90,7 @@ jobs:
           mkdir -p build
           python -c "from plasma.tap import load_rules, build_rules_txt; build_rules_txt(load_rules('sensors/plasma-tap-rules.json'), 'build/plasma-tap-rules.txt')"
           ./plasma-tap.exe --rules build/plasma-tap-rules.txt --selftest
-      - name: Live capture window (best-effort: hosted runners may deny ETW)
+      - name: "Live capture window (best-effort: hosted runners may deny ETW)"
         shell: bash
         run: |
           set +e
