@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, whids, observatory, actuate, drift, tap, fleet
+from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity
 from .bundle import build_bundle
 from .manifest import create_manifest, sha256_file, verify_manifest
 
@@ -713,6 +713,13 @@ def cmd_tap_collect(args) -> int:
     return 0 if "error" not in result else 1
 
 
+def cmd_identity_pull(args) -> int:
+    result = identity.pull(args.events, host=args.host or _platform.node() or "localhost",
+                           since_minutes=args.since)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 1
+
+
 def cmd_fleet_pull(args) -> int:
     result = fleet.pull(args.root, args.inventory, args.case,
                         cap=args.cap, window_seconds=args.window,
@@ -964,6 +971,14 @@ def build_parser() -> argparse.ArgumentParser:
     fls2.add_argument("--window", type=int, default=fleet.DEFAULT_WINDOW)
     fls2.add_argument("--canary", nargs="*", default=None)
     fls2.set_defaults(func=cmd_fleet_scan)
+
+    idp = sub.add_parser("identity", help="identity plane: logon events into the store (Event Log API)")
+    idps = idp.add_subparsers(dest="identity_action", required=True)
+    idpp = idps.add_parser("pull", help="pull recent 4624/4625 logons into the events store")
+    idpp.add_argument("--events", required=True)
+    idpp.add_argument("--host", default=None)
+    idpp.add_argument("--since", type=int, default=15, help="minutes to look back")
+    idpp.set_defaults(func=cmd_identity_pull)
 
     hb = sub.add_parser("_bridge", help=argparse.SUPPRESS)
     hb.add_argument("--dir", required=True)
