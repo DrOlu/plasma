@@ -119,13 +119,13 @@ in one file:
 * Python + Pydantic runtime (PyInstaller one-file)
 * frozen instance (`models.py`, menu, bridges, graph)
 * Windows neuralOS engine + `needle3.cact` weights
-* Sentinel setup payload (MIT, checksum-verified) + pin file
+* WHIDS payload (AGPL-3.0 release bundle) + pin + IOC gene rule
 
 Native executables are stored gzipped inside the binary (PyInstaller rewrites
 Mach-O/PE payloads and would break the manifest); the CLI unpacks them to a
 temporary runtime directory and executes them. `plasma status` verifies the
 embedded SHA256 manifest; `plasma install` stages the instance, writes config,
-installs Sentinel silently, and flips a `current` junction.
+installs WHIDS, and flips a `current` junction.
 
 ```powershell
 .\plasma-0.3.0-windows-x64.exe status --events C:\ProgramData\Plasma\data\events.jsonl
