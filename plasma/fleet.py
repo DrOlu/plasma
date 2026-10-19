@@ -89,12 +89,19 @@ def _parse_ts(text):
     if not text:
         return None
     try:
-        return datetime.fromisoformat(str(text).replace("Z", "+00:00"))
+        ts = datetime.fromisoformat(str(text).replace("Z", "+00:00"))
     except ValueError:
         return None
+    if ts.tzinfo is None:
+        # offset-less timestamps (older sensor builds, hand-written answers)
+        # are treated as UTC so they can be compared against aware ones
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts
 
 
 def _rows_from_text(text, cap):
+    if cap is None or cap <= 0:
+        return []
     rows = []
     for line in text.splitlines():
         line = line.strip()
@@ -186,6 +193,23 @@ def init_case(root, name, window_seconds=DEFAULT_WINDOW, canaries=None) -> Path:
             "window_seconds": window_seconds,
             "canaries": canaries or CANARY_DEFAULTS,
         }, indent=1) + "\n", encoding="utf-8")
+    else:
+        # explicitly-passed window/canaries update an existing case instead
+        # of being silently ignored (correlate reads them from this file)
+        try:
+            existing = json.loads(meta_file.read_text(encoding="utf-8-sig"))
+        except (json.JSONDecodeError, OSError):
+            existing = {}
+        changed = False
+        if window_seconds != DEFAULT_WINDOW and \
+                existing.get("window_seconds") != window_seconds:
+            existing["window_seconds"] = window_seconds
+            changed = True
+        if canaries and sorted(existing.get("canaries") or []) != sorted(canaries):
+            existing["canaries"] = list(canaries)
+            changed = True
+        if changed:
+            meta_file.write_text(json.dumps(existing, indent=1) + "\n", encoding="utf-8")
     return cd
 
 

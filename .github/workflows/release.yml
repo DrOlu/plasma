@@ -8,7 +8,7 @@ on:
       version:
         description: "Version (e.g. 0.5.0)"
         required: true
-        default: "0.5.0"
+        default: "1.0.0"
 
 permissions:
   contents: write
@@ -42,7 +42,7 @@ jobs:
           shutil.copy(weights, "engines/windows-x86_64/needle3.cact")
           PY
 
-      - name: Fetch WHIDS payload (AGPL-3.0)
+      - name: Fetch WHIDS payload (Apache-2.0)
         shell: bash
         run: |
           mkdir -p sensors/whids

@@ -32,7 +32,7 @@ from pathlib import Path
 from .manifest import sha256_file
 
 SERVICE_NAME = "Whids"
-DEFAULT_MIN_CONFIDENCE = 85
+DEFAULT_MIN_CONFIDENCE = 8
 DEFAULT_MAX_INDICATORS = 500
 
 HASH_RE = re.compile(r"^[A-Fa-f0-9]{64}$")
@@ -486,7 +486,7 @@ def _whids_service_name() -> str | None:
             ["powershell.exe", "-NoProfile", "-Command",
              "Get-Service | Where-Object { $_.Name -like 'Whids*' } | "
              "Select-Object -First 1 -ExpandProperty Name"],
-            capture_output=True, text=True, timeout=20,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20,
         )
         return proc.stdout.strip() or None
     except (OSError, subprocess.TimeoutExpired):
@@ -556,7 +556,7 @@ def push(events_path: str | Path | None = None, root: str | Path | None = None,
                 proc = subprocess.run(
                     ["powershell.exe", "-NoProfile", "-Command",
                      f"Restart-Service -Name '{service}' -Force"],
-                    capture_output=True, text=True, timeout=120,
+                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
                 )
                 service_restarted = proc.returncode == 0
                 if not service_restarted:

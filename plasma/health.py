@@ -24,7 +24,7 @@ def _ps(script: str, timeout: int = 60) -> str:
     exe = "powershell.exe"
     try:
         proc = subprocess.run([exe, "-NoProfile", "-NonInteractive", "-Command", script],
-                              capture_output=True, text=True, timeout=timeout)
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
         return (proc.stdout or "").strip()
     except (OSError, subprocess.TimeoutExpired):
         return ""
@@ -39,7 +39,8 @@ def _newest_event_age_minutes(channel: str) -> float | None:
     out = _ps(
         "$e = Get-WinEvent -FilterHashtable @{LogName='" + channel +
         "'} -MaxEvents 1 -ErrorAction SilentlyContinue; "
-        "if ($e) { [math]::Round(((Get-Date) - $e.TimeCreated).TotalMinutes, 1) }")
+        "if ($e) { [math]::Round(((Get-Date) - $e.TimeCreated).TotalMinutes, 1) "
+        ".ToString([System.Globalization.CultureInfo]::InvariantCulture) }")
     try:
         return float(out)
     except (TypeError, ValueError):

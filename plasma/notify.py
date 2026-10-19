@@ -71,10 +71,21 @@ def deliver(channel: dict, title: str, body: str) -> dict:
         return {"channel": ctype, "ok": False, "error": str(exc)[:200]}
 
 
-def notify_all(root, title: str, body: str, min_score: int | None = None) -> dict:
-    """Deliver to every configured channel. No config → nothing sent (data)."""
+def notify_all(root, title: str, body: str, score: float | None = None,
+               min_score: float | None = None) -> dict:
+    """Deliver to every configured channel, gated by min_score.
+
+    `score` is the finding's own score; the effective threshold comes from
+    the config's `min_score` (default 7) unless `min_score` overrides it.
+    A finding below the threshold is suppressed (reported as data, never
+    raised). No config → nothing sent (data).
+    """
     cfg = load_config(root)
     threshold = min_score if min_score is not None else cfg.get("min_score", 7)
+    suppressed = score is not None and score < threshold
+    if suppressed:
+        return {"sent": 0, "channels": [], "min_score": threshold,
+                "configured": len(cfg["channels"]), "suppressed": True}
     results = [deliver(ch, title, body) for ch in cfg["channels"]]
     return {"sent": sum(1 for r in results if r.get("ok")),
             "channels": results,

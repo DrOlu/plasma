@@ -168,7 +168,7 @@ def test_watch_sweep_notifies_on_health_down(tmp_path, monkeypatch):
                         lambda q, **k: {"error": "no powershell"})
     sent = {}
     monkeypatch.setattr(notify, "notify_all",
-                        lambda root, title, body, min_score=None: sent.update(title=title) or {"sent": 1})
+                        lambda root, title, body, score=None, min_score=None: sent.update(title=title) or {"sent": 1})
     monkeypatch.setattr(watch, "Path", Path)  # keep real paths
     res = watch.watch_once(tmp_path)
     assert res["verdict"] == "act now" and res["top_score"] == 10
@@ -182,6 +182,6 @@ def test_watch_sweep_clean_without_channels(tmp_path, monkeypatch):
                         lambda q, **k: {"question": q, "blind_count": 0})
     monkeypatch.setattr("plasma.drift.load", lambda root, name: None)
     monkeypatch.setattr(notify, "notify_all",
-                        lambda root, title, body, min_score=None: {"sent": 0})
+                        lambda root, title, body, score=None, min_score=None: {"sent": 0})
     res = watch.watch_once(tmp_path)
     assert res["verdict"] == "clean" and res["notify"] is None  # quiet when clean

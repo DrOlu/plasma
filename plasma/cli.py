@@ -202,7 +202,7 @@ def _run_bridge(bundle: str | None, tool: str, args: dict, events: str | None) -
     env = os.environ.copy()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, env=env)
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, env=env)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"error": f"bridge execution failed: {exc}"}
     if proc.returncode != 0 and not proc.stdout.strip():
@@ -263,7 +263,7 @@ def cmd_ask(args) -> int:
     if args.system:
         cmd += ["--system", args.system]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
     except (OSError, subprocess.TimeoutExpired) as exc:
         print(json.dumps({"error": f"engine failed: {exc}"}, indent=2))
         return 2
@@ -320,7 +320,7 @@ def cmd_status(args) -> int:
         env = os.environ.copy()
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60, env=env)
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, env=env)
             coverage = json.loads(proc.stdout) if proc.stdout.strip() else None
         except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
             coverage = None
@@ -341,7 +341,7 @@ def _service_present(pattern: str) -> bool:
              "Get-Service | Where-Object { $_.Name -like '" + pattern + "' -or "
              "$_.DisplayName -like '" + pattern + "' } | Select-Object -First 1 "
              "-ExpandProperty Name"],
-            capture_output=True, text=True, timeout=20,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20,
         )
         return bool(proc.stdout.strip())
     except (OSError, subprocess.TimeoutExpired):
@@ -464,7 +464,7 @@ def _try_install_sysmon(tools_dir: Path) -> tuple[bool, str]:
             cfg.write_text(SYSMON_BASELINE_CONFIG, encoding="ascii")
             subprocess.run(
                 [str(target_exe), "-accepteula", "-i", str(cfg)],
-                capture_output=True, text=True, timeout=300,
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300,
             )
             for _ in range(15):
                 if _service_present("Sysmon*"):
@@ -482,7 +482,7 @@ def _is_junction(path: Path) -> bool:
         proc = subprocess.run(
             ["powershell.exe", "-NoProfile", "-Command",
              f"(Get-Item -LiteralPath '{path}' -Force).LinkType"],
-            capture_output=True, text=True, timeout=15,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15,
         )
         return proc.stdout.strip().lower() in ("junction", "symboliclink")
     except (OSError, subprocess.TimeoutExpired):
@@ -535,10 +535,14 @@ def cmd_install(args) -> int:
                 args.skip_whids, internet_ok=False)
         else:
             ok, detail = _try_install_sysmon(root / "tools")
-            sysmon_present = sysmon_present or ok
+            # re-decide with the ORIGINAL sysmon_present so the repair path
+            # (Sysmon fixed on a WHIDS box) yields full/repair — passing the
+            # updated flag would short-circuit to already_present and skip
+            # the WHIDS (re)start entirely
             decision = whids_install_decision(
                 sysmon_present, whids_present, whids_gz.exists(),
                 args.skip_whids, sysmon_install_ok=ok)
+            sysmon_present = sysmon_present or ok
             decision["sysmon_detail"] = detail
     whids_planned = decision["decision"] == "full"
     degraded = bool(decision.get("degraded"))
@@ -646,7 +650,7 @@ def cmd_install(args) -> int:
                      f"New-Service -Name Whids -BinaryPathName '{bin_path}' "
                      f"-DisplayName 'WHIDS (Plasma sensor)' -StartupType Automatic | Out-Null; "
                      f"sc.exe failure Whids reset= 9999 actions= restart/5000 | Out-Null"],
-                    capture_output=True, text=True, timeout=120,
+                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
                 )
             except (OSError, subprocess.TimeoutExpired) as exc:
                 print(json.dumps({"ok": False, "stage": "whids_install", "error": str(exc)[:300]}, indent=2))
@@ -669,13 +673,16 @@ def cmd_install(args) -> int:
             subprocess.run(
                 ["powershell.exe", "-NoProfile", "-Command",
                  "Start-Service -Name 'Whids' -ErrorAction Stop"],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
             )
         except (OSError, subprocess.TimeoutExpired):
             pass
 
     # 4. Flip current (only replace an existing link).
-    if current.exists() or current.is_symlink():
+    # _is_junction is checked unconditionally: a DANGLING junction (target
+    # deleted by hand) reports exists()=False and is_symlink()=False, yet a
+    # New-Item against the reparse point would still explode.
+    if current.exists() or current.is_symlink() or _is_junction(current):
         if not (_is_junction(current) or args.force):
             print(json.dumps({"ok": False, "stage": "current",
                               "error": f"{current} exists and is not a link"}, indent=2))
@@ -684,13 +691,24 @@ def cmd_install(args) -> int:
         # a junction is removed with its own single-purpose verb instead.
         subprocess.run(
             ["cmd.exe", "/c", "rmdir", str(current)],
-            capture_output=True, text=True, timeout=20,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20,
         )
-    subprocess.run(
-        ["powershell.exe", "-NoProfile", "-Command",
-         f"New-Item -ItemType Junction -Path '{current}' -Target '{target}' | Out-Null"],
-        capture_output=True, text=True, timeout=30, check=True,
-    )
+        if current.exists() or _is_junction(current):
+            print(json.dumps({"ok": False, "stage": "current",
+                              "error": f"could not replace link {current} "
+                                       "(remove it manually and re-run)"}, indent=2))
+            return 4
+    try:
+        subprocess.run(
+            ["powershell.exe", "-NoProfile", "-Command",
+             f"New-Item -ItemType Junction -Path '{current}' -Target '{target}' | Out-Null"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
+        print(json.dumps({"ok": False, "stage": "current",
+                          "error": f"junction creation failed: {exc}"}, indent=2))
+        return 4
 
     print(json.dumps({
         "ok": True,
@@ -747,6 +765,8 @@ def cmd_drift_score(args) -> int:
     answer = observatory.run_question(args.question, canaries=_canaries(args))
     result = drift.score(args.root, args.question, answer)
     print(json.dumps(result, indent=2, default=str))
+    if "error" in result:
+        return 1
     return 0 if result.get("top_score", 0) == 0 else 2
 
 
@@ -764,13 +784,19 @@ def cmd_actuate_actions(args) -> int:
 def cmd_actuate_apply(args) -> int:
     result = actuate.execute(
         args.action, args.root, target=args.target, reason=args.reason,
-        apply=args.apply, timeout=args.timeout)
+        apply=args.apply, timeout=args.timeout, plan=args.plan)
     print(json.dumps(result, indent=2, default=str))
     # dry-runs succeed by definition; applied actions report via "error"/rc
     if "error" in result:
         return 1
-    if args.apply and (result.get("result", {}).get("rc") not in (None, 0)):
-        return 3
+    if args.apply:
+        run = result.get("result") or {}
+        if run.get("error") or run.get("rc") not in (None, 0):
+            return 3
+        ver = result.get("verification") or {}
+        if isinstance(ver, dict) and (ver.get("error") or
+                                      ver.get("rc") not in (None, 0)):
+            return 3
     return 0
 
 
@@ -805,6 +831,11 @@ def cmd_tap_selftest(args) -> int:
     if not rules_path or not rules_path.exists():
         print(json.dumps({"error": "tap rules file not found"}))
         return 1
+    try:
+        tap.load_rules(rules_path)
+    except (ValueError, json.JSONDecodeError) as exc:
+        print(json.dumps({"error": f"tap rules invalid: {exc}"}, indent=2))
+        return 2
     exe = Path(args.tap_exe) if args.tap_exe else _locate_tap_exe()
     if not exe or not Path(exe).exists():
         print(json.dumps({"error": "plasma-tap.exe not available",
@@ -819,7 +850,11 @@ def cmd_tap_selftest(args) -> int:
 
 
 def cmd_tap_run(args) -> int:
-    seconds = tap.parse_duration(args.for_)
+    try:
+        seconds = tap.parse_duration(args.for_)
+    except ValueError as exc:
+        print(json.dumps({"error": str(exc)}, indent=2))
+        return 2
     providers = [p.strip() for p in args.providers.split(",") if p.strip()]
     unknown = [p for p in providers if p not in tap.TAP_PROVIDER_ALIASES]
     if unknown:
@@ -843,7 +878,11 @@ def cmd_tap_run(args) -> int:
         out_dir = Path.cwd() / "plasma-tap"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    rules = tap.load_rules(rules_path)
+    try:
+        rules = tap.load_rules(rules_path)
+    except (ValueError, json.JSONDecodeError) as exc:
+        print(json.dumps({"error": f"tap rules invalid: {exc}"}, indent=2))
+        return 2
     rules_txt = out_dir / "plasma-tap-rules.txt"
     tap.build_rules_txt(rules, rules_txt)
     st = tap.selftest(exe, rules_txt)
@@ -911,7 +950,11 @@ def cmd_notify_test(args) -> int:
 
 
 def cmd_notify_show(args) -> int:
-    cfg = notify.load_config(args.root)
+    try:
+        cfg = notify.load_config(args.root)
+    except (ValueError, json.JSONDecodeError) as exc:
+        print(json.dumps({"error": f"notify config invalid: {exc}"}, indent=2))
+        return 2
     print(json.dumps({"channels": len(cfg["channels"]),
                       "types": [ch.get("type") for ch in cfg["channels"]],
                       "min_score": cfg["min_score"]}, indent=2))
@@ -927,7 +970,7 @@ def cmd_update_check(args) -> int:
     newer = updater.is_newer(__version__, rel["tag"])
     print(json.dumps({"current": __version__, "latest": rel["tag"], "update_available": newer},
                      indent=2))
-    return 0 if newer else 0
+    return 2 if newer else 0   # scriptable: 0 = up to date, 2 = update available
 
 
 def cmd_update_apply(args) -> int:
@@ -936,13 +979,15 @@ def cmd_update_apply(args) -> int:
         print(json.dumps({"error": f"env {args.token_env} not set (repo is private)"}, indent=2))
         return 1
     root = Path(args.root)
-    staged = root / "tools" / f"plasma-{updater.parse_version(__version__)[0]}.staged.exe"
+    staged = root / "tools" / "plasma-update-staged.exe"
     res = updater.download_and_verify(args.repo, "", token, staged)
     print(json.dumps({"stage": "download", **{k: v for k, v in res.items() if k != 'ok'}}, indent=2, default=str))
     if not res["ok"]:
         return 1
-    inst = subprocess.run([str(staged), "install", "--force"],
-                          capture_output=True, text=True, timeout=900)
+    # forward the root: a node installed at a custom root must not have its
+    # new version configured under the default location (split-brain install)
+    inst = subprocess.run([str(staged), "install", "--force", "--root", str(root)],
+                          capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
     print(inst.stdout[-800:] if inst.stdout else "")
     if inst.returncode != 0:
         print(inst.stderr[-400:], file=sys.stderr)
@@ -962,9 +1007,14 @@ def cmd_identity_pull(args) -> int:
 
 
 def cmd_fleet_pull(args) -> int:
-    result = fleet.pull(args.root, args.inventory, args.case,
-                        cap=args.cap, window_seconds=args.window,
-                        canaries=args.canary or None)
+    try:
+        result = fleet.pull(args.root, args.inventory, args.case,
+                            cap=args.cap, window_seconds=args.window,
+                            canaries=args.canary or None)
+    except (ValueError, FileNotFoundError, json.JSONDecodeError) as exc:
+        print(json.dumps({"error": str(exc)[:300],
+                          "hint": "check --inventory json"}, indent=2))
+        return 2
     print(json.dumps(result, indent=2, default=str))
     return 0 if result.get("pulled") == result.get("hosts") else 1
 
@@ -1148,6 +1198,9 @@ def build_parser() -> argparse.ArgumentParser:
     acx.add_argument("--target", default=None, help="ip | user | service | pid | path | task (per action)")
     acx.add_argument("--reason", required=True, help="mandatory: why this action")
     acx.add_argument("--apply", action="store_true", help="actually execute (default: dry-run only)")
+    acx.add_argument("--plan", type=int, default=None,
+                     help="required with --apply: the id of the earlier dry-run "
+                          "entry for this exact action+target")
     acx.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     acx.add_argument("--timeout", type=int, default=60)
     acx.set_defaults(func=cmd_actuate_apply)

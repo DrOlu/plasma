@@ -51,7 +51,9 @@ def load_rules(path) -> list[dict]:
         if not name or name in seen:
             raise ValueError(f"rule name missing or duplicated: {name!r}")
         seen.add(name)
-        if r.get("provider", "") not in TAP_PROVIDER_ALIASES and r["provider"] != "*":
+        if "|" in name or "\n" in name:
+            raise ValueError(f"{name}: rule name may not contain '|' or newlines")
+        if r.get("provider", "") not in TAP_PROVIDER_ALIASES and r.get("provider") != "*":
             raise ValueError(f"{name}: unknown provider {r.get('provider')!r}")
         eid = r.get("event_id", 0)
         if not isinstance(eid, int) or eid < 0 or eid > 99999:
@@ -60,7 +62,7 @@ def load_rules(path) -> list[dict]:
             raise ValueError(f"{name}: bad severity {r.get('severity')!r}")
         if not _TECHNIQUE.match(r.get("technique", "")):
             raise ValueError(f"{name}: bad technique {r.get('technique')!r}")
-        for field in ("substr", "field"):
+        for field in ("substr", "field", "name"):
             v = r.get(field, "")
             if "|" in v or "\n" in v:
                 raise ValueError(f"{name}: {field} may not contain '|' or newlines")
@@ -94,7 +96,7 @@ def selftest(tap_exe, rules_txt: Path) -> dict:
     try:
         proc = subprocess.run(
             [str(tap_exe), "--rules", str(rules_txt), "--selftest"],
-            capture_output=True, text=True, timeout=30)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "error": f"tap selftest failed to run: {exc}"}
     try:
@@ -117,7 +119,7 @@ def run(tap_exe, providers, seconds: int, out_path, rules_txt: Path,
              "--providers", ",".join(providers),
              "--for", str(int(seconds)),
              "--max-matches", str(int(max_matches))],
-            capture_output=True, text=True, timeout=seconds + 30)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=seconds + 30)
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": "tap exceeded its window + grace period"}
     except OSError as exc:

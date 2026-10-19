@@ -4,7 +4,9 @@ Design guarantees (born from the Sentinel lockout incident):
 
 1. **Dry-run first, always.** Every action renders its exact payload and
    journals a dry-run entry; nothing touches the host until `apply=True`
-   (CLI: `--apply`) is passed by a human.
+   (CLI: `--apply`) is passed by a human **with `--plan <id>`** — the id of
+   that seen dry-run, for the same action and target, with a matching
+   payload digest. No plan, no mutation.
 2. **Allowlisted named actions only.** There is no `run_command` and no way
    to smuggle arbitrary PowerShell through this module — targets are
    validated against strict patterns and embedded as quoted literals.
@@ -214,10 +216,15 @@ def _build_delete_task(task):
 def _build_disable_wmi_sub():
     # Remove only the FILTER-TO-CONSUMER BINDINGS: filters and consumers stay
     # on disk, so re-creating the bindings fully restores the subscription.
+    # Binding definitions are captured to a file (never inline: a long
+    # binding list would truncate in the journal and lose the undo).
     payload = (
+        "New-Item -ItemType Directory -Force -Path '" + JOURNAL_BACKUP_DIR + "' | Out-Null;"
         "$binds = Get-CimInstance -Namespace root/subscription -ClassName __FilterToConsumerBinding;"
-        "$defs = @($binds | ForEach-Object { @{ filter=$_.Filter; consumer=$_.Consumer } });"
-        "$defs | ConvertTo-Json -Compress;"
+        "$defs = @($binds | Select-Object -First 200 | ForEach-Object { @{ filter=$_.Filter; consumer=$_.Consumer } });"
+        "$file = '" + JOURNAL_BACKUP_DIR + "\\' + 'bindings-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.json';"
+        "ConvertTo-Json -InputObject @($defs) -Compress | Set-Content -Path $file -Encoding UTF8;"
+        "$file;"
         "$binds | Remove-CimInstance -ErrorAction SilentlyContinue;"
         "'bindings removed'"
     )
@@ -338,7 +345,15 @@ def journal_read(root, last=None):
     path = journal_path(root)
     if not path.exists():
         return []
-    rows = [json.loads(ln) for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    rows = []
+    for ln in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        try:
+            rows.append(json.loads(ln))
+        except json.JSONDecodeError:
+            continue      # torn line (crash mid-append) — never brick the journal
     return rows[-last:] if last else rows
 
 
@@ -357,7 +372,7 @@ def _run(payload, timeout=60):
     try:
         proc = subprocess.run(
             [exe, "-NoProfile", "-NonInteractive", "-Command", payload],
-            capture_output=True, text=True, timeout=timeout)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
     except subprocess.TimeoutExpired:
         return {"error": "execution timeout", "timeout": timeout}
     out = (proc.stdout or "").strip()
@@ -370,9 +385,14 @@ def _run(payload, timeout=60):
     return result
 
 
-def execute(action, root, target=None, reason=None, apply=False, timeout=60):
+def execute(action, root, target=None, reason=None, apply=False, timeout=60,
+            plan=None):
     """Dry-run by default. Returns the rendered payload + journal entry;
-    with apply=True executes, verifies, and journals."""
+    with apply=True executes, verifies, and journals.
+
+    apply=True REQUIRES `plan`: the id of a prior dry-run entry for the same
+    action+target, whose rendered payload digest matches what would run now
+    (dry-run first, always — no plan, no mutation)."""
     spec = ACTIONS.get(action)
     if not spec:
         return {"error": f"unknown action '{action}'", "actions": actions()}
@@ -391,12 +411,34 @@ def execute(action, root, target=None, reason=None, apply=False, timeout=60):
         return {"error": str(exc), "action": action}
 
     payload, undo, verify = spec["build"](target)
+    payload_sha = __import__("hashlib").sha256(payload.encode()).hexdigest()
+
+    if apply:
+        if plan is None:
+            return {"error": "--apply requires --plan <id> from a prior dry-run "
+                             "(dry-run first, always)", "action": action}
+        rows = journal_read(root)
+        dr = next((r for r in rows if r.get("id") == plan), None)
+        if not dr:
+            return {"error": f"--plan {plan}: no such journal entry", "action": action}
+        if dr.get("mode") != "dry-run" or dr.get("action") != action:
+            return {"error": f"--plan {plan} is not a dry-run of '{action}'",
+                    "action": action}
+        if str(dr.get("target") or "") != str(target or ""):
+            return {"error": f"--plan {plan} targeted '{dr.get('target')}', "
+                             f"not '{target}'", "action": action}
+        if dr.get("payload_sha256") != payload_sha:
+            return {"error": f"--plan {plan} rendered a different payload than the "
+                             f"current state would (re-run the dry-run)", "action": action}
+
     entry = {
         "id": _next_id(root), "ts": _now(), "action": action, "target": target,
         "reason": str(reason), "mode": "applied" if apply else "dry-run",
-        "payload_sha256": __import__("hashlib").sha256(payload.encode()).hexdigest(),
+        "payload_sha256": payload_sha,
         "undoable": spec["undoable"],
     }
+    if apply:
+        entry["plan"] = plan
     if not apply:
         entry["payload"] = payload
         _journal_append(root, entry)
@@ -407,13 +449,16 @@ def execute(action, root, target=None, reason=None, apply=False, timeout=60):
     entry["verification"] = _run(verify, timeout=30) if verify else None
     if undo:
         entry["undo"] = undo if isinstance(undo, dict) else {"payload": undo}
-        # WMI undo needs the binding definitions captured by the payload.
+        # WMI undo reads the binding definitions file written by the payload.
         if isinstance(entry["undo"], dict) and entry["undo"].get("kind") == "wmi_bindings":
             try:
-                first = (result.get("output_head") or "").splitlines()[0]
-                entry["undo"]["bindings"] = json.loads(first)
-            except (IndexError, json.JSONDecodeError):
-                entry["undo"] = None  # nothing was bound; nothing to restore
+                first = (result.get("output_head") or "").splitlines()[0].strip()
+            except IndexError:
+                first = ""
+            if first and not first.startswith("{"):
+                entry["undo"]["bindings_file"] = first
+            else:
+                entry["undo"] = None  # no capture file: nothing was bound
     _journal_append(root, entry)
     entry.pop("payload", None)
     return entry
@@ -433,12 +478,22 @@ def undo(root, entry_id, apply=False, timeout=60):
     undo_spec = match["undo"]
     if isinstance(undo_spec, dict) and undo_spec.get("kind") == "wmi_bindings":
         binds = undo_spec.get("bindings") or []
+        bindings_file = undo_spec.get("bindings_file")
+        if not binds and bindings_file:
+            try:
+                loaded = json.loads(
+                    Path(bindings_file).read_text(encoding="utf-8-sig"))
+            except (OSError, json.JSONDecodeError) as exc:
+                return {"error": f"cannot read binding capture {bindings_file}: {exc}"}
+            binds = loaded if isinstance(loaded, list) else [loaded]
         if not binds:
             return {"error": "journaled entry carries no binding definitions to restore"}
         clauses = ";".join(
             f"New-CimInstance -Namespace root/subscription -ClassName __FilterToConsumerBinding "
-            f"-Property @{{ Filter={_ps_literal(b['filter'])}; Consumer={_ps_literal(b['consumer'])} }} | Out-Null;"
-            for b in binds)
+            f"-Property @{{ Filter={_ps_literal(b.get('filter'))}; Consumer={_ps_literal(b.get('consumer'))} }} | Out-Null;"
+            for b in binds if isinstance(b, dict))
+        if not clauses:
+            return {"error": "binding capture has no usable filter/consumer pairs"}
         payload = clauses + "'bindings restored'"
     else:
         payload = undo_spec.get("payload")

@@ -31,14 +31,14 @@ foreach ($e in $ev) {{
   $x = [xml]$e.ToXml(); $d = @{{}}
   foreach ($p in $x.Event.EventData.Data) {{ if ($p.Name) {{ $d[$p.Name] = $p.'#text' }} }}
   $rows += [pscustomobject]@{{
-    ts = $e.TimeCreated.ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
+    ts = $e.TimeCreated.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
     event_id = $e.Id
     user = $d['TargetUserName']
     domain = $d['TargetDomainName']
     logonType = $d['LogonType']
     workstation = $d['WorkstationName']
     source_ip = $d['IpAddress']
-    process = ($d['ProcessName'] -replace '^.*\\\\', '')
+    process = Split-Path -Leaf $d['ProcessName']
     pid = $d['ProcessId']
   }}
 }}
@@ -53,7 +53,7 @@ def _run_ps(since_minutes: int) -> dict:
     payload = _PS_TEMPLATE.format(since_minutes=int(since_minutes))
     try:
         proc = subprocess.run([exe, "-NoProfile", "-NonInteractive", "-Command", payload],
-                              capture_output=True, text=True, timeout=120)
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
     except subprocess.TimeoutExpired:
         return {"error": "identity collector timeout"}
     text = (proc.stdout or "").strip()

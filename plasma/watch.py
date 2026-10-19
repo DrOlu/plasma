@@ -42,16 +42,33 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
         findings.append({"type": "sweep_error", "score": 5,
                          "detail": str(exc)[:160]})
 
-    # 3. WHIDS alerts sitting on disk unpulled
+    # 3. NEW WHIDS alert rows sitting on disk since the last sweep
+    #    (whids.pull never truncates rotated files, so comparing against the
+    #    absolute row count would re-fire forever; only growth is a finding)
     alerts_dir = Path(r"C:\Program Files\Whids\Logs\Alerts")
     alert_rows = 0
     if alerts_dir.is_dir():
         for f in alerts_dir.rglob("*"):
             if f.is_file():
                 alert_rows += sum(1 for ln in f.read_text(errors="replace").splitlines() if ln.strip())
-    if alert_rows > since_alerts:
+    alert_state_path = root / "watch-alerts-state.json"
+    seen_alert_rows = 0
+    if alert_state_path.exists():
+        try:
+            seen_alert_rows = int(json.loads(
+                alert_state_path.read_text(encoding="utf-8-sig")).get("seen_alert_rows", 0))
+        except (ValueError, json.JSONDecodeError):
+            seen_alert_rows = 0
+    new_alert_rows = max(0, alert_rows - seen_alert_rows)
+    if new_alert_rows > since_alerts:
         findings.append({"type": "unpulled_whids_alerts", "score": 6,
-                         "detail": f"{alert_rows} alert rows on disk — run: plasma whids pull"})
+                         "detail": f"{new_alert_rows} new alert rows since last sweep "
+                                   f"— run: plasma whids pull"})
+    try:
+        alert_state_path.write_text(
+            json.dumps({"seen_alert_rows": alert_rows}) + "\n", encoding="utf-8")
+    except OSError:
+        pass
 
     top = max((f["score"] for f in findings), default=0)
     return {"info": info, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -69,7 +86,7 @@ def watch_once(root, quiet_clean: bool = True) -> dict:
         body = "\n".join(f"- [{f['score']}] {f['type']}: {f['detail']}"
                          for f in result["findings"]) or "clean"
         delivered = notify.notify_all(root, title, body,
-                                      min_score=1 if result["top_score"] else 99)
+                                      score=result["top_score"])
     result["notify"] = delivered
     state = Path(root) / "watch-state.json"
     state.write_text(json.dumps(result, indent=1, default=str) + "\n", encoding="utf-8")

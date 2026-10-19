@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import urllib.request
 
 
@@ -33,10 +34,12 @@ def latest_release(repo: str, token: str) -> dict:
 
 
 def parse_version(tag: str) -> tuple:
+    """'v1.2.3' -> (1, 2, 3). Pre-release suffixes (-rc1, -beta2) are ignored
+    so a published v1.0.0 never reads as older than 'v1.0.0-rc2'."""
     parts = []
     for piece in tag.lstrip("v").split("."):
-        num = "".join(ch for ch in piece if ch.isdigit())
-        parts.append(int(num or 0))
+        digits = re.match(r"\d+", piece)
+        parts.append(int(digits.group(0)) if digits else 0)
     while len(parts) < 3:
         parts.append(0)
     return tuple(parts[:3])

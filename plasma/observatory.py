@@ -127,7 +127,7 @@ $ans.services_installed_24h = @($svc | Select-Object -First $cap | ForEach-Objec
 
 $ans.system_services_unusual = @(Get-CimInstance Win32_Service |
     Where-Object { $_.StartName -eq 'LocalSystem' -and $_.PathName -and
-                   ($_.PathName -notmatch 'Windows\\\\') -and ($_.PathName -notmatch 'Program Files') } |
+                   ($_.PathName -notmatch 'Windows\\') -and ($_.PathName -notmatch 'Program Files') } |
     Select-Object -First $cap | ForEach-Object {
         @{ name=$_.Name; path=TrimTxt $_.PathName 220 } })
 
@@ -138,7 +138,7 @@ $ans.tasks_created_24h = @($tasks | Select-Object -First $cap | ForEach-Object {
 
 $ans.untrusted_drivers = @(Get-CimInstance Win32_SystemDriver |
     Where-Object { $_.PathName } | Select-Object -First 80 | ForEach-Object {
-        $p = $_.PathName -replace '^\\\\\\?\\',''
+        $p = $_.PathName -replace '^\\\\\?\\','' -replace '^\\\?\\\?\\',''
         $sig = Get-AuthenticodeSignature $p
         if ($sig -and $sig.SignerCertificate -and ($sig.SignerCertificate.Subject -notmatch 'Microsoft')) {
             @{ name=$_.Name; signer=($sig.SignerCertificate.Subject -split ',')[0] }
@@ -369,7 +369,7 @@ def run_question(name, canaries=(), timeout=COLLECT_TIMEOUT):
     try:
         proc = subprocess.run(
             [exe, "-NoProfile", "-NonInteractive", "-Command", QUESTIONS[name](canaries)],
-            capture_output=True, text=True, timeout=timeout)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
     except subprocess.TimeoutExpired:
         return {"error": "collector timeout", "question": name, "timeout": timeout}
     text = (proc.stdout or "").strip()

@@ -162,9 +162,6 @@ def mock_run(monkeypatch):
 
     def fake_run(payload, timeout=60):
         calls.append(payload)
-        if payload.startswith("$binds ="):
-            return {"rc": 0, "output": '[{"filter":"\\\\G1","consumer":"\\\\C1"}]\nbindings removed',
-                    "output_head": '[{"filter":"\\\\G1","consumer":"\\\\C1"}]\nbindings removed'}
         if payload.startswith("New-NetFirewallRule -DisplayName 'Plasma Block"):
             return {"rc": 0, "output": '{"DisplayName":"Plasma Block 1.2.3.4 In"}',
                     "output_head": '{"DisplayName":"Plasma Block 1.2.3.4 In"}'}
@@ -217,7 +214,11 @@ def test_actuate_protected_lists(tmp_path, mock_run):
 
 def test_actuate_isolate_keeps_management_open(tmp_path, mock_run):
     root = _fresh_root(tmp_path)
-    entry = actuate.execute("isolate_host", root, reason="ransomware", apply=True)
+    dry = actuate.execute("isolate_host", root, reason="ransomware")
+    assert dry["mode"] == "dry-run"
+    entry = actuate.execute("isolate_host", root, reason="ransomware",
+                            apply=True, plan=dry["id"])
+    assert entry["plan"] == dry["id"]
     payload = mock_run[0]
     # allow rules are created BEFORE any block rule, in the same payload
     assert payload.index("Allow RDP") < payload.index("Block Inbound")
@@ -227,31 +228,71 @@ def test_actuate_isolate_keeps_management_open(tmp_path, mock_run):
     assert entry["undo"]["payload"].startswith("Remove-NetFirewallRule")
 
 
+def test_actuate_apply_requires_plan_from_seen_dry_run(tmp_path, mock_run):
+    """--apply without a matching seen dry-run plan must never mutate."""
+    root = _fresh_root(tmp_path)
+    # no plan at all
+    res = actuate.execute("block_ip", root, target="1.2.3.4",
+                          reason="C2", apply=True)
+    assert "error" in res and "--plan" in res["error"]
+    # dry-run, then apply with a DIFFERENT target -> refused
+    dry = actuate.execute("block_ip", root, target="1.2.3.4", reason="C2")
+    res = actuate.execute("block_ip", root, target="5.6.7.8",
+                          reason="C2", apply=True, plan=dry["id"])
+    assert "error" in res and "target" in res["error"]
+    # plan id that does not exist
+    res = actuate.execute("block_ip", root, target="1.2.3.4",
+                          reason="C2", apply=True, plan=999)
+    assert "error" in res
+    # nothing ever ran: journal holds only the one dry-run
+    assert [r["mode"] for r in actuate.journal_read(root)] == ["dry-run"]
+    assert mock_run == []
+
+
+def test_actuate_apply_refuses_payload_drift(tmp_path, mock_run):
+    """A plan whose rendered payload changed must not be appliable."""
+    root = _fresh_root(tmp_path)
+    dry = actuate.execute("block_ip", root, target="1.2.3.4", reason="C2")
+    # tamper with the journaled digest: state moved on since the dry-run
+    journal = root / "actuate-journal.jsonl"
+    lines = journal.read_text().splitlines()
+    row = json.loads(lines[0])
+    row["payload_sha256"] = "0" * 64
+    lines[0] = json.dumps(row)
+    journal.write_text("\n".join(lines) + "\n")
+    res = actuate.execute("block_ip", root, target="1.2.3.4",
+                          reason="C2", apply=True, plan=dry["id"])
+    assert "error" in res and "payload" in res["error"]
+
+
 def test_actuate_apply_journals_result_and_verification(tmp_path, mock_run):
     root = _fresh_root(tmp_path)
+    dry = actuate.execute("block_ip", root, target="1.2.3.4", reason="C2")
     entry = actuate.execute("block_ip", root, target="1.2.3.4",
-                            reason="C2", apply=True)
+                            reason="C2", apply=True, plan=dry["id"])
     assert entry["result"]["rc"] == 0
     assert entry["verification"] is not None
     assert entry["undo"]["payload"].startswith("Remove-NetFirewallRule")
     journaled = actuate.journal_read(root)
-    assert journaled[0]["mode"] == "applied"
-    # the dry-run from the same call chain stays dry
-    dry = actuate.execute("block_ip", root, target="1.2.3.4", reason="again")
-    assert dry["mode"] == "dry-run"
+    assert [r["mode"] for r in journaled] == ["dry-run", "applied"]
+    # a later plain dry-run of the same action stays dry
+    dry2 = actuate.execute("block_ip", root, target="1.2.3.4", reason="again")
+    assert dry2["mode"] == "dry-run"
 
 
 def test_actuate_undo_flow(tmp_path, mock_run):
     root = _fresh_root(tmp_path)
-    applied = actuate.execute("block_ip", root, target="1.2.3.4", reason="C2", apply=True)
-    dry = actuate.undo(root, applied["id"])
+    dry = actuate.execute("block_ip", root, target="1.2.3.4", reason="C2")
+    applied = actuate.execute("block_ip", root, target="1.2.3.4",
+                              reason="C2", apply=True, plan=dry["id"])
+    undo_dry = actuate.undo(root, applied["id"])
     # apply already ran payload + verification (2 calls); dry undo adds none
-    assert dry["mode"] == "dry-run" and len(mock_run) == 2
+    assert undo_dry["mode"] == "dry-run" and len(mock_run) == 2
     done = actuate.undo(root, applied["id"], apply=True)
     assert done["action"] == "undo" and done["result"]["rc"] == 0
-    # journal records both
+    # journal records all four
     modes = [r["mode"] for r in actuate.journal_read(root)]
-    assert modes == ["applied", "dry-run", "applied"]
+    assert modes == ["dry-run", "applied", "dry-run", "applied"]
 
 
 def test_actuate_undo_refuses_dry_run_entries(tmp_path, mock_run):
@@ -268,10 +309,42 @@ def test_actuate_kill_process_guard(monkeypatch, tmp_path):
     assert "error" in result and "protected" in result["error"]
 
 
-def test_actuate_wmi_undo_restores_bindings(tmp_path, mock_run):
+def test_actuate_wmi_undo_restores_bindings(tmp_path, monkeypatch):
+    """Bindings are captured to a sidecar file (survives journal truncation)
+    and undo re-creates each filter/consumer pair."""
     root = _fresh_root(tmp_path)
-    entry = actuate.execute("disable_wmi_sub", root, reason="WMI persistence", apply=True)
-    assert entry["undo"]["bindings"] == [{"filter": "\\G1", "consumer": "\\C1"}]
+    binds_file = tmp_path / "bindings.json"
+    binds_file.write_text('[{"filter":"\\\\G1","consumer":"\\\\C1"}]')
+    calls = []
+
+    def fake_run(payload, timeout=60):
+        calls.append(payload)
+        if "Get-CimInstance -Namespace root/subscription" in payload:
+            return {"rc": 0, "output": f"{binds_file}\nbindings removed",
+                    "output_head": f"{binds_file}\nbindings removed"}
+        if payload.startswith("New-CimInstance"):
+            return {"rc": 0, "output": "bindings restored",
+                    "output_head": "bindings restored"}
+        return {"rc": 0, "output": "ok", "output_head": "ok"}
+
+    monkeypatch.setattr(actuate, "_run", fake_run)
+    dry = actuate.execute("disable_wmi_sub", root, reason="WMI persistence")
+    entry = actuate.execute("disable_wmi_sub", root, reason="WMI persistence",
+                            apply=True, plan=dry["id"])
+    assert entry["undo"]["bindings_file"] == str(binds_file)
     undone = actuate.undo(root, entry["id"], apply=True)
     assert undone["result"]["rc"] == 0
-    assert mock_run[-1].startswith("New-CimInstance")
+    assert calls[-1].startswith("New-CimInstance")
+
+
+def test_actuate_journal_tolerates_torn_lines(tmp_path, mock_run):
+    """A crash mid-append must not brick actuate forever."""
+    root = _fresh_root(tmp_path)
+    journal = root / "actuate-journal.jsonl"
+    journal.parent.mkdir(parents=True, exist_ok=True)
+    journal.write_text('{"id": 1, "broken json...\n')
+    rows = actuate.journal_read(root)
+    assert rows == []
+    # the next execute still works and ids continue from the parsed rows
+    dry = actuate.execute("block_ip", root, target="1.2.3.4", reason="x")
+    assert dry["id"] >= 1

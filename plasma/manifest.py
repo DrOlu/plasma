@@ -17,8 +17,8 @@ from . import PRODUCT, SCHEMA_VERSION
 
 MANIFEST_NAME = "manifest.json"
 EXCLUDE_DIRS = {"__pycache__", ".git", ".pytest_cache", "dist", "build"}
-EXCLUDE_SUFFIXES = {".pyc", ".pyo", ".zip", ".msi", ".DS_Store"}
-EXCLUDE_FILES = {MANIFEST_NAME}
+EXCLUDE_SUFFIXES = {".pyc", ".pyo", ".zip", ".msi"}
+EXCLUDE_FILES = {MANIFEST_NAME, ".DS_Store"}
 
 SENSOR_REQUIREMENTS = {
     "whids": {"required": True, "min_version": "1.7.0", "install": "service"},
