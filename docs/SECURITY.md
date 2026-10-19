@@ -48,8 +48,10 @@ as a response-adjacent action:
 * only indicators at/above `--min-confidence` (gene 0-10 scale, default 8);
 * private, loopback, link-local, multicast and reserved IPs are refused;
 * benign domain suffixes (Microsoft/Office/Google/Cloudflare/local) are refused;
-* the existing rule file is backed up and its expressions merged, never
-  overwritten blindly;
+* the existing rule file is backed up, then REPLACED: Plasma owns
+  `plasma-iocs.gen` and regenerates the full rule from the events store on
+  every push (merging across gene-schema versions corrupted endpoint rule
+  files once — never again);
 * every apply is journaled with rule hash, counts, reason and service result;
 * WHIDS response actions (kill/dump/quarantine) remain governed by WHIDS
   itself — Plasma generates detection rules only.

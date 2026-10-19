@@ -517,8 +517,11 @@ def push(events_path: str | Path | None = None, root: str | Path | None = None,
                 rows.append(row)
 
     indicators = extract_indicators(rows, min_confidence=min_confidence)[:max_indicators]
-    existing = read_rules(rules_path)
-    rule = merge_rules(existing, build_gene_rule(indicators))
+    # Plasma owns plasma-iocs.gen: the rule is regenerated from the full
+    # events store on every push, so it REPLACES the file (with backup).
+    # Merging a seed of a different gene schema produced duplicate-rule
+    # load failures on endpoints (WS1, 2026-10).
+    rule = build_gene_rule(indicators)
 
     plan = {
         "events_file": str(events_file),
