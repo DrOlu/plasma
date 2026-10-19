@@ -105,10 +105,18 @@ def test_identity_ps_template_emits_utc_and_basename():
 # health — culture-invariant number formatting
 # ---------------------------------------------------------------------------
 
-def test_health_sysmon_age_is_culture_invariant():
-    import inspect
-    src = inspect.getsource(health._newest_event_age_minutes)
-    assert "InvariantCulture" in src
+def test_health_sysmon_age_ps_is_wellformed(monkeypatch):
+    """E2E regression: a space before .ToString broke the PS method call and
+    sysmon_feed silently read as empty (WS2 reported 'down' in the field)."""
+    captured = {}
+    monkeypatch.setattr(health, "_ps",
+                        lambda s, timeout=60: captured.update(script=s) or "5")
+    age = health._newest_event_age_minutes("Microsoft-Windows-Sysmon/Operational")
+    assert age == 5.0
+    script = captured["script"]
+    assert "InvariantCulture" in script
+    assert ") .ToString" not in script          # the field bug
+    assert ").ToString(" in script
 
 
 # ---------------------------------------------------------------------------
