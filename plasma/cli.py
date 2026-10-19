@@ -347,6 +347,126 @@ def _service_present(pattern: str) -> bool:
         return False
 
 
+# ---------------------------------------------------------------------------
+# Intelligent WHIDS/Sysmon provisioning (v0.10.0)
+#
+# The installer incubates two paths and picks the right one at install time:
+#   FULL   — WHIDS + Sysmon: WHIDS travels inside the signed bundle (no
+#            internet needed); Sysmon cannot be redistributed (Microsoft
+#            EULA), so with internet the installer downloads it from
+#            Sysinternals and accepts the EULA via -accepteula on the
+#            operator's behalf.
+#   MINIMAL — no internet / download failure / operator opt-out: WHIDS and
+#            Sysmon are skipped and the node still runs fully operational
+#            (tap + identity + instance + drift + actuate + fleet). The
+#            decision and its reason are recorded in config.json and the
+#            install report; `observe attest` will surface the coverage gap.
+# ---------------------------------------------------------------------------
+
+SYSMON_BASELINE_CONFIG = (
+    '<Sysmon schemaversion="4.90"><EventFiltering>'
+    '<ProcessCreate onmatch="exclude"/>'
+    '<FileCreateTime onmatch="exclude"/>'
+    '<NetworkConnect onmatch="exclude"/>'
+    '<ProcessTerminate onmatch="exclude"/>'
+    '<ImageLoad onmatch="exclude"/>'
+    '<FileCreate onmatch="exclude"/>'
+    '<RegistryEvent onmatch="exclude"/>'
+    '<DnsQuery onmatch="exclude"/>'
+    '</EventFiltering></Sysmon>'
+)
+SYSMON_URLS = (
+    "https://download.sysinternals.com/files/Sysmon.zip",
+    "https://live.sysinternals.com/Sysmon64.exe",
+)
+
+
+def internet_available(prober=None, timeout: int = 5) -> bool:
+    """Best-effort reachability probe for the Sysmon download source.
+    `prober` is injectable for tests: callable(url) -> bool."""
+    import urllib.request
+
+    def _default(url: str) -> bool:
+        req = urllib.request.Request(url, method="HEAD",
+                                     headers={"User-Agent": "plasma-installer"})
+        urllib.request.urlopen(req, timeout=timeout)
+        return True
+
+    probe = prober or _default
+    try:
+        return bool(probe(SYSMON_URLS[0]))
+    except Exception:  # noqa: BLE001 — unreachable source means "no internet"
+        return False
+
+
+def whids_install_decision(sysmon_present: bool, whids_present: bool,
+                           payload_present: bool, skip_whids: bool,
+                           internet_ok: bool = True,
+                           sysmon_install_ok: bool | None = None) -> dict:
+    """Pure decision: FULL (whids+sysmon) where feasible, MINIMAL otherwise."""
+    if whids_present:
+        return {"decision": "already_present", "degraded": False}
+    if skip_whids:
+        return {"decision": "skipped", "degraded": True,
+                "reason": "--skip-whids requested"}
+    if not payload_present:
+        return {"decision": "skipped", "degraded": True,
+                "reason": "no WHIDS payload in bundle"}
+    if sysmon_present:
+        return {"decision": "full", "degraded": False}
+    if sysmon_install_ok is True:
+        return {"decision": "full", "degraded": False,
+                "sysmon": "installed at install time (EULA accepted via -accepteula)"}
+    if sysmon_install_ok is False:
+        return {"decision": "skipped", "degraded": True,
+                "reason": "Sysmon download/install failed"}
+    if not internet_ok:
+        return {"decision": "skipped", "degraded": True,
+                "reason": "no internet: Sysmon cannot be downloaded and may not "
+                          "be redistributed with Plasma"}
+    return {"decision": "attempt_sysmon_install", "degraded": False}
+
+
+def _try_install_sysmon(tools_dir: Path) -> tuple[bool, str]:
+    """Download + install Sysmon with the baseline config. Windows only.
+    Returns (ok, detail). EULA is accepted via -accepteula on behalf of the
+    installing operator."""
+    import io
+    import time
+    import urllib.request
+    import zipfile
+
+    target_exe = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "Sysmon64.exe"
+    last_err = ""
+    for url in SYSMON_URLS:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "plasma-installer"})
+            data = urllib.request.urlopen(req, timeout=120).read()
+            if url.endswith(".zip"):
+                zf = zipfile.ZipFile(io.BytesIO(data))
+                member = next(n for n in zf.namelist() if n.endswith("Sysmon64.exe"))
+                exe_bytes = zf.read(member)
+            else:
+                exe_bytes = data
+            target_exe.write_bytes(exe_bytes)
+            tools_dir.mkdir(parents=True, exist_ok=True)
+            cfg = tools_dir / "sysmon-baseline.xml"
+            cfg.write_text(SYSMON_BASELINE_CONFIG, encoding="ascii")
+            subprocess.run(
+                [str(target_exe), "-accepteula", "-i", str(cfg)],
+                capture_output=True, text=True, timeout=300,
+            )
+            for _ in range(15):
+                if _service_present("Sysmon*"):
+                    return True, "Sysmon installed (EULA accepted via -accepteula)"
+                time.sleep(2)
+            return False, "Sysmon service did not appear within 30s"
+        except Exception as exc:  # noqa: BLE001 — download failures are data
+            last_err = f"{url}: {str(exc)[:160]}"
+            continue
+    return False, f"Sysmon download failed: {last_err}"
+
+
 def _is_junction(path: Path) -> bool:
     try:
         proc = subprocess.run(
@@ -390,10 +510,32 @@ def cmd_install(args) -> int:
     sysmon_present = _service_present("Sysmon*")
     whids_dir = embedded / "sensors" / "whids"
     whids_gz = whids_dir / "whids.exe.gz"
-    whids_planned = (
-        not whids_present and not args.skip_whids and whids_gz.exists()
-    )
-    sysmon_missing_fatal = not sysmon_present and not whids_present and not args.skip_whids
+
+    # Intelligent WHIDS/Sysmon decision: FULL where feasible (auto-Sysmon
+    # download + EULA acceptance when internet allows), MINIMAL otherwise.
+    decision = whids_install_decision(sysmon_present, whids_present,
+                                      whids_gz.exists(), args.skip_whids)
+    if decision["decision"] == "attempt_sysmon_install":
+        if args.skip_sysmon_check:
+            decision = {"decision": "skipped", "degraded": True,
+                        "reason": "--skip-sysmon-check: Sysmon download skipped"}
+        elif not internet_available():
+            decision = whids_install_decision(
+                sysmon_present, whids_present, whids_gz.exists(),
+                args.skip_whids, internet_ok=False)
+        else:
+            ok, detail = _try_install_sysmon(root / "tools")
+            sysmon_present = sysmon_present or ok
+            decision = whids_install_decision(
+                sysmon_present, whids_present, whids_gz.exists(),
+                args.skip_whids, sysmon_install_ok=ok)
+            decision["sysmon_detail"] = detail
+    whids_planned = decision["decision"] == "full"
+    degraded = bool(decision.get("degraded"))
+    if degraded and getattr(args, "require_whids", False):
+        print(json.dumps({"ok": False, "error": "WHIDS required but not feasible",
+                          "decision": decision}, indent=2))
+        return 3
 
     plan = {
         "ok": True,
@@ -408,13 +550,18 @@ def cmd_install(args) -> int:
         "whids_present": whids_present,
         "sysmon_present": sysmon_present,
         "whids_will_install": bool(whids_planned),
+        "whids_decision": decision,
+        "degraded": degraded,
         "actions": [
             f"create {target}",
             "extract embedded instance + engines",
             f"copy {Path(sys.executable).name} to {root / 'bin'}",
             f"write {config_path}",
             f"point {current} -> {target}",
-        ] + ([f"install WHIDS from embedded payload (service '{whids.SERVICE_NAME}')"] if whids_planned else []),
+        ] + ([f"install Sysmon from Sysinternals (EULA accepted via -accepteula)"]
+             if decision.get("sysmon") == "installed at install time (EULA accepted via -accepteula)" else [])
+          + ([f"install WHIDS from embedded payload (service '{whids.SERVICE_NAME}')"] if whids_planned else [])
+          + ([f"MINIMAL MODE: {decision.get('reason')}"] if degraded else []),
     }
     if args.dry_run:
         print(json.dumps(plan, indent=2))
@@ -434,7 +581,7 @@ def cmd_install(args) -> int:
     me = Path(sys.executable)
     shutil.copy2(me, bindir / me.name)
 
-    # 2. Config.
+    # 2. Config — sensor state reflects the ACTUAL decision, not hopes.
     config = {
         "product": "Plasma",
         "version": version,
@@ -442,9 +589,17 @@ def cmd_install(args) -> int:
         "events_path": str(events_path),
         "retention_days": 7,
         "response": {"mode": "advisory", "require_human_approval": True},
+        "degraded": degraded,
         "sensors": {
-            "whids": {"required": True, "min_version": "1.7.0"},
-            "sysmon": {"required": True},
+            "whids": {"required": False, "min_version": "1.7.0",
+                      "status": ("active" if whids_present else
+                                 "installing" if whids_planned else "skipped"),
+                      "reason": decision.get("reason")},
+            "sysmon": {"required": False,
+                       "status": ("active" if sysmon_present else "absent")},
+            "tap": {"required": True, "mode": "on-demand",
+                    "providers": "powershell,wmi,dns,dotnet,schannel,security"},
+            "identity": {"required": True, "mode": "on-demand"},
             "sealighter": {"required": False, "mode": "on-demand"},
         },
     }
@@ -533,6 +688,7 @@ def cmd_install(args) -> int:
         "current": str(current),
         "config": str(config_path),
         "whids_installed": whids_planned or whids_present,
+        "degraded": degraded,
         "files_verified": verification["checked"],
     }, indent=2))
     return 0
@@ -839,8 +995,12 @@ def build_parser() -> argparse.ArgumentParser:
     ins.add_argument("--root", default=None, help="install root (default: C:\\ProgramData\\Plasma)")
     ins.add_argument("--events", default=None, help="event store path")
     ins.add_argument("--dry-run", action="store_true")
-    ins.add_argument("--skip-whids", action="store_true")
-    ins.add_argument("--skip-sysmon-check", action="store_true")
+    ins.add_argument("--skip-whids", action="store_true",
+                     help="force MINIMAL mode: no WHIDS/Sysmon (tap+identity remain)")
+    ins.add_argument("--skip-sysmon-check", action="store_true",
+                     help="do not attempt the Sysmon download (forces MINIMAL if Sysmon absent)")
+    ins.add_argument("--require-whids", action="store_true",
+                     help="fail closed when WHIDS/Sysmon are not feasible (old strict behavior)")
     ins.add_argument("--force", action="store_true")
     ins.set_defaults(func=cmd_install)
 
