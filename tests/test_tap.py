@@ -88,6 +88,25 @@ def test_normalize_match_contract():
     assert ev["pid"] == 6102
 
 
+def test_normalize_maps_target_username_to_user():
+    """Identity plane: security-channel logons carry the account on the event."""
+    row = {"ts": "2026-10-19T12:00:00Z", "provider": "Security", "event_id": 4624,
+           "rule": "sec-logon-success-monitored", "severity": "low",
+           "technique": "T1078", "pid": 700,
+           "props": {"TargetUserName": "Administrator", "ProcessName": "svchost.exe"}}
+    event = tap.normalize_match(row, host="WS1")
+    assert event["user"] == "Administrator"
+    PlasmaEvent(**event)
+
+
+def test_shipped_rules_include_identity_plane():
+    rules = tap.load_rules(RULES)
+    names = {r["name"] for r in rules}
+    assert "sec-logon-success-monitored" in names
+    assert "sec-logon-failure" in names
+    assert "security" in tap.TAP_PROVIDER_ALIASES
+
+
 def test_normalize_defensive_defaults():
     row = {"ts": "2026-10-19T00:00:00Z", "provider": "dns", "event_id": 0,
            "rule": "weird", "severity": "banana", "technique": "not-a-tech",

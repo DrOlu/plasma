@@ -59,6 +59,7 @@ std::wstring CanonicalProvider(const std::wstring& alias) {
     if (alias == L"dns") return L"Microsoft-Windows-DNS-Client";
     if (alias == L"dotnet") return L"Microsoft-Windows-DotNETRuntime";
     if (alias == L"schannel") return L"Microsoft-Windows-Schannel";
+    if (alias == L"security") return L"Security";  // Security auditing channel provider
     return alias;  // full names pass straight through
 }
 

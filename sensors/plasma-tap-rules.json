@@ -6,7 +6,8 @@
     "wmi": "Microsoft-Windows-WMI-Activity",
     "dns": "Microsoft-Windows-DNS-Client",
     "dotnet": "Microsoft-Windows-DotNETRuntime",
-    "schannel": "Microsoft-Windows-Schannel"
+    "schannel": "Microsoft-Windows-Schannel",
+    "security": "Security"
   },
   "rules": [
     {
@@ -134,6 +135,24 @@
       "substr": "",
       "severity": "medium",
       "technique": "T1620"
+    },
+    {
+      "name": "sec-logon-success-monitored",
+      "provider": "security",
+      "event_id": 4624,
+      "field": "TargetUserName",
+      "substr": "Administrator",
+      "severity": "low",
+      "technique": "T1078"
+    },
+    {
+      "name": "sec-logon-failure",
+      "provider": "security",
+      "event_id": 4625,
+      "field": "TargetUserName",
+      "substr": "",
+      "severity": "medium",
+      "technique": "T1110"
     }
   ]
 }

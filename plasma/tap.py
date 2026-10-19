@@ -28,6 +28,7 @@ TAP_PROVIDER_ALIASES = {
     "dns": "Microsoft-Windows-DNS-Client",
     "dotnet": "Microsoft-Windows-DotNETRuntime",
     "schannel": "Microsoft-Windows-Schannel",
+    "security": "Security",
 }
 SEVERITY_SCORE = {"info": 0.1, "low": 0.3, "medium": 0.5, "high": 0.8, "critical": 1.0}
 _TECHNIQUE = re.compile(r"^T\d{4}(\.\d{3})?$")
@@ -176,6 +177,7 @@ def normalize_match(row: dict, host: str = "localhost") -> dict:
         "pid": int(row["pid"]) if str(row.get("pid") or "").isdigit() and
                int(row["pid"]) <= 2_147_483_647 else None,
         "process": _clip(props.get("ProcessName"), 260),
+        "user": _clip(props.get("TargetUserName") or props.get("SubjectUserName"), 128),
         "cmdline": _clip(cmdline, 8192),
         "dns_query": _clip(props.get("QueryName"), 253),
         "file_path": _clip(props.get("Path") or props.get("FileName"), 4096),
