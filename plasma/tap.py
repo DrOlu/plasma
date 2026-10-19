@@ -158,6 +158,9 @@ def normalize_match(row: dict, host: str = "localhost") -> dict:
         f"/{row.get('event_name') or event_id} ({row.get('field')})",
         _clip(row.get("snippet"), 300),
     ]
+    # ASCII-only joiner: event JSONL travels through Windows pipes (WinRM,
+    # console codepages) where smart punctuation gets mangled into quote
+    # bytes that break line-JSON parsers on the far side.
     event = {
         "ts": row.get("ts"),
         "host": host,
@@ -169,7 +172,7 @@ def normalize_match(row: dict, host: str = "localhost") -> dict:
         "action": "logged",
         "technique": technique,
         "alert_id": alert_id,
-        "description": _clip(" — ".join(p for p in description_parts if p), 2048),
+        "description": _clip(" - ".join(p for p in description_parts if p), 2048),
         "pid": int(row["pid"]) if str(row.get("pid") or "").isdigit() and
                int(row["pid"]) <= 2_147_483_647 else None,
         "process": _clip(props.get("ProcessName"), 260),

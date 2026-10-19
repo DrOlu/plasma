@@ -22,6 +22,7 @@ Join rules (rmagent-so lineage):
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
@@ -118,7 +119,13 @@ def _pull_file(entry, out_file: Path, cap) -> dict:
 
 def _pull_winrm(entry, out_file: Path, cap) -> dict:
     """Fetch the remote events tail over WinRM. Password comes from the
-    environment variable named by password_env; it is never written down."""
+    environment variable named by password_env; it is never written down.
+
+    The primary read is byte-exact (base64 of the file): PS text output
+    re-encodes through the console codepage, which mangles non-ASCII bytes
+    and can inject quote characters that break JSON lines. Falls back to
+    Get-Content -Tail (line mode; PS 5.1 forbids -Raw + -Tail) when the
+    file cannot be read as bytes (e.g. held open by the sensor)."""
     try:
         import winrm  # optional desk-side dependency (pip install plasma-edr[desk])
     except ImportError:
@@ -129,22 +136,34 @@ def _pull_winrm(entry, out_file: Path, cap) -> dict:
         return {"host": entry["name"],
                 "error": f"environment variable {entry['password_env']} is not set"}
     target = entry.get("events_path", r"C:\ProgramData\Plasma\data\events.jsonl")
+    quoted = target.replace("'", "''")
     try:
         sess = winrm.Session(entry["endpoint"],
                              auth=(entry.get("username", "Administrator"), password),
                              transport="ntlm", read_timeout_sec=120)
-        res = sess.run_ps(
-            "Get-Content -LiteralPath '" + target.replace("'", "''") + "' -Raw -Tail "
-            + str(int(cap * 4)))
+        rows: list[dict] = []
+        via = "base64"
+        try:
+            res = sess.run_ps(f"[IO.File]::ReadAllBytes('{quoted}').Length | Out-Null; "
+                              f"[Convert]::ToBase64String([IO.File]::ReadAllBytes('{quoted}'))")
+            token = max(res.std_out.decode(errors="replace").split(), key=len)
+            raw = base64.b64decode(token).decode("utf-8")
+            rows = _rows_from_text(raw, cap)
+        except Exception:  # locked file / no bytes API — fall back to line mode
+            via = "tail-text"
+            res = sess.run_ps(f"Get-Content -LiteralPath '{quoted}' -Tail "
+                              + str(int(cap * 4)))
+            if res.status_code != 0:
+                return {"host": entry["name"], "error":
+                        (res.std_err.decode(errors="replace")
+                         or "remote failed")[:200]}
+            rows = _rows_from_text(res.std_out.decode(errors="replace"), cap)
     except Exception as exc:  # noqa: BLE001 — endpoint failures are data
         return {"host": entry["name"], "error": f"winrm failed: {str(exc)[:200]}"}
-    if res.status_code != 0:
-        return {"host": entry["name"],
-                "error": (res.std_err.decode(errors="replace") or "remote failed")[:200]}
-    rows = _rows_from_text(res.std_out.decode(errors="replace"), cap)
     out_file.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in rows),
                         encoding="utf-8")
-    return {"host": entry["name"], "transport": "winrm", "rows": len(rows)}
+    return {"host": entry["name"], "transport": "winrm", "rows": len(rows),
+            "read_via": via}
 
 
 # ---------------------------------------------------------------------------

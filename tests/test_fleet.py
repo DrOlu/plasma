@@ -123,6 +123,51 @@ def test_pull_winrm_transport_monkeypatched(tmp_path, monkeypatch):
             assert "SecretPassword" not in f.read_text(errors="ignore")
 
 
+def test_pull_base64_read_path_preserves_unicode(tmp_path, monkeypatch):
+    """Primary read is byte-exact base64: unicode in events survives the pipe."""
+    import base64 as b64mod
+    rows = [ev("WS2", user="EC2\\olu",
+               description="em dash — stays intact")]
+    payload = b64mod.b64encode(
+        "".join(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n"
+                for r in rows).encode("utf-8")).decode()
+
+    class FakeResult:
+        status_code = 0
+        std_out = ("PowerShell is ready!\n" + payload).encode()
+        std_err = b""
+    class FakeSession:
+        def __init__(self, *a, **k): pass
+        def run_ps(self, cmd):
+            assert "ToBase64String" in cmd
+            return FakeResult()
+    fake_winrm = type("W", (), {"Session": FakeSession})
+    monkeypatch.setitem(__import__("sys").modules, "winrm", fake_winrm)
+    monkeypatch.setenv("WS2PW", "pw")
+
+    inv = tmp_path / "fleet.json"
+    inv.write_text(json.dumps({"hosts": [
+        {"name": "WS2", "transport": "winrm", "endpoint": "10.0.0.9",
+         "password_env": "WS2PW"}]}))
+    out = fleet.pull(tmp_path, inv, "cb64")
+    assert out["results"][0]["rows"] == 1
+    assert out["results"][0]["read_via"] == "base64"
+    got = [json.loads(l) for l in
+           (fleet.case_dir(tmp_path, "cb64") / "answers" / "WS2.events.jsonl")
+           .read_text().splitlines()]
+    assert got[0]["description"] == "em dash — stays intact"
+
+
+def test_rows_parser_survives_codepage_mangling():
+    """A cp1252 round-trip turns an em dash into bytes that decode with an
+    embedded double quote, breaking that JSON line; the parser must keep
+    every healthy line instead of dying with it."""
+    broken = '{"a": 1, "description": "x â€" y"}'
+    text = "banner\n" + broken + "\n" + '{"a": 2}\n'
+    rows = fleet._rows_from_text(text, 50)
+    assert len(rows) == 1 and rows[0]["a"] == 2
+
+
 def test_pull_winrm_missing_env_is_data(tmp_path, monkeypatch):
     monkeypatch.delenv("NO_SUCH_PW_VAR", raising=False)
     inv = tmp_path / "fleet.json"
