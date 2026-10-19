@@ -124,6 +124,29 @@ rule so management access survives isolation; `--reason` is mandatory;
 every apply and undo is journaled (`actuate-journal.jsonl`) with its
 verification result; nothing runs without an explicit `--apply`.
 
+## ETW tap (krabsetw) — the gap providers
+
+`plasma tap` streams the providers Sysmon/WHIDS do not own — PowerShell
+(full ETW fidelity), WMI-Activity, DNS-Client, .NET Runtime (narrow
+keywords), Schannel — through a small C++ sidecar (`tap/plasma-tap.cpp`,
+built on Microsoft's MIT-licensed krabsetw, compiled by CI into the release
+bundle). Lake-less by construction: events are scored **in memory**, only
+matches are written (capped JSONL), no service, on-demand windows only.
+
+```bash
+plasma tap list                                    # providers + rules catalog
+plasma tap selftest                                # validate sidecar + rules, no trace
+sudo plasma tap run --providers powershell,wmi,dns --for 5m   # admin required
+plasma tap run --providers dns --for 90s --events events.jsonl  # + auto-collect
+plasma tap collect --matches matches.jsonl --events events.jsonl
+```
+
+Tap hits normalize into the same strict PlasmaEvent contract (source `tap`,
+kind `alert`, action `logged`) and flow into the frozen instance like every
+other sensor. Matching is deterministic (provider + event id +
+case-insensitive substring on a named field) via the manifest-verified
+`sensors/plasma-tap-rules.json` — never model judgment.
+
 ## Sensor policy
 
 ## Requirements

@@ -50,7 +50,7 @@ class PlasmaEvent(BaseModel):
 
     ts: datetime
     host: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$")
-    source: Literal["sentinel", "sysmon", "sealighter", "whids", "plasma"]
+    source: Literal["sentinel", "sysmon", "sealighter", "whids", "plasma", "tap"]
     kind: Literal[
         "alert", "auth", "dns", "file", "image_load",
         "network", "process", "registry",

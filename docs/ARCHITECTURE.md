@@ -92,3 +92,26 @@ Three operator-side modules complement the frozen instance:
 
 Overlap with WHIDS is deliberate-free: WHIDS senses (detect-only) and
 correlates; Plasma observes, drifts and acts only on human instruction.
+
+## ETW tap (krabsetw, v0.7.0)
+
+`tap/plasma-tap.cpp` + `plasma/tap.py` add a fourth sensory plane for the
+providers Sysmon/WHIDS don't own (PowerShell detail, WMI Activity,
+DNS-Client, .NET Runtime with narrow keywords, Schannel). Design:
+
+* krabsetw (Microsoft, MIT) user_trace per run; providers resolved by name
+  via TDH so no GUID drift;
+* in-memory scoring against `sensors/plasma-tap-rules.json` (rendered to
+  the pipe format the C++ parses); deterministic substr matching only;
+* matches-only JSONL, capped (--max-matches, default 500); raw stream
+  counts stay on stderr and die with the process;
+* on-demand windows (`--for`), no service, no persistence, admin required
+  (StartTrace) and failures returned as JSON data (exit 3);
+* matches normalize via `plasma.tap.normalize_match` into the strict
+  PlasmaEvent contract (source="tap") and join the same events store the
+  frozen instance probes — the instance and model needed no retraining,
+  only the source Literal gained "tap".
+
+CI compiles the tap on windows-latest (msvc-dev-cmd + krabsetw master,
+SHA recorded) and runs a short live DNS-provider window; the release
+bundle embeds plasma-tap.exe.gz beside whids.exe.gz.

@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "description": "Plasma ETW tap rules. Deterministic, manifest-verified, bundled. Matches are emitted; raw streams never touch disk.",
+  "providers": {
+    "powershell": "Microsoft-Windows-PowerShell",
+    "wmi": "Microsoft-Windows-WMI-Activity",
+    "dns": "Microsoft-Windows-DNS-Client",
+    "dotnet": "Microsoft-Windows-DotNETRuntime",
+    "schannel": "Microsoft-Windows-Schannel"
+  },
+  "rules": [
+    {
+      "name": "ps-base64-decode",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "FromBase64String",
+      "severity": "high",
+      "technique": "T1027"
+    },
+    {
+      "name": "ps-webclient-download",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "Net.WebClient",
+      "severity": "high",
+      "technique": "T1105"
+    },
+    {
+      "name": "ps-downloadfile",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "DownloadFile",
+      "severity": "high",
+      "technique": "T1105"
+    },
+    {
+      "name": "ps-invoke-expression",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "Invoke-Expression",
+      "severity": "medium",
+      "technique": "T1059.001"
+    },
+    {
+      "name": "ps-encoded-command",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "-enc ",
+      "severity": "medium",
+      "technique": "T1027"
+    },
+    {
+      "name": "ps-register-scheduled-task",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "Register-ScheduledTask",
+      "severity": "high",
+      "technique": "T1053.005"
+    },
+    {
+      "name": "ps-scheduled-job-hidden",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "New-ScheduledTaskSettingsSet",
+      "severity": "medium",
+      "technique": "T1053.005"
+    },
+    {
+      "name": "ps-local-group-add",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "Add-LocalGroupMember",
+      "severity": "high",
+      "technique": "T1078.003"
+    },
+    {
+      "name": "wmi-event-filter",
+      "provider": "wmi",
+      "event_id": 0,
+      "field": "*",
+      "substr": "__EventFilter",
+      "severity": "high",
+      "technique": "T1546.003"
+    },
+    {
+      "name": "wmi-activescript-consumer",
+      "provider": "wmi",
+      "event_id": 0,
+      "field": "*",
+      "substr": "ActiveScriptEventConsumer",
+      "severity": "high",
+      "technique": "T1546.003"
+    },
+    {
+      "name": "wmi-cmdline-consumer",
+      "provider": "wmi",
+      "event_id": 0,
+      "field": "*",
+      "substr": "CommandLineEventConsumer",
+      "severity": "high",
+      "technique": "T1546.003"
+    },
+    {
+      "name": "dns-ddns-tunnel",
+      "provider": "dns",
+      "event_id": 0,
+      "field": "QueryName",
+      "substr": ".ddns.",
+      "severity": "medium",
+      "technique": "T1071.004"
+    },
+    {
+      "name": "dns-tunnel-domain-top",
+      "provider": "dns",
+      "event_id": 0,
+      "field": "QueryName",
+      "substr": ".top",
+      "severity": "low",
+      "technique": "T1071.004"
+    },
+    {
+      "name": "dotnet-assembly-load",
+      "provider": "dotnet",
+      "event_id": 154,
+      "field": "*",
+      "substr": "",
+      "severity": "medium",
+      "technique": "T1620"
+    }
+  ]
+}

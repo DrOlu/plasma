@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, whids, observatory, actuate, drift
+from . import __version__, whids, observatory, actuate, drift, tap
 from .bundle import build_bundle
 from .manifest import create_manifest, sha256_file, verify_manifest
 
@@ -88,6 +88,32 @@ def _materialize_gzip(gz: Path, name: str) -> Path:
         if os.name != "nt":
             out.chmod(0o755)
     return out
+
+
+def _locate_tap_rules() -> Path | None:
+    """Bundled tap rules (embedded in the frozen exe, or the repo checkout)."""
+    embedded = _embedded_root()
+    if embedded:
+        p = embedded / "sensors" / "plasma-tap-rules.json"
+        if p.exists():
+            return p
+    dev = Path(__file__).resolve().parent.parent / "sensors" / "plasma-tap-rules.json"
+    return dev if dev.exists() else None
+
+
+def _locate_tap_exe() -> Path | None:
+    """The krabsetw sidecar: embedded (materialized on demand), dev build, or PATH."""
+    embedded = _embedded_root()
+    if embedded:
+        gz = embedded / "sensors" / "tap" / "plasma-tap.exe.gz"
+        if gz.exists():
+            return _materialize_gzip(gz, "plasma-tap.exe")
+    dev = Path(__file__).resolve().parent.parent / "sensors" / "tap" / (
+        "plasma-tap.exe" if os.name == "nt" else "plasma-tap")
+    if dev.exists():
+        return dev
+    found = shutil.which("plasma-tap.exe") or shutil.which("plasma-tap")
+    return Path(found) if found else None
 
 
 def _engine_from_dir(directory: Path) -> Path | None:
@@ -582,6 +608,99 @@ def cmd_actuate_undo(args) -> int:
     return 0 if "error" not in result else 1
 
 
+def cmd_tap_list(args) -> int:
+    rules_path = _locate_tap_rules()
+    info = {
+        "providers": tap.TAP_PROVIDER_ALIASES,
+        "rules_file": str(rules_path) if rules_path else None,
+        "rule_count": len(tap.load_rules(rules_path)) if rules_path else 0,
+        "tap_exe": str(_locate_tap_exe() or "") or None,
+        "default_providers": "powershell,wmi,dns",
+        "ethos": "on-demand window, in-memory scoring, matches-only output",
+    }
+    print(json.dumps(info, indent=2))
+    return 0
+
+
+def cmd_tap_selftest(args) -> int:
+    rules_path = Path(args.rules) if args.rules else _locate_tap_rules()
+    if not rules_path or not rules_path.exists():
+        print(json.dumps({"error": "tap rules file not found"}))
+        return 1
+    exe = Path(args.tap_exe) if args.tap_exe else _locate_tap_exe()
+    if not exe or not Path(exe).exists():
+        print(json.dumps({"error": "plasma-tap.exe not available",
+                          "hint": "compile it (tap/README.md) or use a release bundle"}))
+        return 1
+    import tempfile
+    rules_txt = Path(tempfile.mkdtemp()) / "plasma-tap-rules.txt"
+    tap.build_rules_txt(tap.load_rules(rules_path), rules_txt)
+    result = tap.selftest(exe, rules_txt)
+    print(json.dumps(result, indent=2))
+    return 0 if result.get("ok") else 1
+
+
+def cmd_tap_run(args) -> int:
+    seconds = tap.parse_duration(args.for_)
+    providers = [p.strip() for p in args.providers.split(",") if p.strip()]
+    unknown = [p for p in providers if p not in tap.TAP_PROVIDER_ALIASES]
+    if unknown:
+        print(json.dumps({"error": f"unknown providers: {unknown}",
+                          "providers": sorted(tap.TAP_PROVIDER_ALIASES)}, indent=2))
+        return 1
+    rules_path = Path(args.rules) if args.rules else _locate_tap_rules()
+    if not rules_path or not rules_path.exists():
+        print(json.dumps({"error": "tap rules file not found"}))
+        return 1
+    exe = Path(args.tap_exe) if args.tap_exe else _locate_tap_exe()
+    if not exe or not Path(exe).exists():
+        print(json.dumps({"error": "plasma-tap.exe not available",
+                          "hint": "compile it (tap/README.md) or use a release bundle"}))
+        return 1
+    if args.out_dir:
+        out_dir = Path(args.out_dir)
+    elif os.name == "nt":
+        out_dir = Path(os.environ.get("ProgramData", ".")) / "Plasma" / "tap"
+    else:
+        out_dir = Path.cwd() / "plasma-tap"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    rules = tap.load_rules(rules_path)
+    rules_txt = out_dir / "plasma-tap-rules.txt"
+    tap.build_rules_txt(rules, rules_txt)
+    st = tap.selftest(exe, rules_txt)
+    if not st.get("ok"):
+        print(json.dumps({"error": "tap selftest failed", "selftest": st}, indent=2))
+        return 1
+
+    matches = out_dir / "matches.jsonl"
+    summary = tap.run(exe, providers, seconds, matches, rules_txt,
+                      max_matches=args.max_matches)
+    result = {
+        "providers": providers,
+        "window_seconds": seconds,
+        "rules": len(rules),
+        "matches_file": str(matches),
+        "summary": summary,
+    }
+    if args.events:
+        result["collected"] = tap.collect(matches, args.events,
+                                          host=_platform.node() or "localhost")
+    print(json.dumps(result, indent=2, default=str))
+    if not summary.get("ok"):
+        return 1
+    if summary.get("rc") != 0:
+        return 3
+    return 0
+
+
+def cmd_tap_collect(args) -> int:
+    result = tap.collect(args.matches, args.events,
+                         host=args.host or _platform.node() or "localhost")
+    print(json.dumps(result, indent=2))
+    return 0 if "error" not in result else 1
+
+
 def cmd_internal_bridge(args) -> int:
     """Hidden entry point used by the frozen executable (`plasma _bridge`)."""
     import importlib.util
@@ -736,6 +855,31 @@ def build_parser() -> argparse.ArgumentParser:
     acu.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     acu.add_argument("--timeout", type=int, default=60)
     acu.set_defaults(func=cmd_actuate_undo)
+
+    tp = sub.add_parser("tap", help="ETW tap over gap providers (krabsetw) — on-demand, matches-only")
+    tps = tp.add_subparsers(dest="tap_action", required=True)
+    tpl = tps.add_parser("list", help="show providers, rules and sidecar availability")
+    tpl.set_defaults(func=cmd_tap_list)
+    tpt = tps.add_parser("selftest", help="validate the sidecar + rules without opening a trace")
+    tpt.add_argument("--tap-exe", default=None)
+    tpt.add_argument("--rules", default=None)
+    tpt.set_defaults(func=cmd_tap_selftest)
+    tpr = tps.add_parser("run", help="run a bounded capture window (admin required)")
+    tpr.add_argument("--providers", default="powershell,wmi,dns",
+                     help="comma list: powershell|wmi|dns|dotnet|schannel")
+    tpr.add_argument("--for", dest="for_", default="5m", help="window: 90s | 5m | 1h")
+    tpr.add_argument("--out-dir", default=None, help="where matches + rules land")
+    tpr.add_argument("--events", default=None,
+                     help="also normalize matches into this events store")
+    tpr.add_argument("--max-matches", type=int, default=500)
+    tpr.add_argument("--tap-exe", default=None)
+    tpr.add_argument("--rules", default=None)
+    tpr.set_defaults(func=cmd_tap_run)
+    tpc = tps.add_parser("collect", help="normalize an existing matches.jsonl into the events store")
+    tpc.add_argument("--matches", required=True)
+    tpc.add_argument("--events", required=True)
+    tpc.add_argument("--host", default=None)
+    tpc.set_defaults(func=cmd_tap_collect)
 
     hb = sub.add_parser("_bridge", help=argparse.SUPPRESS)
     hb.add_argument("--dir", required=True)

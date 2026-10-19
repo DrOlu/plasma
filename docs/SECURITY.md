@@ -54,6 +54,15 @@ as a response-adjacent action:
 * WHIDS response actions (kill/dump/quarantine) remain governed by WHIDS
   itself — Plasma generates detection rules only.
 
+## ETW tap posture
+
+* The tap is on-demand only: no service, no autostart, no persistence.
+* Only match records are written (capped); raw ETW streams never touch disk.
+* Rules are part of the bundle manifest — tampering is rejected at install.
+* Requires elevation to open a trace session; refusals are returned as
+  data, never silently retried.
+* krabsetw is MIT — attribution travels in THIRD_PARTY_NOTICES alongside
+  the WHIDS AGPL license.
 ## Operational cautions
 
 * Test on non-production endpoints first. WHIDS actionable rules can terminate processes.
