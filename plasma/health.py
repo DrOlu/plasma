@@ -58,7 +58,8 @@ def checks(root) -> list[dict]:
     cfg_path = root / "config.json"
     if cfg_path.exists():
         try:
-            config = json.loads(cfg_path.read_text(encoding="utf-8"))
+            # utf-8-sig: PowerShell-written configs may carry a BOM
+            config = json.loads(cfg_path.read_text(encoding="utf-8-sig"))
         except json.JSONDecodeError:
             results.append({"check": "config", "ok": False,
                             "detail": "config.json unparsable"})

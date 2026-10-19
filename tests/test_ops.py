@@ -56,6 +56,16 @@ def test_notify_all_without_config_sends_nothing(tmp_path):
 # health
 # ---------------------------------------------------------------------------
 
+def test_health_tolerates_bom_config(tmp_path, monkeypatch):
+    """PS 5.1 Set-Content -Encoding UTF8 writes a BOM; config must still parse."""
+    (tmp_path / "config.json").write_bytes(
+        b"\xef\xbb\xbf" + json.dumps({
+            "events_path": str(tmp_path / "e.jsonl"), "degraded": True,
+            "sensors": {"whids": {"status": "skipped"}}}).encode())
+    v = health.verdict(tmp_path)
+    assert all(c["check"] != "config" or c["ok"] for c in v["checks"])
+
+
 def test_health_down_when_whids_expected_but_stopped(tmp_path, monkeypatch):
     (tmp_path / "config.json").write_text(json.dumps({
         "events_path": str(tmp_path / "e.jsonl"), "degraded": False,
