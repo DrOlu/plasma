@@ -99,12 +99,19 @@ def test_normalize_maps_target_username_to_user():
     PlasmaEvent(**event)
 
 
-def test_shipped_rules_include_identity_plane():
+def test_security_channel_rules_retired():
+    """Audit events are never re-emitted to realtime ETW (proven on WS1) —
+    that plane is owned by `plasma identity pull` via the Event Log API."""
     rules = tap.load_rules(RULES)
-    names = {r["name"] for r in rules}
-    assert "sec-logon-success-monitored" in names
-    assert "sec-logon-failure" in names
-    assert "security" in tap.TAP_PROVIDER_ALIASES
+    assert all(r["provider"] != "security" for r in rules)
+    assert "security" in tap.TAP_PROVIDER_ALIASES  # alias retained for docs
+
+
+def test_detection_depth_baseline():
+    rules = tap.load_rules(RULES)
+    assert len(rules) >= 30, "detection content must not silently shrink"
+    sev = {r["severity"] for r in rules}
+    assert {"medium", "high", "critical"} <= sev
 
 
 def test_normalize_defensive_defaults():

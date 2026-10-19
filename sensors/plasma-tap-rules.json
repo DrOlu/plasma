@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Plasma ETW tap rules. Deterministic, manifest-verified, bundled. Matches are emitted; raw streams never touch disk.",
+  "description": "Plasma ETW tap rules. Deterministic, manifest-verified, bundled. Security-channel audit events are covered by `plasma identity pull` (Event Log API) \u2014 audit events are not re-emitted to realtime ETW.",
   "providers": {
     "powershell": "Microsoft-Windows-PowerShell",
     "wmi": "Microsoft-Windows-WMI-Activity",
@@ -137,22 +137,157 @@
       "technique": "T1620"
     },
     {
-      "name": "sec-logon-success-monitored",
-      "provider": "security",
-      "event_id": 4624,
-      "field": "TargetUserName",
-      "substr": "Administrator",
-      "severity": "low",
-      "technique": "T1078"
+      "name": "ps-invoke-mimikatz",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "Invoke-Mimikatz",
+      "severity": "critical",
+      "technique": "T1003.002"
     },
     {
-      "name": "sec-logon-failure",
-      "provider": "security",
-      "event_id": 4625,
-      "field": "TargetUserName",
-      "substr": "",
+      "name": "ps-minidump",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "MiniDumpWriteDump",
+      "severity": "high",
+      "technique": "T1003.001"
+    },
+    {
+      "name": "ps-reg-save-hive",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "reg save",
+      "severity": "high",
+      "technique": "T1003.002"
+    },
+    {
+      "name": "ps-token-manipulation",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "Invoke-TokenManipulation",
+      "severity": "high",
+      "technique": "T1134"
+    },
+    {
+      "name": "ps-amsi-bypass",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "amsiInitFailed",
+      "severity": "high",
+      "technique": "T1562.001"
+    },
+    {
+      "name": "ps-executionpolicy-bypass",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "set-executionpolicy bypass",
       "severity": "medium",
-      "technique": "T1110"
+      "technique": "T1562.001"
+    },
+    {
+      "name": "ps-hidden-window",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "-windowstyle hidden",
+      "severity": "medium",
+      "technique": "T1564.003"
+    },
+    {
+      "name": "ps-downloadstring",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "DownloadString(",
+      "severity": "high",
+      "technique": "T1105"
+    },
+    {
+      "name": "ps-iex-webclient-cradle",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "IEX(New-Object Net.WebClient",
+      "severity": "critical",
+      "technique": "T1059.001"
+    },
+    {
+      "name": "ps-tcpclient",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "Sockets.TcpClient",
+      "severity": "medium",
+      "technique": "T1071.001"
+    },
+    {
+      "name": "ps-invoke-shellcode",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "Invoke-Shellcode",
+      "severity": "critical",
+      "technique": "T1055"
+    },
+    {
+      "name": "ps-invoke-dllinjection",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "Invoke-DllInjection",
+      "severity": "critical",
+      "technique": "T1055.001"
+    },
+    {
+      "name": "ps-compress-archive",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "Compress-Archive",
+      "severity": "medium",
+      "technique": "T1560.001"
+    },
+    {
+      "name": "ps-invoke-wmimethod",
+      "provider": "powershell",
+      "event_id": 4104,
+      "field": "ScriptBlockText",
+      "substr": "Invoke-WmiMethod",
+      "severity": "medium",
+      "technique": "T1047"
+    },
+    {
+      "name": "dns-ngrok",
+      "provider": "dns",
+      "event_id": 0,
+      "field": "QueryName",
+      "substr": "ngrok",
+      "severity": "medium",
+      "technique": "T1071.001"
+    },
+    {
+      "name": "dns-trycloudflare-tunnel",
+      "provider": "dns",
+      "event_id": 0,
+      "field": "QueryName",
+      "substr": "trycloudflare.com",
+      "severity": "medium",
+      "technique": "T1071.001"
+    },
+    {
+      "name": "dns-duckdns",
+      "provider": "dns",
+      "event_id": 0,
+      "field": "QueryName",
+      "substr": ".duckdns.org",
+      "severity": "low",
+      "technique": "T1071.001"
     }
   ]
 }

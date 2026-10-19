@@ -173,6 +173,23 @@ Verdicts: clean / investigate / act now. Credentials arrive via env vars
 pip install 'plasma-edr[desk]'   # adds pywinrm for the winrm transport
 ```
 
+## Operations: health, watch, notify, self-update (v0.11.0)
+
+```bash
+plasma health                                   # is the stack alive? (json verdict)
+plasma watch once                               # sweep: health + drift + canary + alerts
+plasma notify show | plasma notify test         # alert channels (telegram/webhook)
+plasma update check                             # compare against latest release
+plasma update apply                             # download, verify sha, install, rotate bin
+```
+
+Alert channels live in `<root>/notify.json` (telegram needs `token_env` —
+secrets never live in config files). `watch once` is cron/Task-Scheduler
+friendly: quiet when clean, notifies on findings. `update apply` verifies
+the SHA256SUMS before installing and rotates the running binary
+(rename-while-running), so nodes upgrade themselves with a token in the
+environment.
+
 ## Sensor policy
 
 ## Requirements

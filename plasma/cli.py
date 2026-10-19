@@ -18,7 +18,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity
+from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch
+from . import update as updater
 from .bundle import build_bundle
 from .manifest import create_manifest, sha256_file, verify_manifest
 
@@ -878,6 +879,81 @@ def cmd_tap_collect(args) -> int:
     return 0 if "error" not in result else 1
 
 
+def cmd_health(args) -> int:
+    result = health.verdict(args.root)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if result["status"] == "ok" else 2 if result["status"] == "down" else 1
+
+
+def cmd_watch_once(args) -> int:
+    result = watch.watch_once(args.root, quiet_clean=not args.notify_clean)
+    print(json.dumps({k: v for k, v in result.items() if k != "notify"}, indent=2, default=str))
+    n = result.get("notify")
+    if n is not None:
+        print(json.dumps({"notify": n}, indent=2))
+    return 0 if result["top_score"] == 0 else 2
+
+
+def cmd_watch_loop(args) -> int:
+    import time as _time
+    while True:
+        result = watch.watch_once(args.root, quiet_clean=True)
+        print(json.dumps({"at": result["at"], "verdict": result["verdict"],
+                          "top_score": result["top_score"]}, default=str))
+        _time.sleep(args.every)
+
+
+def cmd_notify_test(args) -> int:
+    result = notify.notify_all(args.root, "Plasma notify test",
+                               f"delivery check from {args.host or _platform.node()}")
+    print(json.dumps(result, indent=2))
+    return 0 if result["configured"] and result["sent"] == result["configured"] else 1
+
+
+def cmd_notify_show(args) -> int:
+    cfg = notify.load_config(args.root)
+    print(json.dumps({"channels": len(cfg["channels"]),
+                      "types": [ch.get("type") for ch in cfg["channels"]],
+                      "min_score": cfg["min_score"]}, indent=2))
+    return 0
+
+
+def cmd_update_check(args) -> int:
+    token = os.environ.get(args.token_env, "")
+    if not token:
+        print(json.dumps({"error": f"env {args.token_env} not set (repo is private)"}, indent=2))
+        return 1
+    rel = updater.latest_release(args.repo, token)
+    newer = updater.is_newer(__version__, rel["tag"])
+    print(json.dumps({"current": __version__, "latest": rel["tag"], "update_available": newer},
+                     indent=2))
+    return 0 if newer else 0
+
+
+def cmd_update_apply(args) -> int:
+    token = os.environ.get(args.token_env, "")
+    if not token:
+        print(json.dumps({"error": f"env {args.token_env} not set (repo is private)"}, indent=2))
+        return 1
+    root = Path(args.root)
+    staged = root / "tools" / f"plasma-{updater.parse_version(__version__)[0]}.staged.exe"
+    res = updater.download_and_verify(args.repo, "", token, staged)
+    print(json.dumps({"stage": "download", **{k: v for k, v in res.items() if k != 'ok'}}, indent=2, default=str))
+    if not res["ok"]:
+        return 1
+    inst = subprocess.run([str(staged), "install", "--force"],
+                          capture_output=True, text=True, timeout=900)
+    print(inst.stdout[-800:] if inst.stdout else "")
+    if inst.returncode != 0:
+        print(inst.stderr[-400:], file=sys.stderr)
+        return 3
+    bin_exe = Path(args.bin) if args.bin else root / "bin" / Path(sys.executable).name
+    rot = updater.rotate_bin(staged, bin_exe)
+    print(json.dumps({"stage": "bin_rotation", **rot}, indent=2, default=str))
+    print(json.dumps({"ok": True, "updated_to": res.get("tag")}, indent=2))
+    return 0
+
+
 def cmd_identity_pull(args) -> int:
     result = identity.pull(args.events, host=args.host or _platform.node() or "localhost",
                            since_minutes=args.since)
@@ -1148,6 +1224,44 @@ def build_parser() -> argparse.ArgumentParser:
     idpp.add_argument("--host", default=None)
     idpp.add_argument("--since", type=int, default=15, help="minutes to look back")
     idpp.set_defaults(func=cmd_identity_pull)
+
+    hp = sub.add_parser("health", help="is this node's Plasma stack actually alive?")
+    hp.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    hp.set_defaults(func=cmd_health)
+
+    wp = sub.add_parser("watch", help="self-check sweep with notifications (health + drift + alerts)")
+    wps = wp.add_subparsers(dest="watch_action", required=True)
+    wpo = wps.add_parser("once", help="one sweep (cron/Task Scheduler friendly)")
+    wpo.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    wpo.add_argument("--notify-clean", action="store_true", help="notify even when clean")
+    wpo.set_defaults(func=cmd_watch_once)
+    wpl = wps.add_parser("loop", help="sweep forever every N seconds")
+    wpl.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    wpl.add_argument("--every", type=int, default=3600)
+    wpl.set_defaults(func=cmd_watch_loop)
+
+    np_ = sub.add_parser("notify", help="alert channel configuration and delivery")
+    nps = np_.add_subparsers(dest="notify_action", required=True)
+    npt = nps.add_parser("test", help="send a test message to every configured channel")
+    npt.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    npt.add_argument("--host", default=None)
+    npt.set_defaults(func=cmd_notify_test)
+    npsh = nps.add_parser("show", help="validate and show channel config")
+    npsh.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    npsh.set_defaults(func=cmd_notify_show)
+
+    up = sub.add_parser("update", help="self-update from GitHub releases")
+    ups = up.add_subparsers(dest="update_action", required=True)
+    upc = ups.add_parser("check", help="compare against the latest release")
+    upc.add_argument("--repo", default="DrOlu/plasma")
+    upc.add_argument("--token-env", default="PLASMA_GITHUB_TOKEN")
+    upc.set_defaults(func=cmd_update_check)
+    upa = ups.add_parser("apply", help="download, verify, install, rotate bin")
+    upa.add_argument("--repo", default="DrOlu/plasma")
+    upa.add_argument("--token-env", default="PLASMA_GITHUB_TOKEN")
+    upa.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    upa.add_argument("--bin", default=None, help="canonical exe copy to rotate (default <root>/bin)")
+    upa.set_defaults(func=cmd_update_apply)
 
     hb = sub.add_parser("_bridge", help=argparse.SUPPRESS)
     hb.add_argument("--dir", required=True)
