@@ -28,7 +28,7 @@ TAP_PROVIDER_ALIASES = {
     "dns": "Microsoft-Windows-DNS-Client",
     "dotnet": "Microsoft-Windows-DotNETRuntime",
     "schannel": "Microsoft-Windows-Schannel",
-    "security": "Security",
+    "security": "Microsoft-Windows-Security-Auditing",
 }
 SEVERITY_SCORE = {"info": 0.1, "low": 0.3, "medium": 0.5, "high": 0.8, "critical": 1.0}
 _TECHNIQUE = re.compile(r"^T\d{4}(\.\d{3})?$")

@@ -7,7 +7,7 @@
     "dns": "Microsoft-Windows-DNS-Client",
     "dotnet": "Microsoft-Windows-DotNETRuntime",
     "schannel": "Microsoft-Windows-Schannel",
-    "security": "Security"
+    "security": "Microsoft-Windows-Security-Auditing"
   },
   "rules": [
     {
