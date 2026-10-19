@@ -147,6 +147,32 @@ other sensor. Matching is deterministic (provider + event id +
 case-insensitive substring on a named field) via the manifest-verified
 `sensors/plasma-tap-rules.json` — never model judgment.
 
+## Fleet — one desk, many computers (v0.8.0)
+
+Desk-side cross-host correlation. Endpoints need nothing new: their
+normalized `events.jsonl` stores are already small and schema-identical,
+so the desk pulls a capped tail from each host into a case directory and
+joins them with deterministic rules. No server, no standing collector,
+no lake — pull small answers on demand, write a case dossier, close the case.
+
+```bash
+# fleet.json: [{name, transport: winrm|file, endpoint, username,
+#               password_env, events_path}, ...]   (no inline passwords, ever)
+export WS2PW=...
+plasma fleet scan --inventory fleet.json --case incident-42 --window 3600
+plasma fleet report --case incident-42          # one-page markdown dossier
+```
+
+Deterministic joins: canary_tripped (10), lateral_hop (9, same user on
+2+ hosts inside the window), shared_hash (8), shared_domain (7),
+shared_ip (7), blind_host (8, from attest answers in the case).
+Verdicts: clean / investigate / act now. Credentials arrive via env vars
+(`password_env`) and are never written to disk — enforced by test.
+
+```bash
+pip install 'plasma-edr[desk]'   # adds pywinrm for the winrm transport
+```
+
 ## Sensor policy
 
 ## Requirements

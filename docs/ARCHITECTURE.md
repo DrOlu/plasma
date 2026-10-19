@@ -115,3 +115,16 @@ DNS-Client, .NET Runtime with narrow keywords, Schannel). Design:
 CI compiles the tap on windows-latest (msvc-dev-cmd + krabsetw master,
 SHA recorded) and runs a short live DNS-provider window; the release
 bundle embeds plasma-tap.exe.gz beside whids.exe.gz.
+
+## Fleet (v0.8.0) — the rmagent desk, over Plasma data
+
+`plasma/fleet.py` closes the "one desk, many computers" gap without adding
+anything to endpoints. The insight: Plasma events are already normalized
+and schema-identical across hosts, so correlation is a desk-side join over
+capped per-host digests, not a central product. Design rules: pull on
+demand only (never a standing collector), credentials via env indirection
+(never on disk — test-enforced), deterministic join rules (no model
+judgment), case directories as disposable human-owned dossiers.
+Transports: file (any reachable path) and winrm (optional `[desk]` extra).
+The one rmagent capability intentionally NOT ported into the endpoint —
+remote WinRM execution — lives here instead, where it belongs: on the desk.

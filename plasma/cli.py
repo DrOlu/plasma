@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, whids, observatory, actuate, drift, tap
+from . import __version__, whids, observatory, actuate, drift, tap, fleet
 from .bundle import build_bundle
 from .manifest import create_manifest, sha256_file, verify_manifest
 
@@ -713,6 +713,48 @@ def cmd_tap_collect(args) -> int:
     return 0 if "error" not in result else 1
 
 
+def cmd_fleet_pull(args) -> int:
+    result = fleet.pull(args.root, args.inventory, args.case,
+                        cap=args.cap, window_seconds=args.window,
+                        canaries=args.canary or None)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if result.get("pulled") == result.get("hosts") else 1
+
+
+def cmd_fleet_correlate(args) -> int:
+    result = fleet.correlate(args.root, args.case, window_seconds=args.window)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if result.get("top_score", 0) == 0 and "error" not in result else 2
+
+
+def cmd_fleet_report(args) -> int:
+    result = fleet.report(args.root, args.case)
+    if "error" not in result:
+        print(result["markdown"])
+        print(f"[report written: {result['report']}]", file=sys.stderr)
+        return 0
+    print(json.dumps(result, indent=2))
+    return 1
+
+
+def cmd_fleet_scan(args) -> int:
+    pulled = fleet.pull(args.root, args.inventory, args.case,
+                        cap=args.cap, window_seconds=args.window,
+                        canaries=args.canary or None)
+    print(json.dumps({"stage": "pull", **pulled}, indent=2, default=str))
+    if pulled.get("pulled", 0) == 0:
+        return 1
+    correlated = fleet.correlate(args.root, args.case, window_seconds=args.window)
+    print(json.dumps({"stage": "correlate", **correlated}, indent=2, default=str))
+    if "error" in correlated:
+        return 1
+    reported = fleet.report(args.root, args.case)
+    print(json.dumps({"stage": "report", **{
+        k: v for k, v in reported.items() if k != "markdown"}}, indent=2))
+    print(reported.get("markdown", ""), file=sys.stderr)
+    return 0 if correlated.get("top_score", 0) == 0 else 2
+
+
 def cmd_internal_bridge(args) -> int:
     """Hidden entry point used by the frozen executable (`plasma _bridge`)."""
     import importlib.util
@@ -892,6 +934,36 @@ def build_parser() -> argparse.ArgumentParser:
     tpc.add_argument("--events", required=True)
     tpc.add_argument("--host", default=None)
     tpc.set_defaults(func=cmd_tap_collect)
+
+    fl = sub.add_parser("fleet", help="one desk, many computers — cross-host correlation (desk-side only)")
+    fls = fl.add_subparsers(dest="fleet_action", required=True)
+    _fleet_root = "C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma"
+    flp = fls.add_parser("pull", help="pull a capped events tail from every inventory host into a case")
+    flp.add_argument("--inventory", required=True, help="fleet inventory JSON")
+    flp.add_argument("--case", required=True)
+    flp.add_argument("--root", default=_fleet_root)
+    flp.add_argument("--cap", type=int, default=fleet.DEFAULT_CAP)
+    flp.add_argument("--window", type=int, default=fleet.DEFAULT_WINDOW,
+                     help="correlation window in seconds")
+    flp.add_argument("--canary", nargs="*", default=None)
+    flp.set_defaults(func=cmd_fleet_pull)
+    flc = fls.add_parser("correlate", help="join pulled digests into deterministic findings")
+    flc.add_argument("--case", required=True)
+    flc.add_argument("--root", default=_fleet_root)
+    flc.add_argument("--window", type=int, default=None)
+    flc.set_defaults(func=cmd_fleet_correlate)
+    flr = fls.add_parser("report", help="render the one-page case report")
+    flr.add_argument("--case", required=True)
+    flr.add_argument("--root", default=_fleet_root)
+    flr.set_defaults(func=cmd_fleet_report)
+    fls2 = fls.add_parser("scan", help="pull + correlate + report in one shot")
+    fls2.add_argument("--inventory", required=True)
+    fls2.add_argument("--case", required=True)
+    fls2.add_argument("--root", default=_fleet_root)
+    fls2.add_argument("--cap", type=int, default=fleet.DEFAULT_CAP)
+    fls2.add_argument("--window", type=int, default=fleet.DEFAULT_WINDOW)
+    fls2.add_argument("--canary", nargs="*", default=None)
+    fls2.set_defaults(func=cmd_fleet_scan)
 
     hb = sub.add_parser("_bridge", help=argparse.SUPPRESS)
     hb.add_argument("--dir", required=True)
