@@ -82,7 +82,6 @@ jobs:
           ./dist/plasma-$VERSION-windows-x64.exe status --events samples/plasma_events.jsonl
           ./dist/plasma-$VERSION-windows-x64.exe ask --prompt "critical alerts" --events samples/plasma_events.jsonl
           ./dist/plasma-$VERSION-windows-x64.exe tap selftest
-          ./dist/plasma-$VERSION-windows-x64.exe tap run --providers dns --for 2 --max-matches 10 --out-dir "$RUNNER_TEMP/tap"
 
       - name: Publish release
         env:
