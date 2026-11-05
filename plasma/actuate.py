@@ -200,6 +200,60 @@ def _build_stop_service(name):
     return payload, undo, f"(Get-Service -Name {_ps_literal(name)}).Status"
 
 
+def _build_disable_task(task):
+    # Disable (not delete): state is trivially reversible, XML backup still
+    # captured so the task definition travels with the journal.
+    backup = JOURNAL_BACKUP_DIR + "\\" + re.sub(r"[^A-Za-z0-9_.-]", "_", task) + ".xml"
+    payload = (
+        f"New-Item -ItemType Directory -Force -Path {_ps_literal(JOURNAL_BACKUP_DIR)} | Out-Null;"
+        f"Export-ScheduledTask -TaskName {_ps_literal(task)} | Set-Content -Path {_ps_literal(backup)} -Encoding UTF8;"
+        f"Disable-ScheduledTask -TaskName {_ps_literal(task)} | Out-Null;"
+        f"(Get-ScheduledTask -TaskName {_ps_literal(task)}).State"
+    )
+    undo = (f"Enable-ScheduledTask -TaskName {_ps_literal(task)} | Out-Null;"
+            f"(Get-ScheduledTask -TaskName {_ps_literal(task)}).State")
+    return payload, undo, f"(Get-ScheduledTask -TaskName {_ps_literal(task)}).State"
+
+
+_RUN_KEY_RE = re.compile(
+    r"^HK(LM|CU):\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run(Once)?$")
+_VALUE_RE = re.compile(r"^[A-Za-z0-9._ -]{1,100}$")
+
+
+def _v_run_key(t):
+    if not _RUN_KEY_RE.match(t):
+        raise ValueError("run key path must be an allowlisted ...\\CurrentVersion\\Run(Once)? key")
+
+
+def _v_runkey_combo(t):
+    if "|" not in t:
+        raise ValueError("target must be '<key path>|<value name>' (pipe-separated)")
+    key, name = t.split("|", 1)
+    _v_run_key(key)
+    if not _VALUE_RE.match(name):
+        raise ValueError(f"bad registry value name: {name}")
+
+
+def _build_remove_run_key(key_path, value_name):
+    # String-typed Run-key values only; the value data is captured to a
+    # sidecar file (same discipline as WMI bindings) so undo restores it.
+    backup = (JOURNAL_BACKUP_DIR + "\\runkey-"
+              + re.sub(r"[^A-Za-z0-9_.-]", "_", value_name) + ".json")
+    payload = (
+        f"New-Item -ItemType Directory -Force -Path {_ps_literal(JOURNAL_BACKUP_DIR)} | Out-Null;"
+        f"$k = Get-Item {_ps_literal(key_path)};"
+        f"$v = $k.GetValue({_ps_literal(value_name)});"
+        f"if ($null -eq $v) {{ 'absent' }}"
+        f"elseif ($v -isnot [string]) {{ throw 'only string Run-key values are managed' }}"
+        f"else {{ ConvertTo-Json -InputObject @{{ name={_ps_literal(value_name)}; data=$v }} "
+        f"| Set-Content -Path {_ps_literal(backup)} -Encoding UTF8;"
+        f"Remove-ItemProperty -Path {_ps_literal(key_path)} -Name {_ps_literal(value_name)};"
+        f"'{backup}' }}"
+    )
+    return payload, {"kind": "run_key_value", "key": key_path, "name": value_name}, \
+        f"(Get-ItemProperty {_ps_literal(key_path)} -Name {_ps_literal(value_name)} -ErrorAction SilentlyContinue) -eq $null"
+
+
 def _build_delete_task(task):
     backup = JOURNAL_BACKUP_DIR + "\\" + re.sub(r"[^A-Za-z0-9_.-]", "_", task) + ".xml"
     payload = (
@@ -302,6 +356,16 @@ ACTIONS = {
         "description": "Unregister a scheduled task (XML backed up for undo)",
         "target_kind": "task", "validate": _v_task, "guard": None,
         "build": _build_delete_task, "undoable": True,
+    },
+    "disable_task": {
+        "description": "Disable a scheduled task (definition backed up; enable to undo)",
+        "target_kind": "task", "validate": _v_task, "guard": None,
+        "build": _build_disable_task, "undoable": True,
+    },
+    "remove_run_key": {
+        "description": "Remove a string Run-key value (target 'HKLM:\\...Run|name'; value backed up for undo)",
+        "target_kind": "runkey", "validate": _v_runkey_combo, "guard": None,
+        "build": lambda t: _build_remove_run_key(*t.split("|", 1)), "undoable": True,
     },
     "disable_wmi_sub": {
         "description": "Remove WMI filter-to-consumer bindings (definitions kept; undo re-binds)",
@@ -449,16 +513,20 @@ def execute(action, root, target=None, reason=None, apply=False, timeout=60,
     entry["verification"] = _run(verify, timeout=30) if verify else None
     if undo:
         entry["undo"] = undo if isinstance(undo, dict) else {"payload": undo}
-        # WMI undo reads the binding definitions file written by the payload.
-        if isinstance(entry["undo"], dict) and entry["undo"].get("kind") == "wmi_bindings":
+        # sidecar-captured undo data (WMI bindings, run-key values) — the
+        # payload's first output line is the capture file path
+        if isinstance(entry["undo"], dict) and \
+                entry["undo"].get("kind") in ("wmi_bindings", "run_key_value"):
             try:
                 first = (result.get("output_head") or "").splitlines()[0].strip()
             except IndexError:
                 first = ""
             if first and not first.startswith("{"):
-                entry["undo"]["bindings_file"] = first
+                field = "bindings_file" if entry["undo"]["kind"] == "wmi_bindings" \
+                    else "backup_file"
+                entry["undo"][field] = first
             else:
-                entry["undo"] = None  # no capture file: nothing was bound
+                entry["undo"] = None  # nothing captured: nothing was changed
     _journal_append(root, entry)
     entry.pop("payload", None)
     return entry
@@ -495,6 +563,20 @@ def undo(root, entry_id, apply=False, timeout=60):
         if not clauses:
             return {"error": "binding capture has no usable filter/consumer pairs"}
         payload = clauses + "'bindings restored'"
+    elif isinstance(undo_spec, dict) and undo_spec.get("kind") == "run_key_value":
+        key, name = undo_spec.get("key"), undo_spec.get("name")
+        backup_file = undo_spec.get("backup_file")
+        data = undo_spec.get("data")
+        if data is None and backup_file:
+            try:
+                cap = json.loads(Path(backup_file).read_text(encoding="utf-8-sig"))
+            except (OSError, json.JSONDecodeError) as exc:
+                return {"error": f"cannot read run-key capture {backup_file}: {exc}"}
+            name, data = cap.get("name"), cap.get("data")
+        if data is None:
+            return {"error": "journaled entry carries no run-key value to restore"}
+        payload = (f"New-ItemProperty -Path {_ps_literal(key)} -Name {_ps_literal(name)} "
+                   f"-Value {_ps_literal(str(data))} -PropertyType String -Force | Out-Null; 'run-key value restored'")
     else:
         payload = undo_spec.get("payload")
 

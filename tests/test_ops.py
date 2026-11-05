@@ -98,7 +98,8 @@ def test_health_degraded_on_sensor_gap(tmp_path, monkeypatch):
     monkeypatch.setattr(health, "IS_WINDOWS", True)
     # Sysmon64 first: the mock matches by substring, and health falls back to
     # probing "Sysmon" when "Sysmon64" is absent — both must answer Running
-    states = {"Whids": "Running", "Sysmon64": "Running", "Sysmon": "Running"}
+    states = {"Whids": "Running", "Sysmon64": "Running", "Sysmon": "Running",
+              "deny=": "deny=0;layer=1;cert=True"}
     monkeypatch.setattr(health, "_ps",
                         lambda s, timeout=60: next((v for k, v in states.items() if k in s), ""))
 
@@ -174,7 +175,7 @@ def test_watch_sweep_notifies_on_health_down(tmp_path, monkeypatch):
                         lambda q, **k: {"error": "no powershell"})
     sent = {}
     monkeypatch.setattr(notify, "notify_all",
-                        lambda root, title, body, score=None, min_score=None: sent.update(title=title) or {"sent": 1})
+                        lambda root, title, body, score=None, min_score=None, throttle_key=None: sent.update(title=title) or {"sent": 1})
     monkeypatch.setattr(watch, "Path", Path)  # keep real paths
     res = watch.watch_once(tmp_path)
     assert res["verdict"] == "act now" and res["top_score"] == 10
@@ -188,6 +189,6 @@ def test_watch_sweep_clean_without_channels(tmp_path, monkeypatch):
                         lambda q, **k: {"question": q, "blind_count": 0})
     monkeypatch.setattr("plasma.drift.load", lambda root, name: None)
     monkeypatch.setattr(notify, "notify_all",
-                        lambda root, title, body, score=None, min_score=None: {"sent": 0})
+                        lambda root, title, body, score=None, min_score=None, throttle_key=None: {"sent": 0})
     res = watch.watch_once(tmp_path)
     assert res["verdict"] == "clean" and res["notify"] is None  # quiet when clean

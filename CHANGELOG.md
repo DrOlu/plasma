@@ -1,5 +1,74 @@
 # Changelog
 
+## 1.1.0 — 2026-11-05
+
+Deeper probes and findings — story-level detection, honest coverage
+reporting, store hygiene, and a bigger (still plan-gated) response
+vocabulary. Built and validated desk-side against fixtures and the golden
+gates; live-fire validation on the estate follows when it boots.
+
+### New — story-level detection
+- `plasma chain score` (`plasma/chain.py`): deterministic chain rules over
+  the events tail — ordered step matchers with gap windows, full
+  backtracking, timestamp-ordered (file order is irrelevant). Three
+  built-in stories: **phish_spawn_chain** (office → script host →
+  encoded/egress, 9/10), **brute_force_success** (≥5 failed logons then a
+  success for one user, 8/10), **persistence_after_privilege** (account
+  creation → persistence-shaped command, 9/10). Integrated into
+  `watch` sweeps as first-class findings.
+
+### New — honest coverage reporting
+- `plasma coverage` (`plasma/coverage.py`): diffs the shipped rule sets
+  (tap rules + gene baseline + IOC feed) against a curated list of 36 core
+  on-box ATT&CK techniques. Reports covered/blind with rule provenance.
+  Current shipped rules: **58.3% core coverage (21/36)** — and the probe
+  says out loud that ransomware staging (T1486) is unwatched instead of
+  pretending.
+
+### New — deep probe
+- `plasma deep persistence` (`plasma/deep.py`): every auto-start location
+  in one answer — run keys, services (+ service DLLs), scheduled task
+  actions, IFEO debugger hijacks, Winlogon shell/userinit, WMI
+  subscriptions — each with Authenticode signature status. Items are
+  flagged `suspect` when unsigned AND outside `C:\Windows` (a surfaced
+  heuristic, never an automatic action).
+
+### New — store hygiene
+- `plasma store rotate|compact|stats` (`plasma/store.py`): size-based
+  rotation with numbered elders (bounded keep), atomic duplicate
+  compaction (torn lines preserved, crash-safe via temp+replace), and
+  span/kind statistics. The contract stays "a plain file".
+
+### New — response vocabulary (same gates)
+- `disable_task` — disable (not delete) with XML backup; enable to undo.
+- `remove_run_key` — remove a string Run-key value; the value data is
+  captured to a sidecar file and undo restores it (allowlisted keys only,
+  pipe-separated `key|name` targets, strict value-name validation).
+- `plasma playbook list|apply|undo` (`plasma/playbooks.py`): named
+  sequences of allowlisted actions applied as ONE plan-gated unit —
+  **contain-user** (disable_user + snapshot) and **isolate-box**
+  (isolate_host + snapshot). Aborts on the first failing step, journals
+  exactly how far it got, undoes succeeded steps last-first and skips
+  non-undoable steps gracefully. No free-form shell — a bigger allowlist,
+  not a wider door.
+
+### Improved
+- `watch`: scans chains on the events tail; alerts are **throttled by the
+  loudest finding's type** (at-most-once per hour per finding-type; the
+  throttle window only burns when a channel actually accepted the message).
+- `health`: two new sensor-of-sensors checks — **sensor_heartbeat** (the
+  events diary is still being written; newest row < 24h) and
+  **rdp_hardening_drift** (fDenyTSConnections=0 + sane SecurityLayer — the
+  lockout-incident checks, permanently on the meter).
+- `coverage`, `chain`, `store`, `deep`, `playbook` all follow the JSON +
+  exit-code CLI contract; failures are data, not tracebacks.
+
+### Tests
+- 250 passed / 21 skipped (up from 202): chain semantics (order, gaps,
+  count bursts, store tail), coverage honesty, store rotation/compaction
+  atomicity, playbook plan-gating/abort/reverse-undo, throttle windows,
+  heartbeat parsing, deep-probe normalization.
+
 ## 1.0.0 — 2026-10-19
 
 First stable release. Preceded by a full-repo audit (two independent

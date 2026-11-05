@@ -70,6 +70,20 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
     except OSError:
         pass
 
+    # 4. chain stories over the events tail (deterministic sequences —
+    #    "this happened, then this": phish spawn, brute-force-success, ...)
+    try:
+        from . import chain as chain_mod
+        store = root / "data" / "events.jsonl"
+        if store.exists():
+            cres = chain_mod.scan_store(store)
+            for f in cres.get("findings", []):
+                findings.append({"type": f["type"], "score": f["score"],
+                                 "detail": str(f["detail"])[:200]})
+    except Exception as exc:  # noqa: BLE001 — collector failures are data
+        findings.append({"type": "chain_scan_error", "score": 5,
+                         "detail": str(exc)[:160]})
+
     top = max((f["score"] for f in findings), default=0)
     return {"info": info, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "health": hv["status"], "findings": findings, "top_score": top,
@@ -85,8 +99,12 @@ def watch_once(root, quiet_clean: bool = True) -> dict:
         title = f"Plasma watch: {result['verdict']} ({result['top_score']}/10)"
         body = "\n".join(f"- [{f['score']}] {f['type']}: {f['detail']}"
                          for f in result["findings"]) or "clean"
+        # throttle key = the loudest finding's type: at most one message per
+        # finding-type per hour, even on a noisy day
+        loudest = max(result["findings"], key=lambda f: f["score"], default=None)
         delivered = notify.notify_all(root, title, body,
-                                      score=result["top_score"])
+                                      score=result["top_score"],
+                                      throttle_key=loudest["type"] if loudest else None)
     result["notify"] = delivered
     state = Path(root) / "watch-state.json"
     state.write_text(json.dumps(result, indent=1, default=str) + "\n", encoding="utf-8")

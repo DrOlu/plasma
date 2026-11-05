@@ -178,16 +178,6 @@ def test_watch_unpulled_alerts_fire_on_growth_only(tmp_path, monkeypatch):
                         lambda q, **k: {"question": q, "blind_count": 0})
     monkeypatch.setattr("plasma.drift.load", lambda root, name: None)
 
-    # point sweep at our fake alerts dir
-    import plasma.watch as w
-    orig_dir = w.__dict__.get("_ALERTS_DIR")
-
-    class FakePath(type(Path())):
-        _flavour = type(Path())._flavour
-    # simpler: monkeypatch the module-level constant if present; else patch
-    # the literal through the sweep source path check
-    src = None
-
     res1 = watch.sweep(tmp_path)
     first = [f for f in res1["findings"] if f["type"] == "unpulled_whids_alerts"]
     # only fires if the sweep actually saw our dir; on posix the literal

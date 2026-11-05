@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch
+from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks
 from . import update as updater
 from .bundle import build_bundle
 from .manifest import create_manifest, sha256_file, verify_manifest
@@ -812,6 +812,77 @@ def cmd_actuate_undo(args) -> int:
     return 0 if "error" not in result else 1
 
 
+def cmd_chain_score(args) -> int:
+    result = chain.scan_store(args.events, max_rows=args.max_rows,
+                              gap_seconds=args.window)
+    print(json.dumps(result, indent=2, default=str))
+    if "error" in result:
+        return 1
+    return 0 if result.get("top_score", 0) == 0 else 2
+
+
+def cmd_coverage(args) -> int:
+    try:
+        result = coverage.coverage(args.sensors)
+    except (FileNotFoundError, json.JSONDecodeError, ValueError) as exc:
+        print(json.dumps({"error": str(exc)[:300]}, indent=2))
+        return 1
+    print(json.dumps(result, indent=2, default=str))
+    return 0
+
+
+def cmd_store_rotate(args) -> int:
+    result = store.rotate(args.events, max_mb=args.max_mb, keep=args.keep)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 1
+
+
+def cmd_store_compact(args) -> int:
+    result = store.compact(args.events, out_path=args.out)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 1
+
+
+def cmd_store_stats(args) -> int:
+    result = store.stats(args.events)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 1
+
+
+def cmd_deep_persistence(args) -> int:
+    result = deep.run(out=args.json_out, cap=args.cap)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 1
+
+
+def cmd_playbook_list(args) -> int:
+    print(json.dumps(playbooks.actions(), indent=2))
+    return 0
+
+
+def cmd_playbook_apply(args) -> int:
+    result = playbooks.execute(args.root, args.name, target=args.target,
+                               reason=args.reason, apply=args.apply,
+                               plan=args.plan, timeout=args.timeout)
+    print(json.dumps(result, indent=2, default=str))
+    if "error" in result:
+        return 1
+    if args.apply:
+        if result.get("aborted_at"):
+            return 3
+        for s in result.get("steps", []):
+            if s.get("ok") is False:
+                return 3
+    return 0
+
+
+def cmd_playbook_undo(args) -> int:
+    result = playbooks.undo(args.root, args.id, apply=args.apply,
+                            timeout=args.timeout)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 1
+
+
 def cmd_tap_list(args) -> int:
     rules_path = _locate_tap_rules()
     info = {
@@ -1214,6 +1285,62 @@ def build_parser() -> argparse.ArgumentParser:
     acu.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     acu.add_argument("--timeout", type=int, default=60)
     acu.set_defaults(func=cmd_actuate_undo)
+
+    chs = sub.add_parser("chain", help="deterministic story detection over the events store")
+    chsp = chs.add_subparsers(dest="chain_action", required=True)
+    chsc = chsp.add_parser("score", help="scan the events tail for chain matches")
+    chsc.add_argument("--events", required=True)
+    chsc.add_argument("--window", type=int, default=chain.DEFAULT_WINDOW,
+                      help="max seconds between adjacent chain steps")
+    chsc.add_argument("--max-rows", type=int, default=chain.DEFAULT_MAX_ROWS)
+    chsc.set_defaults(func=cmd_chain_score)
+
+    cov = sub.add_parser("coverage", help="ATT&CK technique coverage of the shipped rules")
+    cov.add_argument("--sensors", default=None, help="sensors dir (default: bundled)")
+    cov.set_defaults(func=cmd_coverage)
+
+    st = sub.add_parser("store", help="events store hygiene: rotate / compact / stats")
+    sts = st.add_subparsers(dest="store_action", required=True)
+    stro = sts.add_parser("rotate", help="rotate the store when it exceeds --max-mb")
+    stro.add_argument("--events", required=True)
+    stro.add_argument("--max-mb", type=float, default=store.DEFAULT_MAX_MB)
+    stro.add_argument("--keep", type=int, default=store.DEFAULT_KEEP)
+    stro.set_defaults(func=cmd_store_rotate)
+    stc = sts.add_parser("compact", help="drop exact duplicate rows (atomic)")
+    stc.add_argument("--events", required=True)
+    stc.add_argument("--out", default=None, help="write compacted copy here instead of in place")
+    stc.set_defaults(func=cmd_store_compact)
+    stst = sts.add_parser("stats", help="row counts, kinds, time span")
+    stst.add_argument("--events", required=True)
+    stst.set_defaults(func=cmd_store_stats)
+
+    dp = sub.add_parser("deep", help="deep probes (run on the endpoint)")
+    dps = dp.add_subparsers(dest="deep_action", required=True)
+    dpp = dps.add_parser("persistence", help="every auto-start location + signature status")
+    dpp.add_argument("--json-out", default=None, help="also write the full result here")
+    dpp.add_argument("--cap", type=int, default=40)
+    dpp.set_defaults(func=cmd_deep_persistence)
+
+    pb = sub.add_parser("playbook", help="named plan-gated action sequences")
+    pbs = pb.add_subparsers(dest="playbook_action", required=True)
+    pbl = pbs.add_parser("list", help="list playbooks")
+    pbl.set_defaults(func=cmd_playbook_list)
+    pba = pbs.add_parser("apply", help="dry-run (default) or apply a playbook as one unit")
+    pba.add_argument("name", choices=sorted(playbooks.PLAYBOOKS))
+    pba.add_argument("--target", default=None)
+    pba.add_argument("--reason", required=True)
+    pba.add_argument("--apply", action="store_true", help="execute (requires --plan)")
+    pba.add_argument("--plan", type=int, default=None,
+                     help="required with --apply: the playbook dry-run entry id")
+    pba.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    pba.add_argument("--timeout", type=int, default=60)
+    pba.set_defaults(func=cmd_playbook_apply)
+    pbu = pbs.add_parser("undo", help="reverse a playbook's succeeded steps, last-first")
+    pbu.add_argument("--id", type=int, required=True)
+    pbu.add_argument("--apply", action="store_true")
+    pbu.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    pbu.add_argument("--timeout", type=int, default=60)
+    pbu.set_defaults(func=cmd_playbook_undo)
 
     tp = sub.add_parser("tap", help="ETW tap over gap providers (krabsetw) — on-demand, matches-only")
     tps = tp.add_subparsers(dest="tap_action", required=True)

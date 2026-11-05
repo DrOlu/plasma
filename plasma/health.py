@@ -17,6 +17,7 @@ import json
 import os
 import subprocess
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -119,10 +120,57 @@ def checks(root) -> list[dict]:
         results.append({"check": "tap_sidecar", "ok": _locate_tap_exe() is not None,
                         "detail": "materialized on demand"})
 
+    # sensor-of-sensors: is the diary still being written? (any platform
+    # with a store; on a desk the store may legitimately not exist)
+    if ev.exists() and ev.stat().st_size > 0:
+        age_min = _store_age_minutes(ev)
+        if age_min is None:
+            results.append({"check": "sensor_heartbeat", "ok": False,
+                            "detail": "newest store row has no parsable ts"})
+        else:
+            results.append({"check": "sensor_heartbeat", "ok": age_min <= 1440,
+                            "detail": f"newest event {int(age_min)} min old"})
+
+    # rdp hardening drift (windows endpoints): the lockout-incident checks —
+    # RDP must stay enabled and on a sane security layer
+    if is_windows:
+        state = _ps(
+            "$t = Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server' "
+            "-Name fDenyTSConnections -ErrorAction SilentlyContinue;"
+            "$k = Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\\WinStations\\RDP-Tcp' "
+            "-ErrorAction SilentlyContinue;"
+            "'deny=' + $t.fDenyTSConnections + ';layer=' + $k.SecurityLayer + "
+           "';cert=' + [bool]$k.SSLCertificateSHA1Hash")
+        parsed = dict(p.split("=", 1) for p in state.split(";") if "=" in p)
+        deny, layer = parsed.get("deny", "?"), parsed.get("layer", "?")
+        ok = deny == "0" and layer in ("1", "2")
+        results.append({"check": "rdp_hardening_drift", "ok": ok,
+                        "detail": f"fDenyTSConnections={deny} SecurityLayer={layer}"
+                                  + ("" if ok else " — RDP drifted from the healthy posture")})
+
     if degraded_mode:
         results.append({"check": "install_mode", "ok": True,
                         "detail": "MINIMAL mode — expected reduced coverage"})
     return results
+
+
+def _store_age_minutes(events_path) -> float | None:
+    """Age in minutes of the newest parsable ts line in the store."""
+    try:
+        with Path(events_path).open(encoding="utf-8", errors="replace") as fh:
+            last = None
+            for line in fh:
+                if line.strip().startswith("{"):
+                    last = line
+        if not last:
+            return None
+        row = json.loads(last)
+        ts = datetime.fromisoformat(str(row.get("ts", "")).replace("Z", "+00:00"))
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - ts).total_seconds() / 60
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
 
 
 def verdict(root) -> dict:
