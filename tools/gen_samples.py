@@ -45,7 +45,7 @@ def build():
         ev(ts="2026-10-16T08:01:05Z", host="WS1", source="sysmon", kind="network",
            event_id=3, severity="info", user="CORP\\olu", process="outlook.exe",
            pid=4412, ppid=3200, parent="explorer.exe",
-           dest_ip="52.3.242.251", dest_port=443, description="TLS session to mail"),
+           dest_ip="198.51.100.20", dest_port=443, description="TLS session to mail"),
         ev(ts="2026-10-16T08:01:06Z", host="WS1", source="sysmon", kind="dns",
            event_id=22, severity="info", user="CORP\\olu", process="outlook.exe",
            pid=4412, ppid=3200, parent="explorer.exe",
@@ -229,9 +229,9 @@ def build():
 
     # --- benign noise across hosts ------------------------------------------
     noise = [
-        ("WS1", "chrome.exe", 4500, 3200, "explorer.exe", "network", "52.3.242.251", 443, None, None, None, "info"),
+        ("WS1", "chrome.exe", 4500, 3200, "explorer.exe", "network", "198.51.100.20", 443, None, None, None, "info"),
         ("WS1", "chrome.exe", 4500, 3200, "explorer.exe", "dns", None, None, "www.google.com", None, None, "info"),
-        ("WS1", "svchost.exe", 1120, 640, "services.exe", "network", "52.3.242.251", 443, None, None, None, "info"),
+        ("WS1", "svchost.exe", 1120, 640, "services.exe", "network", "198.51.100.20", 443, None, None, None, "info"),
         ("WS2", "mmc.exe", 6100, 3200, "explorer.exe", "process", None, None, None, None, None, "info"),
         ("WS2", "notepad.exe", 6104, 6100, "mmc.exe", "process", None, None, None, None, None, "info"),
         ("DC1", "dns.exe", 2088, 640, "services.exe", "dns", None, None, "corp.local", None, None, "info"),

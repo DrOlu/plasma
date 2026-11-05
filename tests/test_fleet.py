@@ -51,7 +51,7 @@ def _write_host_events(cd, host, rows):
 def test_inventory_roundtrip(tmp_path):
     inv = tmp_path / "fleet.json"
     inv.write_text(json.dumps({"hosts": [
-        {"name": "WS2", "transport": "winrm", "endpoint": "52.3.242.251",
+        {"name": "WS2", "transport": "winrm", "endpoint": "198.51.100.20",
          "username": "Administrator", "password_env": "WS2PW"},
         {"name": "LAB", "transport": "file", "events_path": "samples/plasma_events.jsonl"},
     ]}))
