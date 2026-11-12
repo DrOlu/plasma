@@ -28,10 +28,18 @@ Signed-update trust chain and tokenless updates (repo is now public).
   publicly trusted OSS signing via SignPath Foundation (eligibility
   checklist, form answers, post-approval GitHub Actions wiring).
 
+### Fixed — reproducible engine fetch
+- Upstream removed the neuralOS per-platform engine bundles from
+  `Cactus-Compute/needle3` on 2026-11-05, breaking the CI/release engine
+  fetch. `tools/fetch_engine.py` now fetches from the last revision that
+  carries them (`d6c7d6a2e965…`), whose `needle3.cact` is byte-identical to
+  the current head weights; CI and release use the pinned fetcher.
+
 ### Tests
-- 259 passed / 21 skipped (up from 250): signer match/mismatch/unsigned/
+- 264 passed / 21 skipped (up from 250): signer match/mismatch/unsigned/
   missing-PowerShell/pin-rotation, refusal path (installer never runs on a
-  bad signer), dev override, anonymous API fetch without Authorization.
+  bad signer), dev override, anonymous API fetch without Authorization,
+  pinned engine fetch (copy/exec-bit/unknown platform/missing folder).
 
 ## 1.1.0 — 2026-11-05
 

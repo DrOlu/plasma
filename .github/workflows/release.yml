@@ -30,16 +30,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev,build]" neuralos==3.10.2
 
-      - name: Fetch Windows engine + weights
+      - name: Fetch Windows engine + weights (pinned revision)
         shell: bash
         run: |
+          # upstream removed the per-platform bundles on 2026-11-05; the
+          # pinned revision is the last one carrying them (weights identical)
+          python tools/fetch_engine.py --platform windows-x86_64 --dest engines/windows-x86_64
           python - <<'PY'
           import os, shutil
-          from needle.agent import fetch
-          fetch.download_platform("windows-x86_64", "engines", generation=3)
           import needle
           weights = os.path.join(os.path.dirname(needle.__file__), "needle3.cact")
           shutil.copy(weights, "engines/windows-x86_64/needle3.cact")
+          print(os.listdir("engines/windows-x86_64"))
+          PY
           PY
 
       - name: Fetch WHIDS payload (Apache-2.0)
