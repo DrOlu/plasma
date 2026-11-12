@@ -374,6 +374,25 @@ SYSMON_BASELINE_CONFIG = (
     '<FileCreate onmatch="exclude"/>'
     '<RegistryEvent onmatch="exclude"/>'
     '<DnsQuery onmatch="exclude"/>'
+    # FileDelete is opt-in in Sysmon. Log deletions of executable/archive
+    # artifacts only — enough for T1070.004 without flooding the channel.
+    '<FileDelete onmatch="include">'
+    '<TargetFilename condition="end with">.exe</TargetFilename>'
+    '<TargetFilename condition="end with">.dll</TargetFilename>'
+    '<TargetFilename condition="end with">.ps1</TargetFilename>'
+    '<TargetFilename condition="end with">.bat</TargetFilename>'
+    '<TargetFilename condition="end with">.cmd</TargetFilename>'
+    '<TargetFilename condition="end with">.vbs</TargetFilename>'
+    '<TargetFilename condition="end with">.js</TargetFilename>'
+    '<TargetFilename condition="end with">.jse</TargetFilename>'
+    '<TargetFilename condition="end with">.wsf</TargetFilename>'
+    '<TargetFilename condition="end with">.hta</TargetFilename>'
+    '<TargetFilename condition="end with">.scr</TargetFilename>'
+    '<TargetFilename condition="end with">.msi</TargetFilename>'
+    '<TargetFilename condition="end with">.zip</TargetFilename>'
+    '<TargetFilename condition="end with">.7z</TargetFilename>'
+    '<TargetFilename condition="end with">.rar</TargetFilename>'
+    '</FileDelete>'
     '</EventFiltering></Sysmon>'
 )
 SYSMON_URLS = (

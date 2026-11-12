@@ -4,6 +4,19 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.3.0 — 2026-11-13
+
+- **ATT&CK parent rollup** — coverage now reports both the exact count
+  (72.2%) and the rollup count (88.9%).
+- **Fidelity-aware coverage** — every tap and gene rule carries a fidelity
+  (high/medium/low); `weighted_pct` (80.6%) discounts weak rules.
+- **Five new gene rules** — File Delete by LOLBin (T1070.004), Run Key
+  Persistence (T1547.001), Service Registry Persistence (T1543.003),
+  Privileged Group Add (T1098), Execution From User Paths (T1204.002).
+- **Sysmon baseline** — bounded FileDelete include filter so the deletion
+  rule has real telemetry; existing nodes apply it with `Sysmon64.exe -c`.
+- Remaining blind spots are explicit: T1056/T1056.001, T1112, T1486.
+
 ## 1.2.0 — 2026-11-12
 
 - **Pinned-signer update verification** — `update apply` refuses any binary

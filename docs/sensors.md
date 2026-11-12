@@ -11,12 +11,17 @@ DNS and file telemetry.
 - **Health**: `sysmon_service` (service running) and `sysmon_feed` (newest
   Sysmon event within 60 minutes) are part of `plasma health`.
 - **Read**: via Event Log API and WHIDS; never by loading a driver of our own.
+- **Baseline config**: ProcessCreate, NetworkConnect, DnsQuery, RegistryEvent
+  and a bounded **FileDelete include filter** (executable/archive extensions
+  only) so T1070.004 is evidence, not flood. On a node where Sysmon already
+  runs, apply the updated config with
+  `Sysmon64.exe -c C:\ProgramData\Plasma\tools\sysmon-baseline.xml`.
 
 ## WHIDS — written suspicion rules
 
 [WHIDS 1.7.0](https://github.com/0xrawsec/whids) reads Sysmon and applies
 **gene rules** — written expressions with an ATT&CK technique and a
-criticality of 0–10. Plasma ships ten baseline rules:
+criticality of 0–10. Plasma ships fifteen baseline rules:
 
 | Rule | Score | Looks for |
 |---|---|---|
@@ -30,6 +35,11 @@ criticality of 0–10. Plasma ships ten baseline rules:
 | Encoded Cmd | 6 | `-enc`, `-ec`, `-EncodedCommand` |
 | Scheduled Task Create | 6 | `schtasks /create` |
 | Wmic Process Call | 7 | `wmic process call create` |
+| File Delete by LOLBin | 6 | cmd/powershell/certutil/bitsadmin/wmic/reg deleting `.exe`/`.ps1`/archives (Sysmon 23/26) |
+| Run Key Persistence | 7 | `CurrentVersion\Run(Once)` registry write (Sysmon 12/13) |
+| Service Registry Persistence | 8 | `System\CurrentControlSet\Services\` write (Sysmon 12/13) |
+| Privileged Group Add | 8 | `net localgroup administrators … /add` |
+| Execution From User Paths | 6 | process running from Downloads / Temp / Users\Public |
 
 WHIDS runs **detect-only**: every action band is configured to `report`.
 The v1.7.0 engine has no response verbs at all; Plasma keeps it that way on

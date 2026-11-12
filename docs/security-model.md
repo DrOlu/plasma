@@ -62,9 +62,10 @@ to a marketing page.
 - **Full memory forensics.** No LSASS/host memory acquisition. The deep
   probe and syscall-level evidence are as far as it goes; DTrace integration
   is a roadmap item, not a claim.
-- **Ransomware staging (T1486).** The coverage report says it plainly: no
-  rule watches it today. Chain detection and file-telemetry rules are the
-  planned closure.
+- **Ransomware impact (T1486).** File deletion (T1070.004) and registry
+  persistence are watched now, but data-encryption impact still has no rule.
+  Canary files are the planned detector — a heuristic here would be noise,
+  and the coverage report says so instead of pretending.
 - **Endpoint DLP / content inspection.** Not attempted.
 
 ## Data handling

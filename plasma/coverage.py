@@ -69,16 +69,50 @@ def _repo_sensors() -> Path:
     raise FileNotFoundError("plasma-tap-rules.json not found (repo or embedded)")
 
 
+FIDELITY_WEIGHTS = {"high": 1.0, "medium": 0.7, "low": 0.4}
+FIDELITY_RANK = {"high": 3, "medium": 2, "low": 1}
+
+# Gene rules carry no fidelity field in the WHIDS schema; the judgement lives
+# here, next to the coverage math that consumes it.
+GENE_FIDELITY = {
+    "Plasma LOLBin Certutil": "high",
+    "Plasma Office Spawning Shell": "high",
+    "Plasma SAM Hive Dump": "high",
+    "Plasma Bitsadmin Transfer": "medium",
+    "Plasma Mshta Network": "high",
+    "Plasma Rundll32 JS": "high",
+    "Plasma Net Account Add": "high",
+    "Plasma Encoded Cmd": "medium",
+    "Plasma Scheduled Task Create": "medium",
+    "Plasma Wmic Process Call": "medium",
+    "Plasma File Delete by LOLBin": "medium",
+    "Plasma Run Key Persistence": "high",
+    "Plasma Service Registry Persistence": "high",
+    "Plasma Privileged Group Add": "high",
+    "Plasma Execution From User Paths": "medium",
+}
+
+
+def _norm_fidelity(value) -> str:
+    value = str(value or "").lower()
+    return value if value in FIDELITY_WEIGHTS else "medium"
+
+
 def collect_rule_techniques(sensors_dir=None) -> dict:
-    """Technique -> list of rule names across tap rules + gene baseline."""
+    """Technique -> [{"rule": label, "fidelity": high|medium|low}] across
+    tap rules + gene baseline + IOC feed."""
     sensors = Path(sensors_dir) if sensors_dir else _repo_sensors()
-    covered: dict[str, list[str]] = {}
+    covered: dict[str, list[dict]] = {}
+
+    def add(tech, label, fidelity):
+        covered.setdefault(tech, []).append(
+            {"rule": label, "fidelity": _norm_fidelity(fidelity)})
 
     tap_doc = json.loads((sensors / "plasma-tap-rules.json").read_text(encoding="utf-8"))
     for rule in tap_doc.get("rules", []):
         tech = rule.get("technique", "")
         if _T_RE.fullmatch(tech):
-            covered.setdefault(tech, []).append(f"tap:{rule['name']}")
+            add(tech, f"tap:{rule['name']}", rule.get("fidelity"))
 
     gen = sensors / "plasma-baseline.gen"
     if gen.exists():
@@ -94,7 +128,8 @@ def collect_rule_techniques(sensors_dir=None) -> dict:
                 continue
             for tag in obj.get("Tags", []):
                 if _T_RE.fullmatch(str(tag)):
-                    covered.setdefault(tag, []).append(f"gene:{obj['Name']}")
+                    add(tag, f"gene:{obj['Name']}",
+                        GENE_FIDELITY.get(obj.get("Name"), "medium"))
 
     iocs = sensors / "plasma-iocs.gen"
     if iocs.exists():
@@ -110,25 +145,67 @@ def collect_rule_techniques(sensors_dir=None) -> dict:
                 continue
             for tag in obj.get("Tags", []):
                 if _T_RE.fullmatch(str(tag)):
-                    covered.setdefault(tag, []).append(f"ioc:{obj['Name']}")
+                    add(tag, f"ioc:{obj['Name']}", "high")
     return covered
 
 
+def _best_fidelity(rules: list[dict]) -> str:
+    ranked = sorted((_norm_fidelity(r.get("fidelity")) for r in rules),
+                    key=lambda f: FIDELITY_RANK[f], reverse=True)
+    return ranked[0] if ranked else "medium"
+
+
 def coverage(sensors_dir=None) -> dict:
-    """Coverage matrix over the curated core technique list."""
+    """Coverage matrix over the curated core list.
+
+    Two numbers are reported deliberately:
+      * `coverage_exact_pct` — techniques with a rule tagged for that exact ID;
+      * `coverage_pct` — the same, but a parent technique counts as covered
+        when any of its sub-techniques is covered (ATT&CK rollup).
+    `weighted_pct` additionally discounts low/medium-fidelity rules, so
+    100% breadth can never mask weak evidence.
+    """
     covered = collect_rule_techniques(sensors_dir)
-    core_covered = {t: names for t, names in covered.items() if t in CORE_TECHNIQUES}
-    blind = {t: CORE_TECHNIQUES[t] for t in CORE_TECHNIQUES if t not in core_covered}
-    extra = {t: cov_names for t, cov_names in covered.items()
-             if t not in CORE_TECHNIQUES}
     total = len(CORE_TECHNIQUES)
-    pct = round(100 * len(core_covered) / total, 1) if total else 0.0
+
+    exact_core = {t: rules for t, rules in covered.items() if t in CORE_TECHNIQUES}
+    rollup_core: dict[str, list[dict]] = dict(exact_core)
+    for parent in CORE_TECHNIQUES:
+        if parent in rollup_core:
+            continue
+        subs = [rules for t, rules in covered.items()
+                if t.startswith(parent + ".") and t in CORE_TECHNIQUES]
+        if subs:
+            rollup_core[parent] = [r for group in subs for r in group]
+
+    blind = {t: CORE_TECHNIQUES[t] for t in CORE_TECHNIQUES if t not in rollup_core}
+    extra = {t: rules for t, rules in covered.items() if t not in CORE_TECHNIQUES}
+
+    covered_out = {}
+    weighted_sum = 0.0
+    fidelity_breakdown = {"high": 0, "medium": 0, "low": 0}
+    for t, rules in sorted(rollup_core.items()):
+        best = _best_fidelity(rules)
+        weighted_sum += FIDELITY_WEIGHTS[best]
+        fidelity_breakdown[best] += 1
+        covered_out[t] = {
+            "name": CORE_TECHNIQUES[t],
+            "rules": rules,
+            "fidelity": best,
+            "via_subtechnique": t not in exact_core,
+        }
+
+    def pct(count):
+        return round(100 * count / total, 1) if total else 0.0
+
     return {
         "core_total": total,
-        "core_covered": len(core_covered),
-        "coverage_pct": pct,
-        "covered": {t: {"name": CORE_TECHNIQUES[t], "rules": names}
-                    for t, names in sorted(core_covered.items())},
+        "core_covered": len(rollup_core),
+        "coverage_pct": pct(len(rollup_core)),
+        "coverage_exact_pct": pct(len(exact_core)),
+        "weighted_pct": round(100 * weighted_sum / total, 1) if total else 0.0,
+        "fidelity_breakdown": fidelity_breakdown,
+        "covered": covered_out,
         "blind": dict(sorted(blind.items())),
-        "extra_coverage": {t: names for t, names in sorted(extra.items())},
+        "extra_coverage": {t: rules for t, rules in sorted(extra.items())},
     }

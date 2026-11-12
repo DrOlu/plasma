@@ -21,7 +21,7 @@ delivers alerts when the score crosses `min_score` (default 7) in
 
 ## Gene rules (always-on, WHIDS)
 
-Ten baseline rules with ATT&CK tags, criticality 6–9. See
+Fifteen baseline rules with ATT&CK tags, criticality 6–9. See
 [Sensors](sensors.md) for the table. They run on every Sysmon event, cost
 almost nothing, and produce alert rows with a criticality that becomes the
 event `score`.
@@ -85,11 +85,21 @@ plasma coverage
 Diffs the shipped rules (tap + gene baseline + IOC feed) against a curated
 list of 36 core on-box ATT&CK techniques. It reports:
 
-- `coverage_pct` — currently **58.3%** (21/36);
-- `covered` — technique → the rules watching it (provenance);
-- `blind` — core techniques with **no** rule, named out loud (T1486
-  ransomware staging is currently blind by design);
+- `coverage_pct` — **88.9%** (32/36) with ATT&CK parent rollup
+  (a parent counts when any sub-technique is covered);
+- `coverage_exact_pct` — **72.2%** (26/36) counting only exact tags;
+- `weighted_pct` — **80.6%**, discounting low/medium-fidelity rules
+  (weights 1.0 / 0.7 / 0.4);
+- `covered` — technique → rules + per-rule fidelity + `via_subtechnique`;
+- `blind` — the four honest gaps: **T1056 / T1056.001** (input capture —
+  needs kernel hooks), **T1112** (generic registry edits — not worth a
+  noisy checkbox), **T1486** (impact — canary files are the honest
+  detector, not a heuristic);
 - `extra_coverage` — techniques watched outside the core list.
+
+Breadth is deliberately reported alongside fidelity: a report cannot reach
+100% by adding a weak rule, because the weighted number would fall, not
+rise.
 
 This is the anti-marketing page: a product that cannot list its blind spots
 is not measuring anything.

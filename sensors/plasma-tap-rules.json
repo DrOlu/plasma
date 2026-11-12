@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Plasma ETW tap rules. Deterministic, manifest-verified, bundled. Security-channel audit events are covered by `plasma identity pull` (Event Log API) \u2014 audit events are not re-emitted to realtime ETW.",
+  "description": "Plasma ETW tap rules. Deterministic, manifest-verified, bundled. Security-channel audit events are covered by `plasma identity pull` (Event Log API) — audit events are not re-emitted to realtime ETW.",
   "providers": {
     "powershell": "Microsoft-Windows-PowerShell",
     "wmi": "Microsoft-Windows-WMI-Activity",
@@ -17,7 +17,8 @@
       "field": "ScriptBlockText",
       "substr": "FromBase64String",
       "severity": "high",
-      "technique": "T1027"
+      "technique": "T1027",
+      "fidelity": "high"
     },
     {
       "name": "ps-webclient-download",
@@ -26,7 +27,8 @@
       "field": "ScriptBlockText",
       "substr": "Net.WebClient",
       "severity": "high",
-      "technique": "T1105"
+      "technique": "T1105",
+      "fidelity": "high"
     },
     {
       "name": "ps-downloadfile",
@@ -35,7 +37,8 @@
       "field": "ScriptBlockText",
       "substr": "DownloadFile",
       "severity": "high",
-      "technique": "T1105"
+      "technique": "T1105",
+      "fidelity": "high"
     },
     {
       "name": "ps-invoke-expression",
@@ -44,7 +47,8 @@
       "field": "ScriptBlockText",
       "substr": "Invoke-Expression",
       "severity": "medium",
-      "technique": "T1059.001"
+      "technique": "T1059.001",
+      "fidelity": "medium"
     },
     {
       "name": "ps-encoded-command",
@@ -53,7 +57,8 @@
       "field": "ScriptBlockText",
       "substr": "-enc ",
       "severity": "medium",
-      "technique": "T1027"
+      "technique": "T1027",
+      "fidelity": "medium"
     },
     {
       "name": "ps-register-scheduled-task",
@@ -62,7 +67,8 @@
       "field": "ScriptBlockText",
       "substr": "Register-ScheduledTask",
       "severity": "high",
-      "technique": "T1053.005"
+      "technique": "T1053.005",
+      "fidelity": "high"
     },
     {
       "name": "ps-scheduled-job-hidden",
@@ -71,7 +77,8 @@
       "field": "ScriptBlockText",
       "substr": "New-ScheduledTaskSettingsSet",
       "severity": "medium",
-      "technique": "T1053.005"
+      "technique": "T1053.005",
+      "fidelity": "medium"
     },
     {
       "name": "ps-local-group-add",
@@ -80,7 +87,8 @@
       "field": "ScriptBlockText",
       "substr": "Add-LocalGroupMember",
       "severity": "high",
-      "technique": "T1078.003"
+      "technique": "T1078.003",
+      "fidelity": "high"
     },
     {
       "name": "wmi-event-filter",
@@ -89,7 +97,8 @@
       "field": "*",
       "substr": "__EventFilter",
       "severity": "high",
-      "technique": "T1546.003"
+      "technique": "T1546.003",
+      "fidelity": "high"
     },
     {
       "name": "wmi-activescript-consumer",
@@ -98,7 +107,8 @@
       "field": "*",
       "substr": "ActiveScriptEventConsumer",
       "severity": "high",
-      "technique": "T1546.003"
+      "technique": "T1546.003",
+      "fidelity": "high"
     },
     {
       "name": "wmi-cmdline-consumer",
@@ -107,7 +117,8 @@
       "field": "*",
       "substr": "CommandLineEventConsumer",
       "severity": "high",
-      "technique": "T1546.003"
+      "technique": "T1546.003",
+      "fidelity": "high"
     },
     {
       "name": "dns-ddns-tunnel",
@@ -116,7 +127,8 @@
       "field": "QueryName",
       "substr": ".ddns.",
       "severity": "medium",
-      "technique": "T1071.004"
+      "technique": "T1071.004",
+      "fidelity": "medium"
     },
     {
       "name": "dns-tunnel-domain-top",
@@ -125,7 +137,8 @@
       "field": "QueryName",
       "substr": ".top",
       "severity": "low",
-      "technique": "T1071.004"
+      "technique": "T1071.004",
+      "fidelity": "low"
     },
     {
       "name": "dotnet-assembly-load",
@@ -134,7 +147,8 @@
       "field": "*",
       "substr": "",
       "severity": "medium",
-      "technique": "T1620"
+      "technique": "T1620",
+      "fidelity": "medium"
     },
     {
       "name": "ps-invoke-mimikatz",
@@ -143,7 +157,8 @@
       "field": "ScriptBlockText",
       "substr": "Invoke-Mimikatz",
       "severity": "critical",
-      "technique": "T1003.002"
+      "technique": "T1003.002",
+      "fidelity": "high"
     },
     {
       "name": "ps-minidump",
@@ -152,7 +167,8 @@
       "field": "ScriptBlockText",
       "substr": "MiniDumpWriteDump",
       "severity": "high",
-      "technique": "T1003.001"
+      "technique": "T1003.001",
+      "fidelity": "high"
     },
     {
       "name": "ps-reg-save-hive",
@@ -161,7 +177,8 @@
       "field": "ScriptBlockText",
       "substr": "reg save",
       "severity": "high",
-      "technique": "T1003.002"
+      "technique": "T1003.002",
+      "fidelity": "high"
     },
     {
       "name": "ps-token-manipulation",
@@ -170,7 +187,8 @@
       "field": "ScriptBlockText",
       "substr": "Invoke-TokenManipulation",
       "severity": "high",
-      "technique": "T1134"
+      "technique": "T1134",
+      "fidelity": "high"
     },
     {
       "name": "ps-amsi-bypass",
@@ -179,7 +197,8 @@
       "field": "ScriptBlockText",
       "substr": "amsiInitFailed",
       "severity": "high",
-      "technique": "T1562.001"
+      "technique": "T1562.001",
+      "fidelity": "high"
     },
     {
       "name": "ps-executionpolicy-bypass",
@@ -188,7 +207,8 @@
       "field": "ScriptBlockText",
       "substr": "set-executionpolicy bypass",
       "severity": "medium",
-      "technique": "T1562.001"
+      "technique": "T1562.001",
+      "fidelity": "medium"
     },
     {
       "name": "ps-hidden-window",
@@ -197,7 +217,8 @@
       "field": "ScriptBlockText",
       "substr": "-windowstyle hidden",
       "severity": "medium",
-      "technique": "T1564.003"
+      "technique": "T1564.003",
+      "fidelity": "medium"
     },
     {
       "name": "ps-downloadstring",
@@ -206,7 +227,8 @@
       "field": "ScriptBlockText",
       "substr": "DownloadString(",
       "severity": "high",
-      "technique": "T1105"
+      "technique": "T1105",
+      "fidelity": "high"
     },
     {
       "name": "ps-iex-webclient-cradle",
@@ -215,7 +237,8 @@
       "field": "ScriptBlockText",
       "substr": "IEX(New-Object Net.WebClient",
       "severity": "critical",
-      "technique": "T1059.001"
+      "technique": "T1059.001",
+      "fidelity": "high"
     },
     {
       "name": "ps-tcpclient",
@@ -224,7 +247,8 @@
       "field": "ScriptBlockText",
       "substr": "Sockets.TcpClient",
       "severity": "medium",
-      "technique": "T1071.001"
+      "technique": "T1071.001",
+      "fidelity": "medium"
     },
     {
       "name": "ps-invoke-shellcode",
@@ -233,7 +257,8 @@
       "field": "ScriptBlockText",
       "substr": "Invoke-Shellcode",
       "severity": "critical",
-      "technique": "T1055"
+      "technique": "T1055",
+      "fidelity": "high"
     },
     {
       "name": "ps-invoke-dllinjection",
@@ -242,7 +267,8 @@
       "field": "ScriptBlockText",
       "substr": "Invoke-DllInjection",
       "severity": "critical",
-      "technique": "T1055.001"
+      "technique": "T1055.001",
+      "fidelity": "high"
     },
     {
       "name": "ps-compress-archive",
@@ -251,7 +277,8 @@
       "field": "ScriptBlockText",
       "substr": "Compress-Archive",
       "severity": "medium",
-      "technique": "T1560.001"
+      "technique": "T1560.001",
+      "fidelity": "medium"
     },
     {
       "name": "ps-invoke-wmimethod",
@@ -260,7 +287,8 @@
       "field": "ScriptBlockText",
       "substr": "Invoke-WmiMethod",
       "severity": "medium",
-      "technique": "T1047"
+      "technique": "T1047",
+      "fidelity": "medium"
     },
     {
       "name": "dns-ngrok",
@@ -269,7 +297,8 @@
       "field": "QueryName",
       "substr": "ngrok",
       "severity": "medium",
-      "technique": "T1071.001"
+      "technique": "T1071.001",
+      "fidelity": "medium"
     },
     {
       "name": "dns-trycloudflare-tunnel",
@@ -278,7 +307,8 @@
       "field": "QueryName",
       "substr": "trycloudflare.com",
       "severity": "medium",
-      "technique": "T1071.001"
+      "technique": "T1071.001",
+      "fidelity": "medium"
     },
     {
       "name": "dns-duckdns",
@@ -287,7 +317,8 @@
       "field": "QueryName",
       "substr": ".duckdns.org",
       "severity": "low",
-      "technique": "T1071.001"
+      "technique": "T1071.001",
+      "fidelity": "low"
     }
   ]
 }

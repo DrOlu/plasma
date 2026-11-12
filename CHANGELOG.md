@@ -1,5 +1,42 @@
 # Changelog
 
+## 1.3.0 — 2026-11-13
+
+Depth without checkbox-padding: the coverage report now separates breadth
+from evidence quality, and five telemetry-backed rules close real gaps.
+
+### New — coverage semantics
+- **Parent rollup.** A core technique counts as covered when any of its
+  sub-techniques is covered. Both numbers are reported: **exact 72.2%**,
+  **rollup 88.9%**.
+- **Fidelity per rule.** Every tap rule carries a `fidelity`
+  (high/medium/low); gene-rule fidelity is mapped in `coverage.py`.
+  `weighted_pct` (**80.6%**) discounts low/medium evidence, so 100% breadth
+  cannot mask a weak rule.
+- Blind spots are now precisely four and named: T1056 / T1056.001 (input
+  capture, needs kernel hooks), T1112 (generic registry edits), T1486
+  (impact; canary files are the honest detector).
+
+### New — five gene rules (Sysmon)
+- File Delete by LOLBin (T1070.004) — Sysmon 23/26, executable/archive
+  artifacts deleted by cmd/powershell/certutil/bitsadmin/wmic/reg.
+- Run Key Persistence (T1547.001) — registry Run/RunOnce writes.
+- Service Registry Persistence (T1543.003) — Services key writes.
+- Privileged Group Add (T1098) — `net localgroup administrators … /add`.
+- Execution From User Paths (T1204.002) — processes running from
+  Downloads / Temp / Users\Public.
+
+### Improved — Sysmon baseline
+- FileDelete is opt-in in Sysmon; the shipped baseline now includes a
+  bounded `FileDelete` include filter (executable/archive extensions) so
+  T1070.004 has real telemetry. Existing nodes apply it with
+  `Sysmon64.exe -c C:\ProgramData\Plasma\tools\sysmon-baseline.xml`.
+
+### Tests
+- 277 passed / 21 skipped (up from 264): positive/negative behavior for
+  every new rule, rollup semantics, fidelity weighting, honest-blind-spot
+  assertions, and XML validation of the Sysmon baseline config.
+
 ## 1.2.0 — 2026-11-12
 
 Signed-update trust chain and tokenless updates (repo is now public).

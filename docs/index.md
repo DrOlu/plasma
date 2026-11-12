@@ -52,13 +52,13 @@ DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
 
-## What you get in 1.2.0
+## What you get in 1.3.0
 
 - **Story detection** — deterministic chain rules (phish spawn, brute-force
   success, persistence-after-privilege) that fire on sequences, not single
   events, and run inside every `watch` sweep.
-- **Honest ATT&CK coverage** — `plasma coverage` reports what the shipped
-  rules watch and names the blind spots (currently 58% of a curated core).
+- **Honest ATT&CK coverage** — 88.9% with parent rollup, 80.6%
+  fidelity-weighted, and the four remaining blind spots named out loud.
 - **Deep persistence probe** — every auto-start location with Authenticode
   status and a surfaced `suspect` heuristic; no driver, no service.
 - **Signed updates** — `update apply` refuses any binary whose Authenticode

@@ -54,7 +54,7 @@ def _rule_by_name(rules, name):
 
 def test_baseline_every_line_is_valid_json_with_compileable_regex():
     rules = _baseline_rules()
-    assert len(rules) == 10
+    assert len(rules) == 15
     for obj in rules:
         assert obj["Meta"]["Schema"] == "1.0.0"
         assert obj["Meta"]["EventIDs"], obj["Name"]
@@ -158,3 +158,55 @@ def test_tap_rules_security_channel_not_in_realtime_rules():
     doc = json.loads(TAP_RULES.read_text(encoding="utf-8"))
     for r in doc["rules"]:
         assert r["provider"] != "security", r["name"]
+
+# ---------------------------------------------------------------------------
+# behavioral: 1.3.0 rules (rollup + fidelity release)
+# ---------------------------------------------------------------------------
+
+def test_file_delete_by_lolbin_matches_binaries_only():
+    rule = _rule_by_name(_baseline_rules(), "Plasma File Delete by LOLBin")
+    assert rule["Meta"]["EventIDs"] == [23, 26]
+    img = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$img"))
+    ext = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$ext"))
+    assert img.search(r"C:\Windows\System32\powershell.exe")
+    assert img.search(r"C:\Windows\System32\certutil.exe")
+    assert not img.search(r"C:\Windows\explorer.exe")
+    assert ext.search(r"C:\Users\bob\payload.exe")
+    assert ext.search(r"C:\Users\bob\archive.7z")
+    assert not ext.search(r"C:\Users\bob\notes.txt")
+
+
+def test_run_key_persistence_rule():
+    rule = _rule_by_name(_baseline_rules(), "Plasma Run Key Persistence")
+    reg = _match_expr(rule["Matches"][0])
+    assert reg.search(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\Updater")
+    assert reg.search(r"HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce\Once1")
+    assert not reg.search(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices\X")
+
+
+def test_service_registry_persistence_rule():
+    rule = _rule_by_name(_baseline_rules(), "Plasma Service Registry Persistence")
+    svc = _match_expr(rule["Matches"][0])
+    assert svc.search(r"HKLM\System\CurrentControlSet\Services\Evil\ImagePath")
+    assert not svc.search(r"HKLM\System\CurrentControlSet\Control\Lsa")
+
+
+def test_privileged_group_add_rule():
+    rule = _rule_by_name(_baseline_rules(), "Plasma Privileged Group Add")
+    img = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$img"))
+    add = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$add"))
+    assert img.search(r"C:\Windows\System32\net1.exe")
+    assert add.search("net1 localgroup administrators bob /add")
+    assert add.search("net localgroup administrators_2 svc /add")
+    assert not add.search("net localgroup users bob /add")
+    assert not add.search("net localgroup administrators")
+
+
+def test_execution_from_user_paths_rule():
+    rule = _rule_by_name(_baseline_rules(), "Plasma Execution From User Paths")
+    img = _match_expr(rule["Matches"][0])
+    assert img.search(r"C:\Users\bob\Downloads\setup.exe")
+    assert img.search(r"C:\Users\bob\AppData\Local\Temp\a.exe")
+    assert img.search(r"C:\Users\Public\drop.exe")
+    assert not img.search(r"C:\Program Files\App\app.exe")
+
