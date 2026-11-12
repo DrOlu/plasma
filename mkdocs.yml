@@ -1,0 +1,74 @@
+docs_dir: docs
+
+# Legacy redirect stubs and the internal SignPath application stay in the
+# repository but are not part of the published site.
+exclude_docs: |
+  ARCHITECTURE.md
+  DEPLOYMENT.md
+  SECURITY.md
+  SIGNPATH_APPLICATION.md
+
+site_name: Plasma
+site_description: >-
+  A lake-less Windows EDR: on-box sensors, on-device questions, and
+  human-gated, reversible response. No log lake, no cloud, no blind trust.
+site_url: https://drolu.github.io/plasma/
+repo_url: https://github.com/DrOlu/plasma
+repo_name: DrOlu/plasma
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - search.suggest
+    - search.highlight
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+    - content.code.annotate
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Concepts: concepts.md
+  - Sensors: sensors.md
+  - Detection: detection.md
+  - Fleet: fleet.md
+  - Operations: operations.md
+  - Response: response.md
+  - Updates & signing: update-signing.md
+  - CLI reference: cli.md
+  - Security model: security-model.md
+  - Troubleshooting: troubleshooting.md
+  - FAQ: faq.md
+  - Changelog: changelog.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.details
+  - tables
+  - toc:
+      permalink: true
+
+extra_css:
+  - stylesheets/brand.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/DrOlu/plasma

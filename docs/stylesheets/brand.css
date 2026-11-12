@@ -1,0 +1,13 @@
+/* Plasma accent — electric cyan, a deliberate contrast with the default
+   Material indigo. Text accents use a darker cyan in light mode for
+   contrast; the dark scheme uses the bright one. */
+
+:root > * {
+  --md-accent-fg-color: #0891b2;
+  --md-typeset-a-color: #0e7490;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-accent-fg-color: #22d3ee;
+  --md-typeset-a-color: #22d3ee;
+}
