@@ -43,7 +43,6 @@ jobs:
           shutil.copy(weights, "engines/windows-x86_64/needle3.cact")
           print(os.listdir("engines/windows-x86_64"))
           PY
-          PY
 
       - name: Fetch WHIDS payload (Apache-2.0)
         shell: bash
