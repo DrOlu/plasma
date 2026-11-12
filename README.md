@@ -18,6 +18,15 @@ questions about what happened: *"why did WHIDS kill PID 4832?"*,
 The model is **never** in the kill path. Situational awareness is the model's
 job; response remains policy-driven and, for model recommendations, human-approved.
 
+## Code signing
+
+Windows release executables are Authenticode-signed (self-signed project
+certificate today) and every release publishes a `SHA256SUMS`. Plasma is
+applying to the [SignPath Foundation](https://signpath.org/) for publicly
+trusted code signing, and will use SignPath Foundation-issued signing once
+the application is approved. Updates verify the downloaded binary's signer
+against pinned thumbprints before executing it.
+
 ## Layout
 
 ```
