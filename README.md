@@ -2,6 +2,8 @@
 
 **An agent-based EDR bundle with a frozen neuralOS instance.**
 
+**Documentation:** https://drolu.github.io/plasma/
+
 Plasma packages three layers into one installable product:
 
 ```
