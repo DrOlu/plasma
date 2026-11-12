@@ -101,6 +101,14 @@ jobs:
             & $signtool sign /f $pfxPath /p $env:SIGNING_PFX_PASSWORD `
               /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $exe
             if ($LASTEXITCODE -ne 0) { throw "signtool signing failed" }
+            # The project cert is self-signed: trust it in THIS ephemeral
+            # runner only, so /pa verification exercises the real chain
+            # instead of failing on an untrusted root.
+            $secure = ConvertTo-SecureString $env:SIGNING_PFX_PASSWORD -AsPlainText -Force
+            Import-PfxCertificate -FilePath $pfxPath -Password $secure `
+              -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
+            Import-PfxCertificate -FilePath $pfxPath -Password $secure `
+              -CertStoreLocation Cert:\LocalMachine\TrustedPublisher | Out-Null
             & $signtool verify /pa /v $exe
             if ($LASTEXITCODE -ne 0) { throw "signtool verification failed" }
             Write-Host "Signed and verified: $exe"
