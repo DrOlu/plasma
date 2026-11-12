@@ -12,7 +12,7 @@ trust.**
 #    https://github.com/DrOlu/plasma/releases/latest
 
 # 2. install (intelligent mode choice: FULL or MINIMAL)
-.\plasma-1.2.0-windows-x64.exe install
+.\plasma-<version>-windows-x64.exe install
 
 # 3. verify
 plasma health

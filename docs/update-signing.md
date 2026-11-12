@@ -86,14 +86,14 @@ instant SmartScreen silence for a brand-new publisher.
 Windows:
 
 ```powershell
-Get-AuthenticodeSignature .\plasma-1.2.0-windows-x64.exe |
+Get-AuthenticodeSignature .\plasma-<version>-windows-x64.exe |
   Select-Object Status, SignerCertificate
 ```
 
 Any OS with `osslsigncode`:
 
 ```bash
-osslsigncode verify -in plasma-1.2.0-windows-x64.exe
+osslsigncode verify -in plasma-<version>-windows-x64.exe
 ```
 
 Both should show the Hyperspace (or SignPath Foundation) signer and a verified timestamp.

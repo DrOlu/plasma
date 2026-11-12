@@ -28,7 +28,7 @@ The installer is **intelligent** — it inspects the box and picks a mode:
 Always preview first:
 
 ```powershell
-.\plasma-1.2.0-windows-x64.exe install --dry-run
+.\plasma-<version>-windows-x64.exe install --dry-run
 ```
 
 Useful flags:
