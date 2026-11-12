@@ -19,15 +19,19 @@ repo_name: DrOlu/plasma
 theme:
   name: material
   palette:
+    # The two media queries make the site follow the OS preference on first
+    # visit; the sun/moon toggle still overrides it and the choice persists.
     - scheme: default
       primary: indigo
       accent: custom
+      media: "(prefers-color-scheme: light)"
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - scheme: slate
       primary: indigo
       accent: custom
+      media: "(prefers-color-scheme: dark)"
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
