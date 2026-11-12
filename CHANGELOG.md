@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.2.0 — 2026-11-12
+
+Signed-update trust chain and tokenless updates (repo is now public).
+
+### New — signer pinning on updates
+- `plasma update apply` now verifies the **Authenticode signer** of the
+  downloaded exe before executing it, against thumbprints pinned inside the
+  installed binary (`DEFAULT_SIGNER_THUMBPRINTS`; override with
+  `PLASMA_SIGNER_THUMBPRINTS`, e.g. while rotating from the self-signed
+  Hyperspace cert to SignPath). A mismatch or unsigned binary aborts the
+  update (exit 2) and the staged installer is never run. SHA256SUMS and the
+  exe share one origin; the pinned thumbprint is a second, independent
+  trust anchor. `--allow-unsigned` exists for development only.
+
+### Improved — public-repo updates
+- `update check` / `update apply` work **anonymously** now that the repo is
+  public; `--token-env` remains optional for private forks. (This removes
+  the token step from estate updates.)
+
+### New — release signing in CI
+- `release.yml` signs the Windows exe with Authenticode (signtool, DigiCert
+  RFC3161 timestamp) when repo secrets `SIGNING_PFX_BASE64` /
+  `SIGNING_PFX_PASSWORD` exist, **before** SHA256SUMS is computed. Without
+  secrets the release proceeds unsigned, as before.
+- `docs/SIGNPATH_APPLICATION.md`: complete application package for free,
+  publicly trusted OSS signing via SignPath Foundation (eligibility
+  checklist, form answers, post-approval GitHub Actions wiring).
+
+### Tests
+- 259 passed / 21 skipped (up from 250): signer match/mismatch/unsigned/
+  missing-PowerShell/pin-rotation, refusal path (installer never runs on a
+  bad signer), dev override, anonymous API fetch without Authorization.
+
 ## 1.1.0 — 2026-11-05
 
 Deeper probes and findings — story-level detection, honest coverage

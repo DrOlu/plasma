@@ -1033,10 +1033,8 @@ def cmd_notify_show(args) -> int:
 
 
 def cmd_update_check(args) -> int:
+    # public repo: anonymous works; a token is optional (private forks)
     token = os.environ.get(args.token_env, "")
-    if not token:
-        print(json.dumps({"error": f"env {args.token_env} not set (repo is private)"}, indent=2))
-        return 1
     rel = updater.latest_release(args.repo, token)
     newer = updater.is_newer(__version__, rel["tag"])
     print(json.dumps({"current": __version__, "latest": rel["tag"], "update_available": newer},
@@ -1045,16 +1043,25 @@ def cmd_update_check(args) -> int:
 
 
 def cmd_update_apply(args) -> int:
+    # public repo: anonymous works; a token is optional (private forks)
     token = os.environ.get(args.token_env, "")
-    if not token:
-        print(json.dumps({"error": f"env {args.token_env} not set (repo is private)"}, indent=2))
-        return 1
     root = Path(args.root)
     staged = root / "tools" / "plasma-update-staged.exe"
     res = updater.download_and_verify(args.repo, "", token, staged)
     print(json.dumps({"stage": "download", **{k: v for k, v in res.items() if k != 'ok'}}, indent=2, default=str))
     if not res["ok"]:
         return 1
+    # SECOND trust anchor: the exe must be signed by a pinned certificate
+    # before we execute it. SHA256SUMS + exe share one origin (the release);
+    # the signer thumbprint is baked into THIS binary.
+    sig = updater.verify_authenticode(staged)
+    print(json.dumps({"stage": "signature", **sig}, indent=2, default=str))
+    if not sig.get("ok") and not getattr(args, "allow_unsigned", False):
+        print(json.dumps({"ok": False,
+                          "error": "refusing to execute an update with an unverified signer",
+                          "hint": "dev builds may pass --allow-unsigned"},
+                         indent=2))
+        return 2
     # forward the root: a node installed at a custom root must not have its
     # new version configured under the default location (split-brain install)
     inst = subprocess.run([str(staged), "install", "--force", "--root", str(root)],
@@ -1438,7 +1445,11 @@ def build_parser() -> argparse.ArgumentParser:
     upc.set_defaults(func=cmd_update_check)
     upa = ups.add_parser("apply", help="download, verify, install, rotate bin")
     upa.add_argument("--repo", default="DrOlu/plasma")
-    upa.add_argument("--token-env", default="PLASMA_GITHUB_TOKEN")
+    upa.add_argument("--token-env", default="PLASMA_GITHUB_TOKEN",
+                     help="optional (public repo works anonymously)")
+    upa.add_argument("--allow-unsigned", action="store_true",
+                     help="development only: execute an update whose signer "
+                          "does not match the pinned thumbprints")
     upa.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     upa.add_argument("--bin", default=None, help="canonical exe copy to rotate (default <root>/bin)")
     upa.set_defaults(func=cmd_update_apply)

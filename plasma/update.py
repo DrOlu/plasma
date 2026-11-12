@@ -5,8 +5,10 @@
 new exe's own installer, then rotate the canonical bin copy (rename-while-
 running is legal on Windows; overwriting a running exe is not).
 
-The repo is private by default: a token arrives via --token-env (never on
-the command line, never on disk).
+The repo is public: updates work anonymously. A token (--token-env) is
+still supported for private forks — never on the command line, never on
+disk. Before executing a downloaded update, its Authenticode signer is
+checked against thumbprints pinned inside the installed binary.
 """
 
 from __future__ import annotations
@@ -15,13 +17,77 @@ import hashlib
 import json
 import os
 import re
+import shutil
+import subprocess
 import urllib.request
 
+# Signer pinning: an update is executed only if the downloaded exe carries an
+# Authenticode signature from one of these certificates (SHA-1 thumbprints, as
+# reported by Get-AuthenticodeSignature). This is a SECOND trust anchor:
+# SHA256SUMS and the exe both come from the release, but the signer thumbprint
+# is baked into the installed binary — a compromised release cannot forge it.
+# Override with PLASMA_SIGNER_THUMBPRINTS (comma-separated) when rotating.
+DEFAULT_SIGNER_THUMBPRINTS = {
+    "BC67B990A783702D0C4761D557A58F9AD4534A68",  # Hyperspace Technologies Code Signing (self-signed, 2036)
+}
 
-def _gh(url: str, token: str, timeout: int = 60, accept: str = "application/vnd.github+json") -> bytes:
-    req = urllib.request.Request(url, headers={
-        "Authorization": f"Bearer {token}", "Accept": accept,
-        "User-Agent": "plasma-updater"})
+
+def expected_signers() -> set:
+    raw = os.environ.get("PLASMA_SIGNER_THUMBPRINTS", "").strip()
+    if raw:
+        return {t.strip().upper().replace(":", "").replace(" ", "")
+                for t in raw.split(",") if t.strip()}
+    return set(DEFAULT_SIGNER_THUMBPRINTS)
+
+
+def verify_authenticode(exe_path, expected=None) -> dict:
+    """Verify the Authenticode signer of a downloaded exe against pinned
+    thumbprints. Trust-chain status is reported but not required (a lab box
+    may not have the signer's root imported; the PIN is what matters)."""
+    from pathlib import Path
+    want = {t.upper().replace(":", "").replace(" ", "")
+            for t in (expected if expected is not None else expected_signers())}
+    if not want:
+        return {"ok": False, "error": "no expected signer configured"}
+    path = Path(exe_path)
+    if not path.exists():
+        return {"ok": False, "error": f"downloaded exe missing: {path}"}
+    ps = shutil.which("powershell.exe") or shutil.which("pwsh")
+    if not ps:
+        return {"ok": False, "error": "cannot verify signature: no powershell on this host"}
+    quoted = str(path).replace("'", "''")
+    try:
+        proc = subprocess.run(
+            [ps, "-NoProfile", "-NonInteractive", "-Command",
+             f"$s = Get-AuthenticodeSignature -LiteralPath '{quoted}'; "
+             f"if ($s.SignerCertificate) {{ $s.SignerCertificate.Thumbprint + '|' + $s.Status }} "
+             f"else {{ 'NOSIG|' + $s.Status }}"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=90)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"ok": False, "error": f"signature check failed to run: {exc}"}
+    out = (proc.stdout or "").strip().splitlines()
+    line = out[-1].strip() if out else ""
+    if "|" not in line:
+        return {"ok": False, "error": "signature check emitted no verdict"}
+    thumb_raw, status = line.split("|", 1)
+    thumb = thumb_raw.strip().upper().replace(":", "").replace(" ", "")
+    if thumb == "NOSIG" or not thumb:
+        return {"ok": False, "error": "downloaded exe is unsigned", "status": status}
+    if thumb not in want:
+        return {"ok": False, "error": "signer thumbprint mismatch",
+                "signer": thumb, "expected": sorted(want), "status": status}
+    return {"ok": True, "signer": thumb, "status": status}
+
+
+def _gh(url: str, token: str = "", timeout: int = 60,
+        accept: str = "application/vnd.github+json") -> bytes:
+    """GitHub API/file fetch. Anonymous when no token is supplied (the
+    public repo needs none; a token remains supported for private forks)."""
+    headers = {"Accept": accept, "User-Agent": "plasma-updater"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read()
 

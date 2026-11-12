@@ -73,16 +73,45 @@ jobs:
           python tools/build_embedded_windows.py --engine-dir engines/windows-x86_64 `
             --whids-payload sensors/whids --tap-payload sensors/tap --dist dist --name plasma
 
-      - name: Rename, hash and smoke test
-        shell: bash
+      - name: Rename, sign (optional), hash and smoke test
+        shell: pwsh
+        env:
+          SIGNING_PFX_BASE64: ${{ secrets.SIGNING_PFX_BASE64 }}
+          SIGNING_PFX_PASSWORD: ${{ secrets.SIGNING_PFX_PASSWORD }}
         run: |
-          VERSION="${{ steps.version.outputs.value }}"
-          mv dist/plasma.exe "dist/plasma-$VERSION-windows-x64.exe"
-          (cd dist && sha256sum "plasma-$VERSION-windows-x64.exe" > SHA256SUMS)
-          ./dist/plasma-$VERSION-windows-x64.exe --version
-          ./dist/plasma-$VERSION-windows-x64.exe status --events samples/plasma_events.jsonl
-          ./dist/plasma-$VERSION-windows-x64.exe ask --prompt "critical alerts" --events samples/plasma_events.jsonl
-          ./dist/plasma-$VERSION-windows-x64.exe tap selftest
+          $version = "${{ steps.version.outputs.value }}"
+          $exe = "dist/plasma-$version-windows-x64.exe"
+          Move-Item dist/plasma.exe $exe -Force
+
+          # Authenticode signing when the PFX secrets exist (see
+          # docs/SIGNPATH_APPLICATION.md for the SignPath route). Signing must
+          # happen BEFORE SHA256SUMS so the published hash covers the signed file.
+          if ($env:SIGNING_PFX_BASE64) {
+            $pfxPath = Join-Path $env:RUNNER_TEMP "signing.pfx"
+            [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:SIGNING_PFX_BASE64))
+            $st = Get-Command signtool.exe -ErrorAction SilentlyContinue
+            if (-not $st) {
+              $st = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -match "x64" } | Select-Object -First 1
+            }
+            if (-not $st) { throw "signtool.exe not found on runner" }
+            $signtool = if ($st.Source) { $st.Source } else { $st.FullName }
+            & $signtool sign /f $pfxPath /p $env:SIGNING_PFX_PASSWORD `
+              /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $exe
+            if ($LASTEXITCODE -ne 0) { throw "signtool signing failed" }
+            & $signtool verify /pa /v $exe
+            if ($LASTEXITCODE -ne 0) { throw "signtool verification failed" }
+            Write-Host "Signed and verified: $exe"
+          } else {
+            Write-Host "No signing secrets configured - publishing unsigned build"
+          }
+
+          (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower() + "  " +
+            (Split-Path $exe -Leaf) | Set-Content dist/SHA256SUMS -Encoding ASCII
+          & $exe --version
+          & $exe status --events samples/plasma_events.jsonl
+          & $exe ask --prompt "critical alerts" --events samples/plasma_events.jsonl
+          & $exe tap selftest
 
       - name: Publish release
         env:
