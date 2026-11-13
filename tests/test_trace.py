@@ -102,8 +102,33 @@ def test_normalize_contract():
 # check / selftest / provision (mocked host)
 # ---------------------------------------------------------------------------
 
-def test_check_missing_dtrace(monkeypatch):
+def test_scripts_dir_resolves_frozen_bundle(tmp_path, monkeypatch):
+    """v1.5.0 omitted sensors/dtrace from the bundle, so installed nodes
+    could not list, selftest or run a single script."""
+    scripts = tmp_path / "embedded" / "sensors" / "dtrace"
+    scripts.mkdir(parents=True)
+    (scripts / "probe.d").write_text(
+        '// name: probe\n// technique: T1059\n// score: 5\n'
+        'syscall:::entry { printf("plasma|{\\"pid\\":%d}\\n", pid); }\n')
+    monkeypatch.setattr("sys._MEIPASS", str(tmp_path), raising=False)
+    monkeypatch.chdir(tmp_path)
+    assert trace._scripts_dir() == scripts
+    assert trace.load_scripts()[0]["name"] == "probe"
+
+
+def test_find_dtrace_falls_back_to_install_dir(tmp_path, monkeypatch):
+    """Microsoft.DTrace's MSI does not touch PATH; WS2 had it installed at
+    C:\\Program Files\\DTrace\\dtrace.EXE and `trace check` said missing."""
     monkeypatch.setattr(trace.shutil, "which", lambda name: None)
+    monkeypatch.setenv("ProgramFiles", str(tmp_path))
+    (tmp_path / "DTrace").mkdir()
+    exe = tmp_path / "DTrace" / "dtrace.exe"
+    exe.write_text("")
+    assert trace.find_dtrace() == str(exe)
+
+
+def test_check_missing_dtrace(monkeypatch):
+    monkeypatch.setattr(trace, "find_dtrace", lambda: None)
     res = trace.check()
     assert res["available"] is False
     assert "Server 2025" in res["hint"]
@@ -271,6 +296,6 @@ def test_run_rejects_bad_window(tmp_path, monkeypatch):
 
 
 def test_run_without_dtrace(tmp_path, monkeypatch):
-    monkeypatch.setattr(trace.shutil, "which", lambda name: None)
+    monkeypatch.setattr(trace, "find_dtrace", lambda: None)
     res = trace.run("syscall-errors", tmp_path / "e.jsonl")
     assert "error" in res and "not installed" in res["error"]

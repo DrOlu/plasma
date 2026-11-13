@@ -46,6 +46,30 @@ def test_gzipped_engine_is_materialized(monkeypatch, tmp_path):
     assert found.parent.name == "plasma-runtime"
 
 
+def test_embedded_bundle_stages_dtrace_scripts(tmp_path):
+    """The frozen bundle must carry the reviewed .d scripts (v1.5.0 did not)."""
+    import importlib.util
+    from pathlib import Path
+
+    tool = Path(__file__).resolve().parent.parent / "tools" / "build_embedded_windows.py"
+    spec = importlib.util.spec_from_file_location("build_embedded_windows", tool)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    engine = tmp_path / "engine"
+    engine.mkdir()
+    (engine / "needle.exe").write_bytes(b"engine")
+    (engine / "needle3.cact").write_bytes(b"weights")
+    out = tmp_path / "embedded"
+
+    result = mod.assemble(engine, None, out, "windows-x86_64")
+
+    assert result["dtrace_payload_files"] >= 3
+    assert (out / "sensors" / "dtrace" / "syscall-errors.d").exists()
+    assert (out / "sensors" / "dtrace" / "process-create.d").exists()
+    assert (out / "sensors" / "dtrace" / "etw-kernel-process.d").exists()
+
+
 def test_embedded_root_absent_without_meipass(monkeypatch):
     monkeypatch.delattr(cli.sys, "_MEIPASS", raising=False)
     assert cli._embedded_root() is None

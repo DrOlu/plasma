@@ -42,14 +42,26 @@ class ScriptError(ValueError):
 
 
 def _scripts_dir(root: str | Path | None = None) -> Path:
+    """Find the reviewed script library on a dev checkout or installed node.
+
+    v1.5.0 shipped without sensors/dtrace inside the bundle, so every
+    `trace` command failed on installed hosts ("not found (repo or
+    embedded)"); the builder now stages the payload and this resolver
+    looks in the frozen bundle, the instance root, and the repo.
+    """
+    import sys
+    candidates = []
     if root:
-        return Path(root) / "sensors" / "dtrace"
-    here = Path(__file__).resolve().parent.parent
-    cand = here / "sensors" / "dtrace"
-    if cand.is_dir():
-        return cand
-    for base in (Path(__file__).resolve().parent, Path.cwd()):
-        cand = base / "sensors" / "dtrace"
+        candidates += [Path(root) / "sensors" / "dtrace",
+                        Path(root) / "embedded" / "sensors" / "dtrace"]
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(Path(meipass) / "embedded" / "sensors" / "dtrace")
+    candidates += [Path(__file__).resolve().parent.parent / "sensors" / "dtrace",
+                   Path(__file__).resolve().parent / "sensors" / "dtrace",
+                   Path.cwd() / "sensors" / "dtrace",
+                   Path.cwd() / "embedded" / "sensors" / "dtrace"]
+    for cand in candidates:
         if cand.is_dir():
             return cand
     raise FileNotFoundError("sensors/dtrace not found (repo or embedded)")
@@ -109,6 +121,24 @@ def load_scripts(root: str | Path | None = None) -> list[dict]:
     return scripts
 
 
+def find_dtrace() -> str | None:
+    """Locate dtrace.exe on PATH or in its default install directory.
+
+    The Microsoft.DTrace MSI does not add itself to PATH, so a PATH-only
+    probe reported "not installed" on a host that had it (WS2, field-found).
+    """
+    path = shutil.which("dtrace")
+    if path:
+        return path
+    bases = [os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)"),
+             os.environ.get("ProgramW6432"), r"C:\Program Files"]
+    for base in dict.fromkeys(b for b in bases if b):
+        cand = Path(base) / "DTrace" / "dtrace.exe"
+        if cand.is_file():
+            return str(cand)
+    return None
+
+
 def _run_ps(script: str, timeout: int = 60) -> str:
     exe = shutil.which("powershell.exe") or shutil.which("pwsh")
     if not exe:
@@ -125,7 +155,7 @@ def _run_ps(script: str, timeout: int = 60) -> str:
 
 def check() -> dict:
     """Is DTrace present and enabled on this host? Read-only."""
-    path = shutil.which("dtrace")
+    path = find_dtrace()
     result = {"available": bool(path), "path": path, "enabled": None,
               "version": None, "hint": None}
     if not path:
@@ -154,7 +184,7 @@ def check() -> dict:
 
 def selftest(root: str | Path | None = None) -> dict:
     """Compile every reviewed script with `dtrace -e` (no probes enabled)."""
-    path = shutil.which("dtrace")
+    path = find_dtrace()
     if not path:
         return {"ok": False, "error": "dtrace not installed", "hint": check()["hint"]}
     results = []
@@ -229,7 +259,7 @@ def run(script_name: str, events_path, seconds: int = 10,
                 "scripts": [s["name"] for s in scripts]}
     if seconds < 1 or seconds > 300:
         return {"error": "seconds must be between 1 and 300"}
-    path = shutil.which("dtrace")
+    path = find_dtrace()
     if not path:
         return {"error": "dtrace not installed", "hint": check()["hint"]}
 

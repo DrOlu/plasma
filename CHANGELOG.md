@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.5.3 — 2026-11-13
+
+Third field fix: the DTrace feature could not run on an installed node.
+
+### Fixed — reviewed D scripts were missing from the bundle
+- `build_embedded_windows.py` staged `sensors/whids` and `sensors/tap` but
+  never `sensors/dtrace`, so `trace list|selftest|run` failed with
+  "sensors/dtrace not found (repo or embedded)" on every installed host.
+  The builder now stages every `*.d` script and the manifest covers them.
+- `trace._scripts_dir()` also resolves the frozen bundle
+  (`<_MEIPASS>/embedded/sensors/dtrace`), an explicit root, and the repo.
+
+### Fixed — DTrace installed outside PATH was reported missing
+- Microsoft.DTrace's MSI does not add `dtrace.exe` to PATH. `trace check`
+  now falls back to `%ProgramFiles%\DTrace\dtrace.exe` (and ProgramFiles
+  (x86) / ProgramW6432) before declaring DTrace unavailable.
+
+### Tests
+- 328 passed / 21 skipped.
+
 ## 1.5.2 — 2026-11-13
 
 Second field fix from the v1.5.0 estate run: an existing WHIDS install must

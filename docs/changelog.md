@@ -4,6 +4,21 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.5.3 — 2026-11-13
+
+- **DTrace payload actually ships** — the frozen bundle now carries
+  `sensors/dtrace/*.d`; installed nodes can `trace list|selftest|run`.
+- **DTrace outside PATH** — `trace check` finds
+  `%ProgramFiles%\DTrace\dtrace.exe` (the MSI does not touch PATH).
+- Installer convergence fix from 1.5.2: existing WHIDS installs are
+  re-staged from the bundle; stale configs no longer survive upgrades.
+
+## 1.5.2 — 2026-11-13
+
+- **WHIDS convergence** — `install --force` rewrites `config.toml`, rules
+  and the binary from the bundle, restarts only on drift, and rolls back the
+  config once if the new one cannot start.
+
 ## 1.5.0 — 2026-11-13
 
 - **DTrace integration** — `plasma trace list|check|selftest|run|provision`:

@@ -85,6 +85,7 @@ def assemble(engine_dir: Path, whids_payload: Path | None, out: Path, platform: 
     (out / "engines" / platform).mkdir(parents=True)
     (out / "sensors" / "whids").mkdir(parents=True)
     (out / "sensors" / "tap").mkdir(parents=True)
+    (out / "sensors" / "dtrace").mkdir(parents=True)
 
     missing = []
     for name in INSTANCE_FILES:
@@ -103,6 +104,18 @@ def assemble(engine_dir: Path, whids_payload: Path | None, out: Path, platform: 
 
     payload_files = _copy_payload(whids_payload, out / "sensors" / "whids")
     tap_files = _copy_payload(tap_payload, out / "sensors" / "tap")
+    # Reviewed D scripts travel with the binary: v1.5.0 omitted them, so the
+    # whole trace feature failed on installed nodes (field-found).
+    dtrace_files = 0
+    dtrace_dir = ROOT / "sensors" / "dtrace"
+    if dtrace_dir.is_dir():
+        for script in sorted(dtrace_dir.glob("*.d")):
+            shutil.copy2(script, out / "sensors" / "dtrace" / script.name)
+            dtrace_files += 1
+        if not dtrace_files:
+            missing.append("sensors/dtrace/*.d")
+    else:
+        missing.append("sensors/dtrace")
 
     probes = len(json.loads((out / "instance" / "needle_menu.json").read_text(encoding="utf-8")))
     manifest = create_manifest(
@@ -114,6 +127,7 @@ def assemble(engine_dir: Path, whids_payload: Path | None, out: Path, platform: 
         "probes": probes,
         "whids_payload_files": payload_files,
         "tap_payload_files": tap_files,
+        "dtrace_payload_files": dtrace_files,
         "platform": platform,
     }
 
