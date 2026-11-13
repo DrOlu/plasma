@@ -16,6 +16,15 @@ Highlights by release:
 - **Trace rows use `tid`** — `pid` is not portable across the DTrace builds
   on the estate; `tid` works on both hosts.
 
+## 1.7.0 — 2026-11-13
+
+- **Agent-native trust layer** — typed capability contract, deterministic
+  policy engine (assist/supervised/autonomous), approval queue, hash-chained
+  provenance, kill switch, tenants and an MCP server.
+- **Evidence and assurance** — CBN/NDPA/PCI/ISO control matrices, SBOM,
+  safety case, support bundle and a safety eval suite.
+- **Rings and rollback** — canary/broad assignment and one-command rollback.
+
 ## 1.6.0 — 2026-11-13
 
 - **WHIDS watchdog** — `plasma whids ensure` heals a hung StartPending or a

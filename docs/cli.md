@@ -170,6 +170,57 @@ plasma update apply [--bin PATH] [--root PATH] [--allow-unsigned]
 
 Anonymous against the public repo; signature-pinned.
 
+### control (agent trust layer)
+
+```text
+plasma control policy show|set
+plasma control approvals list|approve|deny
+plasma control audit tail|verify
+plasma control killswitch status|on|off
+plasma control tenants list|add|remove
+```
+
+`policy set` accepts `--autonomy assist|supervised|autonomous`, `--deny`,
+`--allow`, `--max-actions`, `--max-hosts` and `--allow-critical`.
+`audit verify` exits 2 if the hash chain is broken. Approvals are single-use
+and bound to the tool and argument hash.
+
+### mcp
+
+```text
+plasma mcp serve [--root PATH]
+```
+
+MCP over stdio. Eleven typed tools; mutating tools return a dry-run plan and
+approval reference, never an execution. See
+[Agent-native operation](agent-native.md).
+
+### evidence
+
+```text
+plasma evidence export [--framework cbn ndpa pci iso27001] [--out FILE]
+```
+
+Writes a JSON control matrix and a Markdown companion.
+
+### assurance
+
+```text
+plasma assurance sbom [--out FILE]
+plasma assurance safety-case [--out FILE]
+plasma assurance support-bundle [--out FILE]
+plasma assurance notices
+```
+
+## Deployment rings
+
+```text
+plasma ring status
+plasma ring assign HOST [--ring canary]
+plasma ring promote RING
+plasma rollback [--bin PATH]
+```
+
 ### manifest / bundle
 
 ```text

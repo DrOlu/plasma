@@ -1,5 +1,46 @@
 # Changelog
 
+## 1.7.0 — 2026-11-13
+
+Agent-native trust layer: autonomy with a leash.
+
+### New — capability contract
+- Eleven typed tools with scopes, risk tiers, JSON schemas, preconditions
+  and postconditions. Unknown tools and extra arguments are refused.
+- Mutating tools are dry-run-only in the MCP surface; execution stays
+  behind the CLI plan/approval gate.
+
+### New — deterministic policy engine
+- `assist` / `supervised` / `autonomous` tiers, deny/allow lists, scope
+  checks, blast-radius and rate limits. The model never authorises.
+
+### New — approvals and provenance
+- `plasma control approvals` queue; approvals are single-use and bound to
+  the tool and argument hash.
+- Hash-chained ledger records harness, model, prompt digest, arguments,
+  policy digest, approval and outcome. `plasma control audit verify`.
+
+### New — kill switch and tenants
+- Global and per-host kill switch; reads stay available.
+- Tenant registry scopes hosts and tags ledger rows for MSSP isolation.
+
+### New — MCP server
+- `plasma mcp serve` exposes the typed tools over stdio (initialize,
+  tools/list, tools/call) to any harness.
+
+### New — evidence and assurance
+- `plasma evidence export` for CBN, NDPA, PCI DSS and ISO 27001.
+- CycloneDX SBOM, safety case and redacted support bundle.
+- `plasma eval run` safety suite covering tiers, refusals, injection
+  strings, blast radius and rate limits.
+
+### New — deployment rings and rollback
+- `plasma ring status|assign|promote`; `plasma rollback` restores the
+  previous canonical binary.
+
+### Tests
+- 384 passed / 21 skipped.
+
 ## 1.6.2 — 2026-11-13
 
 ### Fixed — the "upgrade to 2.0" hint never went away

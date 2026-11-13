@@ -484,10 +484,11 @@ footer{border-top:1px solid var(--line);padding:44px 0 60px;color:var(--muted);f
 <header class="nav">
   <a class="brand" href="#top" aria-label="Plasma home">
     <span class="mark" aria-hidden="true"></span>
-    <span>PLASMA <em>v1.6.2</em></span>
+    <span>PLASMA <em>v1.7.0</em></span>
   </a>
   <nav class="nav-links" id="navLinks" aria-label="Sections">
     <a href="#architecture">Architecture</a>
+    <a href="#agent-layer">Agent layer</a>
     <a href="#sensors">Sensors</a>
     <a href="#detection">Detection</a>
     <a href="#response">Response</a>
@@ -515,12 +516,12 @@ footer{border-top:1px solid var(--line);padding:44px 0 60px;color:var(--muted);f
 <section class="hero">
   <div class="wrap hero-grid">
     <div>
-      <span class="eyebrow"><span class="dot"></span> Windows EDR · on-device · v1.6.2</span>
+      <span class="eyebrow"><span class="dot"></span> Windows EDR · on-device · v1.7.0</span>
       <h1>See the whole machine.<br><span>Trust none of it blindly.</span></h1>
       <p class="sub">
-        Plasma is a <strong>lake-less Windows EDR</strong>: on-box sensors normalize into one local
-        event contract, a frozen 121M on-device model answers questions about it, and every response
-        is human-gated, journaled and reversible.
+        Plasma is a <strong>lake-less, agent-native Windows EDR</strong>: on-box sensors normalize into
+        one local event contract, an agent harness investigates through a typed capability contract,
+        and every response is policy-gated, journaled and reversible.
       </p>
       <div class="hero-cta">
         <a class="btn primary" href="https://drolu.github.io/plasma/">
@@ -532,6 +533,7 @@ footer{border-top:1px solid var(--line);padding:44px 0 60px;color:var(--muted);f
       <div class="hero-badges">
         <span class="badge"><b>0</b> standing cloud calls</span>
         <span class="badge"><b>16</b> gene rules</span>
+        <span class="badge"><b>11</b> typed agent tools</span>
         <span class="badge"><b>36</b> ATT&CK techniques mapped</span>
         <span class="badge"><b>1</b> self-contained exe</span>
       </div>
@@ -625,9 +627,9 @@ footer{border-top:1px solid var(--line);padding:44px 0 60px;color:var(--muted);f
       <div class="stat"><div class="num"><span data-count="91.7" data-dec="1">0</span><small>%</small></div><div class="lbl">ATT&CK rollup coverage</div></div>
       <div class="stat"><div class="num"><span data-count="75">0</span><small>%</small></div><div class="lbl">exact-technique coverage</div></div>
       <div class="stat"><div class="num"><span data-count="13">0</span></div><div class="lbl">reversible actions</div></div>
-      <div class="stat"><div class="num"><span data-count="10">0</span></div><div class="lbl">frozen probes</div></div>
+      <div class="stat"><div class="num"><span data-count="11">0</span></div><div class="lbl">typed agent tools</div></div>
       <div class="stat"><div class="num"><span data-count="3">0</span></div><div class="lbl">DTrace scripts</div></div>
-      <div class="stat"><div class="num"><span data-count="350">0</span></div><div class="lbl">tests passing</div></div>
+      <div class="stat"><div class="num"><span data-count="384">0</span></div><div class="lbl">tests passing</div></div>
     </div>
   </div>
 </section>
@@ -704,6 +706,81 @@ footer{border-top:1px solid var(--line);padding:44px 0 60px;color:var(--muted);f
 
     <div class="pipe-note reveal">
       <strong>The seam is deliberately narrow.</strong> Every sensor writes the same contract, so a new collector never changes the model or the CLI. A trace row, an alert and a logon event are consumed by the same chain and fleet code. <code>kind</code> is the only routing key.
+    </div>
+  </div>
+</section>
+
+<!-- AGENT LAYER -->
+<section id="agent-layer">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Agent-native</span>
+      <h2>Autonomy with a leash.</h2>
+      <p class="lede">The harness investigates and proposes. The policy engine decides. The approval queue gates the dangerous calls. The ledger remembers everything — harness, model, prompt digest, arguments, policy, approval and outcome.</p>
+    </div>
+
+    <div class="grid c4 reveal">
+      <article class="card">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
+        <h3>Capability contract</h3>
+        <p>Eleven typed tools, each with a scope, risk tier and JSON schema. Unknown tools and extra arguments are refused before anything runs.</p>
+        <div class="tagrow"><span class="tag">11 tools</span><span class="tag">schema-first</span><span class="tag">dry-run in MCP</span></div>
+      </article>
+      <article class="card violet">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7"/><circle cx="19" cy="12" r="2"/><circle cx="14" cy="17" r="2"/></svg></div>
+        <h3>Policy engine</h3>
+        <p>Assist, supervised or autonomous. Deny lists, scopes, blast-radius and rate limits. The model never authorises an action.</p>
+        <div class="tagrow"><span class="tag">3 tiers</span><span class="tag">deny list</span><span class="tag">rate limit</span></div>
+      </article>
+      <article class="card amber">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3 4 7v5c0 5 3.4 7.6 8 9 4.6-1.4 8-4 8-9V7l-8-4Z"/><path d="M12 8v5"/><circle cx="12" cy="16" r=".6" fill="currentColor"/></svg></div>
+        <h3>Approvals + kill switch</h3>
+        <p>High and critical calls return a single-use approval id. A global or per-host kill switch blocks actions without blinding reads.</p>
+        <div class="tagrow"><span class="tag">human on the loop</span><span class="tag">global / host</span></div>
+      </article>
+      <article class="card green">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M9 9h6M9 13h6M9 17h4"/><path d="M3 7v14h3"/></svg></div>
+        <h3>Provenance ledger</h3>
+        <p>Every decision and action is appended to a hash-chained log. <code>audit verify</code> detects tampering at the row.</p>
+        <div class="tagrow"><span class="tag">hash chain</span><span class="tag">tenant-scoped</span><span class="tag">audit-ready</span></div>
+      </article>
+    </div>
+
+    <div class="grid c2 reveal" style="margin-top:18px;align-items:start">
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i><span class="path">harness · plasma mcp</span>
+          <button class="copy" type="button">Copy</button></div>
+        <pre><code><span class="c"># expose the typed tools over stdio</span>
+plasma mcp serve
+
+<span class="c"># the harness sees eleven tools</span>
+{"jsonrpc":"2.0","id":2,"method":"tools/list"}
+
+<span class="c"># a critical action is not executed</span>
+{"jsonrpc":"2.0","id":3,"method":"tools/call",
+ "params":{"name":"isolate_host",
+           "arguments":{"host":"WS1"}}}
+<span class="y">→ APPROVAL_REQUIRED, approval_id 42</span>
+
+<span class="c"># a human decides, once</span>
+plasma control approvals approve 42 --approver ciso
+plasma control audit verify</code></pre>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:12px">
+          <h3>Autonomy is a setting</h3>
+          <p><b>Assist</b> — approve everything. <b>Supervised</b> — auto low/medium, approve containment. <b>Autonomous</b> — act within policy, humans on the loop, kill switch ready. Start supervised; earn autonomous.</p>
+          <div class="mini">plasma control policy set --autonomy supervised</div>
+        </div>
+        <div class="card amber" style="margin-bottom:12px">
+          <h3>Evidence, not assurances</h3>
+          <p>CBN, NDPA, PCI DSS and ISO 27001 control matrices from real state; CycloneDX SBOM; a safety case with the eval result; a redacted support bundle.</p>
+          <div class="mini">plasma evidence export --framework cbn ndpa pci iso27001</div>
+        </div>
+        <div class="pipe-note">
+          <strong>The model is never in the kill path.</strong> Telemetry is untrusted data, tool arguments are schema-validated, and mutating MCP tools return a plan — not an execution.
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -1151,7 +1228,7 @@ plasma store rotate --events events.jsonl --max-mb 256</code></pre>
       <div class="card green">
         <h3>Tested on a live estate</h3>
         <p>Two Windows Server 2022 hosts: signed updates, 16 gene rules, Sysmon FileDelete, canaries, fleet correlation, MSI install and DTrace runs — all exercised end-to-end.</p>
-        <div class="mini">350 unit tests · 21 skipped</div>
+        <div class="mini">384 unit tests · 21 skipped</div>
       </div>
       <div class="card amber">
         <h3>Known limits</h3>
@@ -1213,7 +1290,7 @@ plasma store rotate --events events.jsonl --max-mb 256</code></pre>
   <div class="wrap">
     <div class="foot">
       <div>
-        <div class="brand" style="margin-bottom:10px"><span class="mark" aria-hidden="true"></span><span>PLASMA <em>v1.6.2</em></span></div>
+        <div class="brand" style="margin-bottom:10px"><span class="mark" aria-hidden="true"></span><span>PLASMA <em>v1.7.0</em></span></div>
         <div>The lake-less Windows EDR.<br>No log lake. No cloud. No blind trust.</div>
       </div>
       <div style="display:grid;gap:6px">

@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 
 from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary, trace
+from . import agentstate, policy as agent_policy, ledger, killswitch, tenants, rings, evidence, assurance, evals, mcp as mcp_server, tools as agent_tools
 from . import update as updater
 from .bundle import build_bundle
 from .manifest import create_manifest, sha256_file, verify_manifest
@@ -1470,6 +1471,193 @@ def cmd_fleet_scan(args) -> int:
     return 0 if correlated.get("top_score", 0) == 0 else 2
 
 
+# ---------------------------------------------------------------------------
+# Agent-native trust layer (v1.7.0)
+# ---------------------------------------------------------------------------
+
+def _emit(obj) -> None:
+    print(json.dumps(obj, indent=2, default=str))
+
+
+def cmd_control_policy_show(args) -> int:
+    _emit({"policy": agent_policy.load(args.root),
+           "killswitch": killswitch.status(args.root)})
+    return 0
+
+
+def cmd_control_policy_set(args) -> int:
+    current = agent_policy.load(args.root)
+    if args.autonomy:
+        current["autonomy"] = args.autonomy
+    if args.deny is not None:
+        current["deny"] = args.deny
+    if args.allow is not None:
+        current["allow"] = args.allow
+    if args.max_actions is not None:
+        current["max_actions_per_minute"] = args.max_actions
+    if args.max_hosts is not None:
+        current["max_hosts_per_action"] = args.max_hosts
+    if args.allow_critical is not None:
+        current["allow_critical"] = args.allow_critical
+    try:
+        _emit(agent_policy.save(args.root, current))
+    except ValueError as exc:
+        _emit({"error": str(exc)})
+        return 1
+    return 0
+
+
+def cmd_control_approvals_list(args) -> int:
+    _emit({"approvals": ledger.pending_approvals(args.root, limit=args.limit)})
+    return 0
+
+
+def _approval_action(args, approve: bool) -> int:
+    try:
+        row = ledger.approve(args.root, args.id, args.approver, args.note,
+                             approve_action=approve)
+    except ledger.LedgerError as exc:
+        _emit({"error": str(exc)})
+        return 1
+    _emit(row)
+    return 0
+
+
+def cmd_control_approvals_approve(args) -> int:
+    return _approval_action(args, True)
+
+
+def cmd_control_approvals_deny(args) -> int:
+    return _approval_action(args, False)
+
+
+def cmd_control_audit_tail(args) -> int:
+    _emit({"ledger": ledger.tail(args.root, args.last)})
+    return 0
+
+
+def cmd_control_audit_verify(args) -> int:
+    result = ledger.verify(args.root)
+    _emit(result)
+    return 0 if result.get("ok") else 2
+
+
+def cmd_control_killswitch_status(args) -> int:
+    _emit(killswitch.status(args.root))
+    return 0
+
+
+def cmd_control_killswitch_on(args) -> int:
+    if args.host:
+        _emit(killswitch.set_host(args.root, args.host, True, args.reason))
+    else:
+        _emit(killswitch.set_global(args.root, True, args.reason))
+    return 0
+
+
+def cmd_control_killswitch_off(args) -> int:
+    if args.host:
+        _emit(killswitch.set_host(args.root, args.host, False, args.reason))
+    else:
+        _emit(killswitch.set_global(args.root, False, args.reason))
+    return 0
+
+
+def cmd_control_tenants_list(args) -> int:
+    _emit({"tenants": tenants.list_tenants(args.root)})
+    return 0
+
+
+def cmd_control_tenants_add(args) -> int:
+    try:
+        _emit(tenants.add(args.root, args.tenant, args.name, args.host))
+    except ValueError as exc:
+        _emit({"error": str(exc)})
+        return 1
+    return 0
+
+
+def cmd_control_tenants_remove(args) -> int:
+    try:
+        _emit(tenants.remove(args.root, args.tenant))
+    except (ValueError, KeyError) as exc:
+        _emit({"error": str(exc)})
+        return 1
+    return 0
+
+
+def cmd_mcp_serve(args) -> int:
+    return mcp_server.serve(args.root)
+
+
+def cmd_evidence_export(args) -> int:
+    try:
+        result = evidence.export(args.root, args.framework or None, args.out)
+    except ValueError as exc:
+        _emit({"error": str(exc)})
+        return 1
+    _emit(result)
+    return 0
+
+
+def cmd_assurance_sbom(args) -> int:
+    _emit(assurance.write_sbom(args.root, args.out))
+    return 0
+
+
+def cmd_assurance_safety(args) -> int:
+    result = assurance.safety_case(args.root, args.out)
+    _emit({k: v for k, v in result.items() if k != "markdown"})
+    return 0 if result.get("ok") else 2
+
+
+def cmd_assurance_bundle(args) -> int:
+    _emit(assurance.support_bundle(args.root, args.out))
+    return 0
+
+
+def cmd_assurance_notices(args) -> int:
+    print(assurance.third_party_notices())
+    return 0
+
+
+def cmd_eval_run(args) -> int:
+    result = evals.run(args.root)
+    _emit(result)
+    return 0 if result.get("failed") == 0 else 2
+
+
+def cmd_ring_status(args) -> int:
+    _emit(rings.status(args.root))
+    return 0
+
+
+def cmd_ring_assign(args) -> int:
+    try:
+        _emit(rings.assign(args.root, args.host, args.ring))
+    except ValueError as exc:
+        _emit({"error": str(exc)})
+        return 1
+    return 0
+
+
+def cmd_ring_promote(args) -> int:
+    try:
+        _emit(rings.promote(args.root, args.ring))
+    except ValueError as exc:
+        _emit({"error": str(exc)})
+        return 1
+    return 0
+
+
+def cmd_rollback(args) -> int:
+    bin_exe = (Path(args.bin) if args.bin else
+               agentstate.base(args.root) / "bin" / Path(sys.executable).name)
+    result = rings.rollback(bin_exe)
+    _emit(result)
+    return 0 if result.get("ok") else 1
+
+
 def cmd_internal_bridge(args) -> int:
     """Hidden entry point used by the frozen executable (`plasma _bridge`)."""
     import importlib.util
@@ -1837,6 +2025,147 @@ def build_parser() -> argparse.ArgumentParser:
     upa.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     upa.add_argument("--bin", default=None, help="canonical exe copy to rotate (default <root>/bin)")
     upa.set_defaults(func=cmd_update_apply)
+
+    ctl = sub.add_parser("control", help="agent control plane: policy, approvals, audit, kill switch, tenants")
+    ctls = ctl.add_subparsers(dest="control_action", required=True)
+
+    pol = ctls.add_parser("policy", help="show or change the autonomy policy")
+    pols = pol.add_subparsers(dest="policy_action", required=True)
+    pshow = pols.add_parser("show")
+    pshow.add_argument("--root", default=None)
+    pshow.set_defaults(func=cmd_control_policy_show)
+    pset = pols.add_parser("set")
+    pset.add_argument("--root", default=None)
+    pset.add_argument("--autonomy", choices=("assist", "supervised", "autonomous"))
+    pset.add_argument("--deny", nargs="*", default=None)
+    pset.add_argument("--allow", nargs="*", default=None)
+    pset.add_argument("--max-actions", type=int, default=None)
+    pset.add_argument("--max-hosts", type=int, default=None)
+    crit = pset.add_mutually_exclusive_group()
+    crit.add_argument("--allow-critical", dest="allow_critical", action="store_true",
+                      default=None)
+    crit.add_argument("--no-allow-critical", dest="allow_critical",
+                      action="store_false")
+    pset.set_defaults(func=cmd_control_policy_set)
+
+    appr = ctls.add_parser("approvals", help="list, approve or deny pending actions")
+    apprs = appr.add_subparsers(dest="approvals_action", required=True)
+    alist = apprs.add_parser("list")
+    alist.add_argument("--limit", type=int, default=100)
+    alist.add_argument("--root", default=None)
+    alist.set_defaults(func=cmd_control_approvals_list)
+    aok = apprs.add_parser("approve")
+    aok.add_argument("id", type=int)
+    aok.add_argument("--approver", default="operator")
+    aok.add_argument("--note", default="")
+    aok.add_argument("--root", default=None)
+    aok.set_defaults(func=cmd_control_approvals_approve)
+    ano = apprs.add_parser("deny")
+    ano.add_argument("id", type=int)
+    ano.add_argument("--approver", default="operator")
+    ano.add_argument("--note", default="")
+    ano.add_argument("--root", default=None)
+    ano.set_defaults(func=cmd_control_approvals_deny)
+
+    aud = ctls.add_parser("audit", help="read or verify the provenance ledger")
+    auds = aud.add_subparsers(dest="audit_action", required=True)
+    atail = auds.add_parser("tail")
+    atail.add_argument("--last", type=int, default=20)
+    atail.add_argument("--root", default=None)
+    atail.set_defaults(func=cmd_control_audit_tail)
+    aver = auds.add_parser("verify")
+    aver.add_argument("--root", default=None)
+    aver.set_defaults(func=cmd_control_audit_verify)
+
+    ks = ctls.add_parser("killswitch", help="global or per-host action kill switch")
+    kss = ks.add_subparsers(dest="killswitch_action", required=True)
+    kst = kss.add_parser("status")
+    kst.add_argument("--root", default=None)
+    kst.set_defaults(func=cmd_control_killswitch_status)
+    kon = kss.add_parser("on")
+    kon.add_argument("--host", default=None)
+    kon.add_argument("--reason", default="")
+    kon.add_argument("--root", default=None)
+    kon.set_defaults(func=cmd_control_killswitch_on)
+    koff = kss.add_parser("off")
+    koff.add_argument("--host", default=None)
+    koff.add_argument("--reason", default="")
+    koff.add_argument("--root", default=None)
+    koff.set_defaults(func=cmd_control_killswitch_off)
+
+    ten = ctls.add_parser("tenants", help="multi-tenant registry (MSSP isolation)")
+    tens = ten.add_subparsers(dest="tenants_action", required=True)
+    tlist = tens.add_parser("list")
+    tlist.add_argument("--root", default=None)
+    tlist.set_defaults(func=cmd_control_tenants_list)
+    tadd = tens.add_parser("add")
+    tadd.add_argument("tenant")
+    tadd.add_argument("--name", default="")
+    tadd.add_argument("--host", action="append", default=[])
+    tadd.add_argument("--root", default=None)
+    tadd.set_defaults(func=cmd_control_tenants_add)
+    trem = tens.add_parser("remove")
+    trem.add_argument("tenant")
+    trem.add_argument("--root", default=None)
+    trem.set_defaults(func=cmd_control_tenants_remove)
+
+    mp = sub.add_parser("mcp", help="MCP stdio server for agent harnesses")
+    mps = mp.add_subparsers(dest="mcp_action", required=True)
+    mserve = mps.add_parser("serve")
+    mserve.add_argument("--root", default=None)
+    mserve.set_defaults(func=cmd_mcp_serve)
+
+    evd = sub.add_parser("evidence", help="machine-generated compliance evidence")
+    evds = evd.add_subparsers(dest="evidence_action", required=True)
+    evex = evds.add_parser("export")
+    evex.add_argument("--framework", nargs="*", default=None,
+                      choices=("cbn", "ndpa", "pci", "iso27001"))
+    evex.add_argument("--out", default=None)
+    evex.add_argument("--root", default=None)
+    evex.set_defaults(func=cmd_evidence_export)
+
+    asr = sub.add_parser("assurance", help="SBOM, safety case and support bundle")
+    asrs = asr.add_subparsers(dest="assurance_action", required=True)
+    asb = asrs.add_parser("sbom")
+    asb.add_argument("--out", default=None)
+    asb.add_argument("--root", default=None)
+    asb.set_defaults(func=cmd_assurance_sbom)
+    asc = asrs.add_parser("safety-case")
+    asc.add_argument("--out", default=None)
+    asc.add_argument("--root", default=None)
+    asc.set_defaults(func=cmd_assurance_safety)
+    asu = asrs.add_parser("support-bundle")
+    asu.add_argument("--out", default=None)
+    asu.add_argument("--root", default=None)
+    asu.set_defaults(func=cmd_assurance_bundle)
+    asn = asrs.add_parser("notices")
+    asn.set_defaults(func=cmd_assurance_notices)
+
+    evl = sub.add_parser("eval", help="run the agent safety eval suite")
+    evls = evl.add_subparsers(dest="eval_action", required=True)
+    evrun = evls.add_parser("run")
+    evrun.add_argument("--root", default=None)
+    evrun.set_defaults(func=cmd_eval_run)
+
+    rng = sub.add_parser("ring", help="deployment rings: canary, broad, rollback")
+    rngs = rng.add_subparsers(dest="ring_action", required=True)
+    rstat = rngs.add_parser("status")
+    rstat.add_argument("--root", default=None)
+    rstat.set_defaults(func=cmd_ring_status)
+    rass = rngs.add_parser("assign")
+    rass.add_argument("host")
+    rass.add_argument("--ring", default="canary")
+    rass.add_argument("--root", default=None)
+    rass.set_defaults(func=cmd_ring_assign)
+    rprom = rngs.add_parser("promote")
+    rprom.add_argument("ring")
+    rprom.add_argument("--root", default=None)
+    rprom.set_defaults(func=cmd_ring_promote)
+
+    rb = sub.add_parser("rollback", help="restore the previous canonical binary")
+    rb.add_argument("--bin", default=None)
+    rb.add_argument("--root", default=None)
+    rb.set_defaults(func=cmd_rollback)
 
     hb = sub.add_parser("_bridge", help=argparse.SUPPRESS)
     hb.add_argument("--dir", required=True)

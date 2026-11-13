@@ -47,6 +47,10 @@ nav:
   - Getting started: getting-started.md
   - Deployment (MSI/GPO): deployment.md
   - Concepts: concepts.md
+  - Agent-native operation: agent-native.md
+  - Control plane: control-plane.md
+  - Compliance evidence: compliance.md
+  - Assurance: assurance.md
   - Sensors: sensors.md
   - Detection: detection.md
   - Fleet: fleet.md

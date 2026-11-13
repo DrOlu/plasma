@@ -21,6 +21,26 @@ questions about what happened: *"why did WHIDS kill PID 4832?"*,
 The model is **never** in the kill path. Situational awareness is the model's
 job; response remains policy-driven and, for model recommendations, human-approved.
 
+## Agent-native operation
+
+Plasma can be driven by an agent harness without giving it arbitrary
+execution. Eleven typed tools are exposed over MCP (`plasma mcp serve`);
+mutating tools return a dry-run plan and an approval reference, never an
+execution. A deterministic policy engine, a hash-chained provenance ledger,
+a kill switch and a single-use approval queue sit between the model and the
+host.
+
+```powershell
+plasma control policy show
+plasma control policy set --autonomy supervised --deny kill_process
+plasma mcp serve
+plasma control audit verify
+plasma eval run
+```
+
+See [Agent-native operation](https://drolu.github.io/plasma/agent-native/)
+and the [Control plane](https://drolu.github.io/plasma/control-plane/).
+
 ## Code signing
 
 Windows release executables are Authenticode-signed (self-signed project

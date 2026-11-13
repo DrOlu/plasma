@@ -52,6 +52,33 @@ DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
 
+## What's new in 1.7.0
+
+Plasma is now **agent-native**, not just agent-adjacent:
+
+- **Capability contract** — 11 typed tools with scopes, risk tiers,
+  preconditions and JSON schemas. Unknown tools and extra arguments are
+  refused before anything runs.
+- **Deterministic policy engine** — assist / supervised / autonomous tiers,
+  deny lists, blast-radius and rate limits. The model never authorises.
+- **Provenance ledger** — every decision and action is appended to a
+  hash-chained log with harness, model, prompt digest, arguments, policy
+  digest, approval and outcome. `plasma control audit verify`.
+- **Approval queue** — high/critical actions return an approval id; a human
+  approves or denies, and the approval is single-use.
+- **Kill switch** — global and per-host, blocks actions but not reads.
+- **MCP server** — `plasma mcp serve` exposes the typed tools over stdio to
+  any harness.
+- **Compliance evidence** — CBN, NDPA, PCI DSS and ISO 27001 control
+  matrices generated from real state.
+- **Assurance** — CycloneDX SBOM, safety case and redacted support bundle.
+- **Deployment rings** — canary/broad assignment and one-command rollback.
+- **Safety evals** — `plasma eval run` covers tier behaviour, injections,
+  blast radius, rate limits and refusals.
+
+Read [Agent-native operation](agent-native.md) and the
+[Control plane](control-plane.md).
+
 ## What's new in 1.6.x
 
 - **Self-healing WHIDS** — `plasma whids ensure` force-stops a hung
