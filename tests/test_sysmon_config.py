@@ -1,4 +1,5 @@
 """The shipped Sysmon baseline config must log the events the rules need."""
+import subprocess
 import xml.etree.ElementTree as ET
 
 from plasma.cli import SYSMON_BASELINE_CONFIG
@@ -44,3 +45,47 @@ def test_file_delete_is_include_with_executable_extensions():
     assert len(extensions) <= 20
     for el in fd:
         assert el.get("condition") == "end with"
+
+
+# ---------------------------------------------------------------------------
+# config convergence on upgrade
+# ---------------------------------------------------------------------------
+
+def test_write_sysmon_config_is_byte_identical(tmp_path):
+    from plasma import cli
+    path = cli.write_sysmon_config(tmp_path / "tools")
+    assert path.read_text(encoding="utf-8") == cli.SYSMON_BASELINE_CONFIG
+    # idempotent: a second write leaves one file with the same content
+    again = cli.write_sysmon_config(tmp_path / "tools")
+    assert again.read_text(encoding="utf-8") == cli.SYSMON_BASELINE_CONFIG
+
+
+def test_apply_sysmon_config_invokes_config_reload(tmp_path, monkeypatch):
+    """An old node keeps its install-time config unless we re-apply ours."""
+    from plasma import cli
+    system_root = tmp_path / "Windows"
+    system_root.mkdir()
+    (system_root / "Sysmon64.exe").write_bytes(b"MZ")
+    monkeypatch.setenv("SystemRoot", str(system_root))
+    seen = {}
+
+    def fake_run(cmd, **kw):
+        seen["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0, stdout="Configuration updated.", stderr="")
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+
+    result = cli._apply_sysmon_config(tmp_path / "tools")
+
+    assert result["ok"] is True
+    assert seen["cmd"][0].endswith("Sysmon64.exe")
+    assert seen["cmd"][1] == "-c"
+    cfg = seen["cmd"][2]
+    assert cfg.endswith("plasma-sysmon-baseline.xml")
+    assert "<FileDelete" in open(cfg, encoding="utf-8").read()
+
+
+def test_apply_sysmon_config_missing_binary(tmp_path, monkeypatch):
+    from plasma import cli
+    monkeypatch.setenv("SystemRoot", str(tmp_path / "empty"))
+    result = cli._apply_sysmon_config(tmp_path / "tools")
+    assert result["ok"] is False and "not found" in result["reason"]

@@ -435,6 +435,37 @@ SYSMON_URLS = (
 )
 
 
+def write_sysmon_config(tools_dir: Path) -> Path:
+    """Materialize the Plasma baseline Sysmon config under the install root."""
+    tools_dir.mkdir(parents=True, exist_ok=True)
+    path = tools_dir / "plasma-sysmon-baseline.xml"
+    path.write_text(SYSMON_BASELINE_CONFIG, encoding="utf-8")
+    return path
+
+
+def _apply_sysmon_config(tools_dir: Path) -> dict:
+    """Re-apply the baseline config to an existing Sysmon (hot reload).
+
+    Sysmon keeps whatever config it was installed with. Detection content
+    added since then (FileDelete for T1070.004, registry/service rules) is
+    silent on an old node unless the config is refreshed on upgrade.
+    """
+    system_root = Path(os.environ.get("SystemRoot", r"C:\Windows"))
+    exe = next((system_root / name for name in ("Sysmon64.exe", "Sysmon.exe")
+                if (system_root / name).exists()), None)
+    if exe is None:
+        return {"ok": False, "reason": "sysmon binary not found"}
+    cfg = write_sysmon_config(tools_dir)
+    try:
+        proc = subprocess.run([str(exe), "-c", str(cfg)],
+                              capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=120)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"ok": False, "config": str(cfg), "reason": str(exc)[:200]}
+    return {"ok": proc.returncode == 0, "config": str(cfg),
+            "detail": (proc.stderr or proc.stdout or "").strip()[:200]}
+
+
 def internet_available(prober=None, timeout: int = 5) -> bool:
     """Best-effort reachability probe for the Sysmon download source.
     `prober` is injectable for tests: callable(url) -> bool."""
@@ -842,6 +873,18 @@ def cmd_install(args) -> int:
                 {"status": "skipped", "reason": degradation_reason})
             config_path.write_text(json.dumps(config, indent=2) + "\n",
                                    encoding="utf-8")
+
+    # 3b. Sysmon config convergence. `--force` is the repair verb (and what
+    # `update apply` calls), so an upgrade refreshes the detection config an
+    # old node was installed with. Sysmon applies it hot — no service bounce.
+    if args.force and sysmon_present and not args.skip_sysmon_check and os.name == "nt":
+        sysmon_cfg = _apply_sysmon_config(root / "tools")
+        config["sensors"]["sysmon"]["config_applied"] = bool(sysmon_cfg.get("ok"))
+        if not sysmon_cfg.get("ok"):
+            config["sensors"]["sysmon"]["config_error"] = (
+                sysmon_cfg.get("reason") or sysmon_cfg.get("detail"))
+        config_path.write_text(json.dumps(config, indent=2) + "\n",
+                               encoding="utf-8")
 
     # 4. Flip current (only replace an existing link).
     # _is_junction is checked unconditionally: a DANGLING junction (target

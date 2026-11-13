@@ -4,6 +4,12 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.5.4 — 2026-11-13
+
+- **Sysmon config convergence** — `install --force` re-applies the baseline
+  Sysmon config (hot reload), so old nodes gain FileDelete and the other
+  telemetry added since v1.3.
+
 ## 1.5.3 — 2026-11-13
 
 - **DTrace payload actually ships** — the frozen bundle now carries

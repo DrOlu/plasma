@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.5.4 — 2026-11-13
+
+Fourth field fix: Sysmon telemetry was frozen at install time.
+
+### Fixed — Sysmon config was never refreshed on upgrade
+- Sysmon applies the config it was installed with and keeps it. Detection
+  content added since (FileDelete for T1070.004, registry run-key/service
+  events, privileged-group and user-path execution) was therefore silent
+  on nodes installed before v1.3.
+- `install --force` (also what `update apply` runs) now re-applies
+  `SYSMON_BASELINE_CONFIG` through `Sysmon64.exe -c` — a hot reload, no
+  service bounce — and records `sensors.sysmon.config_applied` (or
+  `config_error`) in `config.json`.
+
+### Tests
+- 331 passed / 21 skipped.
+
 ## 1.5.3 — 2026-11-13
 
 Third field fix: the DTrace feature could not run on an installed node.
