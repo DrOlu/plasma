@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.5.10 — 2026-11-13
+
+Tenth field fix: gene alerts lost their ATT&CK technique on the way in.
+
+### Fixed — WHIDS 1.7 alerts carry no ATTACK block
+- `GeneInfo` contains only `Criticality` and `Signature`; the rule's Tags
+  (and its technique) are not propagated. Every gene alert therefore
+  landed in the store with `technique: null`, so coverage, chains and
+  fleet could not see it. `normalize_alert()` now falls back to a
+  rule-name → technique map built from the shipped baseline rules.
+- Verified live on WS2: a FileDelete drill produced a Sysmon 23 event and
+  a `Plasma File Delete by LOLBin` alert; after this fix the pulled row
+  carries `T1070.004`.
+
+### Tests
+- 341 passed / 21 skipped.
+
 ## 1.5.9 — 2026-11-13
 
 Ninth field fix: `plasma coverage` failed on every installed node.

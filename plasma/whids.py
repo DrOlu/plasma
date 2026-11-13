@@ -128,6 +128,29 @@ def _action(actions) -> str:
     return "logged"
 
 
+# WHIDS 1.7 alerts carry only Criticality + Signature in GeneInfo — the
+# rule's Tags (and therefore its ATT&CK ID) are not propagated. Without this
+# map every gene alert landed in the store with technique=None, so coverage,
+# chains and fleet could not see the technique (WS2 field finding).
+RULE_TECHNIQUES = {
+    "Plasma LOLBin Certutil": "T1140",
+    "Plasma Office Spawning Shell": "T1566.001",
+    "Plasma SAM Hive Dump": "T1003.002",
+    "Plasma Bitsadmin Transfer": "T1197",
+    "Plasma Mshta Network": "T1218.005",
+    "Plasma Rundll32 JS": "T1218.011",
+    "Plasma Net Account Add": "T1136.001",
+    "Plasma Encoded Cmd": "T1027",
+    "Plasma Scheduled Task Create": "T1053.005",
+    "Plasma Wmic Process Call": "T1047",
+    "Plasma File Delete by LOLBin": "T1070.004",
+    "Plasma Run Key Persistence": "T1547.001",
+    "Plasma Service Registry Persistence": "T1543.003",
+    "Plasma Privileged Group Add": "T1098",
+    "Plasma Execution From User Paths": "T1204.002",
+}
+
+
 def normalize_alert(alert: dict, host: str | None = None):
     """Convert one WHIDS EdrEvent alert to a Plasma event dict.
 
@@ -160,6 +183,8 @@ def normalize_alert(alert: dict, host: str | None = None):
             if TECHNIQUE_RE.match(candidate.strip()):
                 technique = candidate.strip()
                 break
+    if technique is None:
+        technique = RULE_TECHNIQUES.get(rule_name)
 
     event_data = _dig(alert, "EventData") or {}
     if not isinstance(event_data, dict):

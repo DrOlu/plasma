@@ -222,3 +222,22 @@ def test_deploy_rules_tolerates_missing_files(tmp_path):
     (src / "plasma-baseline.gen").write_text('{"Name":"x"}\n')
     copied = whids.deploy_rules(src, tmp_path / "db")
     assert copied == ["plasma-baseline.gen"]
+
+
+def test_gene_alert_gets_technique_from_rule_name():
+    """WHIDS 1.7 GeneInfo has no ATTACK block; the rule name is the only
+    link to the technique (WS2 FileDelete drill)."""
+    alert = {
+        "Event": {
+            "EventData": {"Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                          "TargetFilename": "C:\\Temp\\payload.exe"},
+            "GeneInfo": {"Criticality": 6,
+                         "Signature": ["Plasma File Delete by LOLBin"]},
+            "System": {"EventID": "23", "Computer": "WS2",
+                       "TimeCreated": {"SystemTime": "2026-11-13T12:42:17Z"}},
+        }
+    }
+    event = whids.normalize_alert(alert, host="WS2")
+    assert event["technique"] == "T1070.004"
+    assert event["event_id"] == 23
+    assert event["severity"] == "medium"

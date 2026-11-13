@@ -4,6 +4,12 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.5.10 — 2026-11-13
+
+- **Gene alerts keep their technique** — WHIDS 1.7 omits the ATTACK block,
+  so `normalize_alert()` maps the rule name to its technique. FileDelete
+  drills now land as `T1070.004` in the store.
+
 ## 1.5.9 — 2026-11-13
 
 - **Coverage resolves the bundled sensors** — `plasma coverage` works on
