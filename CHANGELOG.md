@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.5.8 — 2026-11-13
+
+Eighth field fix: the D scripts did not actually run on Windows DTrace.
+
+### Fixed — scripts rejected or silently empty on a live host
+- `//` line comments are a syntax error for the Windows DTrace compiler
+  ("syntax error near /"); metadata and prose now use `/* ... */`.
+- `process-create.d` was missing the closing `/` on its predicate.
+- `pid` raises "invalid user access in action" in probe context on this
+  build (Sun D 1.13.1); the scripts emit `tid` instead, which is readable
+  and is carried in the normalized event description.
+- All three scripts exclude `dtrace.exe` itself, so the tracer no longer
+  fills the store with its own syscalls.
+- Verified live on WS1: 4 process-create, 236 syscall-error and 57
+  ETW kernel-process rows in a 6-second window.
+
+### Tests
+- 339 passed / 21 skipped.
+
 ## 1.5.7 — 2026-11-13
 
 Seventh field fix: DTrace looked disabled right after provisioning it.

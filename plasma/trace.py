@@ -32,9 +32,10 @@ DEFAULT_MAX_ROWS = 2000
 DOWNLOADS_URL = "https://www.microsoft.com/en-us/download/details.aspx?id=100441"
 WINGET_ID = "Microsoft.DTrace"
 
-# Metadata uses `//` comments: DTrace-on-Windows scripts are not run through
-# cpp, so `#` directives are not guaranteed to parse.
-_META_RE = re.compile(r"^\s*(?://|#)\s*(name|technique|score|kind|summary):\s*(.+)$")
+# Metadata uses C-style block comments: the Windows DTrace compiler rejects
+# `//` line comments outright ("syntax error near /", field-found on WS1).
+_META_RE = re.compile(
+    r"^\s*/\*\s*(name|technique|score|kind|summary):\s*(.+?)\s*\*/\s*$")
 
 
 class ScriptError(ValueError):

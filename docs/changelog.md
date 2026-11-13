@@ -4,6 +4,12 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.5.8 — 2026-11-13
+
+- **D scripts run on Windows DTrace** — `/* */` comments, a terminated
+  predicate, `tid` instead of the unreadable `pid`, and no tracer
+  self-noise. Verified live on WS1.
+
 ## 1.5.7 — 2026-11-13
 
 - **DTrace enabled state parsed correctly** — `bcdedit` prints

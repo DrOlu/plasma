@@ -34,6 +34,25 @@ def test_scripts_are_safe_and_emit_the_marker():
         assert "-w" not in text
 
 
+def test_predicates_are_terminated():
+    """A predicate line must close with '/'; process-create shipped without
+    it and the Windows compiler rejected the script (field-found on WS1)."""
+    for path in sorted(REPO_SCRIPTS.glob("*.d")):
+        for number, line in enumerate(path.read_text().splitlines(), 1):
+            text = line.strip()
+            if text.startswith("/") and not text.startswith("/*"):
+                assert text.endswith("/"), f"{path.name}:{number}: {text}"
+
+
+def test_scripts_do_not_read_pid():
+    """This DTrace build raises 'invalid user access' for pid in probe
+    context; tid is readable and is what the scripts emit."""
+    for path in sorted(REPO_SCRIPTS.glob("*.d")):
+        text = path.read_text()
+        assert "\\\"pid\\\"" not in text
+        assert ", pid" not in text
+
+
 def test_validate_rejects_system_call():
     with pytest.raises(trace.ScriptError, match="system"):
         trace.validate_script('syscall:::entry { system("cmd /c calc"); }', "x")
@@ -50,13 +69,13 @@ def test_validate_rejects_unknown_provider():
 
 
 def test_validate_rejects_bad_score():
-    text = '// score: eleven\nsyscall:::entry { printf("plasma|{}"); }\n'
+    text = '/* score: eleven */\nsyscall:::entry { printf("plasma|{}"); }\n'
     with pytest.raises(trace.ScriptError, match="score"):
         trace.validate_script(text, "x")
 
 
 def test_validate_accepts_the_shipped_shape():
-    text = ('// name: t\n// technique: T1059\n// score: 5\n'
+    text = ('/* name: t */\n/* technique: T1059 */\n/* score: 5 */\n'
             'syscall:::entry { printf("plasma|{\\"pid\\":%d}\\n", pid); }\n')
     info = trace.validate_script(text, "t")
     assert info["name"] == "t" and info["score"] == 5
@@ -84,6 +103,16 @@ def test_parse_output_caps_rows():
     assert len(trace.parse_output(text, max_rows=10)) == 10
 
 
+def test_normalize_tid_only_row():
+    """Windows DTrace cannot read pid; tid is carried in the description."""
+    info = {"name": "syscall-errors", "score": 6, "technique": "T1106"}
+    ev = trace.normalize({"probe": "syscall_error", "tid": 42,
+                          "comm": "cmd.exe", "func": "NtOpenFile"},
+                         info, "HOST1")
+    assert ev.get("pid") is None
+    assert "tid" in ev["description"] and "42" in ev["description"]
+
+
 def test_normalize_contract():
     info = {"name": "syscall-errors", "score": 6, "technique": "T1106"}
     ev = trace.normalize({"probe": "syscall_error", "pid": 42,
@@ -108,7 +137,7 @@ def test_scripts_dir_resolves_frozen_bundle(tmp_path, monkeypatch):
     scripts = tmp_path / "embedded" / "sensors" / "dtrace"
     scripts.mkdir(parents=True)
     (scripts / "probe.d").write_text(
-        '// name: probe\n// technique: T1059\n// score: 5\n'
+        '/* name: probe */\n/* technique: T1059 */\n/* score: 5 */\n'
         'syscall:::entry { printf("plasma|{\\"pid\\":%d}\\n", pid); }\n')
     monkeypatch.setattr("sys._MEIPASS", str(tmp_path), raising=False)
     monkeypatch.chdir(tmp_path)
@@ -189,7 +218,7 @@ def test_selftest_reports_per_script(tmp_path, monkeypatch):
     scripts = tmp_path / "sensors" / "dtrace"
     scripts.mkdir(parents=True)
     (scripts / "a.d").write_text(
-        '// name: a\n// technique: T1059\n// score: 5\n'
+        '/* name: a */\n/* technique: T1059 */\n/* score: 5 */\n'
         'syscall:::entry { printf("plasma|{\\"pid\\":%d}\\n", pid); }\n')
     monkeypatch.setattr(trace.shutil, "which", lambda name: "/usr/bin/dtrace")
 
