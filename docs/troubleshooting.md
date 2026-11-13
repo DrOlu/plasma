@@ -120,6 +120,19 @@ a build with the new default pin.
 - **Junctions** — PS 5.1 `Remove-Item` can hang on reparse points; Plasma
   uses `cmd /c rmdir` and handles dangling junctions explicitly.
 
+## DTrace
+
+```powershell
+plasma trace check        # installed? enabled?
+plasma trace selftest     # compile-only check of the reviewed scripts
+plasma trace provision    # winget install + bcdedit /set dtrace on (then restart)
+```
+
+`enabled: false` means the boot setting is off — tracing needs
+`bcdedit /set dtrace on` and a restart. If DTrace refuses to start on a
+modern host, verify virtualization-based security (VBS) is enabled; Server
+2025 ships the built-in build.
+
 ## Exit codes
 
 | Code | Meaning |

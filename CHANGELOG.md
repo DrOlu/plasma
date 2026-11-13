@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.5.0 — 2026-11-13
+
+DTrace as Plasma's third sensor — the on-demand kernel microscope.
+
+### New — DTrace integration
+- `plasma trace list|check|selftest|run|provision`.
+- Reviewed script library (`sensors/dtrace/*.d`) with `//` metadata
+  (name/technique/score/kind); the loader refuses `system()` and other
+  destructive constructs, requires an allowlisted provider and the
+  `plasma|{json}` row marker.
+- Three shipped scripts: **syscall-errors** (T1106, non-success NT
+  statuses), **process-create** (T1059, NtCreateUserProcess/ThreadEx),
+  **etw-kernel-process** (T1057, Microsoft-Windows-Kernel-Process header
+  fields; `etw:<guid>:<level>_<keyword>:generic_event` syntax).
+- Bounded runs: wall-clock window (1s–5m, process killed), row cap
+  (default 2000), optional raw capture, content-hash dedupe into the store.
+- Rows normalize to `kind: "trace"`, `source: "dtrace"` with technique and
+  score — chains, watch, fleet and drift consume them unchanged.
+- Explicit provisioning: Server 2025 is built-in; older Windows installs
+  Microsoft.DTrace v2.0 (winget) and sets `bcdedit /set dtrace on`,
+  reporting `reboot_required`. Never installed silently by the EDR
+  installer; install records `sensors.trace.status`
+  (available / installed_not_enabled / unavailable / unknown).
+- `-w` (destructive mode) is never used.
+
+### Tests
+- 318 passed / 21 skipped (up from 295): script validation (destructive
+  constructs, marker, providers, score), parsing and normalization,
+  bounded-run kill/dedupe paths, check/status, provisioning (already-ready,
+  enable-only, winget, no-winget manual hint).
+
 ## 1.4.0 — 2026-11-13
 
 Prime-time gaps closed: supervised WHIDS, honest impact detection, and an

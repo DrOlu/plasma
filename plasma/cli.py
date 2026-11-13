@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary
+from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary, trace
 from . import update as updater
 from .bundle import build_bundle
 from .manifest import create_manifest, sha256_file, verify_manifest
@@ -456,6 +456,19 @@ def whids_install_decision(sysmon_present: bool, whids_present: bool,
     return {"decision": "attempt_sysmon_install", "degraded": False}
 
 
+def _trace_status() -> str:
+    """Record whether DTrace can be used on this node (never fails install)."""
+    try:
+        state = trace.check()
+        if state.get("available") and state.get("enabled"):
+            return "available"
+        if state.get("available"):
+            return "installed_not_enabled"
+        return "unavailable"
+    except Exception:  # noqa: BLE001 — capability detection is data
+        return "unknown"
+
+
 def _service_state_name(name: str) -> str:
     """Current service state as a plain string ('' when absent)."""
     try:
@@ -646,6 +659,8 @@ def cmd_install(args) -> int:
                        "status": ("active" if sysmon_present else "absent")},
             "tap": {"required": True, "mode": "on-demand",
                     "providers": "powershell,wmi,dns,dotnet,schannel,security"},
+            "trace": {"required": False, "mode": "on-demand",
+                      "status": (_trace_status())},
             "identity": {"required": True, "mode": "on-demand"},
             "sealighter": {"required": False, "mode": "on-demand"},
         },
@@ -943,6 +958,51 @@ def cmd_playbook_undo(args) -> int:
                             timeout=args.timeout)
     print(json.dumps(result, indent=2, default=str))
     return 0 if "error" not in result else 1
+
+
+def cmd_trace_list(args) -> int:
+    try:
+        scripts = trace.load_scripts(args.root)
+    except (FileNotFoundError, trace.ScriptError) as exc:
+        print(json.dumps({"error": str(exc)[:300]}, indent=2))
+        return 1
+    print(json.dumps(scripts, indent=2))
+    return 0
+
+
+def cmd_trace_check(args) -> int:
+    result = trace.check()
+    print(json.dumps(result, indent=2, default=str))
+    return 0
+
+
+def cmd_trace_selftest(args) -> int:
+    result = trace.selftest(args.root)
+    print(json.dumps(result, indent=2))
+    return 0 if result.get("ok") else 1
+
+
+def cmd_trace_run(args) -> int:
+    try:
+        seconds = tap.parse_duration(args.for_)
+    except ValueError as exc:
+        print(json.dumps({"error": str(exc)}, indent=2))
+        return 2
+    try:
+        result = trace.run(args.script, args.events, seconds=seconds,
+                           max_rows=args.max_rows, out=args.out,
+                           root=args.root, host=args.host)
+    except (FileNotFoundError, trace.ScriptError) as exc:
+        print(json.dumps({"error": str(exc)[:300]}, indent=2))
+        return 1
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 1
+
+
+def cmd_trace_provision(args) -> int:
+    result = trace.provision()
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if result.get("ok") else 1
 
 
 def cmd_whids_diagnose(args) -> int:
@@ -1351,6 +1411,28 @@ def build_parser() -> argparse.ArgumentParser:
     cnsx = cns.add_parser("status", help="manifest + current canary state")
     cnsx.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     cnsx.set_defaults(func=cmd_canary_status)
+
+    tr = sub.add_parser("trace", help="DTrace on-demand kernel tracing (bounded, reviewed scripts)")
+    trs = tr.add_subparsers(dest="trace_action", required=True)
+    trl = trs.add_parser("list", help="reviewed D scripts with metadata + hashes")
+    trl.add_argument("--root", default=None, help="Plasma root containing sensors/dtrace")
+    trl.set_defaults(func=cmd_trace_list)
+    trc = trs.add_parser("check", help="is dtrace present and enabled?")
+    trc.set_defaults(func=cmd_trace_check)
+    trt = trs.add_parser("selftest", help="compile every script with dtrace -e")
+    trt.add_argument("--root", default=None)
+    trt.set_defaults(func=cmd_trace_selftest)
+    trr = trs.add_parser("run", help="run one script for a bounded window")
+    trr.add_argument("script", help="script name (see: plasma trace list)")
+    trr.add_argument("--events", required=True, help="Plasma event store to append to")
+    trr.add_argument("--for", dest="for_", default="10s", help="window, e.g. 5s, 2m (max 5m)")
+    trr.add_argument("--max-rows", type=int, default=trace.DEFAULT_MAX_ROWS)
+    trr.add_argument("--out", default=None, help="raw capture file (JSONL)")
+    trr.add_argument("--root", default=None)
+    trr.add_argument("--host", default=None)
+    trr.set_defaults(func=cmd_trace_run)
+    trp = trs.add_parser("provision", help="install Microsoft.DTrace and enable it (requires a restart)")
+    trp.set_defaults(func=cmd_trace_provision)
 
     # Hidden: the frozen executable re-enters itself to execute the bundle's
     # bridge with the Python runtime embedded in the one-file binary.

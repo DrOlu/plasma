@@ -70,6 +70,8 @@ DESK               status · ask · drift · chains · coverage · fleet ·
   score-10 impact finding, verified on every `watch` sweep.
 - **MSI + GPO** — an enterprise package that provisions a node silently
   through Group Policy.
+- **DTrace, on demand** — reviewed, bounded kernel/syscall tracing where
+  the host supports it, normalized into the same event contract.
 
 ## Doctrine
 

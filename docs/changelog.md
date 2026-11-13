@@ -4,6 +4,15 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.5.0 — 2026-11-13
+
+- **DTrace integration** — `plasma trace list|check|selftest|run|provision`:
+  reviewed D scripts (syscall errors, process creation, ETW kernel-process),
+  bounded runs (window + row cap), normalized `kind: "trace"` rows in the
+  same store. Explicit provisioning (Microsoft.DTrace via winget +
+  `bcdedit /set dtrace on`) — never installed silently.
+- Docs: new DTrace page; detection/troubleshooting updated.
+
 ## 1.4.0 — 2026-11-13
 
 - **WHIDS init-hang handling** — explicit channel list, supervised start

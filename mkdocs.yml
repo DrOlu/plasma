@@ -52,6 +52,7 @@ nav:
   - Fleet: fleet.md
   - Operations: operations.md
   - Response: response.md
+  - DTrace tracing: trace.md
   - Updates & signing: update-signing.md
   - CLI reference: cli.md
   - Security model: security-model.md

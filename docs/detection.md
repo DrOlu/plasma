@@ -37,6 +37,14 @@ assembly loads and more. They only exist while `plasma tap run` is alive.
 Rules are rendered into the 7-field pipe format the C++ tap consumes, with
 fields validated against pipes and newlines.
 
+## DTrace — on-demand syscall evidence
+
+`plasma trace run <script> --for 10s` opens a bounded DTrace window (kernel
+syscalls, process creation, ETW) and normalizes matches into the same store
+(`kind: "trace"`). It is surgical evidence, not always-on coverage, so it is
+deliberately **not** counted in the ATT&CK breadth number. See
+[DTrace](trace.md).
+
 ## Chains — stories, not events
 
 A single alert says "something happened". A chain says "this, then this,
