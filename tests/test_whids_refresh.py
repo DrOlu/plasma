@@ -65,6 +65,21 @@ def test_stage_map_finds_rules_in_sensors_root(tmp_path):
     assert wanted[rules / "plasma-iocs.gen"] == whids_dir / "plasma-iocs.gen"
 
 
+def test_stage_map_finds_config_in_sensors_root(tmp_path):
+    """The builder stages whids.toml at sensors/, one level above whids/.
+    Missing this left WS2 on its 1512-byte pre-1.4 config after every
+    upgrade while the rules converged."""
+    whids_dir = tmp_path / "bundle" / "sensors" / "whids"
+    whids_dir.mkdir(parents=True)
+    (whids_dir.parent / "whids.toml").write_text("# shared config\n")
+    install = tmp_path / "Whids"
+
+    wanted = _whids_files_to_stage(install, whids_dir)
+
+    assert wanted[install / "whids.toml"] == whids_dir.parent / "whids.toml"
+    assert wanted[install / "config.toml"] == whids_dir.parent / "whids.toml"
+
+
 def test_deploy_rules_finds_baseline_one_level_up(tmp_path):
     src = tmp_path / "sensors" / "whids"
     src.mkdir(parents=True)

@@ -4,6 +4,12 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.5.6 — 2026-11-13
+
+- **Config file lookup matches the bundle layout** — `sensors/whids.toml`
+  is now found one level above the WHIDS payload, so upgrades rewrite a
+  stale `config.toml` as well as the rules.
+
 ## 1.5.5 — 2026-11-13
 
 - **Baseline rules actually reach the engine** — rule lookup accepts both

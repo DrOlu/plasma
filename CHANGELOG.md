@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.5.6 — 2026-11-13
+
+Sixth field fix: the config file shares the rule files' staging layout.
+
+### Fixed — stale `config.toml` still survived (WS2 measured at 1512 bytes)
+- `whids.toml` is staged at `sensors/`, not `sensors/whids/`, so the
+  converged-install map had no `config.toml` entry to compare or copy. WS2
+  kept its pre-1.4 config (`channels = ["all"]`) through the 1.5.5 upgrade
+  while the rules correctly reached 16.
+- Config lookup now accepts both layouts and writes the bundled file to
+  both `whids.toml` and `config.toml`.
+
+### Tests
+- 334 passed / 21 skipped.
+
 ## 1.5.5 — 2026-11-13
 
 Fifth field fix: the baseline rule file was staged a directory away from

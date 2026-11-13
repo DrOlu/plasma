@@ -89,13 +89,20 @@ def _whids_files_to_stage(install_dir: Path, whids_dir: Path,
     wanted = {}
     if exe_src is not None:
         wanted[install_dir / "whids.exe"] = exe_src
-    for name in ("whids.toml", "plasma-iocs.gen", "LICENSE"):
+    for name in ("plasma-iocs.gen", "LICENSE"):
         src = whids_dir / name
         if src.exists():
             wanted[install_dir / name] = src
-    # v1.7.0 loads config.toml next to the binary.
-    if (whids_dir / "whids.toml").exists():
-        wanted[install_dir / "config.toml"] = whids_dir / "whids.toml"
+    # The shared config lives at sensors/whids.toml (the builder stages it a
+    # level above the WHIDS payload). Accept either layout, and copy it as
+    # both whids.toml and config.toml — v1.7.0 loads config.toml next to the
+    # binary, and a stale one was surviving every upgrade.
+    toml_src = next((p for p in (whids_dir / "whids.toml",
+                                 whids_dir.parent / "whids.toml")
+                     if p.exists()), None)
+    if toml_src is not None:
+        wanted[install_dir / "whids.toml"] = toml_src
+        wanted[install_dir / "config.toml"] = toml_src
     rules_db = install_dir / "Database" / "Rules"
     for name in whids.RULE_FILES:
         # shared rule files live at sensors/, the WHIDS payload at
