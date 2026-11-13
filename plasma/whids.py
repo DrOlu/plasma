@@ -25,6 +25,7 @@ import ipaddress
 import json
 import os
 import re
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -491,6 +492,26 @@ def _whids_service_name() -> str | None:
         return proc.stdout.strip() or None
     except (OSError, subprocess.TimeoutExpired):
         return None
+
+
+RULE_FILES = ("plasma-iocs.gen", "plasma-baseline.gen")
+
+
+def deploy_rules(src_dir, rules_db) -> list[str]:
+    """Copy every shipped gene-rule file into WHIDS's rules database.
+
+    The baseline rules are the detection content; shipping only the IOC file
+    left live nodes running 1-2 rules instead of the full set (field-found).
+    """
+    src_dir, rules_db = Path(src_dir), Path(rules_db)
+    rules_db.mkdir(parents=True, exist_ok=True)
+    copied = []
+    for name in RULE_FILES:
+        src = src_dir / name
+        if src.exists():
+            shutil.copy2(src, rules_db / name)
+            copied.append(name)
+    return copied
 
 
 def diagnose(root: str | Path | None = None) -> dict:

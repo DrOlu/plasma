@@ -130,7 +130,16 @@ def test_check_installed_not_enabled(monkeypatch):
                         lambda s, timeout=60: "dtrace off" if "bcdedit" in s else "")
     res = trace.check()
     assert res["available"] and res["enabled"] is False
-    assert "bcdedit" in res["hint"]
+    assert "provision" in res["hint"]
+
+
+def test_check_absent_boot_setting_hint(monkeypatch):
+    monkeypatch.setattr(trace.shutil, "which", lambda name: "/usr/bin/dtrace")
+    monkeypatch.setattr(trace, "_run_ps",
+                        lambda s, timeout=60: "" if "bcdedit" in s else "v2")
+    res = trace.check()
+    assert res["enabled"] is False
+    assert "absent" in res["hint"] and "provision" in res["hint"]
 
 
 def test_selftest_reports_per_script(tmp_path, monkeypatch):

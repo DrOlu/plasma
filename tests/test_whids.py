@@ -198,3 +198,27 @@ def test_status(tmp_path):
     assert result["rules_present"] is True
     assert result["rules_expressions"] >= 2
     assert result["last_push"]["action"] == "whids.push"
+
+
+def test_deploy_rules_copies_baseline_and_iocs(tmp_path):
+    """Field regression: only the IOC file was deployed, so live nodes loaded
+    1-2 rules instead of the full baseline set."""
+    from plasma import whids
+    src = tmp_path / "sensors"
+    src.mkdir()
+    (src / "plasma-baseline.gen").write_text('{"Name":"x"}\n')
+    (src / "plasma-iocs.gen").write_text('{"Name":"iocs"}\n')
+    db = tmp_path / "rules"
+    copied = whids.deploy_rules(src, db)
+    assert copied == ["plasma-iocs.gen", "plasma-baseline.gen"]
+    assert (db / "plasma-baseline.gen").exists()
+    assert (db / "plasma-iocs.gen").exists()
+
+
+def test_deploy_rules_tolerates_missing_files(tmp_path):
+    from plasma import whids
+    src = tmp_path / "sensors"
+    src.mkdir()
+    (src / "plasma-baseline.gen").write_text('{"Name":"x"}\n')
+    copied = whids.deploy_rules(src, tmp_path / "db")
+    assert copied == ["plasma-baseline.gen"]

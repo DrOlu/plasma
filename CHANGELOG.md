@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.5.1 — 2026-11-13
+
+Field fixes found during the first live estate validation of 1.5.0.
+
+### Fixed — baseline gene rules were never deployed to WHIDS
+- The installer copied only `plasma-iocs.gen` into
+  `Database\Rules`; live nodes were loading **1–2 rules instead of 16**.
+  `whids.deploy_rules()` now copies the baseline and IOC rule files
+  together. (Detected from WHIDS's own log line "Number of rules loaded in
+  engine: 1".)
+
+### Fixed — misleading DTrace availability hint
+- `trace check` on a host with DTrace installed but the boot setting absent
+  said "admin required". It now distinguishes an absent setting (normal)
+  from an unreadable one and points at `plasma trace provision`.
+
+### Tests
+- 321 passed / 21 skipped.
+
 ## 1.5.0 — 2026-11-13
 
 DTrace as Plasma's third sensor — the on-demand kernel microscope.

@@ -686,10 +686,9 @@ def cmd_install(args) -> int:
         if (install_dir / "whids.toml").exists():
             shutil.copy2(install_dir / "whids.toml", install_dir / "config.toml")
         rules_db = install_dir / "Database" / "Rules"
-        rules_db.mkdir(parents=True, exist_ok=True)
-        if (whids_dir / "plasma-iocs.gen").exists():
-            shutil.copy2(whids_dir / "plasma-iocs.gen",
-                         rules_db / "plasma-iocs.gen")
+        # baseline + IOC rules both belong in the engine's database; copying
+        # only the IOC file left live nodes loading 1-2 rules (field-found).
+        whids.deploy_rules(whids_dir, rules_db)
         bin_path = f'"{exe}" -c "{install_dir}\\config.toml"'
         if not _service_present("Whids*"):
             try:

@@ -142,10 +142,13 @@ def check() -> dict:
     elif state:
         result["enabled"] = False
         result["hint"] = ("DTrace is installed but not enabled: run "
-                          "`bcdedit /set dtrace on` and reboot.")
+                          "`plasma trace provision` and restart.")
     else:
+        # An empty bcdedit result is the normal "setting absent" case, not an
+        # admin failure — the field run showed how misleading that hint was.
         result["enabled"] = False
-        result["hint"] = "Could not read the dtrace boot setting (admin required)."
+        result["hint"] = ("DTrace boot setting is absent: run "
+                          "`plasma trace provision` and restart.")
     return result
 
 
