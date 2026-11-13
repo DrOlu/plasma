@@ -52,6 +52,20 @@ DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
 
+## What's new in 1.7.2
+
+- **Implicit state machines formalised** — update phases, approvals,
+  actuate plans, playbook plans, undo, tenant ownership, rings, canaries
+  and the service lifecycle now have explicit states and single-use
+  transitions.
+- **No plan or approval reuse** — reusing an actuate/playbook plan or an
+  approval is refused; undo requires its own dry-run.
+- **Atomic writes** — binary rotation recovers from an interrupted rename;
+  canary manifests are written atomically and deduped.
+- **Exclusive tenant ownership** — a host belongs to one tenant.
+
+See [State machines](state-machines.md).
+
 ## What's new in 1.7.0
 
 Plasma is now **agent-native**, not just agent-adjacent:

@@ -70,6 +70,9 @@ def execute(root, name: str, target=None, reason=None, apply: bool = False,
             return {"error": f"--plan {plan} is not a dry-run of playbook '{name}'"}
         if str(dr.get("target") or "") != str(target or ""):
             return {"error": f"--plan {plan} targeted '{dr.get('target')}', not '{target}'"}
+        if any(r.get("mode") == "applied" and r.get("plan") == plan
+               and str(r.get("action", "")).startswith("playbook:") for r in rows):
+            return {"error": f"--plan {plan} has already been used"}
 
     entry = {
         "action": f"playbook:{name}",
@@ -127,8 +130,13 @@ def execute(root, name: str, target=None, reason=None, apply: bool = False,
     return entry
 
 
-def undo(root, entry_id: int, apply: bool = False, timeout: int = 60) -> dict:
-    """Reverse a playbook's succeeded steps, last-first, via actuate.undo."""
+def undo(root, entry_id: int, apply: bool = False, plan: int | None = None,
+         timeout: int = 60) -> dict:
+    """Reverse a playbook's succeeded steps, last-first, via actuate.undo.
+
+    Dry-run first. Applying requires a prior playbook undo dry-run
+    (``--plan``); the same playbook cannot be undone twice.
+    """
     rows = actuate.journal_read(root)
     match = next((r for r in rows if r.get("id") == entry_id), None)
     if not match:
@@ -137,6 +145,26 @@ def undo(root, entry_id: int, apply: bool = False, timeout: int = 60) -> dict:
         return {"error": f"entry {entry_id} is not a playbook"}
     if match.get("mode") != "applied":
         return {"error": f"entry {entry_id} is '{match.get('mode')}', nothing to undo"}
+    if any(r.get("mode") == "applied" and r.get("undoes") == entry_id
+           and str(r.get("action", "")).startswith("undo:playbook:") for r in rows):
+        return {"error": f"playbook entry {entry_id} has already been undone"}
+
+    planned_steps = []
+    if apply:
+        dry_runs = [r for r in rows
+                    if r.get("mode") == "dry-run" and r.get("undoes") == entry_id
+                    and str(r.get("action", "")).startswith("undo:playbook:")]
+        if plan is None and dry_runs:
+            plan = dry_runs[-1]["id"]
+        if plan is None:
+            return {"error": "--apply requires --plan <id> from a prior playbook "
+                             "undo dry-run (dry-run the undo first)"}
+        dr = next((r for r in rows if r.get("id") == plan), None)
+        if (not dr or dr.get("mode") != "dry-run"
+                or not str(dr.get("action", "")).startswith("undo:playbook:")
+                or dr.get("undoes") != entry_id):
+            return {"error": f"--plan {plan} is not a dry-run undo of playbook {entry_id}"}
+        planned_steps = dr.get("steps") or []
 
     reversals = []
     rows_by_id = {r.get("id"): r for r in rows}
@@ -149,11 +177,25 @@ def undo(root, entry_id: int, apply: bool = False, timeout: int = 60) -> dict:
             reversals.append({"step": step["action"], "undoes": applied_id,
                               "skipped": "step is not undoable"})
             continue
-        res = actuate.undo(root, applied_id, apply=apply, timeout=timeout)
-        reversals.append({"step": step["action"], "undoes": applied_id,
-                          "mode": res.get("mode"), "error": res.get("error")})
+        if apply:
+            planned = next((s for s in planned_steps
+                            if s.get("undoes") == applied_id), None)
+            if not planned or planned.get("plan") is None:
+                reversals.append({"step": step["action"], "undoes": applied_id,
+                                  "error": "no journaled undo plan for this step"})
+                break
+            res = actuate.undo(root, applied_id, apply=True,
+                               plan=planned["plan"], timeout=timeout)
+        else:
+            res = actuate.undo(root, applied_id, apply=False, timeout=timeout)
+        item = {"step": step["action"], "undoes": applied_id,
+                "mode": res.get("mode"), "error": res.get("error")}
+        if res.get("id") is not None:
+            item["plan"] = res.get("id")
+        reversals.append(item)
         if res.get("error"):
             break
+
     summary = {
         "id": actuate._next_id(root),
         "action": f"undo:{match['action']}", "undoes": entry_id,
@@ -162,5 +204,7 @@ def undo(root, entry_id: int, apply: bool = False, timeout: int = 60) -> dict:
         "mode": "applied" if apply else "dry-run",
         "steps": reversals,
     }
+    if apply:
+        summary["plan"] = plan
     _journal(root, summary)
     return summary

@@ -494,6 +494,8 @@ def execute(action, root, target=None, reason=None, apply=False, timeout=60,
         if dr.get("payload_sha256") != payload_sha:
             return {"error": f"--plan {plan} rendered a different payload than the "
                              f"current state would (re-run the dry-run)", "action": action}
+        if any(r.get("mode") == "applied" and r.get("plan") == plan for r in rows):
+            return {"error": f"--plan {plan} has already been used", "action": action}
 
     entry = {
         "id": _next_id(root), "ts": _now(), "action": action, "target": target,
@@ -532,18 +534,9 @@ def execute(action, root, target=None, reason=None, apply=False, timeout=60,
     return entry
 
 
-def undo(root, entry_id, apply=False, timeout=60):
-    """Replay a journaled action's undo (dry-run first, as everywhere)."""
-    rows = journal_read(root)
-    match = next((r for r in rows if r.get("id") == entry_id), None)
-    if not match:
-        return {"error": f"no journal entry {entry_id}"}
-    if match.get("mode") != "applied":
-        return {"error": f"entry {entry_id} is '{match.get('mode')}', nothing to undo"}
-    if not match.get("undoable") or not match.get("undo"):
-        return {"error": f"entry {entry_id} has no undo (undoable={match.get('undoable')})"}
-
-    undo_spec = match["undo"]
+def _undo_payload(match):
+    """Resolve a journaled undo recipe to a runnable payload."""
+    undo_spec = match.get("undo")
     if isinstance(undo_spec, dict) and undo_spec.get("kind") == "wmi_bindings":
         binds = undo_spec.get("bindings") or []
         bindings_file = undo_spec.get("bindings_file")
@@ -552,18 +545,18 @@ def undo(root, entry_id, apply=False, timeout=60):
                 loaded = json.loads(
                     Path(bindings_file).read_text(encoding="utf-8-sig"))
             except (OSError, json.JSONDecodeError) as exc:
-                return {"error": f"cannot read binding capture {bindings_file}: {exc}"}
+                return None, f"cannot read binding capture {bindings_file}: {exc}"
             binds = loaded if isinstance(loaded, list) else [loaded]
         if not binds:
-            return {"error": "journaled entry carries no binding definitions to restore"}
+            return None, "journaled entry carries no binding definitions to restore"
         clauses = ";".join(
             f"New-CimInstance -Namespace root/subscription -ClassName __FilterToConsumerBinding "
             f"-Property @{{ Filter={_ps_literal(b.get('filter'))}; Consumer={_ps_literal(b.get('consumer'))} }} | Out-Null;"
             for b in binds if isinstance(b, dict))
         if not clauses:
-            return {"error": "binding capture has no usable filter/consumer pairs"}
-        payload = clauses + "'bindings restored'"
-    elif isinstance(undo_spec, dict) and undo_spec.get("kind") == "run_key_value":
+            return None, "binding capture has no usable filter/consumer pairs"
+        return clauses + "'bindings restored'", None
+    if isinstance(undo_spec, dict) and undo_spec.get("kind") == "run_key_value":
         key, name = undo_spec.get("key"), undo_spec.get("name")
         backup_file = undo_spec.get("backup_file")
         data = undo_spec.get("data")
@@ -571,21 +564,68 @@ def undo(root, entry_id, apply=False, timeout=60):
             try:
                 cap = json.loads(Path(backup_file).read_text(encoding="utf-8-sig"))
             except (OSError, json.JSONDecodeError) as exc:
-                return {"error": f"cannot read run-key capture {backup_file}: {exc}"}
+                return None, f"cannot read run-key capture {backup_file}: {exc}"
             name, data = cap.get("name"), cap.get("data")
         if data is None:
-            return {"error": "journaled entry carries no run-key value to restore"}
-        payload = (f"New-ItemProperty -Path {_ps_literal(key)} -Name {_ps_literal(name)} "
-                   f"-Value {_ps_literal(str(data))} -PropertyType String -Force | Out-Null; 'run-key value restored'")
-    else:
-        payload = undo_spec.get("payload")
+            return None, "journaled entry carries no run-key value to restore"
+        return (f"New-ItemProperty -Path {_ps_literal(key)} -Name {_ps_literal(name)} "
+                f"-Value {_ps_literal(str(data))} -PropertyType String -Force | Out-Null; "
+                f"'run-key value restored'"), None
+    payload = undo_spec.get("payload") if isinstance(undo_spec, dict) else undo_spec
+    if not payload:
+        return None, "journaled entry carries no undo payload"
+    return payload, None
+
+
+def undo(root, entry_id, apply=False, plan=None, timeout=60):
+    """Replay a journaled action's undo. Dry-run first, always.
+
+    Applying an undo requires a prior undo dry-run (``--plan``). The same
+    undo cannot be applied twice, and the payload digest must still match.
+    """
+    rows = journal_read(root)
+    match = next((r for r in rows if r.get("id") == entry_id), None)
+    if not match:
+        return {"error": f"no journal entry {entry_id}"}
+    if match.get("mode") != "applied":
+        return {"error": f"entry {entry_id} is '{match.get('mode')}', nothing to undo"}
+    if not match.get("undoable") or not match.get("undo"):
+        return {"error": f"entry {entry_id} has no undo (undoable={match.get('undoable')})"}
+    if any(r.get("action") == "undo" and r.get("mode") == "applied"
+           and r.get("undoes") == entry_id for r in rows):
+        return {"error": f"entry {entry_id} has already been undone"}
+
+    payload, error = _undo_payload(match)
+    if error:
+        return {"error": error}
+    payload_sha = __import__("hashlib").sha256(payload.encode()).hexdigest()
+
+    if apply:
+        candidates = [r for r in rows
+                      if r.get("action") == "undo" and r.get("mode") == "dry-run"
+                      and r.get("undoes") == entry_id]
+        if plan is None and candidates:
+            plan = candidates[-1]["id"]
+        if plan is None:
+            return {"error": "--apply requires --plan <id> from a prior undo dry-run "
+                             "(dry-run the undo first)"}
+        dr = next((r for r in rows if r.get("id") == plan), None)
+        if (not dr or dr.get("action") != "undo" or dr.get("mode") != "dry-run"
+                or dr.get("undoes") != entry_id):
+            return {"error": f"--plan {plan} is not a dry-run undo of entry {entry_id}"}
+        if dr.get("payload_sha256") != payload_sha:
+            return {"error": f"--plan {plan} rendered a different undo payload "
+                             f"than the current state would (re-run the dry-run)"}
 
     entry = {
         "id": _next_id(root), "ts": _now(),
         "action": "undo", "undoes": entry_id, "target": match.get("target"),
         "reason": f"undo of entry {entry_id}",
         "mode": "applied" if apply else "dry-run",
+        "payload_sha256": payload_sha,
     }
+    if apply:
+        entry["plan"] = plan
     if not apply:
         entry["payload"] = payload
         _journal_append(root, entry)

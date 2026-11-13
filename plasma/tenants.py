@@ -48,10 +48,16 @@ def add(root, tenant: str, name: str = "", hosts=None) -> dict:
     if not tenant or not tenant.replace("-", "").replace("_", "").isalnum():
         raise ValueError("tenant id must be alphanumeric, dash or underscore")
     data = _load(root)
+    incoming = set(hosts or [])
+    # Host ownership is exclusive: moving a host to a tenant removes it
+    # from every other tenant, so resolve() can never be ambiguous.
+    for other_id, other in data["tenants"].items():
+        if other_id != tenant:
+            other["hosts"] = sorted(set(other.get("hosts") or []) - incoming)
     current = data["tenants"].get(tenant, {"name": name or tenant, "hosts": []})
     current["name"] = name or current.get("name") or tenant
     merged = set(current.get("hosts") or [])
-    merged.update(hosts or [])
+    merged.update(incoming)
     current["hosts"] = sorted(merged)
     data["tenants"][tenant] = current
     _save(root, data)

@@ -153,9 +153,29 @@ def rotate_bin(new_exe, bin_exe) -> dict:
     bin_exe, new_exe = Path(bin_exe), Path(new_exe)
     if not new_exe.exists():
         return {"ok": False, "error": "staged exe missing"}
-    if bin_exe.exists():
-        old = bin_exe.with_suffix(bin_exe.suffix + ".old")
-        os.replace(bin_exe, old)   # rename-while-running works
     bin_exe.parent.mkdir(parents=True, exist_ok=True)
-    bin_exe.write_bytes(new_exe.read_bytes())
-    return {"ok": True, "bin": str(bin_exe), "previous": str(bin_exe.with_suffix(bin_exe.suffix + ".old"))}
+    old = bin_exe.with_suffix(bin_exe.suffix + ".old")
+    tmp = bin_exe.with_name(bin_exe.name + ".new")
+    # Recover an interrupted rotation: a missing bin with a .old present
+    # means the previous run died between the two renames.
+    if not bin_exe.exists() and old.exists():
+        os.replace(old, bin_exe)
+    try:
+        with open(tmp, "wb") as fh:
+            fh.write(new_exe.read_bytes())
+            fh.flush()
+            os.fsync(fh.fileno())
+        if bin_exe.exists():
+            os.replace(bin_exe, old)   # rename-while-running works
+        os.replace(tmp, bin_exe)
+    except OSError as exc:
+        return {"ok": False, "error": f"bin rotation failed: {exc}",
+                "bin": str(bin_exe), "previous": str(old),
+                "recovery": "re-run update apply or plasma rollback"}
+    finally:
+        if tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+    return {"ok": True, "bin": str(bin_exe), "previous": str(old)}

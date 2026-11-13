@@ -49,6 +49,7 @@ nav:
   - Concepts: concepts.md
   - Agent-native operation: agent-native.md
   - Control plane: control-plane.md
+  - State machines: state-machines.md
   - Compliance evidence: compliance.md
   - Assurance: assurance.md
   - Sensors: sensors.md

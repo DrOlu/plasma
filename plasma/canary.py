@@ -21,6 +21,8 @@ import json
 import time
 from pathlib import Path
 
+from . import agentstate
+
 MANIFEST_NAME = "canaries.json"
 DEFAULT_SUBDIR = "Canaries"
 
@@ -63,26 +65,30 @@ def deploy(root, extra_dirs=None, names=None) -> dict:
     root = Path(root)
     names = names or CANARY_NAMES
     dirs = [default_dir(root)] + [Path(d) for d in (extra_dirs or [])]
-    entries = []
+    entries = {}
     created = 0
     for directory in dirs:
         directory.mkdir(parents=True, exist_ok=True)
         for name in names:
             path = directory / name
+            key = str(path.resolve()) if path.exists() else str(path)
+            if key in entries:
+                continue
             if not path.exists():
                 path.write_text(CANARY_BODY, encoding="utf-8")
                 created += 1
-            entries.append({
+            entries[key] = {
                 "path": str(path),
                 "sha256": _sha256(path),
                 "size": path.stat().st_size,
-            })
+            }
     manifest = {
         "deployed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "canaries": entries,
+        "canaries": list(entries.values()),
     }
-    manifest_path(root).write_text(json.dumps(manifest, indent=1) + "\n",
-                                   encoding="utf-8")
+    # Atomic write: a crash mid-deploy leaves files on disk but never a
+    # half-written manifest; the next deploy re-hashes and records them.
+    agentstate.write_json(manifest_path(root), manifest)
     return {"deployed": len(entries), "created": created,
             "manifest": str(manifest_path(root)),
             "dirs": [str(d) for d in dirs]}

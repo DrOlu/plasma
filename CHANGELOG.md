@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.7.2 — 2026-11-13
+
+### Fixed — implicit state machines
+
+- **Update lifecycle** — persisted phases (`idle → staged → verified →
+  installing → installed → rotated`, `failed`) with history; `update check`
+  reports the phase; a new run resets a stale phase.
+- **Plan reuse** — actuate and playbook plans are single-use; a second
+  apply of the same plan is refused.
+- **Undo gate** — actuate and playbook undo require a prior undo dry-run
+  (or its `--plan`) and cannot be applied twice.
+- **Approval race** — approval consumption is atomic under the ledger lock
+  and writes an `approval_use` row; a reused approval returns
+  `APPROVAL_INVALID`.
+- **Tenant ownership** — a host belongs to at most one tenant; adding it
+  to another tenant moves it.
+- **Atomic bin rotation** — write-temp then rename, with recovery when a
+  previous run died between renames.
+- **Canary manifest** — atomic write and path dedupe.
+
+### Tests
+- 398 passed / 21 skipped.
+
 ## 1.7.1 — 2026-11-13
 
 ### Fixed — `update apply --ring` was documented but not wired

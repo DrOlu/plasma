@@ -228,12 +228,22 @@ def handle(request: dict, root=None) -> dict | None:
     approval_id = params.get("approval_id")
     if decision["approval_required"] and approval_id is not None:
         args_sha = agentstate.sha256_obj({"tool": name, "args": args})
-        approval = ledger.find_approval(root, int(approval_id), name, args_sha)
+        approval = ledger.consume_approval(
+            root, int(approval_id), name, args_sha,
+            tenant=context.get("tenant", "default"),
+            agent=context.get("agent"))
         if approval:
             decision = dict(decision, allowed=True, approval_required=False,
                             code="allow",
                             reasons=decision["reasons"]
-                            + [f"approved by {approval.get('approver')}"])
+                            + [f"approved by {approval.get('approver', 'operator')}"])
+        else:
+            row = ledger.record(root, tool=name, args=args, decision=decision,
+                                context=context, outcome="approval_invalid")
+            return {"jsonrpc": "2.0", "id": req_id, "result": _text_result({
+                "ok": False, "code": "APPROVAL_INVALID", "audit_id": row["seq"],
+                "error": "approval is missing, denied, bound to another action, or already used",
+            }, error=True)}
 
     if decision["code"] == "denied":
         row = ledger.record(root, tool=name, args=args, decision=decision,

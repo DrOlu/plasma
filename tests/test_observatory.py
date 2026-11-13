@@ -332,7 +332,8 @@ def test_actuate_wmi_undo_restores_bindings(tmp_path, monkeypatch):
     entry = actuate.execute("disable_wmi_sub", root, reason="WMI persistence",
                             apply=True, plan=dry["id"])
     assert entry["undo"]["bindings_file"] == str(binds_file)
-    undone = actuate.undo(root, entry["id"], apply=True)
+    undo_dry = actuate.undo(root, entry["id"])
+    undone = actuate.undo(root, entry["id"], apply=True, plan=undo_dry["id"])
     assert undone["result"]["rc"] == 0
     assert calls[-1].startswith("New-CimInstance")
 

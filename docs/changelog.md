@@ -16,6 +16,12 @@ Highlights by release:
 - **Trace rows use `tid`** — `pid` is not portable across the DTrace builds
   on the estate; `tid` works on both hosts.
 
+## 1.7.2 — 2026-11-13
+
+- **Explicit state machines** — update phases, single-use plans and
+  approvals, undo gates, exclusive tenant ownership, atomic bin/manifest
+  writes. See [State machines](state-machines.md).
+
 ## 1.7.1 — 2026-11-13
 
 - **Ring gate wired** — `update apply --ring` refuses a host outside the

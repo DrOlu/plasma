@@ -83,41 +83,45 @@ def _row_hash(row: dict) -> str:
     return agentstate.sha256_obj(payload)
 
 
-def append(root=None, entry: dict | None = None, tenant: str = "default") -> dict:
+def _append_locked(root, entry: dict, tenant: str) -> dict:
     entry = dict(entry or {})
+    rows = read(root)
+    seq = (rows[-1].get("seq", 0) + 1) if rows else 1
+    prev = rows[-1].get("hash", GENESIS) if rows else GENESIS
+    row = {
+        "seq": seq,
+        "ts": entry.pop("ts", None) or agentstate.now_iso(),
+        "tenant": entry.pop("tenant", tenant) or tenant,
+        "kind": entry.pop("kind", "action"),
+        "agent": entry.pop("agent", None),
+        "model": entry.pop("model", None),
+        "prompt_sha256": entry.pop("prompt_sha256", None),
+        "tool": entry.pop("tool", None),
+        "args": entry.pop("args", None),
+        "args_sha256": entry.pop("args_sha256", None),
+        "risk": entry.pop("risk", None),
+        "decision": entry.pop("decision", None),
+        "reasons": entry.pop("reasons", []),
+        "policy_sha256": entry.pop("policy_sha256", None),
+        "approval_id": entry.pop("approval_id", None),
+        "outcome": entry.pop("outcome", None),
+        "detail": entry.pop("detail", None),
+        "prev": prev,
+    }
+    row.update(entry)
+    row["hash"] = _row_hash(row)
+    path = ledger_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n")
+        fh.flush()
+        os.fsync(fh.fileno())
+    return row
+
+
+def append(root=None, entry: dict | None = None, tenant: str = "default") -> dict:
     with _lock(root):
-        rows = read(root)
-        seq = (rows[-1].get("seq", 0) + 1) if rows else 1
-        prev = rows[-1].get("hash", GENESIS) if rows else GENESIS
-        row = {
-            "seq": seq,
-            "ts": entry.pop("ts", None) or agentstate.now_iso(),
-            "tenant": entry.pop("tenant", tenant) or tenant,
-            "kind": entry.pop("kind", "action"),
-            "agent": entry.pop("agent", None),
-            "model": entry.pop("model", None),
-            "prompt_sha256": entry.pop("prompt_sha256", None),
-            "tool": entry.pop("tool", None),
-            "args": entry.pop("args", None),
-            "args_sha256": entry.pop("args_sha256", None),
-            "risk": entry.pop("risk", None),
-            "decision": entry.pop("decision", None),
-            "reasons": entry.pop("reasons", []),
-            "policy_sha256": entry.pop("policy_sha256", None),
-            "approval_id": entry.pop("approval_id", None),
-            "outcome": entry.pop("outcome", None),
-            "detail": entry.pop("detail", None),
-            "prev": prev,
-        }
-        row.update(entry)
-        row["hash"] = _row_hash(row)
-        path = ledger_path(root)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n")
-            fh.flush()
-            os.fsync(fh.fileno())
-        return row
+        return _append_locked(root, entry or {}, tenant)
 
 
 def record(root=None, *, tool: str, args: dict, decision: dict,
@@ -199,8 +203,10 @@ def pending_approvals(root=None, limit: int = 200) -> list[dict]:
     rows = read(root)
     approved = {r.get("approval_for") for r in rows
                 if r.get("kind") == "approval" and r.get("approved")}
-    consumed = {r.get("approval_id") for r in rows
-                if r.get("kind") == "action" and r.get("approval_id") is not None}
+    consumed = {r.get("approval_for") for r in rows
+                if r.get("kind") == "approval_use"}
+    consumed |= {r.get("approval_id") for r in rows
+                 if r.get("kind") == "action" and r.get("approval_id") is not None}
     out = []
     for row in rows:
         if row.get("kind") != "action" or row.get("decision") != "approval_required":
@@ -231,13 +237,52 @@ def approve(root, seq: int, approver: str, note: str = "",
     })
 
 
+def consume_approval(root, seq: int, tool: str, args_sha256: str,
+                     tenant: str = "default", agent: str | None = None) -> dict | None:
+    """Atomically consume a single-use approval.
+
+    Returns the approval_use row, or None when the approval is missing,
+    denied, bound to a different action, or already consumed. The check
+    and the append happen under the ledger lock, so two harness calls
+    cannot both win the same approval.
+    """
+    with _lock(root):
+        rows = read(root)
+        consumed = {r.get("approval_for") for r in rows
+                    if r.get("kind") == "approval_use"}
+        consumed |= {r.get("approval_id") for r in rows
+                     if r.get("kind") == "action" and r.get("approval_id") is not None}
+        if seq in consumed:
+            return None
+        approval = next((r for r in rows
+                         if r.get("kind") == "approval"
+                         and r.get("approval_for") == seq
+                         and r.get("approved") is True
+                         and r.get("tool") == tool
+                         and r.get("args_sha256") == args_sha256), None)
+        if approval is None:
+            return None
+        return _append_locked(root, {
+            "kind": "approval_use",
+            "tenant": tenant,
+            "approval_for": seq,
+            "tool": tool,
+            "args_sha256": args_sha256,
+            "agent": agent,
+            "approver": approval.get("approver"),
+            "approved": True,
+        }, tenant)
+
+
 def find_approval(root=None, seq: int | None = None, tool: str | None = None,
                   args_sha256: str | None = None) -> dict | None:
     if seq is None:
         return None
     rows = read(root)
-    consumed = {r.get("approval_id") for r in rows
-                if r.get("kind") == "action" and r.get("approval_id") is not None}
+    consumed = {r.get("approval_for") for r in rows
+                if r.get("kind") == "approval_use"}
+    consumed |= {r.get("approval_id") for r in rows
+                 if r.get("kind") == "action" and r.get("approval_id") is not None}
     for row in rows:
         if (row.get("kind") == "approval" and row.get("approval_for") == seq
                 and row.get("approved") is True

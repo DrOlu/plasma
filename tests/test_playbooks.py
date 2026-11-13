@@ -109,7 +109,8 @@ def test_playbook_undo_reverses_succeeded_steps_last_first(tmp_path, mock_run):
     applied = playbooks.execute(root, "contain-user", target="bob",
                                 reason="x", apply=True, plan=dry["id"])
     n_calls = len(mock_run)
-    undone = playbooks.undo(root, applied["id"], apply=True)
+    undo_dry = playbooks.undo(root, applied["id"])
+    undone = playbooks.undo(root, applied["id"], apply=True, plan=undo_dry["id"])
     assert undone["mode"] == "applied"
     # reverse order: snapshot (latest step, not undoable) is skipped first...
     assert undone["steps"][0]["step"] == "snapshot"

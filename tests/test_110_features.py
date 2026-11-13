@@ -70,7 +70,8 @@ def test_run_key_undo_restores_from_backup_file(tmp_path, monkeypatch):
         target=r"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run|Backdoor",
         reason="persistence drill", apply=True, plan=dry["id"])
     assert applied["undo"]["backup_file"] == str(backup)
-    undone = actuate.undo(root, applied["id"], apply=True)
+    undo_dry = actuate.undo(root, applied["id"])
+    undone = actuate.undo(root, applied["id"], apply=True, plan=undo_dry["id"])
     assert undone["result"]["rc"] == 0
     assert calls[-1].startswith("New-ItemProperty")
     assert "evil.exe -q" in calls[-1], "restored value must come from the capture"

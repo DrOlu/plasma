@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary, trace
-from . import agentstate, policy as agent_policy, ledger, killswitch, tenants, rings, evidence, assurance, evals, mcp as mcp_server, tools as agent_tools
+from . import agentstate, statemachine, policy as agent_policy, ledger, killswitch, tenants, rings, evidence, assurance, evals, mcp as mcp_server, tools as agent_tools
 from . import update as updater
 from .bundle import build_bundle
 from .manifest import create_manifest, sha256_file, verify_manifest
@@ -1066,7 +1066,8 @@ def cmd_actuate_journal(args) -> int:
 
 
 def cmd_actuate_undo(args) -> int:
-    result = actuate.undo(args.root, args.id, apply=args.apply, timeout=args.timeout)
+    result = actuate.undo(args.root, args.id, apply=args.apply,
+                          plan=args.plan, timeout=args.timeout)
     print(json.dumps(result, indent=2, default=str))
     return 0 if "error" not in result else 1
 
@@ -1137,7 +1138,7 @@ def cmd_playbook_apply(args) -> int:
 
 def cmd_playbook_undo(args) -> int:
     result = playbooks.undo(args.root, args.id, apply=args.apply,
-                            timeout=args.timeout)
+                            plan=args.plan, timeout=args.timeout)
     print(json.dumps(result, indent=2, default=str))
     return 0 if "error" not in result else 1
 
@@ -1377,7 +1378,9 @@ def cmd_update_check(args) -> int:
     token = os.environ.get(args.token_env, "")
     rel = updater.latest_release(args.repo, token)
     newer = updater.is_newer(__version__, rel["tag"])
-    print(json.dumps({"current": __version__, "latest": rel["tag"], "update_available": newer},
+    state = statemachine.load(Path(args.root), statemachine.UPDATE_MACHINE)["state"]
+    print(json.dumps({"current": __version__, "latest": rel["tag"],
+                      "update_available": newer, "state": state},
                      indent=2))
     return 2 if newer else 0   # scriptable: 0 = up to date, 2 = update available
 
@@ -1395,33 +1398,56 @@ def cmd_update_apply(args) -> int:
                 "hint": "assign the host with: plasma ring assign <host> --ring <ring>",
             }, indent=2))
             return 2
+    def _state(target, detail=None):
+        try:
+            statemachine.transition(root, statemachine.UPDATE_MACHINE, target, detail)
+        except statemachine.StateError:
+            pass
+
+    try:
+        if statemachine.load(root, statemachine.UPDATE_MACHINE)["state"] != "idle":
+            statemachine.reset(root, statemachine.UPDATE_MACHINE, "new update run")
+    except Exception:  # noqa: BLE001 — state is observability, not a gate
+        pass
+
     staged = root / "tools" / "plasma-update-staged.exe"
     res = updater.download_and_verify(args.repo, "", token, staged)
     print(json.dumps({"stage": "download", **{k: v for k, v in res.items() if k != 'ok'}}, indent=2, default=str))
     if not res["ok"]:
+        _state("failed", "download failed")
         return 1
+    _state("staged", f"tag={res.get('tag')}")
     # SECOND trust anchor: the exe must be signed by a pinned certificate
     # before we execute it. SHA256SUMS + exe share one origin (the release);
     # the signer thumbprint is baked into THIS binary.
     sig = updater.verify_authenticode(staged)
     print(json.dumps({"stage": "signature", **sig}, indent=2, default=str))
     if not sig.get("ok") and not getattr(args, "allow_unsigned", False):
+        _state("failed", "signature verification failed")
         print(json.dumps({"ok": False,
                           "error": "refusing to execute an update with an unverified signer",
                           "hint": "dev builds may pass --allow-unsigned"},
                          indent=2))
         return 2
+    _state("verified", sig.get("status") or "signature ok")
     # forward the root: a node installed at a custom root must not have its
     # new version configured under the default location (split-brain install)
+    _state("installing")
     inst = subprocess.run([str(staged), "install", "--force", "--root", str(root)],
                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
     print(inst.stdout[-800:] if inst.stdout else "")
     if inst.returncode != 0:
+        _state("failed", f"install rc={inst.returncode}")
         print(inst.stderr[-400:], file=sys.stderr)
         return 3
+    _state("installed", f"tag={res.get('tag')}")
     bin_exe = Path(args.bin) if args.bin else root / "bin" / Path(sys.executable).name
     rot = updater.rotate_bin(staged, bin_exe)
     print(json.dumps({"stage": "bin_rotation", **rot}, indent=2, default=str))
+    if not rot.get("ok"):
+        _state("failed", "bin rotation failed")
+        return 4
+    _state("rotated", f"tag={res.get('tag')}")
     print(json.dumps({"ok": True, "updated_to": res.get("tag")}, indent=2))
     return 0
 
@@ -1870,6 +1896,7 @@ def build_parser() -> argparse.ArgumentParser:
     acu = acs.add_parser("undo", help="undo a journaled applied action (dry-run by default)")
     acu.add_argument("--id", type=int, required=True)
     acu.add_argument("--apply", action="store_true")
+    acu.add_argument("--plan", type=int, default=None, help="id of the prior undo dry-run")
     acu.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     acu.add_argument("--timeout", type=int, default=60)
     acu.set_defaults(func=cmd_actuate_undo)
@@ -1926,6 +1953,7 @@ def build_parser() -> argparse.ArgumentParser:
     pbu = pbs.add_parser("undo", help="reverse a playbook's succeeded steps, last-first")
     pbu.add_argument("--id", type=int, required=True)
     pbu.add_argument("--apply", action="store_true")
+    pbu.add_argument("--plan", type=int, default=None, help="id of the prior playbook undo dry-run")
     pbu.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     pbu.add_argument("--timeout", type=int, default=60)
     pbu.set_defaults(func=cmd_playbook_undo)
@@ -2023,6 +2051,7 @@ def build_parser() -> argparse.ArgumentParser:
     upc = ups.add_parser("check", help="compare against the latest release")
     upc.add_argument("--repo", default="DrOlu/plasma")
     upc.add_argument("--token-env", default="PLASMA_GITHUB_TOKEN")
+    upc.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     upc.set_defaults(func=cmd_update_check)
     upa = ups.add_parser("apply", help="download, verify, install, rotate bin")
     upa.add_argument("--repo", default="DrOlu/plasma")
