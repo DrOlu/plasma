@@ -37,9 +37,10 @@ MSI_URL = ("https://download.microsoft.com/download/7/9/d/"
            "79d6b79a-5836-4118-a9b7-60bc77c97bf7/DTrace.amd64.msi")
 
 
-def _is_v2(version: str | None) -> bool:
-    """True for Microsoft DTrace 2.x; the old Sun D 1.13.1 preview is not."""
-    return bool(version) and re.search(r"(?<!\d)2\.\d", version) is not None
+# Microsoft's download page labels the current package "2.0", but the MSI
+# still reports ProductVersion 1.1.0 and the tool reports "Sun D 1.13.1".
+# Version strings therefore cannot tell "new" from "old"; capability (is it
+# installed and enabled?) is the only reliable signal.
 
 # Metadata uses C-style block comments: the Windows DTrace compiler rejects
 # `//` line comments outright ("syntax error near /", field-found on WS1).
@@ -177,9 +178,6 @@ def check() -> dict:
     # `dtrace -V` returned empty on WS2 and the version read as unknown.
     version = _run_ps(f'& "{path}" -V', timeout=30) or ""
     result["version"] = version.splitlines()[0].strip() if version else None
-    if not _is_v2(result["version"]):
-        result["hint"] = ("DTrace 1.x is installed; Plasma requires Microsoft "
-                          "DTrace 2.0 — run `plasma trace provision` to upgrade.")
     state = _run_ps("bcdedit /enum '{current}' | Select-String -SimpleMatch dtrace",
                     timeout=30)
     # `bcdedit /enum` prints "dtrace Yes", not "dtrace on" — matching only
@@ -367,11 +365,11 @@ def provision() -> dict:
     plus a reboot.
     """
     state = check()
-    if (state["available"] and state.get("enabled")
-            and _is_v2(state.get("version"))):
-        return {"ok": True, "already": "available and enabled (2.x)"}
+    if state["available"] and state.get("enabled"):
+        return {"ok": True, "already": "available and enabled",
+                "version": state.get("version")}
     actions = []
-    if not state["available"] or not _is_v2(state.get("version")):
+    if not state["available"]:
         winget = shutil.which("winget")
         if winget:
             proc = subprocess.run(
@@ -381,19 +379,22 @@ def provision() -> dict:
                 errors="replace", timeout=900)
             actions.append({"action": "winget install Microsoft.DTrace",
                             "rc": proc.returncode,
-                            "detail": (proc.stdout or "")[-400:]})
+                            "detail": (proc.stdout or "")[:400]})
             state = check()
-        if not state["available"] or not _is_v2(state.get("version")):
+        if not state["available"]:
             msi = _install_msi(
-                Path(os.environ.get("ProgramData", r"C:\ProgramData"))
-                / "Plasma" / "tools")
+                os.path.join(os.environ.get("ProgramData", r"C:\ProgramData"),
+                             "Plasma", "tools"))
             actions.append({"action": "install DTrace 2.0 MSI", **msi})
             state = check()
         if not state["available"]:
             return {"ok": False,
-                    "error": "DTrace install failed",
+                    "error": "DTrace installation did not register dtrace.exe",
                     "actions": actions,
-                    "manual": f"Install Microsoft DTrace 2.0 MSI: {MSI_URL}"}
+                    "manual": f"Install the Microsoft DTrace package: {MSI_URL}"}
+    if state.get("enabled"):
+        return {"ok": True, "already": "installed; already enabled",
+                "actions": actions, "version": state.get("version")}
     enable = _run_ps("bcdedit /set dtrace on", timeout=60)
     actions.append({"action": "bcdedit /set dtrace on", "detail": enable[:200]})
     return {"ok": True, "reboot_required": True, "actions": actions,

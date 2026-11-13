@@ -4,6 +4,12 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.6.2 — 2026-11-13
+
+- **DTrace readiness is capability-based** — the "2.0" package still calls
+  itself 1.1.0 / Sun D 1.13.1, so `trace check`/`provision` no longer chase
+  a version string; installed + enabled means ready.
+
 ## 1.6.1 — 2026-11-13
 
 - **DTrace version probe** — `trace check` runs the resolved `dtrace.exe`.

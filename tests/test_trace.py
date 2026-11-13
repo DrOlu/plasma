@@ -285,19 +285,15 @@ def test_provision_without_winget_uses_msi(monkeypatch):
     assert any(a["action"] == "install DTrace 2.0 MSI" for a in res["actions"])
 
 
-def test_provision_upgrades_v1_via_msi(monkeypatch):
-    """A Sun D 1.13.1 install is upgraded, not treated as ready."""
-    states = [{"available": True, "enabled": True,
-               "version": "dtrace: Sun D 1.13.1"},
-              {"available": True, "enabled": True,
-               "version": "dtrace: v2.0.0"}]
-    monkeypatch.setattr(trace, "check", lambda: states.pop(0))
-    monkeypatch.setattr(trace.shutil, "which", lambda name: None)
-    monkeypatch.setattr(trace, "_install_msi", lambda d: {"ok": True, "rc": 0})
-    monkeypatch.setattr(trace, "_run_ps", lambda s, timeout=60: "ok")
+def test_provision_accepts_the_current_package(monkeypatch):
+    """Microsoft's '2.0' package still reports Sun D 1.13.1; an installed,
+    enabled build is ready — do not reinstall it forever."""
+    monkeypatch.setattr(trace, "check",
+                        lambda: {"available": True, "enabled": True,
+                                 "version": "dtrace: Sun D 1.13.1"})
     res = trace.provision()
-    assert res["ok"] and res["reboot_required"] is True
-    assert any(a["action"] == "install DTrace 2.0 MSI" for a in res["actions"])
+    assert res["ok"] is True and res.get("already")
+    assert res["version"] == "dtrace: Sun D 1.13.1"
 
 
 def test_provision_msi_failure_reports_manual(monkeypatch):

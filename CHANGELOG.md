@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.6.2 — 2026-11-13
+
+### Fixed — the "upgrade to 2.0" hint never went away
+- Microsoft's download page labels the current package "2.0", but the MSI
+  reports ProductVersion 1.1.0 and the tool reports `Sun D 1.13.1`.
+  Version strings cannot distinguish new from old, so `trace check` kept
+  telling an up-to-date host to provision and `provision` would reinstall
+  forever. Readiness is now capability-based: installed + enabled is ready;
+  only a missing or disabled install triggers action.
+
+### Tests
+- 350 passed / 21 skipped.
+
 ## 1.6.1 — 2026-11-13
 
 Field follow-up from the DTrace 2.0 rollout.
