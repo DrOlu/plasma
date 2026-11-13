@@ -98,8 +98,11 @@ def _whids_files_to_stage(install_dir: Path, whids_dir: Path,
         wanted[install_dir / "config.toml"] = whids_dir / "whids.toml"
     rules_db = install_dir / "Database" / "Rules"
     for name in whids.RULE_FILES:
-        src = whids_dir / name
-        if src.exists():
+        # shared rule files live at sensors/, the WHIDS payload at
+        # sensors/whids/ — accept either staging layout
+        src = next((p for p in (whids_dir / name, whids_dir.parent / name)
+                    if p.exists()), None)
+        if src is not None:
             wanted[rules_db / name] = src
     return wanted
 
@@ -755,6 +758,9 @@ def cmd_install(args) -> int:
 
         drift = [str(dst) for dst, src in wanted.items()
                  if not _same_bytes(dst, src)]
+        # Gene loads every *.gen; an obsolete backup is drift too, so a
+        # converged-looking node still gets a cleanup pass.
+        drift += [str(p) for p in rules_db.glob("*.bak.gen")]
         was_running = _service_state_name("Whids") == "Running"
         prev_config = install_dir / "config.toml.plasma-prev"
         if was_running and not drift:

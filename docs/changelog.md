@@ -4,6 +4,12 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.5.5 — 2026-11-13
+
+- **Baseline rules actually reach the engine** — rule lookup accepts both
+  `sensors/whids/` and `sensors/`; stale `*.bak.gen` files count as drift
+  and are cleaned on install.
+
 ## 1.5.4 — 2026-11-13
 
 - **Sysmon config convergence** — `install --force` re-applies the baseline

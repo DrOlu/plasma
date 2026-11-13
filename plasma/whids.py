@@ -515,8 +515,12 @@ def deploy_rules(src_dir, rules_db) -> list[str]:
             pass
     copied = []
     for name in RULE_FILES:
-        src = src_dir / name
-        if src.exists():
+        # The builder stages shared rule files at sensors/ and the WHIDS
+        # payload at sensors/whids/, so look one level up as well (v1.5.1
+        # only ever found the IOC file and baseline never shipped).
+        src = next((p for p in (src_dir / name, src_dir.parent / name)
+                    if p.exists()), None)
+        if src is not None:
             shutil.copy2(src, rules_db / name)
             copied.append(name)
     return copied

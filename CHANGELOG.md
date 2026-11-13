@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.5.5 — 2026-11-13
+
+Fifth field fix: the baseline rule file was staged a directory away from
+where the installer looked.
+
+### Fixed — `plasma-baseline.gen` still never reached the engine
+- The builder stages shared rule files at `sensors/` and the WHIDS payload
+  at `sensors/whids/`; `deploy_rules(".../sensors/whids", ...)` therefore
+  found only `plasma-iocs.gen` (2 rules on WS1, 1 on WS2 — measured live).
+- Rule lookup now accepts both `sensors/whids/` and `sensors/`, in both
+  `whids.deploy_rules()` and the installer's convergence map.
+- Obsolete `*.bak.gen` files count as drift, so a node that otherwise looks
+  converged still gets a cleanup pass (WS1 kept loading a stale backup).
+
+### Tests
+- 333 passed / 21 skipped.
+
 ## 1.5.4 — 2026-11-13
 
 Fourth field fix: Sysmon telemetry was frozen at install time.

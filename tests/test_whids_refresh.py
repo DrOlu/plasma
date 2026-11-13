@@ -49,6 +49,33 @@ def test_stage_map_requires_no_existing_install(tmp_path):
         "plasma-baseline.gen", "plasma-iocs.gen"]
 
 
+def test_stage_map_finds_rules_in_sensors_root(tmp_path):
+    """The builder stages plasma-baseline.gen at sensors/, not sensors/whids/."""
+    whids_dir = tmp_path / "bundle" / "sensors" / "whids"
+    whids_dir.mkdir(parents=True)
+    (whids_dir / "whids.toml").write_text("# config\n")
+    (whids_dir.parent / "plasma-baseline.gen").write_text('{"Name":"b"}\n')
+    (whids_dir / "plasma-iocs.gen").write_text('{"Name":"i"}\n')
+    install = tmp_path / "Whids"
+
+    wanted = _whids_files_to_stage(install, whids_dir)
+
+    rules = install / "Database" / "Rules"
+    assert wanted[rules / "plasma-baseline.gen"] == whids_dir.parent / "plasma-baseline.gen"
+    assert wanted[rules / "plasma-iocs.gen"] == whids_dir / "plasma-iocs.gen"
+
+
+def test_deploy_rules_finds_baseline_one_level_up(tmp_path):
+    src = tmp_path / "sensors" / "whids"
+    src.mkdir(parents=True)
+    (tmp_path / "sensors" / "plasma-baseline.gen").write_text('{"Name":"b"}\n')
+    (src / "plasma-iocs.gen").write_text('{"Name":"i"}\n')
+
+    copied = whids.deploy_rules(src, tmp_path / "rules")
+
+    assert copied == ["plasma-iocs.gen", "plasma-baseline.gen"]
+
+
 def test_same_bytes_detects_identical_changed_and_missing(tmp_path):
     a, b = tmp_path / "a", tmp_path / "b"
     a.write_text("x")
