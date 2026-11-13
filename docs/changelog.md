@@ -16,6 +16,11 @@ Highlights by release:
 - **Trace rows use `tid`** — `pid` is not portable across the DTrace builds
   on the estate; `tid` works on both hosts.
 
+## 1.7.1 — 2026-11-13
+
+- **Ring gate wired** — `update apply --ring` refuses a host outside the
+  ring before downloading.
+
 ## 1.7.0 — 2026-11-13
 
 - **Agent-native trust layer** — typed capability contract, deterministic

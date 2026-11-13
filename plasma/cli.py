@@ -1386,6 +1386,15 @@ def cmd_update_apply(args) -> int:
     # public repo: anonymous works; a token is optional (private forks)
     token = os.environ.get(args.token_env, "")
     root = Path(args.root)
+    if getattr(args, "ring", None):
+        host = _platform.node()
+        if not rings.allows(root, host, args.ring):
+            print(json.dumps({
+                "ok": False,
+                "error": f"host {host!r} is not in ring {args.ring!r}",
+                "hint": "assign the host with: plasma ring assign <host> --ring <ring>",
+            }, indent=2))
+            return 2
     staged = root / "tools" / "plasma-update-staged.exe"
     res = updater.download_and_verify(args.repo, "", token, staged)
     print(json.dumps({"stage": "download", **{k: v for k, v in res.items() if k != 'ok'}}, indent=2, default=str))
@@ -2024,6 +2033,7 @@ def build_parser() -> argparse.ArgumentParser:
                           "does not match the pinned thumbprints")
     upa.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     upa.add_argument("--bin", default=None, help="canonical exe copy to rotate (default <root>/bin)")
+    upa.add_argument("--ring", default=None, help="only update if this host is in the named ring")
     upa.set_defaults(func=cmd_update_apply)
 
     ctl = sub.add_parser("control", help="agent control plane: policy, approvals, audit, kill switch, tenants")

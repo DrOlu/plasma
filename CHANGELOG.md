@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.7.1 — 2026-11-13
+
+### Fixed — `update apply --ring` was documented but not wired
+- The ring gate now runs before download: a host outside the requested
+  ring is refused with exit 2 and a hint to assign it. This makes canary
+  rollout a local fact rather than an agent suggestion.
+
+### Tests
+- 384 passed / 21 skipped.
+
 ## 1.7.0 — 2026-11-13
 
 Agent-native trust layer: autonomy with a leash.
