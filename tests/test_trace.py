@@ -44,14 +44,13 @@ def test_predicates_are_terminated():
                 assert text.endswith("/"), f"{path.name}:{number}: {text}"
 
 
-def test_scripts_emit_pid_and_tid():
-    """DTrace 2.0 can read pid; tid is kept for thread-level correlation.
-    (The old Sun D 1.13.1 preview raised 'invalid user access' for pid.)"""
+def test_scripts_emit_tid():
+    """pid is not portable across the DTrace builds on this estate (WS1
+    rejects it with 'invalid user access'); tid works everywhere."""
     for path in sorted(REPO_SCRIPTS.glob("*.d")):
         text = path.read_text()
-        assert "\\\"pid\\\"" in text, path.name
         assert "\\\"tid\\\"" in text, path.name
-        assert "pid," in text, path.name
+        assert "tid," in text, path.name
 
 
 def test_validate_rejects_system_call():
@@ -383,3 +382,20 @@ def test_run_without_dtrace(tmp_path, monkeypatch):
     monkeypatch.setattr(trace, "find_dtrace", lambda: None)
     res = trace.run("syscall-errors", tmp_path / "e.jsonl")
     assert "error" in res and "not installed" in res["error"]
+
+
+def test_check_uses_the_resolved_dtrace_path(monkeypatch):
+    """The MSI does not add dtrace to PATH; a bare `dtrace -V` returned
+    empty on WS2 and the version read as unknown."""
+    monkeypatch.setattr(trace, "find_dtrace",
+                        lambda: r"C:\Program Files\DTrace\dtrace.exe")
+    seen = []
+
+    def fake_ps(script, timeout=60):
+        seen.append(script)
+        return "dtrace: Sun D 1.13.1" if "-V" in script else "dtrace Yes"
+    monkeypatch.setattr(trace, "_run_ps", fake_ps)
+
+    res = trace.check()
+    assert any("Program Files" in s and "-V" in s for s in seen)
+    assert res["version"] == "dtrace: Sun D 1.13.1"

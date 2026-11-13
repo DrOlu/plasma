@@ -173,7 +173,9 @@ def check() -> dict:
                           "else install Microsoft.DTrace (v2.0 MSI) and run "
                           f"`plasma trace provision`. {DOWNLOADS_URL}")
         return result
-    version = _run_ps("dtrace -V", timeout=30) or ""
+    # Use the resolved path: the MSI does not add dtrace to PATH, so a bare
+    # `dtrace -V` returned empty on WS2 and the version read as unknown.
+    version = _run_ps(f'& "{path}" -V', timeout=30) or ""
     result["version"] = version.splitlines()[0].strip() if version else None
     if not _is_v2(result["version"]):
         result["hint"] = ("DTrace 1.x is installed; Plasma requires Microsoft "

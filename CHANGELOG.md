@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.6.1 — 2026-11-13
+
+Field follow-up from the DTrace 2.0 rollout.
+
+### Fixed — `trace check` ran bare `dtrace -V`
+- The MSI does not add DTrace to PATH, so the version probe returned empty
+  on WS2 and the version read as unknown. It now runs the resolved path.
+
+### Changed — scripts emit `tid` only
+- The same DTrace package reads `pid` on WS2 but rejects it with "invalid
+  user access" on WS1, so `pid` is not portable across the estate. The
+  reviewed scripts emit `tid` (carried in the event description), which
+  works on both hosts and keeps the event contract consistent.
+
+### Tests
+- 350 passed / 21 skipped.
+
 ## 1.6.0 — 2026-11-13
 
 Self-healing WHIDS and DTrace 2.0 everywhere.

@@ -4,6 +4,12 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.6.1 — 2026-11-13
+
+- **DTrace version probe** — `trace check` runs the resolved `dtrace.exe`.
+- **Trace rows use `tid`** — `pid` is not portable across the DTrace builds
+  on the estate; `tid` works on both hosts.
+
 ## 1.6.0 — 2026-11-13
 
 - **WHIDS watchdog** — `plasma whids ensure` heals a hung StartPending or a

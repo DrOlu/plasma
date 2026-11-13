@@ -9,6 +9,6 @@
 syscall:::entry
 /(probefunc == "NtCreateUserProcess" || probefunc == "NtCreateThreadEx") && execname != "dtrace.exe"/
 {
-    printf("plasma|{\"probe\":\"%s\",\"pid\":%d,\"tid\":%d,\"comm\":\"%s\"}\n",
-           probefunc, pid, tid, execname);
+    printf("plasma|{\"probe\":\"%s\",\"tid\":%d,\"comm\":\"%s\"}\n",
+           probefunc, tid, execname);
 }

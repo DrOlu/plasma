@@ -12,6 +12,6 @@
 etw:22fb2cd6-0e7b-422b-a0c7-2fad1fd0e716:0xff_0xffffffffffffffff:generic_event
 /execname != "dtrace.exe"/
 {
-    printf("plasma|{\"probe\":\"etw_kernel_process\",\"pid\":%d,\"tid\":%d,\"comm\":\"%s\"}\n",
-           pid, tid, execname);
+    printf("plasma|{\"probe\":\"etw_kernel_process\",\"tid\":%d,\"comm\":\"%s\"}\n",
+           tid, execname);
 }

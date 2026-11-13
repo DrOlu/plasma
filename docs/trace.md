@@ -33,7 +33,7 @@ plasma trace selftest     # compile every reviewed script with `dtrace -e`
 `provision` installs the official Microsoft DTrace 2.0 MSI directly when
 winget is absent (the default on Server 2022), and upgrades an older
 Sun D 1.13.1 preview in place. Plasma requires DTrace 2.x: the 1.x preview
-cannot read `pid` in probe context. DTrace relies on virtualization-based
+cannot read `pid` in probe context, so the scripts emit `tid` (estate-consistent). DTrace relies on virtualization-based
 security (VBS) on modern Windows; if tracing fails to start, verify VBS is
 enabled.
 
@@ -45,8 +45,8 @@ plasma trace list
 
 | Script | Technique | Score | What it prints |
 |---|---|---|---|
-| `syscall-errors` | T1106 | 6 | NT syscalls returning a non-success status: pid, image, function, status |
-| `process-create` | T1059 | 5 | `NtCreateUserProcess` / `NtCreateThreadEx` entries: pid, image |
+| `syscall-errors` | T1106 | 6 | NT syscalls returning a non-success status: tid, image, function, status |
+| `process-create` | T1059 | 5 | `NtCreateUserProcess` / `NtCreateThreadEx` entries: tid, image |
 | `etw-kernel-process` | T1057 | 4 | ETW `Microsoft-Windows-Kernel-Process` events (header fields only) |
 
 Scripts live in `sensors/dtrace/*.d`, carry metadata in `//` comments, and
@@ -71,7 +71,7 @@ plasma trace run process-create --for 30s --max-rows 5000 --out C:\ProgramData\P
 - `-w` (DTrace's destructive mode) is never used.
 
 Each normalized row has `kind: "trace"`, `source: "dtrace"`, the script's
-technique and score, and the image/pid. That means **chains, drift, fleet
+technique and score, and the image/tid. That means **chains, drift, fleet
 and watch consume DTrace evidence exactly like any other event**:
 
 ```text
