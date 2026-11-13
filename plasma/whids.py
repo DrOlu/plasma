@@ -493,6 +493,94 @@ def _whids_service_name() -> str | None:
         return None
 
 
+def diagnose(root: str | Path | None = None) -> dict:
+    """Explain why WHIDS is not Running — the field init-hang triage.
+
+    Read-only. Gathers service state/start mode/path, channel readability,
+    recent Service Control Manager errors and the last lines of whids.log,
+    then states the most likely cause. Data, never a guess at a fix."""
+    whids_root = Path(root) if root else default_root()
+    service = _whids_service_name()
+    info: dict = {
+        "whids_root": str(whids_root),
+        "service": service,
+        "service_state": None,
+        "start_mode": None,
+        "binary_path": None,
+        "binary_present": False,
+        "config_present": (whids_root / "config.toml").exists(),
+        "channels": [],
+        "service_errors": [],
+        "log_tail": [],
+        "findings": [],
+    }
+
+    if service:
+        script = (
+            "$ErrorActionPreference='SilentlyContinue';"
+            f"$s = Get-CimInstance Win32_Service -Filter \"Name='{service}'\";"
+            "$out = @{};"
+            "$out.state = $s.State; $out.startMode = $s.StartMode;"
+            "$out.pathName = $s.PathName;"
+            "$out.hang = ($s.State -eq 'StartPending');"
+            "$out.channels = @(Get-WinEvent -ListLog "
+            "'Microsoft-Windows-Sysmon/Operational',"
+            "'Microsoft-Windows-PowerShell/Operational','Security','System' | "
+            "ForEach-Object { @{ log=$_.LogName; enabled=$_.IsEnabled; "
+            "records=$_.RecordCount } });"
+            "$out.serviceErrors = @(Get-WinEvent -FilterHashtable "
+            "@{LogName='System'; Id=7000,7009,7011,7031,7034; "
+            "StartTime=(Get-Date).AddHours(-24)} | Select-Object -First 5 | "
+            "ForEach-Object { $_.TimeCreated.ToString('o') + ' id=' + $_.Id + ': ' + "
+            "($_.Message -replace '\\s+',' ') });"
+            "$out | ConvertTo-Json -Depth 4 -Compress"
+        )
+        try:
+            proc = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                timeout=60)
+            text = (proc.stdout or "").strip()
+            parsed = json.loads(text[text.find("{"):]) if "{" in text else {}
+            info["service_state"] = parsed.get("state")
+            info["start_mode"] = parsed.get("startMode")
+            info["binary_path"] = parsed.get("pathName")
+            info["channels"] = parsed.get("channels") or []
+            info["service_errors"] = parsed.get("serviceErrors") or []
+            if parsed.get("hang"):
+                info["findings"].append(
+                    "service is StartPending — hung at init, not starting slowly")
+        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
+            info["findings"].append(f"service probe failed: {str(exc)[:160]}")
+
+    if info["binary_path"]:
+        exe = info["binary_path"].strip('"').split('"')[0]
+        info["binary_present"] = Path(exe).exists()
+
+    log = whids_root / "Logs" / "whids.log"
+    if log.exists():
+        lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
+        info["log_tail"] = lines[-30:]
+
+    if not info["config_present"]:
+        info["findings"].append(
+            "config.toml missing — v1.7.0 loads config.toml next to the binary")
+    if info["binary_path"] and not info["binary_present"]:
+        info["findings"].append("service binary path does not exist")
+    unreadable = [c.get("log") for c in info["channels"]
+                  if isinstance(c, dict) and not c.get("enabled")]
+    if unreadable:
+        info["findings"].append(
+            "disabled/unreadable channels: " + ", ".join(str(c) for c in unreadable))
+    if info.get("service_state") == "StartPending":
+        info["findings"].append(
+            "known field issue: WHIDS 1.7.0 can hang subscribing to channels; "
+            "use the explicit channel list shipped in whids.toml and reinstall")
+    if not info["findings"]:
+        info["findings"].append("no obvious cause found — attach the log tail to an issue")
+    return info
+
+
 def push(events_path: str | Path | None = None, root: str | Path | None = None,
          min_confidence: int = DEFAULT_MIN_CONFIDENCE, max_indicators: int = DEFAULT_MAX_INDICATORS,
          apply: bool = False, restart_service: bool = False, reason: str = "") -> dict:

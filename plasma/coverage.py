@@ -155,6 +155,13 @@ def _best_fidelity(rules: list[dict]) -> str:
     return ranked[0] if ranked else "medium"
 
 
+# Capabilities that watch a technique without a Sysmon/ETW rule. They are
+# reported with explicit provenance so a reader can see what backs the claim.
+CAPABILITY_RULES = {
+    "T1486": [{"rule": "canary:verify", "fidelity": "high"}],
+}
+
+
 def coverage(sensors_dir=None) -> dict:
     """Coverage matrix over the curated core list.
 
@@ -166,6 +173,8 @@ def coverage(sensors_dir=None) -> dict:
     100% breadth can never mask weak evidence.
     """
     covered = collect_rule_techniques(sensors_dir)
+    for tech, rules in CAPABILITY_RULES.items():
+        covered.setdefault(tech, []).extend(dict(r) for r in rules)
     total = len(CORE_TECHNIQUES)
 
     exact_core = {t: rules for t, rules in covered.items() if t in CORE_TECHNIQUES}

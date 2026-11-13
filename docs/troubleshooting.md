@@ -25,10 +25,21 @@ without WHIDS — identity and the tap carry detection there.
 ### WHIDS stuck in StartPending
 
 Seen in the field on Server 2022 with WHIDS 1.7.0: the service registers,
-starts, and never reaches Running (deterministic init hang). Plasma's
-installer records the node as degraded/skipped instead of pretending.
-Interim posture: identity + tap carry detection; the service can be left
-stopped. A replacement WHIDS line or leaner sensor is a roadmap item.
+starts, and never reaches Running (deterministic init hang).
+
+v1.4.0 handles it in three layers:
+
+1. **Narrow channel list** — `channels = [...four explicit logs]` instead of
+   `"all"`; subscribing to every channel on the host is the known trigger.
+2. **Supervised start** — the installer waits up to
+   `PLASMA_WHIDS_START_TIMEOUT` (default 60s) for `Running`; if the service
+   is stuck in `StartPending`, it is force-stopped and the node is recorded
+   as degraded/skipped instead of leaving a hung service behind.
+3. **Diagnosis** — `plasma whids diagnose` reports service state, start
+   mode, binary/config presence, channel readability, recent SCM errors and
+   the tail of `whids.log`, with the likely cause stated as data.
+
+Interim posture on an affected node: identity + tap carry detection.
 
 ## WinRM / management access
 

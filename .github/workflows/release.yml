@@ -116,8 +116,18 @@ jobs:
             Write-Host "No signing secrets configured - publishing unsigned build"
           }
 
-          (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower() + "  " +
-            (Split-Path $exe -Leaf) | Set-Content dist/SHA256SUMS -Encoding ASCII
+          # MSI for GPO / enterprise deployment, built from the SIGNED exe.
+          dotnet tool install --global wix --version 5.* | Out-Null
+          $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
+          python tools/build_msi.py --exe $exe --version $version `
+            --out "dist/plasma-$version-windows-x64.msi"
+          if ($LASTEXITCODE -ne 0) { throw "MSI build failed" }
+
+          $msi = "dist/plasma-$version-windows-x64.msi"
+          @(
+            ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLower() + "  " + (Split-Path $exe -Leaf)),
+            ((Get-FileHash $msi -Algorithm SHA256).Hash.ToLower() + "  " + (Split-Path $msi -Leaf))
+          ) | Set-Content dist/SHA256SUMS -Encoding ASCII
           & $exe --version
           & $exe status --events samples/plasma_events.jsonl
           & $exe ask --prompt "critical alerts" --events samples/plasma_events.jsonl
@@ -131,9 +141,11 @@ jobs:
           VERSION="${{ steps.version.outputs.value }}"
           TAG="v$VERSION"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "dist/plasma-$VERSION-windows-x64.exe" dist/SHA256SUMS --clobber
+            gh release upload "$TAG" "dist/plasma-$VERSION-windows-x64.exe" \
+              "dist/plasma-$VERSION-windows-x64.msi" dist/SHA256SUMS --clobber
           else
             gh release create "$TAG" \
-              "dist/plasma-$VERSION-windows-x64.exe" dist/SHA256SUMS \
+              "dist/plasma-$VERSION-windows-x64.exe" \
+              "dist/plasma-$VERSION-windows-x64.msi" dist/SHA256SUMS \
               --title "Plasma $VERSION (Windows x64)" --generate-notes
           fi

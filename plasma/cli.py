@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks
+from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary
 from . import update as updater
 from .bundle import build_bundle
 from .manifest import create_manifest, sha256_file, verify_manifest
@@ -456,6 +456,18 @@ def whids_install_decision(sysmon_present: bool, whids_present: bool,
     return {"decision": "attempt_sysmon_install", "degraded": False}
 
 
+def _service_state_name(name: str) -> str:
+    """Current service state as a plain string ('' when absent)."""
+    try:
+        proc = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+             f"(Get-Service -Name '{name}' -ErrorAction SilentlyContinue).Status"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        return (proc.stdout or "").strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
 def _try_install_sysmon(tools_dir: Path) -> tuple[bool, str]:
     """Download + install Sysmon with the baseline config. Windows only.
     Returns (ok, detail). EULA is accepted via -accepteula on behalf of the
@@ -565,6 +577,8 @@ def cmd_install(args) -> int:
             decision["sysmon_detail"] = detail
     whids_planned = decision["decision"] == "full"
     degraded = bool(decision.get("degraded"))
+    whids_hung = False
+    degradation_reason = None
     if degraded and getattr(args, "require_whids", False):
         print(json.dumps({"ok": False, "error": "WHIDS required but not feasible",
                           "decision": decision}, indent=2))
@@ -697,6 +711,34 @@ def cmd_install(args) -> int:
         except (OSError, subprocess.TimeoutExpired):
             pass
 
+        # Supervised start. WHIDS 1.7.0 can sit in StartPending forever on
+        # some Server 2022 builds (field issue). Wait boundedly; if it never
+        # reaches Running, force-stop it and record a documented MINIMAL
+        # posture instead of leaving a hung service behind.
+        wait_s = int(os.environ.get("PLASMA_WHIDS_START_TIMEOUT", "60"))
+        whids_state = _service_state_name("Whids")
+        deadline = __import__("time").time() + wait_s
+        while (whids_state in ("StartPending", "Stopping", "Unknown", "")
+               and __import__("time").time() < deadline):
+            __import__("time").sleep(3)
+            whids_state = _service_state_name("Whids")
+        if whids_state != "Running":
+            subprocess.run(
+                ["powershell.exe", "-NoProfile", "-Command",
+                 "Stop-Service -Name 'Whids' -Force -ErrorAction SilentlyContinue"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
+            )
+            whids_hung = True
+            degradation_reason = (f"WHIDS start timeout ({wait_s}s, state "
+                                  f"{whids_state or 'unknown'}) — stopped and "
+                                  f"marked skipped; run `plasma whids diagnose`")
+            degraded = True
+            config["degraded"] = True
+            config["sensors"]["whids"].update(
+                {"status": "skipped", "reason": degradation_reason})
+            config_path.write_text(json.dumps(config, indent=2) + "\n",
+                                   encoding="utf-8")
+
     # 4. Flip current (only replace an existing link).
     # _is_junction is checked unconditionally: a DANGLING junction (target
     # deleted by hand) reports exists()=False and is_symlink()=False, yet a
@@ -734,8 +776,9 @@ def cmd_install(args) -> int:
         "installed": str(target),
         "current": str(current),
         "config": str(config_path),
-        "whids_installed": whids_planned or whids_present,
+        "whids_installed": (whids_planned or whids_present) and not whids_hung,
         "degraded": degraded,
+        "degradation_reason": degradation_reason,
         "files_verified": verification["checked"],
     }, indent=2))
     return 0
@@ -900,6 +943,36 @@ def cmd_playbook_undo(args) -> int:
                             timeout=args.timeout)
     print(json.dumps(result, indent=2, default=str))
     return 0 if "error" not in result else 1
+
+
+def cmd_whids_diagnose(args) -> int:
+    result = whids.diagnose(args.root)
+    print(json.dumps(result, indent=2, default=str))
+    return 0
+
+
+def cmd_canary_deploy(args) -> int:
+    result = canary.deploy(args.root, extra_dirs=args.dir)
+    print(json.dumps(result, indent=2, default=str))
+    return 0
+
+
+def cmd_canary_verify(args) -> int:
+    result = canary.verify(args.root)
+    print(json.dumps(result, indent=2, default=str))
+    if "error" in result:
+        return 1
+    return 2 if result.get("tripped") else 0
+
+
+def cmd_canary_status(args) -> int:
+    try:
+        result = canary.status(args.root)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(json.dumps({"error": str(exc)[:200]}, indent=2))
+        return 1
+    print(json.dumps(result, indent=2, default=str))
+    return 0
 
 
 def cmd_tap_list(args) -> int:
@@ -1260,6 +1333,24 @@ def build_parser() -> argparse.ArgumentParser:
     sps.add_argument("--root", default=None)
     sps.add_argument("--events", default=None)
     sps.set_defaults(func=cmd_whids_status)
+
+    spd = sns.add_parser("diagnose", help="explain why a WHIDS service is not Running")
+    spd.add_argument("--root", default=None, help="WHIDS install root (default: C:\\Program Files\\Whids)")
+    spd.set_defaults(func=cmd_whids_diagnose)
+
+    cn = sub.add_parser("canary", help="decoys for impact detection (T1486)")
+    cns = cn.add_subparsers(dest="canary_action", required=True)
+    cnd = cns.add_parser("deploy", help="create canary files and record their hashes")
+    cnd.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cnd.add_argument("--dir", action="append", default=[],
+                     help="extra directory for canaries (repeatable)")
+    cnd.set_defaults(func=cmd_canary_deploy)
+    cnv = cns.add_parser("verify", help="check canaries (exit 2 when tripped)")
+    cnv.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cnv.set_defaults(func=cmd_canary_verify)
+    cnsx = cns.add_parser("status", help="manifest + current canary state")
+    cnsx.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cnsx.set_defaults(func=cmd_canary_status)
 
     # Hidden: the frozen executable re-enters itself to execute the bundle's
     # bridge with the Python runtime embedded in the one-file binary.

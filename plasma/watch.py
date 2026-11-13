@@ -84,6 +84,19 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
         findings.append({"type": "chain_scan_error", "score": 5,
                          "detail": str(exc)[:160]})
 
+    # 5. canary files — decoys whose only purpose is to be touched.
+    #    A missing or modified canary is impact detection (T1486), score 10.
+    try:
+        from . import canary as canary_mod
+        can = canary_mod.verify(root)
+        for t in can.get("tripped", []):
+            findings.append({
+                "type": "canary_tripped", "score": 10,
+                "detail": f"canary {t['reason']}: {t['path']}"[:200]})
+    except Exception as exc:  # noqa: BLE001 — collector failures are data
+        findings.append({"type": "canary_scan_error", "score": 5,
+                         "detail": str(exc)[:160]})
+
     top = max((f["score"] for f in findings), default=0)
     return {"info": info, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "health": hv["status"], "findings": findings, "top_score": top,

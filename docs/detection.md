@@ -85,16 +85,16 @@ plasma coverage
 Diffs the shipped rules (tap + gene baseline + IOC feed) against a curated
 list of 36 core on-box ATT&CK techniques. It reports:
 
-- `coverage_pct` — **88.9%** (32/36) with ATT&CK parent rollup
+- `coverage_pct` — **91.7%** (33/36) with ATT&CK parent rollup
   (a parent counts when any sub-technique is covered);
-- `coverage_exact_pct` — **72.2%** (26/36) counting only exact tags;
-- `weighted_pct` — **80.6%**, discounting low/medium-fidelity rules
+- `coverage_exact_pct` — **75.0%** (27/36) counting only exact tags;
+- `weighted_pct` — **83.3%**, discounting low/medium-fidelity rules
   (weights 1.0 / 0.7 / 0.4);
 - `covered` — technique → rules + per-rule fidelity + `via_subtechnique`;
-- `blind` — the four honest gaps: **T1056 / T1056.001** (input capture —
-  needs kernel hooks), **T1112** (generic registry edits — not worth a
-  noisy checkbox), **T1486** (impact — canary files are the honest
-  detector, not a heuristic);
+- `blind` — the three honest gaps: **T1056 / T1056.001** (input capture —
+  needs kernel hooks) and **T1112** (generic registry edits — not worth a
+  noisy checkbox). **T1486** is covered by the canary capability
+  (`canary:verify`), reported with its own provenance;
 - `extra_coverage` — techniques watched outside the core list.
 
 Breadth is deliberately reported alongside fidelity: a report cannot reach
@@ -103,6 +103,21 @@ rise.
 
 This is the anti-marketing page: a product that cannot list its blind spots
 is not measuring anything.
+
+## Canary files — impact detection (T1486)
+
+```powershell
+plasma canary deploy [--dir D:\Finance]   # decoy documents + hash manifest
+plasma canary verify                        # exit 2 when a canary is touched
+plasma canary status
+```
+
+Six decoy documents (xlsx/csv/docx/pdf/txt) are written with recorded
+SHA-256 hashes. `watch` verifies them on every sweep: a **missing or
+modified canary is a score-10 finding** (`canary_tripped`) — the honest
+detector for destructive impact that does not depend on guessing at
+encryption bursts. Deploy them to user-data shares as well as the default
+`Canaries` folder.
 
 ## IOC push
 

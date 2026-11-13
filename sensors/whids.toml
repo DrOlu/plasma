@@ -5,8 +5,16 @@
 # the [actions] block below is inert at this tag and documents Plasma's
 # intent for any future WHIDS line that grows one.
 
-# Windows log channels to listen to ("all" = every channel Sysmon provides).
-channels = ["all"]
+# Windows log channels to listen to. An explicit list is deliberate: on
+# some hosts WHIDS 1.7.0 hangs at init while subscribing to "all" when a
+# channel in the machine's set is unreadable. These four cover the detection
+# surface (Sysmon telemetry + PowerShell + security/system context).
+channels = [
+  "Microsoft-Windows-Sysmon/Operational",
+  "Microsoft-Windows-PowerShell/Operational",
+  "Security",
+  "System",
+]
 
 # Forward alerts above this criticality (gene 0-10 scale).
 criticality-treshold = 5

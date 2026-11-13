@@ -168,8 +168,23 @@ jobs:
           ./dist/plasma.exe whids push --root "$RUNNER_TEMP/whids" --events "$RUNNER_TEMP/plasma-events.jsonl" --min-confidence 8
           ./dist/plasma.exe whids push --root "$RUNNER_TEMP/whids" --events "$RUNNER_TEMP/plasma-events.jsonl" --min-confidence 8 --apply --reason "ci smoke"
           ./dist/plasma.exe whids status --root "$RUNNER_TEMP/whids" --events "$RUNNER_TEMP/plasma-events.jsonl"
+      - name: Build MSI (WiX) + canary smoke
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.* | Out-Null
+          $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
+          $ver = (python -c "from plasma import __version__; print(__version__)").Trim()
+          python tools/build_msi.py --exe dist/plasma.exe --version $ver --out "dist/plasma-$ver-windows-x64.msi"
+          if ($LASTEXITCODE -ne 0) { throw "MSI build failed" }
+          ./dist/plasma.exe canary deploy --root "$RUNNER_TEMP/canary-root"
+          ./dist/plasma.exe canary verify --root "$RUNNER_TEMP/canary-root"
       - uses: actions/upload-artifact@v4
         with:
           name: plasma-windows-x64
           path: dist/plasma.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plasma-windows-x64-msi
+          path: dist/*.msi
           if-no-files-found: error

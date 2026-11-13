@@ -4,7 +4,6 @@ docs_dir: docs
 # repository but are not part of the published site.
 exclude_docs: |
   ARCHITECTURE.md
-  DEPLOYMENT.md
   SECURITY.md
   SIGNPATH_APPLICATION.md
 
@@ -46,6 +45,7 @@ theme:
 nav:
   - Home: index.md
   - Getting started: getting-started.md
+  - Deployment (MSI/GPO): deployment.md
   - Concepts: concepts.md
   - Sensors: sensors.md
   - Detection: detection.md

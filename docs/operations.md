@@ -33,7 +33,8 @@ A sweep gathers:
 2. drift against the `attest` baseline,
 3. **new** WHIDS alert rows since the last sweep (growth-based, so pulled
    rows never re-fire),
-4. chain matches over the events tail.
+4. chain matches over the events tail,
+5. canary-file integrity (missing/modified = score 10).
 
 Output: `findings[]`, `top_score`, and a verdict of **clean /
 investigate / act now**. `watch-state.json` records each run;
@@ -124,6 +125,18 @@ These are read-only witness questions: can the box see its own logons, its
 services, its network edges? `attest` includes a **blind check** — a box
 that cannot see itself reports that honestly, and fleet correlation turns
 it into a `blind_host` finding.
+
+## Canary files
+
+```powershell
+plasma canary deploy --root C:\ProgramData\Plasma [--dir D:\Finance]
+plasma canary verify --root C:\ProgramData\Plasma   # exit 2 when tripped
+plasma canary status --root C:\ProgramData\Plasma
+```
+
+Deploy once per node (and on data shares with `--dir`); `watch` checks
+them from then on. A tripped canary should be treated as impact — isolate
+and snapshot before investigating.
 
 ## Scheduling
 

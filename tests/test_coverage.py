@@ -34,9 +34,9 @@ def test_parents_roll_up_from_covered_subtechniques():
         assert parent not in {t for t, _ in
                               [(t, v) for t, v in cov["covered"].items()
                                if not v["via_subtechnique"]]}
-    # rollup is not inflation: the exact count stays 72%, and the parents
-    # are still absent from any explicit rule tag
-    assert cov["coverage_exact_pct"] < 75
+    # rollup is not inflation: the exact count stays below the rollup count
+    assert cov["coverage_exact_pct"] < cov["coverage_pct"]
+    assert 70 <= cov["coverage_exact_pct"] <= 75
 
 
 def test_one_three_zero_rules_close_their_techniques():
@@ -48,10 +48,18 @@ def test_one_three_zero_rules_close_their_techniques():
 
 
 def test_honest_blind_spots_remain():
-    """Keylogging needs kernel hooks; generic registry edits and ransomware
-    impact are deliberately not checkbox-covered."""
+    """Keylogging needs kernel hooks; generic registry edits are
+    deliberately not checkbox-covered."""
     cov = coverage.coverage()
-    assert set(cov["blind"]) == {"T1056", "T1056.001", "T1112", "T1486"}
+    assert set(cov["blind"]) == {"T1056", "T1056.001", "T1112"}
+
+
+def test_canary_capability_covers_impact():
+    cov = coverage.coverage()
+    assert "T1486" in cov["covered"]
+    info = cov["covered"]["T1486"]
+    assert any(r["rule"] == "canary:verify" and r["fidelity"] == "high"
+               for r in info["rules"])
 
 
 def test_specific_techniques_are_covered_by_known_rules():
@@ -86,11 +94,11 @@ def test_custom_sensors_dir_and_low_fidelity_discount(tmp_path):
         "providers": {"powershell": "Microsoft-Windows-PowerShell"},
         "rules": [{"name": "r1", "provider": "powershell", "event_id": 4104,
                    "field": "f", "substr": "x", "severity": "low",
-                   "fidelity": "low", "technique": "T1486"}],
+                   "fidelity": "low", "technique": "T1112"}],
     }))
     cov = coverage.coverage(sensors)
-    assert "T1486" in cov["covered"]
-    assert cov["covered"]["T1486"]["fidelity"] == "low"
+    assert "T1112" in cov["covered"]
+    assert cov["covered"]["T1112"]["fidelity"] == "low"
     # one low-fidelity rule cannot masquerade as full-strength coverage
     assert cov["weighted_pct"] < cov["coverage_pct"]
 
@@ -103,7 +111,7 @@ def test_missing_fidelity_defaults_to_medium(tmp_path):
         "providers": {"powershell": "Microsoft-Windows-PowerShell"},
         "rules": [{"name": "r1", "provider": "powershell", "event_id": 4104,
                    "field": "f", "substr": "x", "severity": "low",
-                   "technique": "T1486"}],
+                   "technique": "T1112"}],
     }))
     cov = coverage.coverage(sensors)
-    assert cov["covered"]["T1486"]["fidelity"] == "medium"
+    assert cov["covered"]["T1112"]["fidelity"] == "medium"

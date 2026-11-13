@@ -91,8 +91,11 @@ def checks(root) -> list[dict]:
     elif whids_status in ("active", "installing"):
         state = _service_state("Whids")
         ok = state == "Running"
-        results.append({"check": "whids_service", "ok": ok,
-                        "detail": f"service {state}"})
+        detail = f"service {state}"
+        if state in ("StartPending", "Stopping"):
+            detail = (f"service {state} (hung at init — "
+                      f"run: plasma whids diagnose)")
+        results.append({"check": "whids_service", "ok": ok, "detail": detail})
         if ok:
             age = _newest_event_age_minutes("Microsoft-Windows-Sysmon/Operational")
             if age is None:

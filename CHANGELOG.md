@@ -1,5 +1,45 @@
 # Changelog
 
+## 1.4.0 — 2026-11-13
+
+Prime-time gaps closed: supervised WHIDS, honest impact detection, and an
+enterprise deployment package.
+
+### Fixed — WHIDS init hang
+- **Explicit channel list** in `whids.toml` (Sysmon, PowerShell, Security,
+  System) instead of `"all"` — subscribing to every channel is the known
+  trigger for the 1.7.0 init hang.
+- **Supervised start**: the installer waits up to `PLASMA_WHIDS_START_TIMEOUT`
+  (60s default) for `Running`; a service stuck in `StartPending` is
+  force-stopped and the node records a documented MINIMAL posture instead
+  of leaving a hung service.
+- **`plasma whids diagnose`**: service state/mode/path, channel
+  readability, recent SCM errors, `whids.log` tail, and the likely cause —
+  as data.
+- Health names `StartPending` explicitly ("hung at init").
+
+### New — canary files (impact detection, T1486)
+- `plasma canary deploy|verify|status`: six decoy documents with a SHA-256
+  manifest. `watch` verifies them every sweep; missing/modified = score-10
+  `canary_tripped`. Coverage attributes T1486 to `canary:verify` (no noisy
+  "encryption burst" heuristic).
+
+### New — MSI + GPO packaging
+- Releases now include `plasma-<version>-windows-x64.msi`, built with WiX
+  from the signed exe: silent install, deferred elevated provisioning
+  action, `PLASMA_ROOT` public property, in-place upgrades.
+- `docs/deployment.md`: silent install, GPO Software Installation steps,
+  transforms, uninstall semantics, rollout rings, signing note.
+
+### Coverage
+- 91.7% rollup (33/36), 75.0% exact (27/36), 83.3% fidelity-weighted.
+- Blind spots now exactly three: T1056, T1056.001, T1112.
+
+### Tests
+- 295 passed / 21 skipped (up from 277): canary lifecycle (deploy/verify/
+  delete/modify/watch), WHIDS diagnosis, MSI WiX generation, updated
+  coverage semantics.
+
 ## 1.3.0 — 2026-11-13
 
 Depth without checkbox-padding: the coverage report now separates breadth

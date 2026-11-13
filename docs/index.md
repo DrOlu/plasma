@@ -52,13 +52,13 @@ DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
 
-## What you get in 1.3.0
+## What you get in 1.4.0
 
 - **Story detection** — deterministic chain rules (phish spawn, brute-force
   success, persistence-after-privilege) that fire on sequences, not single
   events, and run inside every `watch` sweep.
-- **Honest ATT&CK coverage** — 88.9% with parent rollup, 80.6%
-  fidelity-weighted, and the four remaining blind spots named out loud.
+- **Honest ATT&CK coverage** — 91.7% with parent rollup, 83.3%
+  fidelity-weighted, and the three remaining blind spots named out loud.
 - **Deep persistence probe** — every auto-start location with Authenticode
   status and a surfaced `suspect` heuristic; no driver, no service.
 - **Signed updates** — `update apply` refuses any binary whose Authenticode
@@ -66,6 +66,10 @@ DESK               status · ask · drift · chains · coverage · fleet ·
 - **Playbooks** — `contain-user`, `isolate-box`: fixed sequences applied as
   one plan-gated unit, aborting on the first failure, reversible last-first.
 - **Store hygiene** — `store rotate|compact|stats` keeps the diary bounded.
+- **Canary files** — decoy documents whose deletion/modification is a
+  score-10 impact finding, verified on every `watch` sweep.
+- **MSI + GPO** — an enterprise package that provisions a node silently
+  through Group Policy.
 
 ## Doctrine
 

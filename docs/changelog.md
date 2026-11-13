@@ -4,6 +4,18 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.4.0 — 2026-11-13
+
+- **WHIDS init-hang handling** — explicit channel list, supervised start
+  with bounded wait, force-stop + degraded recording, `plasma whids diagnose`.
+- **Canary files** — `canary deploy|verify|status`; watch verifies decoys and
+  reports score-10 impact findings. Coverage now attributes T1486 to
+  `canary:verify`.
+- **MSI + GPO packaging** — release adds `plasma-<version>-windows-x64.msi`;
+  silent install, `PLASMA_ROOT` property, GPO instructions, upgrade in place.
+- Coverage: 91.7% rollup / 75.0% exact / 83.3% weighted; blind spots are
+  T1056, T1056.001 and T1112.
+
 ## 1.3.0 — 2026-11-13
 
 - **ATT&CK parent rollup** — coverage now reports both the exact count
