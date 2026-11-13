@@ -4,6 +4,15 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.6.0 — 2026-11-13
+
+- **WHIDS watchdog** — `plasma whids ensure` heals a hung StartPending or a
+  stopped sensor; the installer registers `PlasmaWhidsWatchdog` (SYSTEM,
+  every 2 minutes).
+- **DTrace 2.0 provisioning** — `trace provision` downloads the official
+  MSI when winget is absent and upgrades 1.x in place; scripts emit
+  `pid` + `tid`.
+
 ## 1.5.10 — 2026-11-13
 
 - **Gene alerts keep their technique** — WHIDS 1.7 omits the ATTACK block,

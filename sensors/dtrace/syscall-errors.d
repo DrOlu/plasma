@@ -9,6 +9,6 @@
 syscall:::return
 /arg0 != 0 && execname != "dtrace.exe"/
 {
-    printf("plasma|{\"probe\":\"syscall_error\",\"tid\":%d,\"comm\":\"%s\",\"func\":\"%s\",\"status\":\"0x%x\"}\n",
-           tid, execname, probefunc, arg0);
+    printf("plasma|{\"probe\":\"syscall_error\",\"pid\":%d,\"tid\":%d,\"comm\":\"%s\",\"func\":\"%s\",\"status\":\"0x%x\"}\n",
+           pid, tid, execname, probefunc, arg0);
 }

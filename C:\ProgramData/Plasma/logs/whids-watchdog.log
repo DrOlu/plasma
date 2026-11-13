@@ -1,0 +1,6 @@
+{"actions": [{"action": "stop", "rc": 0}, {"action": "start", "rc": 0}], "at": "2026-11-13T14:06:22Z", "ok": true, "service": "Whids", "state": "Running"}
+{"actions": [{"action": "stop", "rc": 0}, {"action": "start", "rc": 0}], "at": "2026-11-13T14:06:22Z", "ok": true, "service": "Whids", "state": "Running"}
+{"actions": [{"action": "stop", "rc": 0}, {"action": "start", "rc": 0}], "at": "2026-11-13T14:06:22Z", "ok": false, "service": "Whids", "state": "Stopped"}
+{"actions": [{"action": "stop", "rc": 0}, {"action": "start", "rc": 0}], "at": "2026-11-13T14:06:58Z", "ok": true, "service": "Whids", "state": "Running"}
+{"actions": [{"action": "stop", "rc": 0}, {"action": "start", "rc": 0}], "at": "2026-11-13T14:06:58Z", "ok": true, "service": "Whids", "state": "Running"}
+{"actions": [{"action": "stop", "rc": 0}, {"action": "start", "rc": 0}], "at": "2026-11-13T14:06:58Z", "ok": false, "service": "Whids", "state": "Stopped"}

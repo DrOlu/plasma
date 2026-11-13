@@ -453,6 +453,31 @@ def write_sysmon_config(tools_dir: Path) -> Path:
     return path
 
 
+WATCHDOG_TASK = "PlasmaWhidsWatchdog"
+
+
+def _register_whids_watchdog(bin_exe: Path, root: Path) -> dict:
+    """Register the SYSTEM task that heals a hung/stopped WHIDS every 2 min.
+
+    WHIDS 1.7.0 can hang in StartPending or stop after a manual restart;
+    SCM failure actions only cover crashes, not hangs. `whids ensure`
+    force-stops and restarts, and this task runs it as SYSTEM.
+    """
+    script = (
+        f"$a = New-ScheduledTaskAction -Execute '{bin_exe}' "
+        f"-Argument 'whids ensure --root \"{root}\"'; "
+        f"$t = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) "
+        f"-RepetitionInterval (New-TimeSpan -Minutes 2) "
+        f"-RepetitionDuration (New-TimeSpan -Days 3650); "
+        f"$p = New-ScheduledTaskPrincipal -UserId 'SYSTEM' "
+        f"-LogonType ServiceAccount -RunLevel Highest; "
+        f"Register-ScheduledTask -TaskName '{WATCHDOG_TASK}' -Action $a "
+        f"-Trigger $t -Principal $p -Force | Out-Null"
+    )
+    rc, out = whids._ps(script, timeout=120)
+    return {"ok": rc == 0, "task": WATCHDOG_TASK, "detail": out[:200]}
+
+
 def _apply_sysmon_config(tools_dir: Path) -> dict:
     """Re-apply the baseline config to an existing Sysmon (hot reload).
 
@@ -887,6 +912,17 @@ def cmd_install(args) -> int:
             config_path.write_text(json.dumps(config, indent=2) + "\n",
                                    encoding="utf-8")
 
+    # 3a. Watchdog: SCM failure actions restart a crashed WHIDS, but not a
+    # hung StartPending. A SYSTEM task runs `whids ensure` every two minutes.
+    if whids_planned:
+        wd = _register_whids_watchdog(bindir / me.name, root)
+        config["sensors"]["whids"]["watchdog"] = (
+            wd["task"] if wd["ok"] else "failed")
+        if not wd["ok"]:
+            config["sensors"]["whids"]["watchdog_error"] = wd.get("detail")
+        config_path.write_text(json.dumps(config, indent=2) + "\n",
+                               encoding="utf-8")
+
     # 3b. Sysmon config convergence. `--force` is the repair verb (and what
     # `update apply` calls), so an upgrade refreshes the detection config an
     # old node was installed with. Sysmon applies it hot — no service bounce.
@@ -1154,6 +1190,12 @@ def cmd_whids_diagnose(args) -> int:
     result = whids.diagnose(args.root)
     print(json.dumps(result, indent=2, default=str))
     return 0
+
+
+def cmd_whids_ensure(args) -> int:
+    result = whids.ensure(args.root, wait_seconds=args.wait)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if result.get("ok") else 1
 
 
 def cmd_canary_deploy(args) -> int:
@@ -1542,6 +1584,11 @@ def build_parser() -> argparse.ArgumentParser:
     spd = sns.add_parser("diagnose", help="explain why a WHIDS service is not Running")
     spd.add_argument("--root", default=None, help="WHIDS install root (default: C:\\Program Files\\Whids)")
     spd.set_defaults(func=cmd_whids_diagnose)
+
+    spe = sns.add_parser("ensure", help="make the WHIDS service Running (heals the 1.7.0 init hang)")
+    spe.add_argument("--root", default=None, help="Plasma root (watchdog log location)")
+    spe.add_argument("--wait", type=int, default=30, help="seconds to wait per state transition")
+    spe.set_defaults(func=cmd_whids_ensure)
 
     cn = sub.add_parser("canary", help="decoys for impact detection (T1486)")
     cns = cn.add_subparsers(dest="canary_action", required=True)

@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.6.0 — 2026-11-13
+
+Self-healing WHIDS and DTrace 2.0 everywhere.
+
+### New — WHIDS watchdog (permanent init-hang recovery)
+- `plasma whids ensure`: Running is a no-op; a hung `StartPending` is
+  force-stopped and restarted (Start-Service alone cannot recover it);
+  a stopped service is started. Every action is appended to
+  `logs/whids-watchdog.log`.
+- The installer registers **PlasmaWhidsWatchdog**, a SYSTEM scheduled task
+  that runs `whids ensure` every two minutes. SCM failure actions only
+  cover crashes, not hangs.
+- `whids diagnose` reports whether the task is present.
+
+### New — DTrace 2.0 provisioning
+- `trace provision` now downloads the official Microsoft DTrace 2.0 MSI
+  directly when winget is absent (the default on Server 2022), and
+  upgrades an older Sun D 1.13.1 preview in place.
+- `trace check` flags a 1.x install and points at `provision`.
+- The reviewed scripts emit both `pid` and `tid`; DTrace 2.0 can read
+  `pid` in probe context (the 1.x preview could not).
+
+### Tests
+- 349 passed / 21 skipped.
+
 ## 1.5.10 — 2026-11-13
 
 Tenth field fix: gene alerts lost their ATT&CK technique on the way in.

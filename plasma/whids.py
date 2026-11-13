@@ -519,6 +519,84 @@ def _whids_service_name() -> str | None:
         return None
 
 
+def _service_state(name: str | None = None) -> str:
+    """Current SCM state as a plain string ('' when the service is absent)."""
+    name = name or _whids_service_name() or SERVICE_NAME
+    try:
+        proc = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+             f"(Get-Service -Name '{name}' -ErrorAction SilentlyContinue).Status"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        return (proc.stdout or "").strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def _ps(script: str, timeout: int = 60) -> tuple[int, str]:
+    try:
+        proc = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=timeout)
+        return proc.returncode, (proc.stdout or "").strip()
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return 1, str(exc)[:200]
+
+
+def _watchdog_log(root, result: dict) -> None:
+    try:
+        base = (Path(root) if root else
+                Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Plasma")
+        log = base / "logs" / "whids-watchdog.log"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with log.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(result, sort_keys=True) + "\n")
+    except OSError:
+        pass
+
+
+def ensure(root=None, wait_seconds: int = 30) -> dict:
+    """Make the WHIDS service Running, healing the 1.7.0 init hang.
+
+    WHIDS 1.7.0 can sit in StartPending forever (or stop after a manual
+    restart). A hung StartPending never responds to Start-Service, so the
+    only reliable recovery is force-stop then start. This is the body of
+    the `PlasmaWhidsWatchdog` scheduled task the installer registers.
+    """
+    import time
+    name = _whids_service_name() or SERVICE_NAME
+    actions: list[dict] = []
+    state = _service_state(name)
+    if state == "Running":
+        return {"ok": True, "service": name, "state": state, "actions": actions}
+
+    pending = ("StartPending", "Stopping", "Unknown", "")
+    if state in pending:
+        deadline = time.time() + wait_seconds
+        while state in pending and time.time() < deadline:
+            time.sleep(3)
+            state = _service_state(name)
+
+    if state != "Running":
+        rc, _ = _ps(f"Stop-Service -Name '{name}' -Force -ErrorAction SilentlyContinue")
+        actions.append({"action": "stop", "rc": rc})
+        time.sleep(2)
+        rc, _ = _ps(f"Start-Service -Name '{name}' -ErrorAction SilentlyContinue")
+        actions.append({"action": "start", "rc": rc})
+        deadline = time.time() + wait_seconds
+        state = _service_state(name)
+        while state in pending and time.time() < deadline:
+            time.sleep(3)
+            state = _service_state(name)
+
+    result = {"ok": state == "Running", "service": name, "state": state,
+              "actions": actions,
+              "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    if actions:
+        _watchdog_log(root, result)
+    return result
+
+
 RULE_FILES = ("plasma-iocs.gen", "plasma-baseline.gen")
 
 
@@ -634,6 +712,13 @@ def diagnose(root: str | Path | None = None) -> dict:
         info["findings"].append(
             "known field issue: WHIDS 1.7.0 can hang subscribing to channels; "
             "use the explicit channel list shipped in whids.toml and reinstall")
+    # Watchdog task: the permanent answer to the init hang.
+    rc, task_out = _ps("schtasks /query /tn PlasmaWhidsWatchdog /fo LIST", timeout=30)
+    info["watchdog"] = {"task": "PlasmaWhidsWatchdog", "present": rc == 0,
+                        "detail": task_out[:200] if rc == 0 else None}
+    if rc != 0:
+        info["findings"].append(
+            "watchdog task missing — reinstall to register PlasmaWhidsWatchdog")
     if not info["findings"]:
         info["findings"].append("no obvious cause found — attach the log tail to an issue")
     return info

@@ -31,6 +31,15 @@ FORBIDDEN = ("system(", "exec(", "raise(", "panic(", "abort(")
 DEFAULT_MAX_ROWS = 2000
 DOWNLOADS_URL = "https://www.microsoft.com/en-us/download/details.aspx?id=100441"
 WINGET_ID = "Microsoft.DTrace"
+# Official Microsoft DTrace 2.0 MSI (amd64). winget is absent on Server
+# 2022 by default, so provision downloads this directly.
+MSI_URL = ("https://download.microsoft.com/download/7/9/d/"
+           "79d6b79a-5836-4118-a9b7-60bc77c97bf7/DTrace.amd64.msi")
+
+
+def _is_v2(version: str | None) -> bool:
+    """True for Microsoft DTrace 2.x; the old Sun D 1.13.1 preview is not."""
+    return bool(version) and re.search(r"(?<!\d)2\.\d", version) is not None
 
 # Metadata uses C-style block comments: the Windows DTrace compiler rejects
 # `//` line comments outright ("syntax error near /", field-found on WS1).
@@ -166,6 +175,9 @@ def check() -> dict:
         return result
     version = _run_ps("dtrace -V", timeout=30) or ""
     result["version"] = version.splitlines()[0].strip() if version else None
+    if not _is_v2(result["version"]):
+        result["hint"] = ("DTrace 1.x is installed; Plasma requires Microsoft "
+                          "DTrace 2.0 — run `plasma trace provision` to upgrade.")
     state = _run_ps("bcdedit /enum '{current}' | Select-String -SimpleMatch dtrace",
                     timeout=30)
     # `bcdedit /enum` prints "dtrace Yes", not "dtrace on" — matching only
@@ -323,17 +335,41 @@ def run(script_name: str, events_path, seconds: int = 10,
             "stderr": (stderr or "").strip()[:300] or None}
 
 
+def _install_msi(dest_dir) -> dict:
+    """Download and silently install the official DTrace 2.0 MSI."""
+    import urllib.request
+    dest = Path(dest_dir) / "DTrace.amd64.msi"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        urllib.request.urlretrieve(MSI_URL, dest)
+    except Exception as exc:  # noqa: BLE001 — network failure is data
+        return {"ok": False, "error": f"download failed: {exc}"[:200]}
+    try:
+        proc = subprocess.run(
+            ["msiexec", "/i", str(dest), "/qn", "/norestart"],
+            capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=900)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"ok": False, "error": str(exc)[:200], "msi": str(dest)}
+    # 3010 = success, restart required
+    return {"ok": proc.returncode in (0, 3010), "rc": proc.returncode,
+            "msi": str(dest)}
+
+
 def provision() -> dict:
-    """Install DTrace (Microsoft.DTrace) and enable it. Explicit, never silent.
+    """Install/upgrade Microsoft DTrace 2.0 and enable it. Explicit, never silent.
 
     Server 2025 ships dtrace built-in; older Windows needs the v2.0 MSI.
-    Either way, kernel probes require `bcdedit /set dtrace on` + a reboot.
+    winget is absent on Server 2022 by default, so the MSI is downloaded
+    directly. Either way, kernel probes require `bcdedit /set dtrace on`
+    plus a reboot.
     """
     state = check()
-    if state["available"] and state.get("enabled"):
-        return {"ok": True, "already": "available and enabled"}
+    if (state["available"] and state.get("enabled")
+            and _is_v2(state.get("version"))):
+        return {"ok": True, "already": "available and enabled (2.x)"}
     actions = []
-    if not state["available"]:
+    if not state["available"] or not _is_v2(state.get("version")):
         winget = shutil.which("winget")
         if winget:
             proc = subprocess.run(
@@ -345,12 +381,19 @@ def provision() -> dict:
                             "rc": proc.returncode,
                             "detail": (proc.stdout or "")[-400:]})
             state = check()
+        if not state["available"] or not _is_v2(state.get("version")):
+            msi = _install_msi(
+                Path(os.environ.get("ProgramData", r"C:\ProgramData"))
+                / "Plasma" / "tools")
+            actions.append({"action": "install DTrace 2.0 MSI", **msi})
+            state = check()
         if not state["available"]:
             return {"ok": False,
-                    "error": "DTrace is not installed and winget is unavailable",
+                    "error": "DTrace install failed",
                     "actions": actions,
-                    "manual": f"Install Microsoft.DTrace v2.0 MSI: {DOWNLOADS_URL}"}
+                    "manual": f"Install Microsoft DTrace 2.0 MSI: {MSI_URL}"}
     enable = _run_ps("bcdedit /set dtrace on", timeout=60)
     actions.append({"action": "bcdedit /set dtrace on", "detail": enable[:200]})
     return {"ok": True, "reboot_required": True, "actions": actions,
+            "version": state.get("version"),
             "next": "reboot, then run: plasma trace check && plasma trace selftest"}

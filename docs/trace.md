@@ -20,7 +20,7 @@ EDR installer.
 
 ```powershell
 plasma trace check        # available? enabled? version?
-plasma trace provision    # install (winget) + bcdedit /set dtrace on
+plasma trace provision    # install/upgrade DTrace 2.0 + bcdedit /set dtrace on
 ```
 
 `provision` reports `reboot_required: true`; after the restart:
@@ -30,9 +30,12 @@ plasma trace check        # enabled: true
 plasma trace selftest     # compile every reviewed script with `dtrace -e`
 ```
 
-If winget is unavailable, provision returns the Microsoft Download Center
-URL for the MSI. DTrace relies on virtualization-based security (VBS) on
-modern Windows; if tracing fails to start, verify VBS is enabled.
+`provision` installs the official Microsoft DTrace 2.0 MSI directly when
+winget is absent (the default on Server 2022), and upgrades an older
+Sun D 1.13.1 preview in place. Plasma requires DTrace 2.x: the 1.x preview
+cannot read `pid` in probe context. DTrace relies on virtualization-based
+security (VBS) on modern Windows; if tracing fails to start, verify VBS is
+enabled.
 
 ## Reviewed scripts
 

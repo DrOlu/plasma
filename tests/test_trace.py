@@ -44,13 +44,14 @@ def test_predicates_are_terminated():
                 assert text.endswith("/"), f"{path.name}:{number}: {text}"
 
 
-def test_scripts_do_not_read_pid():
-    """This DTrace build raises 'invalid user access' for pid in probe
-    context; tid is readable and is what the scripts emit."""
+def test_scripts_emit_pid_and_tid():
+    """DTrace 2.0 can read pid; tid is kept for thread-level correlation.
+    (The old Sun D 1.13.1 preview raised 'invalid user access' for pid.)"""
     for path in sorted(REPO_SCRIPTS.glob("*.d")):
         text = path.read_text()
-        assert "\\\"pid\\\"" not in text
-        assert ", pid" not in text
+        assert "\\\"pid\\\"" in text, path.name
+        assert "\\\"tid\\\"" in text, path.name
+        assert "pid," in text, path.name
 
 
 def test_validate_rejects_system_call():
@@ -182,7 +183,7 @@ def test_check_parses_bcdedit_yes(monkeypatch):
     """bcdedit /enum prints 'dtrace Yes' (WS1 after provision)."""
     monkeypatch.setattr(trace, "find_dtrace", lambda: "/usr/bin/dtrace")
     monkeypatch.setattr(trace, "_run_ps",
-                        lambda s, timeout=60: "dtrace   Yes" if "bcdedit" in s else "v2")
+                        lambda s, timeout=60: "dtrace   Yes" if "bcdedit" in s else "dtrace: v2.0.0")
     res = trace.check()
     assert res["available"] and res["enabled"] is True
     assert res["hint"] is None
@@ -232,14 +233,16 @@ def test_selftest_reports_per_script(tmp_path, monkeypatch):
 
 def test_provision_already_ready(monkeypatch):
     monkeypatch.setattr(trace, "check",
-                        lambda: {"available": True, "enabled": True})
+                        lambda: {"available": True, "enabled": True,
+                                 "version": "dtrace: v2.0.0"})
     res = trace.provision()
     assert res["ok"] is True and res.get("already")
 
 
 def test_provision_enables_and_requires_restart(monkeypatch):
     monkeypatch.setattr(trace, "check",
-                        lambda: {"available": True, "enabled": False})
+                        lambda: {"available": True, "enabled": False,
+                                 "version": "dtrace: v2.0.0"})
     seen = []
     monkeypatch.setattr(trace, "_run_ps",
                         lambda s, timeout=60: seen.append(s) or "ok")
@@ -250,7 +253,8 @@ def test_provision_enables_and_requires_restart(monkeypatch):
 
 def test_provision_winget_path(monkeypatch):
     states = [{"available": False, "enabled": False},
-              {"available": True, "enabled": False}]
+              {"available": True, "enabled": False,
+               "version": "dtrace: v2.0.0"}]
     monkeypatch.setattr(trace, "check", lambda: states.pop(0))
     monkeypatch.setattr(trace.shutil, "which",
                         lambda name: "/usr/bin/winget" if name == "winget" else None)
@@ -266,13 +270,46 @@ def test_provision_winget_path(monkeypatch):
     assert any("winget" in " ".join(map(str, r)) for r in runs)
 
 
-def test_provision_without_winget_gives_manual_hint(monkeypatch):
+def test_provision_without_winget_uses_msi(monkeypatch):
+    """Server 2022 has no winget; provision downloads the official MSI."""
+    states = [{"available": False, "enabled": False},
+              {"available": True, "enabled": False,
+               "version": "dtrace: v2.0.0"}]
+    monkeypatch.setattr(trace, "check", lambda: states.pop(0))
+    monkeypatch.setattr(trace.shutil, "which", lambda name: None)
+    seen = []
+    monkeypatch.setattr(trace, "_install_msi",
+                        lambda d: seen.append(str(d)) or {"ok": True, "rc": 0})
+    monkeypatch.setattr(trace, "_run_ps", lambda s, timeout=60: "ok")
+    res = trace.provision()
+    assert res["ok"] and seen
+    assert any(a["action"] == "install DTrace 2.0 MSI" for a in res["actions"])
+
+
+def test_provision_upgrades_v1_via_msi(monkeypatch):
+    """A Sun D 1.13.1 install is upgraded, not treated as ready."""
+    states = [{"available": True, "enabled": True,
+               "version": "dtrace: Sun D 1.13.1"},
+              {"available": True, "enabled": True,
+               "version": "dtrace: v2.0.0"}]
+    monkeypatch.setattr(trace, "check", lambda: states.pop(0))
+    monkeypatch.setattr(trace.shutil, "which", lambda name: None)
+    monkeypatch.setattr(trace, "_install_msi", lambda d: {"ok": True, "rc": 0})
+    monkeypatch.setattr(trace, "_run_ps", lambda s, timeout=60: "ok")
+    res = trace.provision()
+    assert res["ok"] and res["reboot_required"] is True
+    assert any(a["action"] == "install DTrace 2.0 MSI" for a in res["actions"])
+
+
+def test_provision_msi_failure_reports_manual(monkeypatch):
     monkeypatch.setattr(trace, "check",
                         lambda: {"available": False, "enabled": False})
     monkeypatch.setattr(trace.shutil, "which", lambda name: None)
+    monkeypatch.setattr(trace, "_install_msi",
+                        lambda d: {"ok": False, "error": "download failed"})
     res = trace.provision()
     assert res["ok"] is False
-    assert "download" in res["manual"].lower()
+    assert "download.microsoft.com" in res["manual"]
 
 
 # ---------------------------------------------------------------------------

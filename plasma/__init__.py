@@ -1,5 +1,5 @@
 """Plasma — agent-based EDR bundle with a frozen neuralOS instance."""
 
-__version__ = "1.5.10"
+__version__ = "1.6.0"
 PRODUCT = "Plasma"
 SCHEMA_VERSION = 1
