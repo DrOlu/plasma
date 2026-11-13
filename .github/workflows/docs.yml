@@ -22,6 +22,7 @@ jobs:
       - run: mkdocs build --site-dir _site
       # The single-page visual overview ships alongside the docs.
       - run: cp website/index.html _site/onepager.html
+      - run: cp -r website/fonts _site/fonts
       - uses: actions/upload-pages-artifact@v3
         with: {path: _site}
   deploy:

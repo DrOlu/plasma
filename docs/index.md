@@ -1,9 +1,38 @@
-# Plasma
+<div class="raft-hero" markdown="0">
+<p class="raft-eyebrow">Windows EDR &middot; v1.7.2</p>
+<h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
+<p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
+121M on-device model, and makes every response named, journaled, and reversible.
+The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
+<div class="raft-actions">
+<a class="raft-btn primary" href="getting-started/">Get started</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.7.2</a>
+<a class="raft-btn" href="agent-native/">Agent-native operation</a>
+</div>
+<div class="raft-badges">
+<span class="raft-badge">91.7% rollup coverage</span>
+<span class="raft-badge">13 reversible actions</span>
+<span class="raft-badge">398 tests</span>
+<span class="raft-badge">Signed MSI + SHA256SUMS</span>
+</div>
+</div>
 
-**The lake-less Windows EDR.** Sensors keep everything on the endpoint, a
-small on-device model answers questions about it, and every response is
-human-gated, journaled and reversible. **No log lake. No cloud. No blind
-trust.**
+<div class="raft-grid">
+<div class="raft-card"><div class="swatch yellow">SENSORS</div><div class="body">
+<h3>Everything stays on the box</h3>
+<p>Sysmon, WHIDS gene rules, identity Event Log API, an ETW tap, persistence probes, canaries and DTrace &mdash; normalised into one strict JSONL contract.</p>
+</div></div>
+<div class="raft-card"><div class="swatch cyan">ON-DEVICE</div><div class="body">
+<h3>A 121M model that refuses</h3>
+<p>Frozen neuralOS instance picks from a closed menu of probes and says <em>unknown</em> when it is &mdash; no cloud round-trip, no hallucinated answer.</p>
+</div></div>
+<div class="raft-card"><div class="swatch pink">RESPONSE</div><div class="body">
+<h3>Reversible by construction</h3>
+<p>Plan-gated actions with single-use approvals, a hash-chained provenance ledger, a kill switch and undo for every change.</p>
+</div></div>
+</div>
+
+<div class="raft-strip">Ask one machine what happened. Get an answer it can prove.</div>
 
 ## Quick start
 

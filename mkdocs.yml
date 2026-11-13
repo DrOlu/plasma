@@ -17,23 +17,11 @@ repo_name: DrOlu/plasma
 
 theme:
   name: material
+  font: false
   palette:
-    # The two media queries make the site follow the OS preference on first
-    # visit; the sun/moon toggle still overrides it and the choice persists.
     - scheme: default
-      primary: indigo
+      primary: custom
       accent: custom
-      media: "(prefers-color-scheme: light)"
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-    - scheme: slate
-      primary: indigo
-      accent: custom
-      media: "(prefers-color-scheme: dark)"
-      toggle:
-        icon: material/brightness-4
-        name: Switch to light mode
   features:
     - search.suggest
     - search.highlight
@@ -44,26 +32,32 @@ theme:
 
 nav:
   - Home: index.md
-  - Getting started: getting-started.md
-  - Deployment (MSI/GPO): deployment.md
-  - Concepts: concepts.md
-  - Agent-native operation: agent-native.md
-  - Control plane: control-plane.md
-  - State machines: state-machines.md
-  - Compliance evidence: compliance.md
-  - Assurance: assurance.md
-  - Sensors: sensors.md
-  - Detection: detection.md
-  - Fleet: fleet.md
-  - Operations: operations.md
-  - Response: response.md
-  - DTrace tracing: trace.md
-  - Updates & signing: update-signing.md
-  - CLI reference: cli.md
-  - Security model: security-model.md
-  - Troubleshooting: troubleshooting.md
-  - FAQ: faq.md
-  - Changelog: changelog.md
+  - Start:
+      - Getting started: getting-started.md
+      - Deployment (MSI/GPO): deployment.md
+      - Concepts: concepts.md
+  - Agent:
+      - Agent-native operation: agent-native.md
+      - Control plane: control-plane.md
+      - State machines: state-machines.md
+  - Detect:
+      - Sensors: sensors.md
+      - Detection: detection.md
+      - DTrace tracing: trace.md
+  - Operate:
+      - Response: response.md
+      - Fleet: fleet.md
+      - Operations: operations.md
+      - Updates & signing: update-signing.md
+  - Trust:
+      - Compliance evidence: compliance.md
+      - Assurance: assurance.md
+      - Security model: security-model.md
+  - Reference:
+      - CLI reference: cli.md
+      - Troubleshooting: troubleshooting.md
+      - FAQ: faq.md
+      - Changelog: changelog.md
 
 markdown_extensions:
   - admonition
@@ -76,7 +70,7 @@ markdown_extensions:
       permalink: true
 
 extra_css:
-  - stylesheets/brand.css
+  - stylesheets/raft.css
 
 extra:
   social:
