@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.9 — 2026-11-13
+
+Ninth field fix: `plasma coverage` failed on every installed node.
+
+### Fixed — coverage could not find the bundled sensor payload
+- `coverage._repo_sensors()` only looked at repo-relative paths, so the
+  frozen bundle's `<_MEIPASS>/embedded/sensors` was invisible and the
+  command returned "plasma-tap-rules.json not found (repo or embedded)"
+  (WS2, live). It now resolves the frozen bundle, an explicit sensors
+  directory, and the repo.
+
+### Tests
+- 340 passed / 21 skipped.
+
 ## 1.5.8 — 2026-11-13
 
 Eighth field fix: the D scripts did not actually run on Windows DTrace.

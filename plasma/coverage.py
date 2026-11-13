@@ -57,13 +57,21 @@ _T_RE = re.compile(r"T\d{4}(?:\.\d{3})?")
 
 
 def _repo_sensors() -> Path:
-    here = Path(__file__).resolve().parent.parent
-    cand = here / "sensors"
-    if (cand / "plasma-tap-rules.json").exists():
-        return cand
-    # frozen/embedded layout
-    for base in (Path(__file__).resolve().parent, Path.cwd()):
-        cand = base / "sensors"
+    """Locate the sensor payload on a dev checkout or an installed node.
+
+    The frozen bundle keeps it at <_MEIPASS>/embedded/sensors; without that
+    candidate `plasma coverage` failed on every installed host (WS2).
+    """
+    import sys
+    candidates = []
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(Path(meipass) / "embedded" / "sensors")
+    candidates += [Path(__file__).resolve().parent.parent / "sensors",
+                   Path(__file__).resolve().parent / "sensors",
+                   Path.cwd() / "sensors",
+                   Path.cwd() / "embedded" / "sensors"]
+    for cand in candidates:
         if (cand / "plasma-tap-rules.json").exists():
             return cand
     raise FileNotFoundError("plasma-tap-rules.json not found (repo or embedded)")

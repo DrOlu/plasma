@@ -115,3 +115,16 @@ def test_missing_fidelity_defaults_to_medium(tmp_path):
     }))
     cov = coverage.coverage(sensors)
     assert cov["covered"]["T1112"]["fidelity"] == "medium"
+
+
+def test_sensors_resolve_from_frozen_bundle(tmp_path, monkeypatch):
+    """Installed nodes keep the payload at <_MEIPASS>/embedded/sensors."""
+    sensors = tmp_path / "embedded" / "sensors"
+    sensors.mkdir(parents=True)
+    (sensors / "plasma-tap-rules.json").write_text('{"rules": []}\n')
+    (sensors / "plasma-baseline.gen").write_text("")
+    monkeypatch.setattr("sys._MEIPASS", str(tmp_path), raising=False)
+    monkeypatch.chdir(tmp_path)
+    assert coverage._repo_sensors() == sensors
+    cov = coverage.coverage()
+    assert cov["core_total"] == 36

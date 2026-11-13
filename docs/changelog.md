@@ -4,6 +4,11 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.5.9 — 2026-11-13
+
+- **Coverage resolves the bundled sensors** — `plasma coverage` works on
+  installed nodes, not just in a repo checkout.
+
 ## 1.5.8 — 2026-11-13
 
 - **D scripts run on Windows DTrace** — `/* */` comments, a terminated
