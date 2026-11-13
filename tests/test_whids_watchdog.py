@@ -19,6 +19,8 @@ def _patch(monkeypatch, states):
     calls = []
     monkeypatch.setattr(whids, "_ps",
                         lambda script, timeout=60: calls.append(script) or (0, ""))
+    # never write the real watchdog log from a test
+    monkeypatch.setattr(whids, "_watchdog_log", lambda root, result: None)
     return calls
 
 
@@ -53,7 +55,9 @@ def test_ensure_reports_failure(monkeypatch):
 
 
 def test_ensure_logs_only_when_it_acts(tmp_path, monkeypatch):
+    real_log = whids._watchdog_log
     _patch(monkeypatch, ["Stopped", "Running"])
+    monkeypatch.setattr(whids, "_watchdog_log", real_log)
     whids.ensure(root=tmp_path)
     log = tmp_path / "logs" / "whids-watchdog.log"
     assert log.exists()
