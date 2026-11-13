@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.5.2 — 2026-11-13
+
+Second field fix from the v1.5.0 estate run: an existing WHIDS install must
+be **converged**, not assumed.
+
+### Fixed — stale `config.toml` survived every install
+- `whids_install_decision()` returned `already_present` when the service
+  existed, and the installer skipped the whole provisioning block. So
+  `install --force` refreshed the Plasma instance but left whatever
+  `C:\Program Files\Whids\config.toml` was on disk:
+  - WS1 had Whids' 6.7 KB default config → the service crash-looped every
+    5 s (SCM 7031 ×57) and never reached "Boot sequence completed".
+  - WS2 had a pre-1.4 Plasma config (`channels = ["all"]`, no explicit
+    channel list) and kept running it.
+- `install`/`install --force` now stages WHIDS from the bundle on every run:
+  `_whids_files_to_stage()` builds a bundle-driven target map (binary,
+  `whids.toml`, `config.toml`, IOC + baseline rules), computes drift, and
+  only restarts when something differs.
+- A healthy, already-converged sensor is left running untouched.
+- If the new config cannot start the service, the installer restores
+  `config.toml.plasma-prev` and retries once before marking the sensor
+  skipped — an upgrade never knowingly leaves a working node down.
+- Obsolete `*.bak.gen` rule backups are removed when rules are deployed
+  (Gene loads every `*.gen`, including backups).
+- `C:\Sysmon` (the configured archive directory) is created before first
+  start.
+
+### Tests
+- 325 passed / 21 skipped.
+
 ## 1.5.1 — 2026-11-13
 
 Field fixes found during the first live estate validation of 1.5.0.

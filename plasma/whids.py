@@ -505,6 +505,14 @@ def deploy_rules(src_dir, rules_db) -> list[str]:
     """
     src_dir, rules_db = Path(src_dir), Path(rules_db)
     rules_db.mkdir(parents=True, exist_ok=True)
+    # Gene loads every *.gen in the directory, including the timestamped
+    # backups left by older `push` runs. On WS1 that meant an obsolete rule
+    # set was loaded alongside the current one; drop the backups.
+    for stale in rules_db.glob("*.bak.gen"):
+        try:
+            stale.unlink()
+        except OSError:
+            pass
     copied = []
     for name in RULE_FILES:
         src = src_dir / name

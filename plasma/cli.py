@@ -70,6 +70,40 @@ def _current_platform() -> str:
     return f"{system}-{machine}"
 
 
+def _same_bytes(a: Path, b: Path) -> bool:
+    """True when both files exist and hold identical bytes."""
+    try:
+        return a.is_file() and b.is_file() and a.read_bytes() == b.read_bytes()
+    except OSError:
+        return False
+
+
+def _whids_files_to_stage(install_dir: Path, whids_dir: Path,
+                          exe_src: Path | None = None) -> dict[Path, Path]:
+    """Target -> bundled source map for one converged WHIDS install.
+
+    The map is built from the bundle, never from what is already installed,
+    so a stale config.toml or a missing baseline rule cannot survive an
+    upgrade (both were field-found on WS1/WS2 in v1.5.0).
+    """
+    wanted = {}
+    if exe_src is not None:
+        wanted[install_dir / "whids.exe"] = exe_src
+    for name in ("whids.toml", "plasma-iocs.gen", "LICENSE"):
+        src = whids_dir / name
+        if src.exists():
+            wanted[install_dir / name] = src
+    # v1.7.0 loads config.toml next to the binary.
+    if (whids_dir / "whids.toml").exists():
+        wanted[install_dir / "config.toml"] = whids_dir / "whids.toml"
+    rules_db = install_dir / "Database" / "Rules"
+    for name in whids.RULE_FILES:
+        src = whids_dir / name
+        if src.exists():
+            wanted[rules_db / name] = src
+    return wanted
+
+
 def _materialize_gzip(gz: Path, name: str) -> Path:
     """Decompress an embedded executable to a writable runtime directory.
 
@@ -588,7 +622,9 @@ def cmd_install(args) -> int:
                 args.skip_whids, sysmon_install_ok=ok)
             sysmon_present = sysmon_present or ok
             decision["sysmon_detail"] = detail
-    whids_planned = decision["decision"] == "full"
+    # A present sensor is not a converged sensor: `install --force` re-stages
+    # config and rules from the bundle instead of trusting whatever is on disk.
+    whids_planned = decision["decision"] in ("full", "already_present")
     degraded = bool(decision.get("degraded"))
     whids_hung = False
     degradation_reason = None
@@ -620,7 +656,8 @@ def cmd_install(args) -> int:
             f"point {current} -> {target}",
         ] + ([f"install Sysmon from Sysinternals (EULA accepted via -accepteula)"]
              if decision.get("sysmon") == "installed at install time (EULA accepted via -accepteula)" else [])
-          + ([f"install WHIDS from embedded payload (service '{whids.SERVICE_NAME}')"] if whids_planned else [])
+          + ([f"install or refresh WHIDS config/rules from embedded payload "
+              f"(service '{whids.SERVICE_NAME}')"] if whids_planned else [])
           + ([f"MINIMAL MODE: {decision.get('reason')}"] if degraded else []),
     }
     if args.dry_run:
@@ -677,18 +714,49 @@ def cmd_install(args) -> int:
         install_dir.mkdir(parents=True, exist_ok=True)
         exe = install_dir / "whids.exe"
         whids_exe_gz = _materialize_gzip(whids_gz, "whids.exe")
-        shutil.copy2(whids_exe_gz, exe)
-        for name in ("whids.toml", "plasma-iocs.gen", "LICENSE"):
-            src = whids_dir / name
-            if src.exists():
-                shutil.copy2(src, install_dir / name)
-        # v1.7.0 loads config.toml next to the binary
-        if (install_dir / "whids.toml").exists():
-            shutil.copy2(install_dir / "whids.toml", install_dir / "config.toml")
         rules_db = install_dir / "Database" / "Rules"
-        # baseline + IOC rules both belong in the engine's database; copying
-        # only the IOC file left live nodes loading 1-2 rules (field-found).
-        whids.deploy_rules(whids_dir, rules_db)
+
+        # What a converged install looks like, target -> bundled source.
+        # config.toml is always rewritten: a field upgrade left a stale Whids
+        # default config (crash loop) and an old compact Plasma config (wrong
+        # channels) in place on live nodes.
+        wanted = _whids_files_to_stage(install_dir, whids_dir, whids_exe_gz)
+
+        drift = [str(dst) for dst, src in wanted.items()
+                 if not _same_bytes(dst, src)]
+        was_running = _service_state_name("Whids") == "Running"
+        prev_config = install_dir / "config.toml.plasma-prev"
+        if was_running and not drift:
+            # Already converged: don't disturb a healthy sensor on reinstall.
+            pass
+        else:
+            if _service_present("Whids*"):
+                subprocess.run(
+                    ["powershell.exe", "-NoProfile", "-Command",
+                     "Stop-Service -Name 'Whids' -Force -ErrorAction SilentlyContinue"],
+                    capture_output=True, text=True, encoding="utf-8",
+                    errors="replace", timeout=60,
+                )
+                deadline = __import__("time").time() + 30
+                while (_service_state_name("Whids") == "Running"
+                       and __import__("time").time() < deadline):
+                    __import__("time").sleep(1)
+            if (install_dir / "config.toml").exists():
+                shutil.copy2(install_dir / "config.toml", prev_config)
+            for dst, src in wanted.items():
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dst)
+            # baseline + IOC rules both belong in the engine's database;
+            # copying only the IOC file left live nodes loading 1-2 rules.
+            whids.deploy_rules(whids_dir, rules_db)
+            # Directories the config points at must exist before the first
+            # cleanup/dump cycle, or the sensor logs errors it never explains.
+            for sub in ("Sysmon",):
+                (Path(os.environ.get("SystemDrive", "C:") + "\\") / sub).mkdir(
+                    parents=True, exist_ok=True)
+            for sub in ("Logs", "Dumps"):
+                (install_dir / sub).mkdir(parents=True, exist_ok=True)
+
         bin_path = f'"{exe}" -c "{install_dir}\\config.toml"'
         if not _service_present("Whids*"):
             try:
@@ -716,26 +784,48 @@ def cmd_install(args) -> int:
             print(json.dumps({"ok": False, "stage": "whids_install",
                               "error": "WHIDS service did not appear within 60s"}, indent=2))
             return 3
-        try:
-            subprocess.run(
-                ["powershell.exe", "-NoProfile", "-Command",
-                 "Start-Service -Name 'Whids' -ErrorAction Stop"],
-                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            pass
-
-        # Supervised start. WHIDS 1.7.0 can sit in StartPending forever on
-        # some Server 2022 builds (field issue). Wait boundedly; if it never
-        # reaches Running, force-stop it and record a documented MINIMAL
-        # posture instead of leaving a hung service behind.
         wait_s = int(os.environ.get("PLASMA_WHIDS_START_TIMEOUT", "60"))
-        whids_state = _service_state_name("Whids")
-        deadline = __import__("time").time() + wait_s
-        while (whids_state in ("StartPending", "Stopping", "Unknown", "")
-               and __import__("time").time() < deadline):
-            __import__("time").sleep(3)
+        if was_running and not drift:
+            whids_state = "Running"
+        else:
+            try:
+                subprocess.run(
+                    ["powershell.exe", "-NoProfile", "-Command",
+                     "Start-Service -Name 'Whids' -ErrorAction Stop"],
+                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+
+            # Supervised start. WHIDS 1.7.0 can sit in StartPending forever on
+            # some Server 2022 builds (field issue). Wait boundedly; if it
+            # never reaches Running, try the previous config once, then
+            # force-stop and record a documented MINIMAL posture.
             whids_state = _service_state_name("Whids")
+            deadline = __import__("time").time() + wait_s
+            while (whids_state in ("StartPending", "Stopping", "Unknown", "")
+                   and __import__("time").time() < deadline):
+                __import__("time").sleep(3)
+                whids_state = _service_state_name("Whids")
+            if whids_state != "Running" and prev_config.exists():
+                shutil.copy2(prev_config, install_dir / "config.toml")
+                subprocess.run(
+                    ["powershell.exe", "-NoProfile", "-Command",
+                     "Start-Service -Name 'Whids' -ErrorAction SilentlyContinue"],
+                    capture_output=True, text=True, encoding="utf-8",
+                    errors="replace", timeout=60,
+                )
+                deadline = __import__("time").time() + 30
+                whids_state = _service_state_name("Whids")
+                while (whids_state in ("StartPending", "Stopping", "Unknown", "")
+                       and __import__("time").time() < deadline):
+                    __import__("time").sleep(3)
+                    whids_state = _service_state_name("Whids")
+                if whids_state == "Running":
+                    config["sensors"]["whids"]["config_rollback"] = (
+                        "bundled config failed to start; previous config restored")
+                    config_path.write_text(json.dumps(config, indent=2) + "\n",
+                                           encoding="utf-8")
         if whids_state != "Running":
             subprocess.run(
                 ["powershell.exe", "-NoProfile", "-Command",
