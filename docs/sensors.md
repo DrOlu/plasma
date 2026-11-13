@@ -109,6 +109,30 @@ Every binary path found gets an Authenticode check (bounded, capped). An
 item is flagged `suspect` when it is **unsigned and outside `C:\Windows`**.
 That flag is evidence for a human — never an automatic action.
 
+## DTrace — the on-demand microscope
+
+The third detection layer. WHIDS and the tap are always-on and cheap;
+DTrace is surgical: a reviewed script, a bounded window, then gone. It is
+never installed silently by the installer — `plasma trace provision` is
+explicit because it changes a boot setting and needs a restart.
+
+- Reviewed scripts only (`sensors/dtrace/*.d`), validated at load time.
+- No destructive mode: `-w` is never passed and `system()` is refused.
+- Bounded: wall-clock window, row cap, process killed at the end.
+- Rows normalize to `kind: "trace"` with technique and score, so chains,
+  watch, drift and fleet consume them unchanged.
+- `tid` is emitted rather than `pid`: `pid` is not portable across the
+  DTrace builds found on Windows Server.
+
+## WHIDS watchdog
+
+WHIDS 1.7.0 can hang in `StartPending` or stop after a manual restart; SCM
+failure actions only cover crashes. The installer registers
+**PlasmaWhidsWatchdog** (SYSTEM, every two minutes) to run
+`plasma whids ensure`, which force-stops a hung service and starts it
+again. `plasma whids diagnose` reports the task and its state; actions are
+logged to `C:\ProgramData\Plasma\logs\whids-watchdog.log`.
+
 ## Sensor-of-sensors
 
 The health checks that watch the watchers:

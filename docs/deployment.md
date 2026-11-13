@@ -74,10 +74,11 @@ A node deployed by MSI runs the same `install` path as the exe, so its
    `plasma fleet pull/correlate`.
 3. Ring 2: remaining OUs. Keep `--skip-whids` transforms for hosts where
    WHIDS is known to be unstable; the node records MINIMAL mode and health
-   reports it. The installer also registers the **PlasmaWhidsWatchdog**
-   scheduled task (SYSTEM, every 2 minutes), which runs `plasma whids
-   ensure` to force-stop a hung StartPending and restart the sensor.
-   does not penalize it.
+   reports it, and the rest of the stack is unaffected. The installer also
+   registers the **PlasmaWhidsWatchdog** scheduled task (SYSTEM, every
+   2 minutes), which runs `plasma whids ensure` to force-stop a hung
+   StartPending and restart the sensor. Its actions are appended to
+   `C:\ProgramData\Plasma\logs\whids-watchdog.log`.
 
 ## Note on signing
 

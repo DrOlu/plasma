@@ -52,6 +52,28 @@ DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
 
+## What's new in 1.6.x
+
+- **Self-healing WHIDS** — `plasma whids ensure` force-stops a hung
+  `StartPending` and restarts the sensor. The installer registers
+  **PlasmaWhidsWatchdog** as a SYSTEM task that runs it every two minutes;
+  every action is logged. Crashes are already covered by SCM failure
+  actions; this covers the hang.
+- **DTrace provisioning without winget** — `trace provision` downloads the
+  official Microsoft package directly (winget is absent on Server 2022 by
+  default), enables `bcdedit /set dtrace on`, and is idempotent. Readiness
+  is capability-based: installed + enabled is ready.
+- **Trace rows are estate-consistent** — the reviewed scripts emit `tid`,
+  which works across the DTrace builds on Windows Server; `pid` is not
+  portable between them.
+- **Installer convergence** — updates re-stage the WHIDS config, rules,
+  binary and Sysmon config from the bundle, and roll back the config once
+  if a new one cannot start.
+- **Gene alerts keep their technique** — WHIDS 1.7 omits the ATTACK block;
+  Plasma maps the rule name to its technique on ingest.
+
+Prefer a visual tour? **[Open the one-page overview](https://drolu.github.io/plasma/onepager.html)**.
+
 ## What you get in 1.4.0
 
 - **Story detection** — deterministic chain rules (phish spawn, brute-force

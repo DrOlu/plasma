@@ -38,6 +38,17 @@ v1.4.0 handles it in three layers:
 3. **Diagnosis** — `plasma whids diagnose` reports service state, start
    mode, binary/config presence, channel readability, recent SCM errors and
    the tail of `whids.log`, with the likely cause stated as data.
+4. **Watchdog (1.6.0)** — the installer registers the
+   **PlasmaWhidsWatchdog** task (SYSTEM, every two minutes), which runs
+   `plasma whids ensure`. That command is a no-op while Running; for
+   `StartPending` it force-stops and starts the service (Start-Service
+   alone cannot recover the hang); for `Stopped` it starts it. Actions are
+   appended to `C:\ProgramData\Plasma\logs\whids-watchdog.log`.
+
+```powershell
+plasma whids ensure          # heal now, print what it did
+plasma whids diagnose        # includes "watchdog": {"present": true}
+```
 
 Interim posture on an affected node: identity + tap carry detection.
 
@@ -123,15 +134,27 @@ a build with the new default pin.
 ## DTrace
 
 ```powershell
-plasma trace check        # installed? enabled?
+plasma trace check        # installed? enabled? which build?
 plasma trace selftest     # compile-only check of the reviewed scripts
-plasma trace provision    # winget install + bcdedit /set dtrace on (then restart)
+plasma trace provision    # install the Microsoft package (direct download,
+                          # no winget needed) + bcdedit /set dtrace on
 ```
 
 `enabled: false` means the boot setting is off — tracing needs
-`bcdedit /set dtrace on` and a restart. If DTrace refuses to start on a
-modern host, verify virtualization-based security (VBS) is enabled; Server
-2025 ships the built-in build.
+`bcdedit /set dtrace on` and a restart. `available: false` means the
+package is missing; `provision` downloads the official MSI directly when
+winget is absent (the default on Server 2022) and reports
+`reboot_required: true`.
+
+Microsoft's current package is labelled 2.0 on the Download Center, but the
+MSI still reports ProductVersion 1.1.0 and the tool prints
+`Sun D 1.13.1`. That is expected: Plasma treats installed + enabled as
+ready rather than chasing a version string.
+
+If DTrace refuses to start on a modern host, verify virtualization-based
+security (VBS) is enabled; Server 2025 ships the built-in build. A driver
+that is loaded but exposes no providers usually needs one clean restart
+after the MSI.
 
 ## Exit codes
 

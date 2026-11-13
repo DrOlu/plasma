@@ -16,11 +16,11 @@ EDR installer.
 | Where | How to get it |
 |---|---|
 | Windows Server 2025 | built-in (`dtrace.exe`) |
-| Windows Server 2022 / Windows 10-11 | Microsoft **DTrace 2.0 MSI** (`Microsoft.DTrace`, amd64) |
+| Windows Server 2022 / Windows 10-11 | Microsoft DTrace package (`Microsoft.DTrace`, amd64) |
 
 ```powershell
-plasma trace check        # available? enabled? version?
-plasma trace provision    # install/upgrade DTrace 2.0 + bcdedit /set dtrace on
+plasma trace check        # installed? enabled? which build?
+plasma trace provision    # download/install the package + bcdedit /set dtrace on
 ```
 
 `provision` reports `reboot_required: true`; after the restart:
@@ -30,12 +30,19 @@ plasma trace check        # enabled: true
 plasma trace selftest     # compile every reviewed script with `dtrace -e`
 ```
 
-`provision` installs the official Microsoft DTrace 2.0 MSI directly when
-winget is absent (the default on Server 2022), and upgrades an older
-Sun D 1.13.1 preview in place. Plasma requires DTrace 2.x: the 1.x preview
-cannot read `pid` in probe context, so the scripts emit `tid` (estate-consistent). DTrace relies on virtualization-based
-security (VBS) on modern Windows; if tracing fails to start, verify VBS is
-enabled.
+`provision` installs the official Microsoft MSI directly when winget is
+absent (the default on Server 2022). It is idempotent: installed + enabled
+means ready, and only a missing or disabled install triggers action.
+
+Microsoft's Download Center labels the current package **2.0**, but the MSI
+still reports ProductVersion 1.1.0 and the tool prints `Sun D 1.13.1`.
+Plasma deliberately does not chase that version string — capability is what
+matters. Across the Windows Server builds in the estate, `pid` is readable
+on some and rejected with "invalid user access" on others, so the shipped
+scripts emit `tid`, which is portable and is carried in the normalized
+event description. DTrace relies on virtualization-based security (VBS) on
+modern Windows; if tracing fails to start, verify VBS is enabled and give
+the driver one clean restart after the MSI.
 
 ## Reviewed scripts
 

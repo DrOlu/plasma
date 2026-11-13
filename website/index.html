@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plasma — the lake-less Windows EDR</title>
+<meta name="description" content="Plasma is a lake-less Windows EDR: on-box sensors, a frozen on-device model, and human-gated, reversible response. No log lake. No cloud. No blind trust.">
+<style>
+/* ============================================================
+   Plasma one-page site — self-contained, no external assets.
+   ============================================================ */
+:root{
+  --bg:#05080f;
+  --bg-2:#080d18;
+  --panel:rgba(255,255,255,.035);
+  --panel-2:rgba(255,255,255,.06);
+  --line:rgba(148,163,184,.16);
+  --line-strong:rgba(148,163,184,.3);
+  --text:#e8eef8;
+  --muted:#94a3b8;
+  --dim:#64748b;
+  --cyan:#22d3ee;
+  --cyan-soft:rgba(34,211,238,.14);
+  --violet:#a78bfa;
+  --violet-soft:rgba(167,139,250,.14);
+  --amber:#fbbf24;
+  --amber-soft:rgba(251,191,36,.13);
+  --green:#34d399;
+  --green-soft:rgba(52,211,153,.12);
+  --red:#fb7185;
+  --red-soft:rgba(251,113,133,.12);
+  --mono:"SFMono-Regular",ui-monospace,"Cascadia Code","Roboto Mono",Menlo,Consolas,monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,serif;
+  --radius:18px;
+  --shadow:0 30px 80px rgba(0,0,0,.5);
+  --max:1180px;
+}
+[data-theme="light"]{
+  --bg:#f6f8fc;
+  --bg-2:#eef3fa;
+  --panel:rgba(255,255,255,.72);
+  --panel-2:rgba(255,255,255,.9);
+  --line:rgba(15,23,42,.12);
+  --line-strong:rgba(15,23,42,.24);
+  --text:#0f172a;
+  --muted:#475569;
+  --dim:#64748b;
+  --cyan:#0891b2;
+  --cyan-soft:rgba(8,145,178,.1);
+  --violet:#7c3aed;
+  --violet-soft:rgba(124,58,237,.09);
+  --amber:#b45309;
+  --amber-soft:rgba(180,83,9,.09);
+  --green:#047857;
+  --green-soft:rgba(4,120,87,.09);
+  --red:#be123c;
+  --red-soft:rgba(190,18,60,.08);
+  --shadow:0 24px 60px rgba(15,23,42,.12);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--text);
+  background:var(--bg);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-2;
+  background:
+    radial-gradient(900px 600px at 10% -10%, rgba(34,211,238,.16), transparent 60%),
+    radial-gradient(800px 600px at 95% 5%, rgba(167,139,250,.16), transparent 60%),
+    radial-gradient(700px 500px at 50% 110%, rgba(34,211,238,.07), transparent 60%),
+    var(--bg);
+}
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background-image:
+    linear-gradient(rgba(148,163,184,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148,163,184,.05) 1px, transparent 1px);
+  background-size:64px 64px;
+  mask-image:radial-gradient(circle at 50% 30%, black, transparent 78%);
+  -webkit-mask-image:radial-gradient(circle at 50% 30%, black, transparent 78%);
+}
+[data-theme="light"] .nav{
+  background:rgba(246,248,252,.88);
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+}
+[data-theme="light"] body::after{
+  background-image:
+    linear-gradient(rgba(15,23,42,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15,23,42,.045) 1px, transparent 1px);
+}
+a{color:inherit;text-decoration:none}
+img,svg{display:block;max-width:100%}
+::selection{background:rgba(34,211,238,.3);color:var(--text)}
+
+/* ---------- nav ---------- */
+.progress{position:fixed;top:0;left:0;height:2px;width:0;z-index:80;
+  background:linear-gradient(90deg,var(--cyan),var(--violet));box-shadow:0 0 12px rgba(34,211,238,.7)}
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:70;
+  display:flex;align-items:center;justify-content:space-between;gap:18px;
+  padding:14px clamp(16px,4vw,40px);
+  background:rgba(5,8,15,.78);
+  background:color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.02em}
+.brand .mark{
+  width:30px;height:30px;border-radius:9px;position:relative;
+  background:conic-gradient(from 210deg, var(--cyan), var(--violet), var(--cyan));
+  box-shadow:0 0 22px rgba(34,211,238,.45);
+}
+.brand .mark::after{
+  content:"";position:absolute;inset:5px;border-radius:5px;background:var(--bg);
+}
+.brand em{font-style:normal;color:var(--muted);font-weight:500;font-size:12px;letter-spacing:.16em;text-transform:uppercase}
+.nav-links{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.nav-links a{
+  font-size:13px;color:var(--muted);padding:7px 10px;border-radius:9px;
+  transition:color .2s, background .2s;
+}
+.nav-links a:hover,.nav-links a.active{color:var(--text);background:var(--panel-2)}
+.nav-actions{display:flex;align-items:center;gap:8px}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 16px;border-radius:11px;font-size:13.5px;font-weight:600;
+  border:1px solid var(--line-strong);color:var(--text);background:var(--panel);
+  transition:transform .2s, border-color .2s, background .2s;
+  cursor:pointer;
+}
+.btn:hover{transform:translateY(-1px);border-color:var(--cyan);background:var(--panel-2)}
+.btn.primary{
+  background:linear-gradient(135deg,var(--cyan),var(--violet));
+  color:#04121a;border-color:transparent;box-shadow:0 12px 30px rgba(34,211,238,.25);
+}
+[data-theme="light"] .btn.primary{color:#fff}
+.btn.ghost{background:transparent}
+.icon-btn{
+  width:38px;height:38px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel);color:var(--muted);display:grid;place-items:center;cursor:pointer;
+}
+.icon-btn:hover{color:var(--text);border-color:var(--line-strong)}
+.menu-btn{display:none}
+
+/* ---------- layout ---------- */
+.wrap{max-width:var(--max);margin:0 auto;padding:0 clamp(18px,4vw,32px)}
+section{padding:clamp(64px,9vw,116px) 0;position:relative}
+.kicker{
+  display:inline-flex;align-items:center;gap:10px;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--cyan);margin:0 0 14px;
+}
+.kicker::before{content:"";width:26px;height:1px;background:var(--cyan);opacity:.7}
+h1,h2,h3{font-family:var(--serif);font-weight:600;letter-spacing:-.015em;line-height:1.12;margin:0}
+h1{font-size:clamp(40px,6vw,68px)}
+h2{font-size:clamp(30px,4.2vw,48px)}
+h3{font-size:20px;font-family:var(--sans);font-weight:650;letter-spacing:-.01em}
+.lede{color:var(--muted);font-size:clamp(16px,1.4vw,18.5px);max-width:64ch;margin:16px 0 0}
+.section-head{max-width:780px;margin-bottom:clamp(34px,5vw,54px)}
+.section-head p{margin-bottom:0}
+
+/* ---------- hero ---------- */
+.hero{padding-top:clamp(120px,16vw,180px);padding-bottom:clamp(40px,6vw,70px)}
+.hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(28px,5vw,60px);align-items:center}
+.hero .eyebrow{
+  display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11.5px;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+  border:1px solid var(--line);border-radius:999px;padding:7px 12px;margin-bottom:22px;
+  background:var(--panel);
+}
+.hero .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green)}
+.hero h1 span{
+  background:linear-gradient(115deg,var(--cyan) 0%,#7dd3fc 30%,var(--violet) 72%,#f0abfc 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero .sub{font-size:clamp(17px,1.6vw,20px);color:var(--muted);max-width:56ch;margin:22px 0 28px}
+.hero-cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.hero-badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+.badge{
+  font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--muted);
+  border:1px solid var(--line);border-radius:8px;padding:5px 9px;background:var(--panel);
+}
+.badge b{color:var(--text);font-weight:600}
+
+.radar{position:relative;aspect-ratio:1/1;max-width:520px;margin:0 auto;width:100%}
+.radar svg{width:100%;height:100%;overflow:visible}
+.radar .ring{fill:none;stroke:var(--line-strong);stroke-width:1}
+.radar .ring.dash{stroke-dasharray:3 7;opacity:.6}
+.radar .sweep{transform-origin:260px 260px;animation:sweep 9s linear infinite}
+.radar .node{fill:var(--cyan);filter:drop-shadow(0 0 6px rgba(34,211,238,.9))}
+.radar .node.v{fill:var(--violet);filter:drop-shadow(0 0 6px rgba(167,139,250,.9))}
+.radar .node.a{fill:var(--amber);filter:drop-shadow(0 0 6px rgba(251,191,36,.9))}
+.radar text{font-family:var(--mono);font-size:11px;fill:var(--muted);letter-spacing:.05em}
+.radar .core-disc{fill:var(--bg)}
+.radar .core-label{font-family:var(--sans);font-size:12px;font-weight:650;fill:var(--text);letter-spacing:.02em}
+.radar .core-sub{font-family:var(--mono);font-size:9.5px;fill:var(--dim);letter-spacing:.08em}
+.radar .pulse{animation:pulse 3.2s ease-in-out infinite}
+.radar .pulse.d1{animation-delay:.6s}
+.radar .pulse.d2{animation-delay:1.2s}
+.radar .pulse.d3{animation-delay:1.8s}
+@keyframes sweep{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:.35;transform:scale(.94)}50%{opacity:1;transform:scale(1.08)}}
+@keyframes dashmove{to{stroke-dashoffset:-40}}
+.flow-line{stroke:var(--line-strong);stroke-width:1.5;fill:none;stroke-dasharray:6 6;animation:dashmove 2.2s linear infinite}
+
+/* ---------- stat band ---------- */
+.stats{
+  display:grid;grid-template-columns:repeat(6,1fr);gap:1px;
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  background:var(--line);
+}
+.stat{background:var(--bg-2);padding:20px 18px}
+.stat .num{font-family:var(--serif);font-size:clamp(26px,2.6vw,36px);line-height:1;letter-spacing:-.02em}
+.stat .num small{font-size:.5em;color:var(--muted);margin-left:2px}
+.stat .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-top:8px}
+
+/* ---------- cards ---------- */
+.grid{display:grid;gap:18px}
+.grid > *{min-width:0}
+.grid.c3{grid-template-columns:repeat(3,1fr)}
+.grid.c2{grid-template-columns:repeat(2,1fr)}
+.grid.c4{grid-template-columns:repeat(4,1fr)}
+.span-2{grid-column:span 2}
+.card{
+  position:relative;border:1px solid var(--line);border-radius:var(--radius);
+  background:var(--panel);padding:24px;overflow:hidden;
+  transition:transform .25s, border-color .25s, background .25s;
+}
+.card:hover{transform:translateY(-3px);border-color:var(--line-strong);background:var(--panel-2)}
+.card::before{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:0;
+  background:radial-gradient(400px 180px at 20% 0%, var(--cyan-soft), transparent 70%);
+  transition:opacity .25s;
+}
+.card:hover::before{opacity:1}
+.card .ico{
+  width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+  background:var(--panel-2);border:1px solid var(--line);margin-bottom:16px;color:var(--cyan);
+}
+.card.violet .ico{color:var(--violet);background:var(--violet-soft)}
+.card.amber .ico{color:var(--amber);background:var(--amber-soft)}
+.card.green .ico{color:var(--green);background:var(--green-soft)}
+.card.red .ico{color:var(--red);background:var(--red-soft)}
+.card h3{margin-bottom:8px}
+.card p{margin:0;color:var(--muted);font-size:14.5px}
+.card .tagrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.03em;color:var(--muted);
+  border:1px solid var(--line);border-radius:6px;padding:3px 7px}
+.card .mini{margin-top:14px;font-family:var(--mono);font-size:11px;color:var(--dim)}
+
+/* ---------- pipeline ---------- */
+.pipeline{
+  display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;
+  gap:10px;align-items:stretch;
+}
+.stage{
+  border:1px solid var(--line);border-radius:16px;background:var(--panel);
+  padding:18px;position:relative;min-height:172px;
+}
+.stage .n{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.14em}
+.stage h4{font-size:15px;margin:8px 0 6px;font-weight:650}
+.stage p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+.stage .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:12px}
+.stage .chips span{font-family:var(--mono);font-size:9.5px;border:1px solid var(--line);
+  border-radius:5px;padding:2px 5px;color:var(--dim)}
+.arrow{display:grid;place-items:center;color:var(--cyan);font-family:var(--mono);font-size:18px;opacity:.8}
+.pipe-note{
+  margin-top:18px;border:1px dashed var(--line-strong);border-radius:14px;padding:14px 16px;
+  color:var(--muted);font-size:13.5px;background:var(--panel);
+}
+.pipe-note code{color:var(--cyan)}
+
+/* ---------- code / terminal ---------- */
+.term{
+  min-width:0;
+  border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#070c16;
+  box-shadow:var(--shadow);
+}
+[data-theme="light"] .term{background:#0b1220}
+.term-bar{
+  display:flex;align-items:center;gap:7px;padding:10px 14px;
+  border-bottom:1px solid rgba(148,163,184,.16);background:rgba(255,255,255,.03);
+}
+.term-bar i{width:10px;height:10px;border-radius:50%;background:#334155;display:block}
+.term-bar i:nth-child(1){background:#fb7185}
+.term-bar i:nth-child(2){background:#fbbf24}
+.term-bar i:nth-child(3){background:#34d399}
+.term-bar .path{font-family:var(--mono);font-size:11px;color:#94a3b8;margin-left:6px}
+.term-bar .copy{
+  margin-left:auto;font-family:var(--mono);font-size:10.5px;color:#94a3b8;
+  background:transparent;border:1px solid rgba(148,163,184,.25);border-radius:6px;
+  padding:4px 8px;cursor:pointer;
+}
+.term-bar .copy:hover{color:#e2e8f0;border-color:rgba(148,163,184,.5)}
+.term pre{margin:0;padding:18px 18px 20px;overflow:auto;font-family:var(--mono);
+  font-size:13px;line-height:1.75;color:#dbeafe}
+.term .c{color:#64748b}
+.term .g{color:#34d399}
+.term .y{color:#fbbf24}
+.term .b{color:#67e8f9}
+.term .v{color:#c4b5fd}
+.term .r{color:#fb7185}
+
+/* ---------- score meter ---------- */
+.meter-card{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);padding:26px}
+.meter-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.meter-head .score{font-family:var(--serif);font-size:44px;line-height:1}
+.meter-head .score small{font-size:16px;color:var(--muted);font-family:var(--mono)}
+.meter{position:relative;height:16px;border-radius:99px;margin:22px 0 8px;overflow:hidden;
+  background:linear-gradient(90deg,rgba(52,211,153,.25),rgba(251,191,36,.25),rgba(251,113,133,.28))}
+.meter .fill{position:absolute;inset:0;width:80%;
+  background:linear-gradient(90deg,var(--green),var(--amber) 55%,var(--red));
+  border-radius:99px;box-shadow:0 0 22px rgba(251,191,36,.35)}
+.meter .knob{position:absolute;top:50%;left:80%;width:22px;height:22px;border-radius:50%;
+  transform:translate(-50%,-50%);background:var(--text);border:4px solid var(--bg);
+  box-shadow:0 0 0 1px var(--line-strong),0 0 18px rgba(255,255,255,.25)}
+.meter-scale{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+.verdicts{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.verdict{font-family:var(--mono);font-size:11px;padding:6px 10px;border-radius:999px;border:1px solid var(--line)}
+.verdict.clean{color:var(--green);border-color:rgba(52,211,153,.35);background:var(--green-soft)}
+.verdict.inv{color:var(--amber);border-color:rgba(251,191,36,.35);background:var(--amber-soft)}
+.verdict.act{color:var(--red);border-color:rgba(251,113,133,.35);background:var(--red-soft)}
+.score-notes{display:grid;gap:7px;margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.score-notes div{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;color:var(--muted)}
+.score-notes b{font-family:var(--mono);font-size:11.5px;color:var(--text);font-weight:600}
+
+/* ---------- chain cards ---------- */
+.chain{border:1px solid var(--line);border-radius:14px;padding:18px;background:var(--panel)}
+.chain .ct{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.chain .ct b{color:var(--red);font-size:13px}
+.chain h4{margin:10px 0 14px;font-size:15px}
+.steps{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.steps span{font-family:var(--mono);font-size:10.5px;border:1px solid var(--line);border-radius:6px;
+  padding:4px 7px;color:var(--muted);background:var(--panel-2)}
+.steps em{color:var(--cyan);font-style:normal}
+
+/* ---------- coverage ---------- */
+.cov{display:grid;grid-template-columns:.9fr 1.1fr;gap:34px;align-items:center}
+.donut{position:relative;max-width:340px;margin:0 auto}
+.donut svg{width:100%;height:auto}
+.donut .trk{fill:none;stroke:var(--line);stroke-width:16}
+.donut .val{fill:none;stroke:var(--cyan);stroke-width:16;stroke-linecap:round}
+.donut .trk2{fill:none;stroke:var(--line);stroke-width:10}
+.donut .val2{fill:none;stroke:var(--violet);stroke-width:10;stroke-linecap:round}
+.donut .center{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.donut .center b{font-family:var(--serif);font-size:52px;line-height:1;letter-spacing:-.03em}
+.donut .center span{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.legend{display:grid;gap:12px;margin-top:22px}
+.legend .row{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--muted)}
+.legend .sw{width:10px;height:10px;border-radius:3px}
+.bars{display:grid;gap:16px}
+.bar-row .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px}
+.bar-row .top b{font-family:var(--mono);font-size:12.5px;color:var(--text)}
+.track{height:9px;border-radius:99px;background:var(--panel-2);overflow:hidden;border:1px solid var(--line)}
+.track i{display:block;height:100%;border-radius:99px}
+.blind{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+.blind span{font-family:var(--mono);font-size:11px;color:var(--red);border:1px solid rgba(251,113,133,.3);
+  background:var(--red-soft);border-radius:6px;padding:4px 8px}
+
+/* ---------- response ---------- */
+.response-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;counter-reset:step}
+.rstep{border:1px solid var(--line);border-radius:14px;padding:18px;background:var(--panel);position:relative}
+.rstep::before{counter-increment:step;content:"0" counter(step);
+  font-family:var(--mono);font-size:11px;color:var(--cyan);letter-spacing:.12em}
+.rstep h4{margin:8px 0 6px;font-size:15px}
+.rstep p{margin:0;font-size:13px;color:var(--muted)}
+.rstep .gate{margin-top:12px;font-family:var(--mono);font-size:10.5px;color:var(--amber)}
+.actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:20px}
+.actions span{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);
+  border-radius:6px;padding:4px 8px;background:var(--panel)}
+.actions span.keep{color:var(--green);border-color:rgba(52,211,153,.3);background:var(--green-soft)}
+
+/* ---------- fleet ---------- */
+.fleet{display:grid;grid-template-columns:1fr 1.2fr;gap:30px;align-items:center}
+.fleet > *{min-width:0}
+.fleet-diagram{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);padding:18px;min-width:0}
+.host{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;background:var(--bg-2);margin:8px 0}
+.host .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
+.host .name{font-family:var(--mono);font-size:12px}
+.host .meta{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--dim)}
+.desk{border:1px solid rgba(34,211,238,.35);border-radius:12px;padding:12px;background:var(--cyan-soft);
+  text-align:center;margin-top:12px}
+.desk b{display:block;font-size:13px}
+.desk span{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.findings{display:grid;gap:8px;margin-top:12px}
+.finding{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);
+  border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg-2)}
+.finding b{font-family:var(--mono);font-size:11px;color:var(--amber)}
+
+/* ---------- deploy stepper ---------- */
+.steps4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.dstep{border:1px solid var(--line);border-radius:14px;padding:18px;background:var(--panel)}
+.dstep .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--cyan)}
+.dstep h4{margin:8px 0 6px;font-size:15px}
+.dstep p{margin:0;font-size:13px;color:var(--muted)}
+.dstep code{font-family:var(--mono);font-size:11px;color:var(--cyan)}
+
+/* ---------- principle grid ---------- */
+.principles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.pr{border:1px solid var(--line);border-radius:14px;padding:18px;background:var(--panel)}
+.pr h4{margin:0 0 6px;font-size:14.5px}
+.pr p{margin:0;font-size:13px;color:var(--muted)}
+.pr .n{font-family:var(--mono);font-size:10.5px;color:var(--violet);letter-spacing:.12em}
+
+/* ---------- FAQ ---------- */
+.faq{display:grid;gap:10px;max-width:900px}
+details{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:0 18px}
+details summary{cursor:pointer;padding:16px 0;font-weight:600;font-size:15px;list-style:none;
+  display:flex;justify-content:space-between;gap:14px;align-items:center}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+";font-family:var(--mono);color:var(--cyan);font-size:18px}
+details[open] summary::after{content:"–"}
+details p{margin:0 0 16px;color:var(--muted);font-size:14px;max-width:80ch}
+
+/* ---------- footer ---------- */
+footer{border-top:1px solid var(--line);padding:44px 0 60px;color:var(--muted);font-size:13px}
+.foot{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.foot a{color:var(--muted)}
+.foot a:hover{color:var(--text)}
+.foot .fine{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:18px;line-height:1.8}
+
+/* ---------- reveal (progressive: visible without JS) ---------- */
+.js .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s ease, transform .7s ease}
+.js .reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+  .js .reveal{opacity:1;transform:none}
+}
+@media print{
+  .js .reveal{opacity:1!important;transform:none!important}
+  .nav,.progress{display:none}
+}
+
+/* ---------- responsive ---------- */
+@media (max-width:1000px){
+  .span-2{grid-column:auto}
+  .hero-grid{grid-template-columns:1fr}
+  .radar{max-width:440px;order:-1}
+  .stats{grid-template-columns:repeat(3,1fr)}
+  .pipeline{grid-template-columns:1fr;gap:8px}
+  .arrow{transform:rotate(90deg);padding:2px 0}
+  .cov,.fleet{grid-template-columns:1fr}
+  .grid.c3,.grid.c4,.principles,.steps4,.response-flow{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:760px){
+  .nav-links{display:none}
+  .nav-links.open{
+    display:flex;position:absolute;top:100%;left:0;right:0;flex-direction:column;align-items:stretch;
+    padding:10px 16px 16px;background:var(--bg-2);border-bottom:1px solid var(--line);
+  }
+  .nav-links.open a{padding:11px 12px}
+  .menu-btn{display:grid}
+  .grid.c3,.grid.c4,.grid.c2,.principles,.steps4,.response-flow{grid-template-columns:1fr}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .hero-cta .btn{width:100%;justify-content:center}
+  .meter-head .score{font-size:36px}
+}
+@media (max-width:440px){
+  .stats{grid-template-columns:1fr}
+  .brand em{display:none}
+}
+</style>
+<script>document.documentElement.classList.add("js");</script>
+</head>
+<body>
+<div class="progress" id="progress" aria-hidden="true"></div>
+
+<header class="nav">
+  <a class="brand" href="#top" aria-label="Plasma home">
+    <span class="mark" aria-hidden="true"></span>
+    <span>PLASMA <em>v1.6.2</em></span>
+  </a>
+  <nav class="nav-links" id="navLinks" aria-label="Sections">
+    <a href="#architecture">Architecture</a>
+    <a href="#sensors">Sensors</a>
+    <a href="#detection">Detection</a>
+    <a href="#response">Response</a>
+    <a href="#fleet">Fleet</a>
+    <a href="#deploy">Deploy</a>
+    <a href="#dtrace">DTrace</a>
+    <a href="#cli">CLI</a>
+    <a href="#security">Security</a>
+  </nav>
+  <div class="nav-actions">
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="Toggle colour theme" title="Toggle theme">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+    </button>
+    <a class="btn ghost" href="https://github.com/DrOlu/plasma" target="_blank" rel="noopener">GitHub</a>
+    <a class="btn primary" href="https://drolu.github.io/plasma/">Docs</a>
+    <button class="icon-btn menu-btn" id="menuBtn" type="button" aria-label="Open menu" aria-expanded="false">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow"><span class="dot"></span> Windows EDR · on-device · v1.6.2</span>
+      <h1>See the whole machine.<br><span>Trust none of it blindly.</span></h1>
+      <p class="sub">
+        Plasma is a <strong>lake-less Windows EDR</strong>: on-box sensors normalize into one local
+        event contract, a frozen 121M on-device model answers questions about it, and every response
+        is human-gated, journaled and reversible.
+      </p>
+      <div class="hero-cta">
+        <a class="btn primary" href="https://drolu.github.io/plasma/">
+          Read the documentation
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="btn" href="https://github.com/DrOlu/plasma/releases/latest" target="_blank" rel="noopener">Download the signed release</a>
+      </div>
+      <div class="hero-badges">
+        <span class="badge"><b>0</b> standing cloud calls</span>
+        <span class="badge"><b>16</b> gene rules</span>
+        <span class="badge"><b>36</b> ATT&CK techniques mapped</span>
+        <span class="badge"><b>1</b> self-contained exe</span>
+      </div>
+    </div>
+
+    <div class="radar" aria-hidden="true">
+      <svg viewBox="0 0 520 520" role="img">
+        <defs>
+          <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#22d3ee" stop-opacity=".35"/>
+            <stop offset="70%" stop-color="#22d3ee" stop-opacity=".05"/>
+            <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="sweepGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#22d3ee" stop-opacity=".55"/>
+            <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="beam" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#a78bfa" stop-opacity=".45"/>
+            <stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <circle cx="260" cy="260" r="238" fill="url(#coreGlow)"/>
+        <circle class="ring" cx="260" cy="260" r="238"/>
+        <circle class="ring dash" cx="260" cy="260" r="196"/>
+        <circle class="ring" cx="260" cy="260" r="150"/>
+        <circle class="ring dash" cx="260" cy="260" r="104"/>
+        <circle class="ring" cx="260" cy="260" r="58"/>
+
+        <g class="sweep">
+          <path d="M260 260 L260 22 A238 238 0 0 1 430 90 Z" fill="url(#sweepGrad)"/>
+          <path d="M260 260 L260 22" stroke="#22d3ee" stroke-opacity=".7" stroke-width="1"/>
+        </g>
+
+        <g class="pulse">
+          <circle cx="260" cy="260" r="88" fill="none" stroke="#22d3ee" stroke-opacity=".25"/>
+        </g>
+        <g class="pulse d1">
+          <circle cx="260" cy="260" r="122" fill="none" stroke="#a78bfa" stroke-opacity=".2"/>
+        </g>
+        <g class="pulse d2">
+          <circle cx="260" cy="260" r="162" fill="none" stroke="#22d3ee" stroke-opacity=".14"/>
+        </g>
+
+        <!-- sensor nodes -->
+        <circle class="node" cx="260" cy="150" r="4"/>
+        <text x="274" y="148">Sysmon</text>
+
+        <circle class="node v" cx="368" cy="210" r="4"/>
+        <text x="382" y="208">WHIDS</text>
+
+        <circle class="node a" cx="380" cy="322" r="4"/>
+        <text x="394" y="320">Identity</text>
+
+        <circle class="node" cx="300" cy="398" r="4"/>
+        <text x="314" y="396">ETW tap</text>
+
+        <circle class="node v" cx="190" cy="380" r="4"/>
+        <text x="204" y="378">Canary</text>
+
+        <circle class="node a" cx="132" cy="286" r="4"/>
+        <text x="146" y="284">DTrace</text>
+
+        <circle class="node" cx="170" cy="178" r="4"/>
+        <text x="184" y="176">Persistence</text>
+
+        <!-- center core -->
+        <circle class="core-disc" cx="260" cy="260" r="46" stroke="#22d3ee" stroke-opacity=".45" stroke-width="1.2"/>
+        <circle cx="260" cy="260" r="46" fill="none" stroke="#22d3ee" stroke-opacity=".18" stroke-width="8"/>
+        <text class="core-label" x="260" y="255" text-anchor="middle">events.jsonl</text>
+        <text class="core-sub" x="260" y="271" text-anchor="middle">ONE CONTRACT</text>
+
+        <!-- rays -->
+        <g stroke="#22d3ee" stroke-opacity=".18">
+          <path d="M260 214 L260 154"/><path d="M302 238 L364 214"/>
+          <path d="M304 283 L374 318"/><path d="M292 296 L300 392"/>
+          <path d="M228 296 L192 374"/><path d="M216 283 L138 288"/>
+          <path d="M218 238 L176 184"/>
+        </g>
+
+        <text x="260" y="500" text-anchor="middle" fill="#64748b">on the box · bounded · pull-only</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="stats reveal">
+      <div class="stat"><div class="num"><span data-count="91.7" data-dec="1">0</span><small>%</small></div><div class="lbl">ATT&CK rollup coverage</div></div>
+      <div class="stat"><div class="num"><span data-count="75">0</span><small>%</small></div><div class="lbl">exact-technique coverage</div></div>
+      <div class="stat"><div class="num"><span data-count="13">0</span></div><div class="lbl">reversible actions</div></div>
+      <div class="stat"><div class="num"><span data-count="10">0</span></div><div class="lbl">frozen probes</div></div>
+      <div class="stat"><div class="num"><span data-count="3">0</span></div><div class="lbl">DTrace scripts</div></div>
+      <div class="stat"><div class="num"><span data-count="350">0</span></div><div class="lbl">tests passing</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section id="problem">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">The problem</span>
+      <h2>EDR shouldn’t be able to lock you out.</h2>
+      <p class="lede">Three assumptions in conventional EDR and SIEM create cost, opacity and risk. Plasma inverts each one.</p>
+    </div>
+    <div class="grid c3">
+      <article class="card reveal">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 7c0 1.7 3.6 3 8 3s8-1.3 8-3-3.6-3-8-3-8 1.3-8 3Z"/><path d="M4 7v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
+        <h3>The lake problem</h3>
+        <p>Stream every event to a central lake and you pay for storage, latency and privacy — then hope the pipeline never drops the one event that mattered.</p>
+        <div class="tagrow"><span class="tag">cost</span><span class="tag">latency</span><span class="tag">data gravity</span></div>
+      </article>
+      <article class="card violet reveal">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3 2"/><path d="M17 3h4v4"/><path d="M21 3l-5 5"/></svg></div>
+        <h3>The trust problem</h3>
+        <p>A cloud model decides what is suspicious. You cannot read its menu, reproduce its selection, or verify it did not hallucinate an answer.</p>
+        <div class="tagrow"><span class="tag">opaque</span><span class="tag">unreproducible</span></div>
+      </article>
+      <article class="card red reveal">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3 4 22h16L12 3Z"/><path d="M12 10v4"/><circle cx="12" cy="18" r=".6" fill="currentColor"/></svg></div>
+        <h3>The response problem</h3>
+        <p>A vendor action fires and you cannot see the plan, the payload, or the undo. An EDR that removes remote access can take the estate down with it.</p>
+        <div class="tagrow"><span class="tag">irreversible</span><span class="tag">opaque</span></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Architecture</span>
+      <h2>Four planes. One contract.</h2>
+      <p class="lede">Sensors collect locally. A strict JSONL contract is the only seam. A frozen model selects from a closed menu. The desk pulls answers — there is no standing server.</p>
+    </div>
+
+    <div class="pipeline reveal">
+      <div class="stage">
+        <div class="n">01 · SENSORS</div>
+        <h4>Collect</h4>
+        <p>Sysmon, WHIDS gene rules, identity logon events, an ETW tap, deep persistence, canaries and DTrace.</p>
+        <div class="chips"><span>sysmon</span><span>whids</span><span>security log</span><span>etw</span><span>canary</span><span>dtrace</span></div>
+      </div>
+      <div class="arrow" aria-hidden="true">›</div>
+      <div class="stage">
+        <div class="n">02 · CONTRACT</div>
+        <h4>Normalize</h4>
+        <p>One local <code>events.jsonl</code>: UTC timestamp, host, source, kind, score 0–1, technique, evidence.</p>
+        <div class="chips"><span>strict</span><span>deduped</span><span>UTC</span><span>bounded</span></div>
+      </div>
+      <div class="arrow" aria-hidden="true">›</div>
+      <div class="stage">
+        <div class="n">03 · ON-DEVICE BRAIN</div>
+        <h4>Answer</h4>
+        <p>A frozen neuralOS instance with 10 probes. The model selects a probe; it never decides guilt and never runs commands.</p>
+        <div class="chips"><span>121M params</span><span>2-bit</span><span>refuse-if-unknown</span></div>
+      </div>
+      <div class="arrow" aria-hidden="true">›</div>
+      <div class="stage">
+        <div class="n">04 · DESK</div>
+        <h4>Act</h4>
+        <p>Pull-based questions, drift, chains, coverage, fleet and plan-gated response. No inbound service on the host.</p>
+        <div class="chips"><span>winrm</span><span>case files</span><span>dry-run first</span></div>
+      </div>
+    </div>
+
+    <div class="pipe-note reveal">
+      <strong>The seam is deliberately narrow.</strong> Every sensor writes the same contract, so a new collector never changes the model or the CLI. A trace row, an alert and a logon event are consumed by the same chain and fleet code. <code>kind</code> is the only routing key.
+    </div>
+  </div>
+</section>
+
+<!-- SENSORS -->
+<section id="sensors">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Sensors</span>
+      <h2>Eyes on the machine, not on the wire.</h2>
+      <p class="lede">Seven collectors, each bounded and each honest about what it can see. None of them ships your diary anywhere.</p>
+    </div>
+
+    <div class="grid c3">
+      <article class="card reveal">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 20h10M12 18v2"/><path d="M7 9h6M7 13h10"/></svg></div>
+        <h3>Sysmon</h3>
+        <p>The kernel flight recorder: process, network, file, DNS, registry. The baseline config enables FileDelete for executable artifacts and keeps volume bounded.</p>
+        <div class="tagrow"><span class="tag">Event IDs 1/3/11/22/23/26</span><span class="tag">no custom driver</span></div>
+      </article>
+
+      <article class="card violet reveal">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 5h16M4 12h10M4 19h7"/><circle cx="18" cy="12" r="2"/><circle cx="14" cy="19" r="2"/></svg></div>
+        <h3>WHIDS gene rules</h3>
+        <p>15 written baseline rules plus the IOC feed — 16 loaded on a converged node. Detect-only: every action band is set to report, never kill or block.</p>
+        <div class="tagrow"><span class="tag">T1059</span><span class="tag">T1003</span><span class="tag">T1070.004</span><span class="tag">T1547.001</span></div>
+      </article>
+
+      <article class="card amber reveal">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.2"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/><path d="M17 4h4v4"/><path d="M21 4l-4 4"/></svg></div>
+        <h3>Identity plane</h3>
+        <p>4624 / 4625 logon events through the Event Log API. UTC-normalized, deduplicated, and joined across hosts by the desk when you ask.</p>
+        <div class="tagrow"><span class="tag">logon type</span><span class="tag">source IP</span><span class="tag">cross-host</span></div>
+      </article>
+
+      <article class="card reveal">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></div>
+        <h3>ETW tap</h3>
+        <p>An on-demand krabsetw window over providers Sysmon does not cover: PowerShell, WMI, DNS, .NET, Schannel. Matches-only, bounded, then gone.</p>
+        <div class="tagrow"><span class="tag">providers</span><span class="tag">--for window</span><span class="tag">row cap</span></div>
+      </article>
+
+      <article class="card green reveal">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3v18"/><path d="M5 8h14"/><path d="M5 16h14"/><circle cx="12" cy="8" r="2"/><circle cx="12" cy="16" r="2"/></svg></div>
+        <h3>Deep persistence</h3>
+        <p>One bounded pass over every auto-start location — Run keys, services, tasks, IFEO, Winlogon, WMI — with Authenticode status and a surfaced suspect heuristic.</p>
+        <div class="tagrow"><span class="tag">unsigned + outside Windows</span><span class="tag">evidence, not action</span></div>
+      </article>
+
+      <article class="card red reveal">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M9 8h6M9 12h6M9 16h4"/><path d="M3 7v14h3"/></svg></div>
+        <h3>Canary files</h3>
+        <p>Six decoy documents placed where ransomware looks first. A missing or modified decoy is a score-10 impact finding, verified on every watch sweep.</p>
+        <div class="tagrow"><span class="tag">T1486</span><span class="tag">score 10</span><span class="tag">watch</span></div>
+      </article>
+
+      <article class="card violet reveal span-2">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v4M12 16v4M4 12h4M16 12h4"/><circle cx="12" cy="12" r="2"/></svg></div>
+        <h3>DTrace — the surgical layer</h3>
+        <p>Reviewed D scripts for syscall errors, process creation and kernel-process ETW. Bounded by a wall-clock window and a row cap; the process is killed at the end. No <code>-w</code>, no <code>system()</code>, no persistence.</p>
+        <div class="tagrow"><span class="tag">T1106</span><span class="tag">T1059</span><span class="tag">T1057</span><span class="tag">3 scripts</span><span class="tag">tid</span></div>
+      </article>
+
+      <article class="card reveal">
+        <div class="ico"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 3 4 7v6c0 5 3.4 7.6 8 8 4.6-.4 8-3 8-8V7l-8-4Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <h3>Watchdog</h3>
+        <p>SCM failure actions restart a crashed WHIDS; a hung <code>StartPending</code> needs more. A SYSTEM task runs <code>whids ensure</code> every two minutes and logs every action.</p>
+        <div class="tagrow"><span class="tag">PlasmaWhidsWatchdog</span><span class="tag">self-healing</span></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- DETECTION -->
+<section id="detection">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Detection</span>
+      <h2>Written suspicion, not a black box.</h2>
+      <p class="lede">Rules and chains are deterministic. The model selects probes; it never decides guilt. Every finding carries a score you can argue with.</p>
+    </div>
+
+    <div class="grid c2 reveal" style="align-items:start">
+      <div class="meter-card">
+        <div class="meter-head">
+          <div>
+            <div class="score">8<small>/10</small></div>
+            <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--dim);margin-top:6px">CHAIN · BRUTE FORCE SUCCESS</div>
+          </div>
+          <span class="verdict act">act now</span>
+        </div>
+        <div class="meter" role="img" aria-label="Finding score 8 out of 10">
+          <div class="fill"></div><div class="knob"></div>
+        </div>
+        <div class="meter-scale"><span>0 · clean</span><span>5 · investigate</span><span>10 · act now</span></div>
+        <div class="verdicts">
+          <span class="verdict clean">clean</span>
+          <span class="verdict inv">investigate</span>
+          <span class="verdict act">act now</span>
+        </div>
+        <p style="color:var(--muted);font-size:13.5px;margin:16px 0 0">
+          Scores are assigned at the finding layer. Raw rows stay 0–1, gene criticality is multiplied by ten,
+          and watch uses the loudest finding to pick its verdict.
+        </p>
+        <div class="score-notes">
+          <div><span>gene criticality</span><b>×10</b></div>
+          <div><span>trace row score</span><b>×10</b></div>
+          <div><span>canary trip</span><b>10</b></div>
+          <div><span>chain</span><b>weighted steps</b></div>
+        </div>
+      </div>
+
+      <div class="grid" style="gap:12px">
+        <div class="chain">
+          <div class="ct"><span>CHAIN 01</span><b>9 / 10</b></div>
+          <h4>Phish spawn chain</h4>
+          <div class="steps"><span>mail client</span><em>›</em><span>browser / archive</span><em>›</em><span>shell child</span><em>›</em><span>network</span></div>
+        </div>
+        <div class="chain">
+          <div class="ct"><span>CHAIN 02</span><b>8 / 10</b></div>
+          <h4>Brute force → success</h4>
+          <div class="steps"><span>repeated 4625</span><em>›</em><span>success 4624</span><em>›</em><span>same user</span></div>
+        </div>
+        <div class="chain">
+          <div class="ct"><span>CHAIN 03</span><b>9 / 10</b></div>
+          <h4>Persistence after privilege</h4>
+          <div class="steps"><span>privileged group add</span><em>›</em><span>service / task / run key</span></div>
+        </div>
+        <div class="pipe-note" style="margin-top:0">
+          Chains run inside every <code>watch</code> sweep and over the desk-side fleet tail. They match sequences,
+          not single events — forward with backtracking, gap-bounded.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COVERAGE -->
+<section id="coverage">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Honest coverage</span>
+      <h2>Numbers you can audit, including the holes.</h2>
+      <p class="lede">Coverage is computed from the shipped rules and their fidelity, not from a vendor slide. Parent techniques count when a sub-technique is covered; exact coverage stays visible.</p>
+    </div>
+
+    <div class="cov">
+      <div class="donut reveal">
+        <svg viewBox="0 0 220 220" role="img" aria-label="Coverage: 91.7 percent rollup, 75 percent exact">
+          <circle class="trk" cx="110" cy="110" r="88"/>
+          <circle class="val" cx="110" cy="110" r="88" stroke-dasharray="507.4 552.9" transform="rotate(-90 110 110)"/>
+          <circle class="trk2" cx="110" cy="110" r="66"/>
+          <circle class="val2" cx="110" cy="110" r="66" stroke-dasharray="311.0 414.7" transform="rotate(-90 110 110)"/>
+        </svg>
+        <div class="center"><b>91.7%</b><span>rollup coverage</span></div>
+      </div>
+
+      <div class="reveal">
+        <div class="bars">
+          <div class="bar-row">
+            <div class="top"><span>Rollup · parent + sub-techniques</span><b>91.7% · 33/36</b></div>
+            <div class="track"><i style="width:91.7%;background:linear-gradient(90deg,var(--cyan),#7dd3fc)"></i></div>
+          </div>
+          <div class="bar-row">
+            <div class="top"><span>Exact technique tagged</span><b>75.0% · 27/36</b></div>
+            <div class="track"><i style="width:75%;background:linear-gradient(90deg,var(--violet),#c4b5fd)"></i></div>
+          </div>
+          <div class="bar-row">
+            <div class="top"><span>Fidelity-weighted</span><b>83.3%</b></div>
+            <div class="track"><i style="width:83.3%;background:linear-gradient(90deg,var(--green),#6ee7b7)"></i></div>
+          </div>
+        </div>
+
+        <div class="legend">
+          <div class="row"><span class="sw" style="background:var(--green)"></span> high fidelity · direct behavioural evidence</div>
+          <div class="row"><span class="sw" style="background:var(--amber)"></span> medium · strong signal, context needed</div>
+          <div class="row"><span class="sw" style="background:var(--red)"></span> low · correlation only (not used to inflate)</div>
+        </div>
+
+        <div class="blind">
+          <span>blind · T1056</span>
+          <span>blind · T1056.001</span>
+          <span>blind · T1112</span>
+        </div>
+        <p style="color:var(--muted);font-size:13px;margin:14px 0 0">
+          The three remaining gaps are named on purpose. A missing rule is a known fact, not a marketing rounding.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RESPONSE -->
+<section id="response">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Response</span>
+      <h2>Nothing changes without a plan you have seen.</h2>
+      <p class="lede">Thirteen allowlisted actions. Dry-run is the default. Applying requires the id of a prior dry-run of the same action and target. Every applied action is journaled and reversible where possible.</p>
+    </div>
+
+    <div class="response-flow reveal">
+      <div class="rstep">
+        <h4>Dry-run</h4>
+        <p>Build the exact payload without touching the host. The CLI prints what would run and whether it can be undone.</p>
+        <div class="gate">default · no side effects</div>
+      </div>
+      <div class="rstep">
+        <h4>Plan id</h4>
+        <p>A deterministic id binds the action, target and payload digest. It is the only key that unlocks execution.</p>
+        <div class="gate">digest must match</div>
+      </div>
+      <div class="rstep">
+        <h4>Apply</h4>
+        <p>Re-run the same command with <code>--apply --plan &lt;id&gt;</code>. A mismatch or missing plan is refused.</p>
+        <div class="gate">human decision</div>
+      </div>
+      <div class="rstep">
+        <h4>Journal + undo</h4>
+        <p>The action is recorded with its undo payload. Reverse it last-first; actions that cannot be undone say so first.</p>
+        <div class="gate">reversible by design</div>
+      </div>
+    </div>
+
+    <div class="actions reveal">
+      <span>block_ip</span><span>isolate_host</span><span>disable_user</span><span>remove_admin</span>
+      <span>kill_process</span><span>quarantine_file</span><span>stop_service</span><span>delete_task</span>
+      <span>disable_task</span><span>remove_run_key</span><span>disable_wmi_sub</span><span>rotate_credential</span>
+      <span>snapshot</span><span class="keep">protected accounts refused</span><span class="keep">no arbitrary shell</span>
+    </div>
+
+    <div class="grid c2 reveal" style="margin-top:18px">
+      <div class="card">
+        <h3>Playbooks</h3>
+        <p><code>contain-user</code> and <code>isolate-box</code> are fixed sequences applied as one plan-gated unit. The first failing step aborts the rest; undo walks the succeeded steps in reverse.</p>
+        <div class="mini">isolate-box keeps RDP 3389 and WinRM 5985 open on purpose.</div>
+      </div>
+      <div class="card">
+        <h3>What it will not do</h3>
+        <p>No free-form command execution. No deleting a protected account or service. No silent unisolate. No response in detect-only mode until an operator supplies the plan id.</p>
+        <div class="mini">an EDR that cannot remove remote access is a liability.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FLEET -->
+<section id="fleet">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Fleet</span>
+      <h2>One desk, many machines, no lake.</h2>
+      <p class="lede">The desk pulls a bounded tail from each host, correlates it in a case file, and writes a report. Nothing is pushed to a central service.</p>
+    </div>
+
+    <div class="fleet">
+      <div class="fleet-diagram reveal">
+        <div class="host"><span class="dot"></span><span class="name">WS1</span><span class="meta">winrm · 4 764 rows</span></div>
+        <div class="host"><span class="dot"></span><span class="name">WS2</span><span class="meta">winrm · 3 562 rows</span></div>
+        <div class="desk">
+          <b>Desk · case file</b>
+          <span>fleet pull → correlate → report</span>
+        </div>
+        <div class="findings">
+          <div class="finding"><span>shared domain</span><b>7/10</b></div>
+          <div class="finding"><span>shared destination IP</span><b>7/10</b></div>
+          <div class="finding"><span>lateral hop</span><b>8/10</b></div>
+        </div>
+      </div>
+      <div class="reveal">
+        <div class="principles" style="grid-template-columns:1fr 1fr">
+          <div class="pr"><div class="n">JOIN 01</div><h4>Shared indicators</h4><p>The same DNS name, IP or hash seen on two hosts inside the case window.</p></div>
+          <div class="pr"><div class="n">JOIN 02</div><h4>Lateral movement</h4><p>A logon on one host whose source is another host in the case, with user and time correlation.</p></div>
+          <div class="pr"><div class="n">JOIN 03</div><h4>Canary hit</h4><p>A decoy tripped on one host is scored against every host in the same sweep.</p></div>
+          <div class="pr"><div class="n">JOIN 04</div><h4>Blind hosts</h4><p>A host that returns no rows is reported as blind, not as clean.</p></div>
+        </div>
+        <div class="term" style="margin-top:14px">
+          <div class="term-bar"><i></i><i></i><i></i><span class="path">desk · fleet</span>
+            <button class="copy" type="button">Copy</button></div>
+          <pre><code><span class="c"># pull only when asked</span>
+plasma fleet pull --inventory hosts.json --case estate-01
+plasma fleet correlate --case estate-01
+plasma fleet report --case estate-01</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEPLOY -->
+<section id="deploy">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Deployment</span>
+      <h2>One binary. Or one MSI. Your GPO.</h2>
+      <p class="lede">The same install path runs interactively, through the MSI, or from Group Policy. The node records exactly which sensors are active and why.</p>
+    </div>
+
+    <div class="steps4 reveal">
+      <div class="dstep"><div class="k">01 · DOWNLOAD</div><h4>Signed release</h4><p>Grab the exe or MSI. SHA256SUMS and a pinned Authenticode signer gate every update.</p></div>
+      <div class="dstep"><div class="k">02 · INSTALL</div><h4>Intelligent mode</h4><p>The installer verifies the manifest, decides FULL or MINIMAL, provisions Sysmon and WHIDS where feasible.</p></div>
+      <div class="dstep"><div class="k">03 · CONVERGE</div><h4>Updates repair</h4><p>Every install re-stages config, rules, the WHIDS binary and the Sysmon config from the bundle — no stale config survives.</p></div>
+      <div class="dstep"><div class="k">04 · VERIFY</div><h4>Health + watch</h4><p><code>plasma health</code> and <code>plasma watch once</code> close the loop; the watchdog keeps WHIDS alive.</p></div>
+    </div>
+
+    <div class="grid c3 reveal" style="margin-top:18px">
+      <div class="card">
+        <h3>MSI + GPO</h3>
+        <p>Silent install to a custom root, deployed by Group Policy. The MSI runs the same installer payload as the exe.</p>
+        <div class="mini">msiexec /i plasma.msi /qn PLASMA_ROOT=C:\ProgramData\Plasma</div>
+      </div>
+      <div class="card">
+        <h3>Self-healing</h3>
+        <p>WHIDS hangs are healed by a SYSTEM watchdog every two minutes. Sysmon and WHIDS service state are visible in every health verdict.</p>
+        <div class="mini">PlasmaWhidsWatchdog → whids ensure</div>
+      </div>
+      <div class="card">
+        <h3>Signed updates</h3>
+        <p>Updates verify SHA256SUMS, then the Authenticode signer against thumbprints baked into the installed binary. Unsigned updates are refused.</p>
+        <div class="mini">update check → update apply</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DTRACE -->
+<section id="dtrace">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">DTrace</span>
+      <h2>A microscope you pick up, then put down.</h2>
+      <p class="lede">DTrace is the third detection layer: kernel and syscall instrumentation for one question, for a bounded window. Reviewed scripts only, normalized into the same contract.</p>
+    </div>
+
+    <div class="grid c2 reveal" style="align-items:stretch">
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i><span class="path">endpoint · trace</span>
+          <button class="copy" type="button">Copy</button></div>
+        <pre><code><span class="c"># is it there, and is it enabled?</span>
+plasma trace check
+
+<span class="c"># install the Microsoft package + boot setting</span>
+plasma trace provision
+<span class="y">→ reboot_required: true</span>
+
+<span class="c"># compile-only check of every reviewed script</span>
+plasma trace selftest
+
+<span class="c"># bounded run: window + row cap, then killed</span>
+plasma trace run syscall-errors \
+  --events C:\ProgramData\Plasma\data\events.jsonl \
+  --for 5s --max-rows 200</code></pre>
+      </div>
+      <div>
+        <div class="card violet" style="margin-bottom:12px">
+          <h3>Reviewed, not free-form</h3>
+          <p>Three shipped scripts: <code>syscall-errors</code> (T1106), <code>process-create</code> (T1059), <code>etw-kernel-process</code> (T1057). The loader refuses <code>system()</code>, unknown providers and rows without the <code>plasma|</code> marker.</p>
+        </div>
+        <div class="card" style="margin-bottom:12px">
+          <h3>Bounded by construction</h3>
+          <p>Wall-clock window (1 s–5 m), row cap, optional raw capture, content-hash dedupe. The tracer excludes itself so it never fills the store with its own syscalls.</p>
+        </div>
+        <div class="card amber">
+          <h3>Estate-honest</h3>
+          <p>Microsoft’s current package is labelled 2.0 but still reports <code>Sun D 1.13.1</code>. Readiness is capability-based: installed + enabled is ready. Scripts emit <code>tid</code> because <code>pid</code> is not portable across Windows builds.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CLI -->
+<section id="cli">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">CLI</span>
+      <h2>JSON out. Exit codes in. Scriptable by default.</h2>
+      <p class="lede">Every command prints JSON and uses meaningful exit codes: <code>0</code> success, <code>1</code> data error, <code>2</code> refused or attention, <code>3</code> execution failure.</p>
+    </div>
+
+    <div class="grid c2 reveal" style="align-items:start">
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i><span class="path">endpoint</span>
+          <button class="copy" type="button">Copy</button></div>
+        <pre><code><span class="c"># install and verify</span>
+plasma install
+plasma health
+plasma identity pull --events events.jsonl --since 60
+plasma watch once
+
+<span class="c"># ask the on-device brain</span>
+plasma ask --prompt <span class="b">"what changed on this host?"</span>
+plasma drift score <span class="b">"who is an administrator?"</span>
+
+<span class="c"># detect and respond</span>
+plasma chain score --events events.jsonl
+plasma coverage
+plasma actuate apply kill_process --target 4242 \
+  --reason <span class="b">"confirmed beacon"</span>
+plasma actuate apply kill_process --target 4242 \
+  --reason <span class="b">"confirmed beacon"</span> --apply --plan 17</code></pre>
+      </div>
+      <div>
+        <div class="term">
+          <div class="term-bar"><i></i><i></i><i></i><span class="path">desk</span>
+            <button class="copy" type="button">Copy</button></div>
+          <pre><code>plasma fleet pull --inventory hosts.json --case c-01
+plasma fleet correlate --case c-01
+plasma fleet report --case c-01
+
+plasma update check
+plasma update apply
+
+plasma store stats --events events.jsonl
+plasma store rotate --events events.jsonl --max-mb 256</code></pre>
+        </div>
+        <div class="pipe-note">
+          <strong>Composition, not lock-in.</strong> Run it from Task Scheduler, cron, an RMM, or another agent.
+          The contract is the JSON and the exit code.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECURITY -->
+<section id="security">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Security model</span>
+      <h2>Read-only first. Deterministic always.</h2>
+      <p class="lede">The design assumes the box may be compromised and the operator may be wrong. Both are handled with evidence and gates, not promises.</p>
+    </div>
+
+    <div class="principles reveal">
+      <div class="pr"><div class="n">01</div><h4>Read-only first</h4><p>Nothing changes on a host until a human passes <code>--apply --plan &lt;id&gt;</code>.</p></div>
+      <div class="pr"><div class="n">02</div><h4>Deterministic detection</h4><p>Rules and chains are written code. The model selects probes; it never decides guilt.</p></div>
+      <div class="pr"><div class="n">03</div><h4>Bounded collectors</h4><p>Every collector has a time window, row cap and size cap. No unbounded tail.</p></div>
+      <div class="pr"><div class="n">04</div><h4>Local by default</h4><p>Events stay on the host. The desk pulls only what it needs, only when asked.</p></div>
+      <div class="pr"><div class="n">05</div><h4>Reversible response</h4><p>Every applied action carries a journal entry and an undo payload, or says up front that it cannot.</p></div>
+      <div class="pr"><div class="n">06</div><h4>Verified supply chain</h4><p>Manifest digests, SHA256SUMS, and pinned Authenticode signers. An unsigned update is refused.</p></div>
+    </div>
+
+    <div class="grid c3 reveal" style="margin-top:18px">
+      <div class="card green">
+        <h3>Tested on a live estate</h3>
+        <p>Two Windows Server 2022 hosts: signed updates, 16 gene rules, Sysmon FileDelete, canaries, fleet correlation, MSI install and DTrace runs — all exercised end-to-end.</p>
+        <div class="mini">350 unit tests · 21 skipped</div>
+      </div>
+      <div class="card amber">
+        <h3>Known limits</h3>
+        <p>Not a kernel driver of its own. No memory scanning. Coverage gaps are named. DTrace needs a host that supports it. There is no central console by design.</p>
+        <div class="mini">blind spots: T1056 · T1056.001 · T1112</div>
+      </div>
+      <div class="card violet">
+        <h3>Open source</h3>
+        <p>Plasma is MIT. The bundled WHIDS payload is AGPL-3.0. The docs, scripts and release pipeline are in the same repository.</p>
+        <div class="mini">github.com/DrOlu/plasma</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Questions</span>
+      <h2>The honest answers.</h2>
+    </div>
+    <div class="faq reveal">
+      <details>
+        <summary>Is this a replacement for commercial EDR?</summary>
+        <p>It is a different trade. Plasma trades the vendor console and the cloud lake for on-box evidence, a closed probe menu, and reversible actions. For commodity malware blocking at scale, a commercial EDR may still be the right tool. For identity-led investigation, lateral movement, LOTL and root-cause on boxes you administer, Plasma is deliberately better at answering “what happened here?”</p>
+      </details>
+      <details>
+        <summary>Does any data leave the host?</summary>
+        <p>Not by default. Sensors write a local JSONL store. The desk pulls a bounded tail over WinRM or SSM only when an operator runs <code>fleet pull</code>. There is no standing server and no telemetry endpoint.</p>
+      </details>
+      <details>
+        <summary>Can the model hallucinate a verdict?</summary>
+        <p>It can only select from ten frozen probes. If no probe fits, it refuses with a structured error. The probes are deterministic code; the model is a router, not a judge.</p>
+      </details>
+      <details>
+        <summary>Why is WHIDS detect-only?</summary>
+        <p>Because an EDR that can remove remote access can lock its operators out. Every action band is set to <code>report</code>. Response lives in <code>actuate</code>, behind a human plan gate and an undo journal.</p>
+      </details>
+      <details>
+        <summary>What happens when WHIDS hangs?</summary>
+        <p>A SYSTEM scheduled task runs <code>plasma whids ensure</code> every two minutes. A hung <code>StartPending</code> is force-stopped and started again; every action is logged. Crashes are also covered by SCM failure actions.</p>
+      </details>
+      <details>
+        <summary>How is an update trusted?</summary>
+        <p>Two anchors. The release’s SHA256SUMS must match the downloaded exe, and the exe’s Authenticode signer must match a thumbprint baked into the installed binary. Failing either refuses execution.</p>
+      </details>
+      <details>
+        <summary>What does “lake-less” mean in practice?</summary>
+        <p>No central event lake. Detection, correlation and the model run where the events are. The desk is a pull-based reader with case files, not a server that stores everyone’s diary.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <div class="brand" style="margin-bottom:10px"><span class="mark" aria-hidden="true"></span><span>PLASMA <em>v1.6.2</em></span></div>
+        <div>The lake-less Windows EDR.<br>No log lake. No cloud. No blind trust.</div>
+      </div>
+      <div style="display:grid;gap:6px">
+        <a href="https://drolu.github.io/plasma/">Documentation</a>
+        <a href="https://github.com/DrOlu/plasma">Source code</a>
+        <a href="https://github.com/DrOlu/plasma/releases/latest">Releases</a>
+        <a href="https://drolu.github.io/plasma/trace/">DTrace guide</a>
+      </div>
+      <div style="display:grid;gap:6px">
+        <a href="https://drolu.github.io/plasma/security-model/">Security model</a>
+        <a href="https://drolu.github.io/plasma/deployment/">Deployment</a>
+        <a href="https://drolu.github.io/plasma/cli/">CLI reference</a>
+        <a href="https://drolu.github.io/plasma/changelog/">Changelog</a>
+      </div>
+    </div>
+    <div class="fine">
+      Plasma is MIT licensed. The bundled WHIDS payload is AGPL-3.0. Windows, Sysmon and DTrace are Microsoft properties.
+      This page is a static, self-contained HTML5 document — no trackers, no external requests.
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- theme ----------
+  var root = document.documentElement;
+  var stored = null;
+  try { stored = localStorage.getItem("plasma-theme"); } catch (e) {}
+  if (stored === "light" || stored === "dark") {
+    root.setAttribute("data-theme", stored);
+  } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
+    root.setAttribute("data-theme", "light");
+  }
+  var themeBtn = document.getElementById("themeBtn");
+  themeBtn.addEventListener("click", function () {
+    var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    try { localStorage.setItem("plasma-theme", next); } catch (e) {}
+  });
+
+  // ---------- mobile nav ----------
+  var menuBtn = document.getElementById("menuBtn");
+  var navLinks = document.getElementById("navLinks");
+  menuBtn.addEventListener("click", function () {
+    var open = navLinks.classList.toggle("open");
+    menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+  navLinks.querySelectorAll("a").forEach(function (a) {
+    a.addEventListener("click", function () {
+      navLinks.classList.remove("open");
+      menuBtn.setAttribute("aria-expanded", "false");
+    });
+  });
+
+  // ---------- scroll progress ----------
+  var progress = document.getElementById("progress");
+  function onScroll() {
+    var h = document.documentElement;
+    var max = h.scrollHeight - h.clientHeight;
+    progress.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + "%";
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+
+  // ---------- reveal ----------
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("in");
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    document.querySelectorAll(".reveal").forEach(function (el) { io.observe(el); });
+  } else {
+    document.querySelectorAll(".reveal").forEach(function (el) { el.classList.add("in"); });
+  }
+
+  // ---------- static capture / no-scroll fallback ----------
+  // `?all=1` reveals everything and fills counters, for printing and for
+  // full-page screenshots where no scroll event ever fires.
+  var showAll = window.location.search.indexOf("all=1") !== -1;
+  if (showAll) {
+    document.querySelectorAll(".reveal").forEach(function (el) { el.classList.add("in"); });
+    document.querySelectorAll("[data-count]").forEach(function (el) {
+      var dec = parseInt(el.getAttribute("data-dec") || "0", 10);
+      el.textContent = parseFloat(el.getAttribute("data-count")).toFixed(dec);
+    });
+  }
+
+  // ---------- counters ----------
+  function animate(el) {
+    var target = parseFloat(el.getAttribute("data-count"));
+    var dec = parseInt(el.getAttribute("data-dec") || "0", 10);
+    var start = null;
+    var dur = 1400;
+    function tick(ts) {
+      if (start === null) start = ts;
+      var p = Math.min((ts - start) / dur, 1);
+      var eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = (target * eased).toFixed(dec);
+      if (p < 1) requestAnimationFrame(tick);
+      else el.textContent = target.toFixed(dec);
+    }
+    requestAnimationFrame(tick);
+  }
+  if ("IntersectionObserver" in window) {
+    var co = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          animate(entry.target);
+          co.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.5 });
+    document.querySelectorAll("[data-count]").forEach(function (el) { co.observe(el); });
+  } else {
+    document.querySelectorAll("[data-count]").forEach(function (el) {
+      el.textContent = parseFloat(el.getAttribute("data-count")).toFixed(parseInt(el.getAttribute("data-dec") || "0", 10));
+    });
+  }
+
+  // ---------- copy buttons ----------
+  document.querySelectorAll(".copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var term = btn.closest(".term");
+      var code = term ? term.querySelector("code") : null;
+      if (!code) return;
+      var text = code.innerText.replace(/\s+$/g, "");
+      function done() {
+        var old = btn.textContent;
+        btn.textContent = "Copied";
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, done);
+      } else {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } catch (e) {}
+        document.body.removeChild(ta);
+        done();
+      }
+    });
+  });
+
+  // ---------- active nav ----------
+  var sections = Array.prototype.slice.call(document.querySelectorAll("main section[id]"));
+  var links = Array.prototype.slice.call(document.querySelectorAll(".nav-links a"));
+  if ("IntersectionObserver" in window && sections.length) {
+    var so = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var id = entry.target.getAttribute("id");
+        links.forEach(function (a) {
+          a.classList.toggle("active", a.getAttribute("href") === "#" + id);
+        });
+      });
+    }, { rootMargin: "-35% 0px -55% 0px" });
+    sections.forEach(function (s) { so.observe(s); });
+  }
+})();
+</script>
+</body>
+</html>

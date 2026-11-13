@@ -2,7 +2,7 @@ name: Deploy Docs to GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ["docs/**", "mkdocs.yml"]
+    paths: ["docs/**", "mkdocs.yml", "website/**"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,6 +20,8 @@ jobs:
         with: {python-version: "3.12"}
       - run: pip install mkdocs-material
       - run: mkdocs build --site-dir _site
+      # The single-page visual overview ships alongside the docs.
+      - run: cp website/index.html _site/onepager.html
       - uses: actions/upload-pages-artifact@v3
         with: {path: _site}
   deploy:

@@ -42,13 +42,36 @@ Reads 4624/4625 through the Event Log API, UTC-normalized, deduped.
 ### whids
 
 ```text
-plasma whids pull   --root DIR --out FILE
-plasma whids push   --events FILE [--min-confidence N] [--max-indicators N] [--apply] [--reason TEXT]
-plasma whids status --root DIR --events FILE
+plasma whids pull    --root DIR --out FILE
+plasma whids push    --events FILE [--min-confidence N] [--max-indicators N] [--apply] [--reason TEXT]
+plasma whids status  --root DIR --events FILE
+plasma whids diagnose [--root DIR]
+plasma whids ensure  [--root DIR] [--wait SECONDS]
 ```
 
 `push` is dry-run by default; `--apply` replaces `plasma-iocs.gen`
 atomically. Default confidence is 8 on the gene 0–10 scale.
+
+`ensure` is the watchdog body: Running is a no-op; a hung `StartPending` is
+force-stopped and restarted; a stopped service is started. Actions are
+appended to `logs/whids-watchdog.log`. The installer registers
+`PlasmaWhidsWatchdog` (SYSTEM, every 2 minutes) to run it.
+
+### trace
+
+```text
+plasma trace list
+plasma trace check
+plasma trace selftest [--root DIR]
+plasma trace run <script> --events FILE [--for 5s] [--max-rows N] [--out FILE]
+plasma trace provision
+```
+
+Reviewed, bounded DTrace runs normalized into the event store.
+`provision` installs the Microsoft package (direct MSI when winget is
+absent), enables `bcdedit /set dtrace on`, and reports
+`reboot_required: true`. Installed + enabled is ready; versions are not
+chased. Scripts emit `tid` for estate portability.
 
 ### tap
 
