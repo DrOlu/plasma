@@ -124,10 +124,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "MSI build failed" }
 
           $msi = "dist/plasma-$version-windows-x64.msi"
-          @(
+          $sums = @(
             ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLower() + "  " + (Split-Path $exe -Leaf)),
             ((Get-FileHash $msi -Algorithm SHA256).Hash.ToLower() + "  " + (Split-Path $msi -Leaf))
-          ) | Set-Content dist/SHA256SUMS -Encoding ASCII
+          )
+          # LF endings, deliberately: `sha256sum -c` / `shasum -c` on Unix
+          # treat CR as part of the filename and then fail to find the file.
+          [IO.File]::WriteAllText(
+            (Join-Path (Get-Location) "dist/SHA256SUMS"),
+            (($sums -join "`n") + "`n"))
           & $exe --version
           & $exe status --events samples/plasma_events.jsonl
           & $exe ask --prompt "critical alerts" --events samples/plasma_events.jsonl
