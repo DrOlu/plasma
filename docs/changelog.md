@@ -4,6 +4,12 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.5.7 — 2026-11-13
+
+- **DTrace enabled state parsed correctly** — `bcdedit` prints
+  `dtrace Yes`; `trace check` now recognises it instead of advising another
+  `trace provision`.
+
 ## 1.5.6 — 2026-11-13
 
 - **Config file lookup matches the bundle layout** — `sensors/whids.toml`

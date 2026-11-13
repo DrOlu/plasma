@@ -149,6 +149,24 @@ def test_check_enabled(monkeypatch):
     assert "2.0" in res["version"]
 
 
+def test_check_parses_bcdedit_yes(monkeypatch):
+    """bcdedit /enum prints 'dtrace Yes' (WS1 after provision)."""
+    monkeypatch.setattr(trace, "find_dtrace", lambda: "/usr/bin/dtrace")
+    monkeypatch.setattr(trace, "_run_ps",
+                        lambda s, timeout=60: "dtrace   Yes" if "bcdedit" in s else "v2")
+    res = trace.check()
+    assert res["available"] and res["enabled"] is True
+    assert res["hint"] is None
+
+
+def test_check_parses_bcdedit_no(monkeypatch):
+    monkeypatch.setattr(trace, "find_dtrace", lambda: "/usr/bin/dtrace")
+    monkeypatch.setattr(trace, "_run_ps",
+                        lambda s, timeout=60: "dtrace   No" if "bcdedit" in s else "v2")
+    res = trace.check()
+    assert res["enabled"] is False and "provision" in res["hint"]
+
+
 def test_check_installed_not_enabled(monkeypatch):
     monkeypatch.setattr(trace.shutil, "which", lambda name: "/usr/bin/dtrace")
     monkeypatch.setattr(trace, "_run_ps",

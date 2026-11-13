@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.5.7 — 2026-11-13
+
+Seventh field fix: DTrace looked disabled right after provisioning it.
+
+### Fixed — `bcdedit` reports `dtrace Yes`, not `dtrace on`
+- `trace check` only matched the literal "on", so a host with
+  `bcdedit /set dtrace on` applied kept reporting `enabled: false` and
+  advised running `trace provision` again. It now parses the actual
+  `dtrace Yes` / `dtrace No` output.
+
+### Tests
+- 336 passed / 21 skipped.
+
 ## 1.5.6 — 2026-11-13
 
 Sixth field fix: the config file shares the rule files' staging layout.

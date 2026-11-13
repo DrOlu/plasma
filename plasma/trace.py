@@ -167,8 +167,15 @@ def check() -> dict:
     result["version"] = version.splitlines()[0].strip() if version else None
     state = _run_ps("bcdedit /enum '{current}' | Select-String -SimpleMatch dtrace",
                     timeout=30)
-    if "on" in state.lower():
+    # `bcdedit /enum` prints "dtrace Yes", not "dtrace on" — matching only
+    # "on" made a provisioned host look disabled after every reboot.
+    lowered = state.lower()
+    if re.search(r"dtrace\s+(yes|on)\b", lowered):
         result["enabled"] = True
+    elif re.search(r"dtrace\s+(no|off)\b", lowered):
+        result["enabled"] = False
+        result["hint"] = ("DTrace is installed but not enabled: run "
+                          "`plasma trace provision` and restart.")
     elif state:
         result["enabled"] = False
         result["hint"] = ("DTrace is installed but not enabled: run "
