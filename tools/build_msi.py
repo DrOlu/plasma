@@ -26,7 +26,6 @@ WXS_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Package Name="Plasma EDR"
            Manufacturer="{manufacturer}"
-           ManufacturerUrl="{manufacturer_url}"
            Version="{version}"
            UpgradeCode="{upgrade}"
            Scope="perMachine"
@@ -65,15 +64,14 @@ WXS_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 """
 
 
-def build_wxs(exe: Path, version: str, manufacturer: str = "Hyperspace Technologies",
-              manufacturer_url: str = "https://reactorpro.ng") -> str:
+def build_wxs(exe: Path, version: str,
+              manufacturer: str = "Hyperspace Technologies") -> str:
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         raise SystemExit(f"MSI versions must be numeric x.y.z, got {version!r}")
     if not Path(exe).exists():
         raise SystemExit(f"exe not found: {exe}")
     return WXS_TEMPLATE.format(
         manufacturer=manufacturer,
-        manufacturer_url=manufacturer_url,
         version=version,
         upgrade=UPGRADE_CODE,
         exe=str(exe),
@@ -86,7 +84,6 @@ def main(argv=None) -> int:
     ap.add_argument("--version", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--manufacturer", default="Hyperspace Technologies")
-    ap.add_argument("--manufacturer-url", default="https://reactorpro.ng")
     ap.add_argument("--wxs-only", action="store_true",
                     help="write the .wxs next to --out and stop (no WiX needed)")
     ap.add_argument("--wix", default="wix", help="WiX CLI (default: wix)")
@@ -97,7 +94,7 @@ def main(argv=None) -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     wxs_path = out.with_suffix(".wxs")
     wxs_path.write_text(
-        build_wxs(exe, args.version, args.manufacturer, args.manufacturer_url),
+        build_wxs(exe, args.version, args.manufacturer),
         encoding="utf-8")
     print(f"wxs: {wxs_path}")
     if args.wxs_only:

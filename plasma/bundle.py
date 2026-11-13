@@ -29,7 +29,7 @@ INSTANCE_FILES = [
 
 PACKAGING_FILES = ["install.ps1", "verify.ps1", "config.example.json"]
 SENSOR_FILES = ["whids.pin.json", "whids.toml", "plasma-iocs.gen", "sealighter.pin.json"]
-DOC_FILES = ["ARCHITECTURE.md", "DEPLOYMENT.md", "SECURITY.md"]
+DOC_FILES = ["ARCHITECTURE.md", "deployment.md", "SECURITY.md"]
 
 
 def _copy(src: Path, dst: Path):
