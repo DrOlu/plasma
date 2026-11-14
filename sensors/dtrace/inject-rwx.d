@@ -10,10 +10,14 @@
 /* row separates a process flipping its own page (JIT, score 5) from one */
 /* flipping another process's page (injection, score 8). */
 /* Argmap: arg0 ProcessHandle, arg1 BaseAddress, arg2 RegionSize, arg3 NewProtect. */
+/* The pseudo-handle's low word is all ones and a real handle is a small */
+/* multiple of four, so compare the low 32 bits. This is the same rule as */
+/* inject-remote-thread.d: the test must not depend on how this build types */
+/* a 64-bit literal. */
 syscall:::entry
 /probefunc == "NtProtectVirtualMemory" && (arg3 & 0xff) == 0x40 && execname != "dtrace.exe"/
 {
-    is_self = arg0 == 0xffffffffffffffff;
+    is_self = (arg0 & 0xffffffff) == 0xffffffff;
     score = 8;
     if (is_self) {
         score = 5;

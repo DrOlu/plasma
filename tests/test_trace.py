@@ -468,6 +468,9 @@ def test_inject_rwx_tests_low_byte_and_records_target():
     text = (REPO_SCRIPTS / "inject-rwx.d").read_text()
     assert "(arg3 & 0xff) == 0x40" in text
     assert "is_self" in text and '\\"self\\"' in text
+    # the handle test must match the remote-thread script's low-word form
+    assert "(arg0 & 0xffffffff) == 0xffffffff" in text
+    assert "arg0 == 0xffffffffffffffff" not in text
 
 
 def test_remote_thread_compares_low_word_of_the_handle():

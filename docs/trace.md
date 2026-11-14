@@ -57,7 +57,7 @@ plasma trace list
 | `etw-kernel-process` | T1057 | 4 | ETW `Microsoft-Windows-Kernel-Process` events (header fields only) |
 | `inject-rwx` | T1055 | 5 / 8 | `NtProtectVirtualMemory` granting RWX (base `arg3 & 0xff == 0x40`): tid, image, raw protection, self flag. Self-access scores 5; cross-process scores 8 |
 | `inject-remote-thread` | T1055 | 6 | `NtCreateThreadEx` with a target handle other than the caller: tid, image, remote flag |
-| `inject-apc` | T1055 | 5 | `NtQueueApcThread`, `NtQueueApcThreadEx` or `NtQueueApcThreadEx2`: tid, image, syscall |
+| `inject-apc` | T1055 | 5 (chain 9) | `NtQueueApcThread`, `NtQueueApcThreadEx` or `NtQueueApcThreadEx2`: tid, image, syscall |
 
 Scripts live in `sensors/dtrace/*.d`, carry metadata in `/* */` block
 comments, and are validated before use: an allowlisted provider is required,
@@ -107,7 +107,13 @@ stable across DTrace builds and avoids the untyped 64-bit literal problem.
 `inject-apc` covers the `NtQueueApcThread` family (including
 `NtQueueApcThreadEx2`, which modern `QueueUserAPC` uses). A thread handle
 does not reveal its owning process at this boundary, so it is evidence at
-score 5 and is not chained on its own.
+score 5. **It is high-volume:** every APC a process queues to its own threads
+(threadpool dispatch, .NET, routine `QueueUserAPC`) produces a row. Use short
+windows and a row cap.
+
+`injection_apc_chain` escalates only the meaningful shape: a cross-process
+RWX flip (`self=0`) followed by an APC from the same image within 30 seconds,
+score 9. Self-RWX cannot start the chain.
 
 `injection_chain` requires a **cross-process** RWX row (`"self": 0`) followed
 by remote thread creation, both from the same image, inside 120 seconds.

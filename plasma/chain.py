@@ -78,6 +78,19 @@ BUILTIN_CHAINS = [
             {"kind": "trace", "description": r"(?i)dtrace inject-remote-thread"},
         ],
     },
+    {
+        "name": "injection_apc_chain",
+        "score": 9,
+        "gap_seconds": 30,
+        "bind_process": True,
+        "detail": "cross-process RWX permission flip followed by an APC queued "
+                  "by the same image",
+        "steps": [
+            {"kind": "trace",
+             "description": r'(?i)dtrace inject-rwx.*"self":\s*0'},
+            {"kind": "trace", "description": r"(?i)dtrace inject-apc"},
+        ],
+    },
 ]
 
 

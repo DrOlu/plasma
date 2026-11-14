@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.9.5 — 2026-11-15
+
+Consistency and claim corrections.
+
+- `inject-rwx` now tests the target handle with the same low-word form as
+  `inject-remote-thread` (`(arg0 & 0xffffffff) == 0xffffffff`). Both scripts
+  make one platform assumption; a build that truncates 64-bit literals can
+  no longer turn self-RWX into a high-severity event.
+- `injection_apc_chain` (score 9, 30 s) escalates a cross-process RWX flip
+  followed by an APC from the same image. `inject-apc` is documented as
+  high-volume and is not chained on its own.
+- README no longer claims WHIDS kills or contains: the shipped config is
+  detect-only (`report`), and containment lives in the plan-gated response
+  plane.
+- 492 passed / 21 skipped.
+
 ## 1.9.4 — 2026-11-14
 
 Injection evidence precision, with positive controls on both hosts.
