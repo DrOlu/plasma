@@ -811,3 +811,13 @@ def test_whids_normalization_redacts_command_line_secrets():
     e = whids.normalize_alert(rec)
     assert "P@ssw0rd!" not in e["cmdline"]
     assert "<redacted>" in e["cmdline"]
+
+
+def test_acl_commands_grant_existing_children_explicitly():
+    from plasma import cli
+    cmds = cli._acl_commands("/var/lib/plasma")
+    assert len(cmds) == 2
+    assert "/inheritance:r" in cmds[0]
+    assert any("(OI)(CI)F" in arg for arg in cmds[0])
+    assert "/T" in cmds[1] and "/grant" in cmds[1]
+    assert "*S-1-5-18:F" in cmds[1] and "*S-1-5-32-544:F" in cmds[1]

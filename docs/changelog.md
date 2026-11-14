@@ -16,6 +16,13 @@ Highlights by release:
 - **Trace rows use `tid`** — `pid` is not portable across the DTrace builds
   on the estate; `tid` works on both hosts.
 
+## 1.9.1 — 2026-11-14
+
+- Fix ACL hardening on existing installs: recursive inheritable ACEs left
+  files with an empty effective DACL and blocked execution. Add explicit
+  Full Control to existing children after the root inheritance change.
+- 475 passed / 21 skipped.
+
 ## 1.9.0 — 2026-11-14
 
 Secure-code review release.

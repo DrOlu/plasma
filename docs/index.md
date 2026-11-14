@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.9.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.9.1</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.9.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.9.1</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">91.7% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">474 tests</span>
+<span class="raft-badge">475 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -81,6 +81,16 @@ DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
 
+## What's new in 1.9.1
+
+- **ACL hardening fixed for existing installs** — 1.9.0 applied an
+  inheritable `(OI)(CI)` ACE recursively with `/T`, which left existing
+  files with an inherit-only ACE (empty effective DACL) and Windows refused
+  to execute them. The installer now adds explicit Full Control to every
+  existing child after setting the root inheritance. This also restores
+  nodes upgraded to 1.9.0.
+- 475 tests pass (21 skipped).
+
 ## What's new in 1.9.0 — security review
 
 A focused secure-code review of the agent and desk surfaces.
@@ -108,7 +118,7 @@ A focused secure-code review of the agent and desk surfaces.
   is protected from disable/rotate, and gene-rule domains are escaped and
   validated against rule injection.
 
-474 tests pass (21 skipped).
+475 tests pass (21 skipped).
 
 ## What's new in 1.8.7
 

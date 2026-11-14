@@ -646,18 +646,39 @@ def _harden_root_acl(root) -> dict:
         return {"ok": True, "skipped": "non-windows host"}
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
-    exe = shutil.which("icacls") or r"C:\Windows\System32\icacls.exe"
+    commands = _acl_commands(root)
+    results = []
     try:
-        proc = subprocess.run(
-            [exe, str(root), "/inheritance:r", "/grant:r",
-             "*S-1-5-18:(OI)(CI)F", "*S-1-5-32-544:(OI)(CI)F",
-             "/T", "/C"],
-            capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=180)
+        for cmd in commands:
+            proc = subprocess.run(
+                cmd, capture_output=True, text=True, encoding="utf-8",
+                errors="replace", timeout=300)
+            results.append({"rc": proc.returncode,
+                            "detail": ((proc.stderr or proc.stdout or "")[:200]
+                                       or None)})
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return {"ok": False, "error": str(exc)[:300]}
-    return {"ok": proc.returncode == 0, "rc": proc.returncode,
-            "detail": ((proc.stderr or proc.stdout or "")[:300] or None)}
+        return {"ok": False, "error": str(exc)[:300], "steps": results}
+    return {"ok": all(r["rc"] == 0 for r in results),
+            "rc": results[-1]["rc"], "steps": results}
+
+
+def _acl_commands(root) -> list[list[str]]:
+    """Two-step ACL command list (separated for testability).
+
+    Step 1 replaces inherited ACEs on the root with SYSTEM/Administrators
+    container ACEs, so new files inherit correctly. Step 2 adds explicit
+    Full Control to every EXISTING child. Passing an inheritable (OI)(CI)
+    ACE recursively with /T leaves existing files with an inherit-only ACE
+    — i.e. an empty effective DACL — and Windows then refuses to execute
+    them (field-found on the 1.9.0 upgrade).
+    """
+    exe = shutil.which("icacls") or r"C:\Windows\System32\icacls.exe"
+    return [
+        [exe, str(root), "/inheritance:r", "/grant:r",
+         "*S-1-5-18:(OI)(CI)F", "*S-1-5-32-544:(OI)(CI)F"],
+        [exe, str(root), "/T", "/C", "/grant",
+         "*S-1-5-18:F", "*S-1-5-32-544:F"],
+    ]
 
 
 def cmd_install(args) -> int:
