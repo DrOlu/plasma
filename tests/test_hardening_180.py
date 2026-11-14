@@ -649,3 +649,13 @@ def test_storm_window_is_time_sorted_across_files():
     storm = out[-1]
     assert storm["storm_first_ts"] == "2026-11-14T06:00:10Z"
     assert storm["ts"] == "2026-11-14T06:00:50Z"
+
+
+def test_pull_updates_the_watch_backlog_counter(tmp_path):
+    alerts = tmp_path / "Whids" / "Logs" / "Alerts"
+    alerts.mkdir(parents=True)
+    (alerts / "alerts.log").write_text(json.dumps(_alert(9)) + "\n")
+    out = tmp_path / "Plasma" / "data" / "events.jsonl"
+    whids.pull(str(tmp_path / "Whids"), out=str(out))
+    state = json.loads((tmp_path / "Plasma" / "watch-alerts-state.json").read_text())
+    assert state["seen_alert_rows"] == 1

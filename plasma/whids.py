@@ -469,6 +469,10 @@ def pull(root: str | Path | None = None, out: str | Path | None = None,
                 continue
             first = str(storm.get("storm_first_ts") or "")
             last = str(storm.get("ts") or "")
+            # Older summaries (1.8.3) could be written inverted because
+            # rotated files are scanned by path. Normalise before testing.
+            if first > last:
+                first, last = last, first
             if first <= ts <= last:
                 return True
         return False
@@ -481,6 +485,22 @@ def pull(root: str | Path | None = None, out: str | Path | None = None,
         for event in fresh:
             fh.write(json.dumps(event, separators=(",", ":"), default=str) + "\n")
 
+    # A pull consumes the on-disk alert backlog; tell watch so the next
+    # sweep does not report thousands of "unpulled" rows that are already
+    # in the store (the 1.8.x field confusion).
+    if target.name == "events.jsonl" and target.parent.name == "data":
+        try:
+            count = 0
+            for f in alert_files(root):
+                if f.is_file():
+                    count += sum(1 for ln in f.read_text(
+                        encoding="utf-8", errors="replace").splitlines()
+                        if ln.strip().startswith("{"))
+            state_path = target.parent.parent / "watch-alerts-state.json"
+            state_path.write_text(json.dumps({"seen_alert_rows": count}) + "\n",
+                                  encoding="utf-8")
+        except OSError:
+            pass
     return {
         "alert_files": len(files),
         "out": str(target),

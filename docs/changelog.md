@@ -16,6 +16,13 @@ Highlights by release:
 - **Trace rows use `tid`** — `pid` is not portable across the DTrace builds
   on the estate; `tid` works on both hosts.
 
+## 1.8.5 — 2026-11-14
+
+- whids.pull updates watch-alerts-state so a pull is not immediately
+  reported as an unpulled backlog.
+- Legacy inverted storm summaries are normalised for coverage.
+- 452 passed / 21 skipped.
+
 ## 1.8.4 — 2026-11-14
 
 - Storm groups are sorted by timestamp before sampling/summary; rotated
