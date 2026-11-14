@@ -1,13 +1,33 @@
 # Changelog
 
+## 1.9.4 — 2026-11-14
+
+Injection evidence precision, with positive controls on both hosts.
+
+- `inject-rwx` matches RWX with modifier bits (`arg3 & 0xff == 0x40`) and
+  records whether the caller targeted itself or another process. Self-RWX
+  scores 5 (JIT warm-up); cross-process RWX scores 8.
+- `injection_chain` requires a cross-process RWX row (`"self": 0`), so a
+  process warming up its own JIT pages can never satisfy the first step.
+- `inject-remote-thread` compares only the low 32 bits of the target handle,
+  avoiding an untyped 64-bit literal; `inject-apc` covers the
+  `NtQueueApcThread` family, including `NtQueueApcThreadEx2`.
+- Positive controls on WS1 and WS2: local RWX produced `self=1` score 5;
+  `VirtualProtectEx` on a scratch notepad produced `self=0` score 8;
+  `CreateRemoteThread` produced a remote-thread row; `QueueUserAPC`
+  produced an `NtQueueApcThreadEx2` row. All three scripts compile and pass
+  `trace selftest` on both hosts.
+- 488 passed / 21 skipped.
+
 ## 1.9.3 — 2026-11-14
 
 Kernel-boundary process-injection evidence (T1055).
 
 - New reviewed DTrace scripts: `inject-rwx` (`NtProtectVirtualMemory` with
   PAGE_EXECUTE_READWRITE) and `inject-remote-thread` (`NtCreateThreadEx`
-  into another process). Both use the stable syscall provider and were
-  field-verified on WS1 and WS2.
+  into another process). Both use the stable syscall provider and compile
+  plus pass `trace selftest` on WS1 and WS2; firing was positively
+  controlled in 1.9.4.
 - `injection_chain` (score 9, 120 s) binds both halves to the same image,
   so ordinary system thread creation cannot collide with a JIT RWX page.
 - DTrace remains on-demand and is excluded from always-on coverage:

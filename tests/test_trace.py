@@ -401,7 +401,7 @@ def test_check_uses_the_resolved_dtrace_path(monkeypatch):
 # process-injection evidence (T1055)
 # ---------------------------------------------------------------------------
 
-INJECTION_SCRIPTS = ("inject-rwx", "inject-remote-thread")
+INJECTION_SCRIPTS = ("inject-rwx", "inject-remote-thread", "inject-apc")
 
 
 def test_injection_scripts_load_with_metadata():
@@ -447,6 +447,32 @@ def test_remote_thread_row_normalizes():
     assert ev["kind"] == "trace" and ev.get("pid") is None
     assert ev["severity"] == "medium"
     assert "remote" in ev["description"]
+
+
+def test_per_row_score_splits_self_and_cross_process_rwx():
+    info = {"name": "inject-rwx", "score": 5, "technique": "T1055"}
+    self_row = ('plasma|{"probe":"inject_rwx","tid":1,"comm":"x.exe",'
+                '"protect":"0x40","self":1,"score":5}\n')
+    cross_row = ('plasma|{"probe":"inject_rwx","tid":2,"comm":"x.exe",'
+                 '"protect":"0x140","self":0,"score":8}\n')
+    self_ev = trace.normalize(trace.parse_output(self_row)[0], info, "H")
+    cross_ev = trace.normalize(trace.parse_output(cross_row)[0], info, "H")
+    assert self_ev["score"] == 0.5 and self_ev["severity"] == "medium"
+    assert cross_ev["score"] == 0.8 and cross_ev["severity"] == "high"
+    assert "score" not in cross_ev["description"]
+
+
+def test_inject_rwx_tests_low_byte_and_records_target():
+    """0x140/0x240/0x440 are RWX with modifier bits; arg0 separates JIT
+    from cross-process injection."""
+    text = (REPO_SCRIPTS / "inject-rwx.d").read_text()
+    assert "(arg3 & 0xff) == 0x40" in text
+    assert "is_self" in text and '\\"self\\"' in text
+
+
+def test_remote_thread_compares_low_word_of_the_handle():
+    text = (REPO_SCRIPTS / "inject-remote-thread.d").read_text()
+    assert "(arg3 & 0xffffffff) != 0xffffffff" in text
 
 
 def test_dtrace_scripts_do_not_inflate_coverage():
