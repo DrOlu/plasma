@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.8.2</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.8.3</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.8.2</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.8.3</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">91.7% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">448 tests</span>
+<span class="raft-badge">450 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -81,6 +81,18 @@ DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
 
+## What's new in 1.8.3
+
+- **Alert-storm coalescing** — a process repeating the same Tcpip service
+  key write 17k times no longer stores 17k rows. `whids pull` keeps a few
+  samples plus one summary (count, first/last timestamp, max score), and
+  re-pulling is idempotent. `watch` collapses identical findings into one
+  line with an occurrence count.
+- **Why it matters** — the signal (one agent looping on a privileged key)
+  stays visible; the diary and the alert budget do not drown in it.
+
+450 tests pass (21 skipped).
+
 ## What's new in 1.8.2
 
 - **Windows service-path suppression widened** — ADFS and Microsoft.NET
@@ -88,7 +100,7 @@ DESK               status · ask · drift · chains · coverage · fleet ·
   They are now suppressed alongside System32/SysWOW64; `C:\Windows\Temp`,
   `Tasks` and `Debug` are explicitly excluded, and LOLBins keep full score.
 
-448 tests pass (21 skipped).
+450 tests pass (21 skipped).
 
 ## What's new in 1.8.1
 
@@ -108,7 +120,7 @@ A short follow-up from the live estate run of 1.8.0.
 - **Run-key suppression narrowed** — a Microsoft-signed LOLBin writing a
   Run key is the technique, not a benign installer.
 
-448 tests pass (21 skipped).
+450 tests pass (21 skipped).
 
 ## What's new in 1.8.0
 
@@ -137,7 +149,7 @@ Windows estate.
   persistence no longer flags unsigned Windows binaries, and identity drops
   malformed domains/timestamps.
 
-448 tests pass (21 skipped).
+450 tests pass (21 skipped).
 
 ## What's new in 1.7.2
 

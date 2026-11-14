@@ -357,6 +357,66 @@ def alert_files(root: str | Path | None = None) -> list[Path]:
                   and ".old-" not in str(p))
 
 
+STORM_THRESHOLD = 25
+STORM_SAMPLES = 5
+
+
+def _storm_key(event: dict) -> tuple:
+    return (event.get("alert_id"), event.get("process"), event.get("user"),
+            event.get("registry_path") or event.get("file_path")
+            or event.get("dns_query") or event.get("dest_ip") or "",
+            event.get("image") or "")
+
+
+def coalesce_storms(events: list[dict], threshold: int = STORM_THRESHOLD,
+                    samples: int = STORM_SAMPLES) -> tuple[list[dict], int]:
+    """Collapse high-volume identical alerts into a few samples + a summary.
+
+    An agent process repeated the same Tcpip service-key write 17k times in
+    two hours. Storing every copy makes the diary unreadable and hides the
+    one useful fact: something is doing this in a loop. The summary keeps
+    the count, first/last time and incremented score; samples keep evidence.
+    """
+    groups: dict[tuple, list[dict]] = {}
+    order: list[tuple] = []
+    for event in events:
+        key = _storm_key(event)
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(event)
+    out: list[dict] = []
+    coalesced = 0
+    for key in order:
+        group = groups[key]
+        if len(group) <= threshold:
+            out.extend(group)
+            continue
+        coalesced += 1
+        chosen = group[:max(1, samples)]
+        if group[-1] not in chosen:
+            chosen.append(group[-1])
+        out.extend(chosen)
+        last = dict(group[-1])
+        first = group[0]
+        last["ts"] = group[-1].get("ts")
+        last["pid"] = None
+        last["storm"] = True
+        last["storm_count"] = len(group)
+        last["storm_first_ts"] = first.get("ts")
+        last["score"] = max(float(e.get("score") or 0) for e in group)
+        last["severity"] = max(
+            (str(e.get("severity") or "info") for e in group),
+            key=lambda s: {"info": 0, "low": 1, "medium": 2,
+                           "high": 3, "critical": 4}.get(s, 0))
+        last["description"] = (
+            f"STORM {last.get('alert_id')}: {len(group)} occurrences between "
+            f"{first.get('ts')} and {group[-1].get('ts')}; "
+            f"{len(chosen)} samples retained")[:2048]
+        out.append(last)
+    return out, coalesced
+
+
 def pull(root: str | Path | None = None, out: str | Path | None = None,
          host: str | None = None) -> dict:
     target = Path(out) if out else default_events_path()
@@ -384,6 +444,7 @@ def pull(root: str | Path | None = None, out: str | Path | None = None,
                 events.append(event)
 
     existing_keys = set()
+    existing_storms = []
     if target.exists():
         with open(target, "r", encoding="utf-8", errors="replace") as fh:
             for line in fh:
@@ -392,8 +453,27 @@ def pull(root: str | Path | None = None, out: str | Path | None = None,
                 except json.JSONDecodeError:
                     continue
                 existing_keys.add(_alert_key(prior))
+                if prior.get("storm_count"):
+                    existing_storms.append(prior)
 
-    fresh = [e for e in events if _alert_key(e) not in existing_keys]
+    def _covered(event):
+        # A raw event inside an already-summarised storm window is already
+        # represented by the summary; do not mint another summary on the
+        # next pull just because only samples were stored.
+        key = _storm_key(event)
+        ts = str(event.get("ts") or "")
+        for storm in existing_storms:
+            if _storm_key(storm) != key:
+                continue
+            first = str(storm.get("storm_first_ts") or "")
+            last = str(storm.get("ts") or "")
+            if first <= ts <= last:
+                return True
+        return False
+
+    fresh = [e for e in events
+             if _alert_key(e) not in existing_keys and not _covered(e)]
+    fresh, storm_groups = coalesce_storms(fresh)
     target.parent.mkdir(parents=True, exist_ok=True)
     with open(target, "a", encoding="utf-8") as fh:
         for event in fresh:
@@ -405,6 +485,7 @@ def pull(root: str | Path | None = None, out: str | Path | None = None,
         "alerts": len(events),
         "skipped_records": skipped,
         "already_present": len(events) - len(fresh),
+        "storm_groups": storm_groups,
         "written": len(fresh),
     }
 

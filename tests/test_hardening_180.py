@@ -597,3 +597,41 @@ def test_adfs_service_binary_is_suppressed_but_windows_temp_is_not():
         "Image": r"C:\Windows\Temp\svc.exe",
         "TargetObject": r"HKLM\SYSTEM\CurrentControlSet\Services\Evil"})
     assert not whids.normalize_alert(temp).get("suppressed")
+
+
+def test_storm_coalescing_keeps_samples_and_one_summary():
+    events = []
+    for i in range(100):
+        events.append({"ts": f"2026-11-14T06:00:{i % 60:02d}Z",
+                       "alert_id": "Plasma-Service-Registry-Persistence",
+                       "process": "opencode.exe", "user": "SYSTEM",
+                       "registry_path": r"HKLM\System\CurrentControlSet\Services\Tcpip\Parameters",
+                       "image": r"C:\Users\olu\AppData\opencode.exe",
+                       "score": 0.8, "severity": "high"})
+    out, groups = whids.coalesce_storms(events, threshold=25, samples=2)
+    assert groups == 1
+    assert len(out) == 4          # 2 samples + last + summary
+    summary = out[-1]
+    assert summary["storm_count"] == 100
+    assert summary["storm"] is True
+    assert summary["score"] == 0.8
+
+
+def test_pull_coalesces_a_storm_and_is_idempotent(tmp_path):
+    alerts = tmp_path / "Logs" / "Alerts"
+    alerts.mkdir(parents=True)
+    rec = _alert(9)
+    rows = []
+    for i in range(60):
+        r = json.loads(json.dumps(rec))
+        r["SystemTime"] = f"2026-11-14T06:00:{i % 60:02d}Z"
+        rows.append(json.dumps(r))
+    (alerts / "alerts.log").write_text("\n".join(rows) + "\n")
+    out = tmp_path / "events.jsonl"
+    first = whids.pull(str(tmp_path), out=str(out))
+    assert first["storm_groups"] == 1
+    assert first["written"] <= whids.STORM_SAMPLES + 2
+    stored = [json.loads(l) for l in out.read_text().splitlines()]
+    assert any(e.get("storm_count") == 60 for e in stored)
+    second = whids.pull(str(tmp_path), out=str(out))
+    assert second["written"] == 0

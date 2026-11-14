@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.8.3 — 2026-11-14
+
+- whids.pull coalesces repeated identical alerts into samples + a storm
+  summary (count, first/last, max score). Re-pulling is idempotent.
+- watch collapses identical high-criticality findings with an occurrence
+  count, so one loop cannot consume the ten-item budget.
+- 450 passed / 21 skipped.
+
 ## 1.8.2 — 2026-11-14
 
 - Service-registry suppression now covers Windows service binaries under

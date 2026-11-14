@@ -206,7 +206,21 @@ def _new_high_alerts(root, alerts_dir: Path) -> list[dict]:
         offsets[key] = {"offset": consumed, "size": size, "head": head}
 
     agentstate.write_json(state_path, {"files": offsets})
-    return out[:10]
+    # Collapse identical findings from a loop (same rule/process) so one
+    # storm does not consume the whole ten-item budget.
+    grouped: dict[tuple, dict] = {}
+    for item in out:
+        key = (item["type"], item["detail"])
+        if key in grouped:
+            grouped[key]["occurrences"] += 1
+            grouped[key]["score"] = max(grouped[key]["score"], item["score"])
+        else:
+            grouped[key] = dict(item, occurrences=1)
+    collapsed = list(grouped.values())
+    for item in collapsed:
+        if item["occurrences"] > 1:
+            item["detail"] = f"{item['detail']} (x{item['occurrences']})"[:200]
+    return collapsed[:10]
 
 
 def watch_once(root, quiet_clean: bool = True) -> dict:
