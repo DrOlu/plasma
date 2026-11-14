@@ -47,7 +47,8 @@ BUILTIN_CHAINS = [
         "score": 8,
         "gap_seconds": 3600,
         "min_failures": 5,
-        "detail": "repeated failed logons against one user, then a success",
+        "bind_user": True,
+        "detail": "repeated failed logons against one user, then a success for that same user",
         "steps": [
             {"kind": "auth", "event_id": 4625, "user": r".+", "min_count": 5},
             {"kind": "auth", "event_id": 4624, "user": r".+"},
@@ -95,7 +96,7 @@ def _ts(row: dict):
     return _parse_ts(row.get("ts"))
 
 
-def _count_back(events, i, step, gap):
+def _count_back(events, i, step, gap, user_filter=None):
     """Matches of `step` within `gap` seconds ending at events[i] (inclusive)."""
     t = _ts(events[i])
     count = 0
@@ -104,16 +105,30 @@ def _count_back(events, i, step, gap):
         tk = _ts(events[k])
         if tk is None or (t - tk).total_seconds() > gap:
             break
-        if _match_step(step, events[k]):
+        if _match_step(step, events[k]) and (
+                user_filter is None or _user_key(events[k]) == user_filter):
             count += 1
         k -= 1
     return count
 
 
-def _match_from(steps, events, start, gap, t_prev=None):
+def _user_key(row):
+    """Normalized identity for cross-step binding (DOMAIN\\user -> user)."""
+    user = row.get("user")
+    if not user:
+        return None
+    value = str(user).split("\\")[-1].split("@")[0].strip().lower()
+    if not value or value.endswith("$"):
+        return None
+    return value
+
+
+def _match_from(steps, events, start, gap, t_prev=None, bound_user=None,
+                enforce_bound=False):
     """Ordered forward match of steps against events[start:], full
     backtracking on step candidates. Returns indices or None. Each adjacent
-    pair must sit within `gap` seconds."""
+    pair must sit within `gap` seconds. When `enforce_bound` is set, every
+    step must belong to the same normalized user as the first step."""
     if not steps:
         return []
     step = steps[0]
@@ -121,12 +136,25 @@ def _match_from(steps, events, start, gap, t_prev=None):
         row = events[i]
         if not _match_step(step, row):
             continue
+        if enforce_bound:
+            row_user = _user_key(row)
+            if row_user is None:
+                continue
+            if bound_user is not None and row_user != bound_user:
+                continue
         t = _ts(row)
         if t_prev is not None and (t - t_prev).total_seconds() > gap:
             break          # sorted input: every later candidate is later still
-        if step.get("min_count") and _count_back(events, i, step, gap) < step["min_count"]:
-            continue
-        rest = _match_from(steps[1:], events, i + 1, gap, t_prev=t)
+        if step.get("min_count"):
+            # count prior matches for THIS candidate's user, not every user
+            # who happened to fail inside the window
+            if _count_back(events, i, step, gap,
+                           user_filter=_user_key(row) if enforce_bound else None) \
+                    < step["min_count"]:
+                continue
+        user = bound_user if bound_user is not None else _user_key(row)
+        rest = _match_from(steps[1:], events, i + 1, gap, t_prev=t,
+                           bound_user=user, enforce_bound=enforce_bound)
         if rest is not None:
             return [i] + rest
     return None
@@ -141,12 +169,13 @@ def scan(rows: list[dict], chains: list[dict] | None = None,
     findings: list[dict] = []
     for chain in chains:
         gap = int(chain.get("gap_seconds", gap_seconds))
-        idxs = _match_from(chain["steps"], events, 0, gap)
+        idxs = _match_from(chain["steps"], events, 0, gap,
+                           enforce_bound=bool(chain.get("bind_user")))
         if idxs:
             matched = [events[i] for i in idxs]
             t0, t1 = _ts(matched[0]), _ts(matched[-1])
             span_min = int((t1 - t0).total_seconds() / 60)
-            users = sorted({str(m.get("user")) for m in matched if m.get("user")})
+            users = sorted({_user_key(m) for m in matched if _user_key(m)})
             findings.append({
                 "type": f"chain_{chain['name']}",
                 "score": chain["score"],
@@ -166,6 +195,24 @@ def scan(rows: list[dict], chains: list[dict] | None = None,
     return findings
 
 
+def _tail_text(path, max_lines: int, chunk_bytes: int = 1 << 20,
+               max_bytes: int = 16 << 20) -> str:
+    """Read the last `max_lines` lines without loading a whole store."""
+    with open(path, "rb") as fh:
+        fh.seek(0, 2)
+        end = fh.tell()
+        pos = end
+        data = b""
+        while pos > 0 and data.count(b"\n") <= max_lines \
+                and (end - pos) < max_bytes:
+            step = min(chunk_bytes, pos)
+            pos -= step
+            fh.seek(pos)
+            data = fh.read(step) + data
+    lines = data.splitlines()
+    return b"\n".join(lines[-max_lines:]).decode("utf-8", "replace")
+
+
 def scan_store(events_path, chains: list[dict] | None = None,
                max_rows: int = DEFAULT_MAX_ROWS,
                gap_seconds: int = DEFAULT_WINDOW) -> dict:
@@ -174,15 +221,17 @@ def scan_store(events_path, chains: list[dict] | None = None,
     if not path.exists():
         return {"error": f"events store not found: {path}", "findings": []}
     rows = []
-    with path.open(encoding="utf-8", errors="replace") as fh:
-        for line in fh:
-            line = line.strip()
-            if not line.startswith("{"):
-                continue
-            try:
-                rows.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
+    # Read only a bounded tail: a production store can be tens of MB and
+    # the chain scanner never needs the head of the file.
+    tail = _tail_text(path, max_rows)
+    for line in tail.splitlines():
+        line = line.strip()
+        if not line.startswith("{"):
+            continue
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
     findings = scan(rows[-max_rows:], chains=chains, gap_seconds=gap_seconds)
     return {"scanned_rows": min(len(rows), max_rows),
             "chains": [c["name"] for c in (chains or BUILTIN_CHAINS)],

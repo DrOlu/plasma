@@ -151,6 +151,46 @@ RULE_TECHNIQUES = {
 }
 
 
+def _benign_context(rule_name: str, event_data: dict) -> str | None:
+    """Positive evidence that a rule fired on expected admin/installer work.
+
+    Suppression is conservative: it requires a Microsoft signature or a
+    known Windows installer/service writer. Absence of evidence never
+    suppresses. A suppressed alert stays in the store at info/0.2 so the
+    history is not lost, but it cannot raise the watch verdict or become an
+    IOC.
+    """
+    rule = str(rule_name or "").lower()
+    image = _base_name(_get_flat(event_data, "Image", "ProcessName")) or ""
+    image = image.lower()
+    parent = _base_name(_get_flat(event_data, "ParentImage")) or ""
+    parent = parent.lower()
+    signed = str(_get_flat(event_data, "Signed") or "").strip().lower()
+    company = str(_get_flat(event_data, "Company") or "").strip().lower()
+    signature = str(_get_flat(event_data, "Signature") or "").strip().lower()
+    user = str(_get_flat(event_data, "User") or "").strip().lower()
+    microsoft = ("microsoft" in company or "microsoft" in signature
+                 or signed in ("microsoft windows", "microsoft corporation"))
+
+    if "execution from user paths" in rule and microsoft:
+        return "Microsoft-signed binary in a user-writable path"
+    if ("run key persistence" in rule or "service registry persistence" in rule):
+        writers = {"msiexec.exe", "trustedinstaller.exe", "services.exe",
+                   "svchost.exe", "setup.exe", "update.exe", "wuauclt.exe"}
+        if image in writers or (microsoft and image and not image.endswith(".tmp")):
+            return f"expected installer/service writer ({image or 'signed'})"
+    if "scheduled task create" in rule:
+        if parent in {"msiexec.exe", "trustedinstaller.exe", "svchost.exe",
+                      "setup.exe", "update.exe"}:
+            return f"task created by expected installer parent ({parent})"
+    if "encoded cmd" in rule:
+        if parent in {"svchost.exe", "taskeng.exe", "taskhostw.exe"} and (
+                user in ("system", "nt authority\\system")
+                or user.endswith("\\system")):
+            return f"SYSTEM-encoded command from {parent}"
+    return None
+
+
 def normalize_alert(alert: dict, host: str | None = None):
     """Convert one WHIDS EdrEvent alert to a Plasma event dict.
 
@@ -238,6 +278,13 @@ def normalize_alert(alert: dict, host: str | None = None):
         event["dest_port"] = port if 0 <= port <= 65535 else None
     if event["technique"] is not None and not TECHNIQUE_RE.match(event["technique"]):
         event["technique"] = None
+    reason = _benign_context(rule_name, event_data)
+    if reason:
+        event["suppressed"] = reason
+        event["score"] = min(float(event.get("score") or 0.2), 0.2)
+        event["severity"] = "info"
+        event["description"] = (str(event.get("description") or "")
+                                + f" [suppressed: {reason}]")[:2048]
     return event
 
 
@@ -555,6 +602,119 @@ def _watchdog_log(root, result: dict) -> None:
         pass
 
 
+def prune_dumps(install_dir=None, max_mb: int = 512, keep_days: int = 7,
+                dry_run: bool = False, max_files: int = 20000,
+                archive_dir=None) -> dict:
+    """Bound the WHIDS dump tree.
+
+    WHIDS 1.7.0's ``max-dumps`` is per-GUID, not global. A noisy host grew
+    145k files / 2.3 GB, after which startup exceeded the SCM 30s limit and
+    the service stopped responding. Detect-only Plasma has no use for dumps,
+    so the shipped config disables hooks; this is the cleanup/backstop for
+    nodes that already have a tree (and for any future hook use).
+    """
+    import os
+    import time
+
+    base = Path(install_dir) if install_dir else Path(
+        os.environ.get("ProgramFiles", r"C:\Program Files")) / "Whids"
+    dumps = base / "Dumps"
+    archive_root = Path(archive_dir) if archive_dir else Path(
+        os.environ.get("ProgramData", r"C:\ProgramData")) / "Plasma" / "whids-archive"
+    moved = []
+
+    def _move_out(directory: Path, label: str) -> None:
+        """Rename a legacy tree OUT of the install directory.
+
+        WHIDS resets ACLs on its whole install tree at startup; a tree with
+        tens of thousands of files makes that exceed the SCM 30-45s start
+        timeout. Moving a directory on the same volume is instant.
+        """
+        if not directory.is_dir():
+            return
+        try:
+            archive_root.mkdir(parents=True, exist_ok=True)
+            dest = archive_root / f"{label}-{int(time.time())}"
+            __import__("shutil").move(str(directory), str(dest))
+            moved.append({"from": str(directory), "to": str(dest)})
+        except Exception:
+            return
+
+    # Legacy trees from older configs always live inside the install dir.
+    for legacy in base.glob("Dumps.pruned-*"):
+        _move_out(legacy, "Dumps-legacy")
+    for legacy in base.glob("Dumps.old-*"):
+        _move_out(legacy, "Dumps-legacy")
+
+    if not dumps.is_dir():
+        return {"dumps_dir": str(dumps), "removed_files": 0,
+                "removed_bytes": 0, "remaining_files": 0,
+                "remaining_bytes": 0, "skipped": 0, "moved_dirs": moved}
+
+    limit = max(0, int(max_mb)) * 1024 * 1024
+    cutoff = time.time() - max(0, int(keep_days)) * 86400
+    entries = []
+    skipped = 0
+    try:
+        for path in dumps.rglob("*"):
+            if len(entries) >= 250000:      # hard scan bound
+                break
+            if not path.is_file():
+                continue
+            try:
+                stat = path.stat()
+            except OSError:
+                skipped += 1
+                continue
+            entries.append((stat.st_mtime, stat.st_size, path))
+    except OSError as exc:
+        return {"error": f"cannot scan dumps: {exc}", "dumps_dir": str(dumps)}
+    entries.sort(key=lambda e: e[0])        # oldest first
+    total = sum(e[1] for e in entries)
+    if not dry_run and (len(entries) > max_files or total > max_mb * 1024 * 1024 * 4):
+        # Too large to prune file-by-file before the next service start:
+        # move the whole tree out of the ACL-reset path in one operation.
+        _move_out(dumps, "Dumps")
+        if any(m.get("from") == str(dumps) for m in moved):
+            dumps.mkdir(parents=True, exist_ok=True)
+            return {"dumps_dir": str(dumps), "removed_files": 0,
+                    "removed_bytes": 0, "remaining_files": 0,
+                    "remaining_bytes": 0, "skipped": skipped,
+                    "moved_dirs": moved, "max_mb": int(max_mb),
+                    "keep_days": int(keep_days), "dry_run": False}
+        # The move failed (e.g. an open handle): fall through to bounded
+        # per-file removal instead of claiming the tree is gone.
+    removed_files = removed_bytes = 0
+    for mtime, size, path in entries:
+        if total <= limit and mtime >= cutoff:
+            break
+        if dry_run:
+            removed_files += 1
+            removed_bytes += size
+            total -= size
+            continue
+        try:
+            path.unlink()
+        except OSError:
+            skipped += 1
+            continue
+        removed_files += 1
+        removed_bytes += size
+        total -= size
+    return {
+        "dumps_dir": str(dumps),
+        "removed_files": removed_files,
+        "removed_bytes": removed_bytes,
+        "remaining_files": max(0, len(entries) - removed_files),
+        "remaining_bytes": max(0, total),
+        "skipped": skipped,
+        "moved_dirs": moved,
+        "dry_run": bool(dry_run),
+        "max_mb": int(max_mb),
+        "keep_days": int(keep_days),
+    }
+
+
 def ensure(root=None, wait_seconds: int = 30) -> dict:
     """Make the WHIDS service Running, healing the 1.7.0 init hang.
 
@@ -578,6 +738,14 @@ def ensure(root=None, wait_seconds: int = 30) -> dict:
             state = _service_state(name)
 
     if state != "Running":
+        # A pathological dump tree can be the reason startup exceeds the
+        # SCM timeout; bound it before attempting the restart.
+        pruned = prune_dumps()
+        if pruned.get("removed_files") or pruned.get("moved_dirs"):
+            actions.append({"action": "prune_dumps",
+                            "removed_files": pruned.get("removed_files", 0),
+                            "removed_mb": round(pruned.get("removed_bytes", 0) / (1024 * 1024), 1),
+                            "moved_dirs": len(pruned.get("moved_dirs") or [])})
         rc, _ = _ps(f"Stop-Service -Name '{name}' -Force -ErrorAction SilentlyContinue")
         actions.append({"action": "stop", "rc": rc})
         time.sleep(2)
@@ -588,6 +756,22 @@ def ensure(root=None, wait_seconds: int = 30) -> dict:
         while state in pending and time.time() < deadline:
             time.sleep(3)
             state = _service_state(name)
+        if state != "Running" and state in pending:
+            # Stop-Service can return 0 while the process remains wedged
+            # (StartPending is NOT_STOPPABLE). The SCM cannot kill it, so
+            # terminate the orphan directly and try one clean start.
+            rc_kill, _ = _ps(
+                "$p = Get-Process -Name 'whids' -ErrorAction SilentlyContinue; "
+                "if ($p) { $p | Stop-Process -Force; 'killed' } else { 'no process' }")
+            actions.append({"action": "force_kill_orphan", "rc": rc_kill})
+            time.sleep(2)
+            rc, _ = _ps(f"Start-Service -Name '{name}' -ErrorAction SilentlyContinue")
+            actions.append({"action": "start_retry", "rc": rc})
+            deadline = time.time() + wait_seconds
+            state = _service_state(name)
+            while state in pending and time.time() < deadline:
+                time.sleep(3)
+                state = _service_state(name)
 
     result = {"ok": state == "Running", "service": name, "state": state,
               "actions": actions,
@@ -643,6 +827,7 @@ def diagnose(root: str | Path | None = None) -> dict:
         "service_state": None,
         "start_mode": None,
         "binary_path": None,
+        "install_dir": str(whids_root),
         "binary_present": False,
         "config_present": (whids_root / "config.toml").exists(),
         "channels": [],
@@ -689,11 +874,24 @@ def diagnose(root: str | Path | None = None) -> dict:
         except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError) as exc:
             info["findings"].append(f"service probe failed: {str(exc)[:160]}")
 
+    install_dir = whids_root
     if info["binary_path"]:
-        exe = info["binary_path"].strip('"').split('"')[0]
-        info["binary_present"] = Path(exe).exists()
+        raw = info["binary_path"].strip()
+        exe = raw.split('"')[1] if raw.startswith('"') else raw.split()[0]
+        exe_path = Path(exe)
+        info["binary_present"] = exe_path.exists()
+        if exe_path.parent:
+            install_dir = exe_path.parent
+            info["install_dir"] = str(install_dir)
 
-    log = whids_root / "Logs" / "whids.log"
+    # On an installed node the config and logs live next to the service
+    # binary (C:\Program Files\Whids); on a dev checkout they may sit under
+    # the given root. Report whichever actually exists.
+    info["config_present"] = ((install_dir / "config.toml").exists()
+                              or (whids_root / "config.toml").exists())
+    log = install_dir / "Logs" / "whids.log"
+    if not log.exists():
+        log = whids_root / "Logs" / "whids.log"
     if log.exists():
         lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
         info["log_tail"] = lines[-30:]

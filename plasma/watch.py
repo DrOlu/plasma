@@ -8,11 +8,18 @@ crosses a threshold. `--once` for cron, `--loop N` for long-running.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from pathlib import Path
 
 from . import health, notify, observatory
+
+# WHIDS alert directory. A module constant so tests and alternate installs
+# can point the sweep at the real location without patching Path.
+ALERTS_DIR = Path(r"C:\Program Files\Whids\Logs\Alerts")
+ALERT_OFFSETS_FILE = "watch-alert-offsets.json"
+HIGH_CRITICALITY = 8.0
 
 
 def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
@@ -45,7 +52,7 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
     # 3. NEW WHIDS alert rows sitting on disk since the last sweep
     #    (whids.pull never truncates rotated files, so comparing against the
     #    absolute row count would re-fire forever; only growth is a finding)
-    alerts_dir = Path(r"C:\Program Files\Whids\Logs\Alerts")
+    alerts_dir = Path(ALERTS_DIR)
     alert_rows = 0
     if alerts_dir.is_dir():
         for f in alerts_dir.rglob("*"):
@@ -69,6 +76,16 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
             json.dumps({"seen_alert_rows": alert_rows}) + "\n", encoding="utf-8")
     except OSError:
         pass
+
+    # 3b. Surface genuinely high-criticality WHIDS alerts immediately.
+    # Counting rows is not enough: a single criticality-9 gene alert would
+    # sit unseen until 25 more rows arrived. Read only bytes appended since
+    # the last sweep (per-file offsets, reset on truncation/rotation).
+    try:
+        findings.extend(_new_high_alerts(root, alerts_dir))
+    except Exception as exc:  # noqa: BLE001 — collector failures are data
+        findings.append({"type": "alert_scan_error", "score": 5,
+                         "detail": str(exc)[:160]})
 
     # 4. chain stories over the events tail (deterministic sequences —
     #    "this happened, then this": phish spawn, brute-force-success, ...)
@@ -102,6 +119,85 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
             "health": hv["status"], "findings": findings, "top_score": top,
             "verdict": ("clean" if top == 0 else
                         "investigate" if top < 8 else "act now")}
+
+
+def _head_token(path: Path) -> str:
+    """Fingerprint of the file's first bytes, to detect rotation."""
+    try:
+        with path.open("rb") as fh:
+            return hashlib.sha1(fh.read(512)).hexdigest()
+    except OSError:
+        return ""
+
+
+def _new_high_alerts(root, alerts_dir: Path) -> list[dict]:
+    """Parse alert bytes appended since the last sweep.
+
+    Offsets advance only over complete lines. A rotated/truncated file is
+    read from zero. Findings are capped so a burst cannot flood a sweep.
+    """
+    from . import agentstate, whids
+
+    state_path = Path(root) / ALERT_OFFSETS_FILE
+    state = agentstate.read_json(state_path, {}) or {}
+    offsets = state.get("files") if isinstance(state, dict) else {}
+    offsets = dict(offsets or {})
+    out: list[dict] = []
+    if not Path(alerts_dir).is_dir():
+        return out
+
+    for path in sorted(Path(alerts_dir).rglob("*")):
+        if not path.is_file():
+            continue
+        key = str(path)
+        try:
+            size = path.stat().st_size
+        except OSError:
+            continue
+        previous = offsets.get(key) or {}
+        start = int(previous.get("offset", 0) or 0)
+        head = _head_token(path)
+        # A smaller file is truncated; a different head is a replaced file.
+        # Either way, the old offset points into the wrong content.
+        if size < start or (previous.get("head") and previous["head"] != head):
+            start = 0
+        if size == start:
+            offsets[key] = {"offset": size, "size": size, "head": head}
+            continue
+        try:
+            with path.open("rb") as fh:
+                fh.seek(start)
+                blob = fh.read(4 << 20)    # bounded per file per sweep
+        except OSError:
+            continue
+        # Only consume complete lines; leave a partial tail for next sweep.
+        cut = blob.rfind(b"\n")
+        if cut < 0:
+            offsets[key] = {"offset": start, "size": size, "head": head}
+            continue
+        consumed = start + cut + 1
+        for line in blob[:cut + 1].splitlines():
+            try:
+                record = json.loads(line.decode("utf-8", "replace"))
+            except (json.JSONDecodeError, UnicodeError):
+                continue
+            event = whids.normalize_alert(record)
+            if not event:
+                continue
+            criticality = float(event.get("score") or 0) * 10.0
+            if criticality < HIGH_CRITICALITY:
+                continue
+            out.append({
+                "type": "whids_high_criticality",
+                "score": int(round(criticality)),
+                "detail": (f"WHIDS {event.get('description') or 'detection'}"
+                           f" on {event.get('process') or 'unknown process'}"
+                           f" ({event.get('technique') or 'no technique'})")[:200],
+            })
+        offsets[key] = {"offset": consumed, "size": size, "head": head}
+
+    agentstate.write_json(state_path, {"files": offsets})
+    return out[:10]
 
 
 def watch_once(root, quiet_clean: bool = True) -> dict:

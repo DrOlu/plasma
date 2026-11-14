@@ -39,9 +39,11 @@ def actions() -> dict:
 def _journal(root, entry):
     # ids are assigned at journal time: the step dry-runs appended before the
     # playbook entry consume ids first (an early id would collide with them)
-    if "id" not in entry:
-        entry["id"] = actuate._next_id(root)
-    return actuate._journal_append(root, entry)
+    if "id" in entry:
+        return actuate._journal_append(root, entry)
+    saved = actuate._append_entry(root, entry)
+    entry["id"] = saved["id"]
+    return saved
 
 
 def execute(root, name: str, target=None, reason=None, apply: bool = False,
@@ -61,18 +63,32 @@ def execute(root, name: str, target=None, reason=None, apply: bool = False,
         return {"error": f"playbook '{name}' requires a target"}
 
     if apply:
+        from . import killswitch
+        import socket
+        if killswitch.blocked(root, host=socket.gethostname(), risk="medium"):
+            return {"error": "kill switch is engaged for this host — "
+                             "playbook execution is blocked (dry-runs remain available)",
+                    "code": "KILLSWITCH"}
         if plan is None:
-            return {"error": "--apply requires --plan <id> of the playbook dry-run"}
+            return {"error": "--apply requires --plan <id> of the playbook dry-run",
+                    "code": "REFUSED"}
         rows = actuate.journal_read(root)
         dr = next((r for r in rows if r.get("id") == plan), None)
         if not dr or dr.get("mode") != "dry-run" or \
                 dr.get("action") != f"playbook:{name}":
-            return {"error": f"--plan {plan} is not a dry-run of playbook '{name}'"}
+            return {"error": f"--plan {plan} is not a dry-run of playbook '{name}'",
+                    "code": "REFUSED"}
         if str(dr.get("target") or "") != str(target or ""):
-            return {"error": f"--plan {plan} targeted '{dr.get('target')}', not '{target}'"}
+            return {"error": f"--plan {plan} targeted '{dr.get('target')}', not '{target}'",
+                    "code": "REFUSED"}
         if any(r.get("mode") == "applied" and r.get("plan") == plan
                and str(r.get("action", "")).startswith("playbook:") for r in rows):
-            return {"error": f"--plan {plan} has already been used"}
+            return {"error": f"--plan {plan} has already been used", "code": "REFUSED"}
+        planned_count = len(dr.get("steps") or [])
+        if planned_count != len(spec["steps"]):
+            return {"error": f"playbook dry-run has {planned_count} step plan(s), "
+                             f"expected {len(spec['steps'])} — re-run the dry-run",
+                    "code": "REFUSED"}
 
     entry = {
         "action": f"playbook:{name}",
@@ -103,7 +119,12 @@ def execute(root, name: str, target=None, reason=None, apply: bool = False,
 
     # apply: walk the journaled step plans in order
     for spec_step, planned in zip(spec["steps"], step_plans):
-        step_id = planned["plan"]
+        step_id = planned.get("plan")
+        if step_id is None:
+            entry["aborted_at"] = spec_step["action"]
+            entry["error"] = "step plan missing from the playbook dry-run"
+            _journal(root, entry)
+            return entry
         res = actuate.execute(
             spec_step["action"], root,
             target=target if spec_step["takes_target"] else None,
@@ -154,16 +175,19 @@ def undo(root, entry_id: int, apply: bool = False, plan: int | None = None,
         dry_runs = [r for r in rows
                     if r.get("mode") == "dry-run" and r.get("undoes") == entry_id
                     and str(r.get("action", "")).startswith("undo:playbook:")]
-        if plan is None and dry_runs:
-            plan = dry_runs[-1]["id"]
+        if plan is None and len(dry_runs) == 1:
+            plan = dry_runs[0]["id"]
         if plan is None:
+            detail = ("multiple undo dry-runs exist — choose one"
+                      if len(dry_runs) > 1 else "dry-run the undo first")
             return {"error": "--apply requires --plan <id> from a prior playbook "
-                             "undo dry-run (dry-run the undo first)"}
+                             f"undo dry-run ({detail})", "code": "REFUSED"}
         dr = next((r for r in rows if r.get("id") == plan), None)
         if (not dr or dr.get("mode") != "dry-run"
                 or not str(dr.get("action", "")).startswith("undo:playbook:")
                 or dr.get("undoes") != entry_id):
-            return {"error": f"--plan {plan} is not a dry-run undo of playbook {entry_id}"}
+            return {"error": f"--plan {plan} is not a dry-run undo of playbook {entry_id}",
+                    "code": "REFUSED"}
         planned_steps = dr.get("steps") or []
 
     reversals = []

@@ -16,6 +16,26 @@ Highlights by release:
 - **Trace rows use `tid`** — `pid` is not portable across the DTrace builds
   on the estate; `tid` works on both hosts.
 
+## 1.8.0 — 2026-11-14
+
+Production-hardening release from a full Windows-estate re-test.
+
+- WHIDS startup hang root-caused: 145k dump files / 2.3 GB inside the
+  install directory made the startup ACL reset exceed the SCM timeout.
+  Dump hooks are off in detect-only mode; `plasma whids prune` and the
+  watchdog move oversized/legacy trees out of the install path.
+- watch: a single criticality-8+ WHIDS alert is surfaced immediately;
+  per-file offsets handle append, truncation and rotation.
+- fleet: lateral movement requires network auth logons and reports a
+  source-address link; shared domains/IPs require at least one scored row.
+- chain: brute-force success must belong to the same user as the burst.
+- actuate: kill switch enforced on CLI/playbook applies; rotate_credential
+  passwords redacted from the journal; quarantine hash-pinned with protected
+  paths; WMI undo by name; isolation fail-closed; journal lock/fsync/id-safety.
+- MCP: rate limit counts actions, not reads; approvals are tenant-scoped.
+- identity/deep/health/store edge cases fixed.
+- 440 passed / 21 skipped.
+
 ## 1.7.2 — 2026-11-13
 
 - **Explicit state machines** — update phases, single-use plans and

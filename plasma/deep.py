@@ -16,7 +16,7 @@ import json
 import shutil
 import subprocess
 
-_WINDOWS = r"C:\\Windows"
+_WINDOWS = r"C:\Windows"
 
 _PS_TEMPLATE = r"""
 $ErrorActionPreference = 'SilentlyContinue'
@@ -74,7 +74,7 @@ foreach ($b in $bins) {{
 """
 
 
-def _run_ps(cap: int = 40) -> dict:
+def _run_ps(cap: int = 200) -> dict:
     exe = shutil.which("powershell.exe") or shutil.which("pwsh")
     if not exe:
         return {"error": "powershell not available on this host"}
@@ -107,7 +107,8 @@ def normalize(payload: dict, windows_dir: str = _WINDOWS.lower()) -> dict:
         sig = sigs.get(key) or {}
         signed = sig.get("signed")
         in_windows = key.startswith(windows_dir)
-        executable = key.endswith((".exe", ".dll", ".scr")) or key.startswith("c:")
+        executable = key.endswith((".exe", ".dll", ".scr", ".com", ".ps1",
+                                   ".bat", ".cmd", ".vbs", ".js", ".hta", ".msi"))
         suspect = bool(executable and signed is False and not in_windows and path)
         out.append({
             "source": str(r.get("source") or ""),
@@ -128,7 +129,7 @@ def normalize(payload: dict, windows_dir: str = _WINDOWS.lower()) -> dict:
             "total": len(out)}
 
 
-def run(out=None, cap: int = 40) -> dict:
+def run(out=None, cap: int = 200) -> dict:
     """Full probe: collect on-box, normalize, optionally write JSON."""
     payload = _run_ps(cap=cap)
     if "error" in payload:

@@ -58,13 +58,13 @@ def test_correlate_survives_mixed_timestamp_formats(tmp_path):
         {"case": "c1", "window_seconds": 1800, "canaries": []}))
     (cd / "answers" / "a.events.jsonl").write_text("\n".join([
         _json.dumps({"ts": "2026-10-19T12:00:00.000Z", "user": "bob",
-                     "kind": "auth", "host": "a"}),
+                     "kind": "auth", "host": "a", "dest_ip": "10.0.0.1"}),
         _json.dumps({"ts": "2026-10-19T12:05:00.000", "user": "bob",
-                     "kind": "auth", "host": "b"}),
+                     "kind": "auth", "host": "b", "dest_ip": "10.0.0.1"}),
     ]) + "\n")
     (cd / "answers" / "b.events.jsonl").write_text(_json.dumps(
         {"ts": "2026-10-19T12:02:00+00:00", "user": "bob",
-         "kind": "auth", "host": "b"}) + "\n")
+         "kind": "auth", "host": "b", "dest_ip": "10.0.0.1"}) + "\n")
     result = fleet.correlate(root, "c1")
     assert "error" not in result
     hops = [f for f in result["findings"] if f["type"] == "lateral_hop"]

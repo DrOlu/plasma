@@ -208,6 +208,11 @@ def handle(request: dict, root=None) -> dict | None:
                                         "error": str(exc)}, error=True)}
 
     host = args.get("host") or context.get("host")
+    if not host and spec.risk != "read":
+        # Local response tools act on THIS node; a per-host kill switch or
+        # tenant assignment for this node must still apply.
+        import socket
+        host = socket.gethostname()
     context_tenant = context.get("tenant")
     if context_tenant and host and not tenants.allows(root, context_tenant, host):
         decision = {"allowed": False, "approval_required": False, "code": "denied",
@@ -220,7 +225,7 @@ def handle(request: dict, root=None) -> dict | None:
             "ok": False, "code": "DENIED", "audit_id": row["seq"],
             "reasons": decision["reasons"]})}
     blocked = killswitch.blocked(root, host=host, risk=spec.risk)
-    recent = ledger.count_recent(root, 60)
+    recent = ledger.count_recent(root, 60, mutating_only=True)
     active_policy = policy.load(root)
     decision = policy.evaluate(name, args, context=context, policy=active_policy,
                                recent_actions=recent, killswitch_blocked=blocked)

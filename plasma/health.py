@@ -123,9 +123,12 @@ def checks(root) -> list[dict]:
         results.append({"check": "tap_sidecar", "ok": _locate_tap_exe() is not None,
                         "detail": "materialized on demand"})
 
-    # sensor-of-sensors: is the diary still being written? (any platform
-    # with a store; on a desk the store may legitimately not exist)
+    # sensor-of-sensors: is the diary still being written? A perfectly
+    # healthy service writing an empty store is not healthy — that is the
+    # "installed but blind" failure this project exists to make visible.
+    heartbeat_checked = False
     if ev.exists() and ev.stat().st_size > 0:
+        heartbeat_checked = True
         age_min = _store_age_minutes(ev)
         if age_min is None:
             results.append({"check": "sensor_heartbeat", "ok": False,
@@ -133,6 +136,11 @@ def checks(root) -> list[dict]:
         else:
             results.append({"check": "sensor_heartbeat", "ok": age_min <= 1440,
                             "detail": f"newest event {int(age_min)} min old"})
+    if is_windows and whids_status in ("active", "installing") \
+            and not heartbeat_checked and ev.exists():
+        results.append({"check": "sensor_heartbeat", "ok": False,
+                        "detail": "events store is empty — sensors are running "
+                                  "but have not written anything"})
 
     # rdp hardening drift (windows endpoints): the lockout-incident checks —
     # RDP must stay enabled and on a sane security layer
@@ -158,16 +166,28 @@ def checks(root) -> list[dict]:
 
 
 def _store_age_minutes(events_path) -> float | None:
-    """Age in minutes of the newest parsable ts line in the store."""
+    """Age in minutes of the newest parsable ts line in the store.
+
+    Reads a bounded tail (up to 256 KB) instead of the whole diary: health
+    is called on a cadence and must not become O(store size).
+    """
     try:
-        with Path(events_path).open(encoding="utf-8", errors="replace") as fh:
-            last = None
-            for line in fh:
-                if line.strip().startswith("{"):
-                    last = line
-        if not last:
+        path = Path(events_path)
+        with path.open("rb") as fh:
+            fh.seek(0, 2)
+            end = fh.tell()
+            fh.seek(max(0, end - (256 << 10)))
+            blob = fh.read().decode("utf-8", "replace")
+        lines = [ln for ln in blob.splitlines() if ln.strip().startswith("{")]
+        row = None
+        for line in reversed(lines):
+            try:
+                row = json.loads(line)
+                break
+            except json.JSONDecodeError:
+                continue
+        if row is None:
             return None
-        row = json.loads(last)
         ts = datetime.fromisoformat(str(row.get("ts", "")).replace("Z", "+00:00"))
         if ts.tzinfo is None:
             ts = ts.replace(tzinfo=timezone.utc)

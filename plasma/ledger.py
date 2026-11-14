@@ -181,13 +181,16 @@ def find(root=None, seq: int | None = None) -> dict | None:
     return None
 
 
-def count_recent(root=None, seconds: int = 60, tool: str | None = None) -> int:
+def count_recent(root=None, seconds: int = 60, tool: str | None = None,
+                 mutating_only: bool = False) -> int:
     cutoff = time.time() - max(1, int(seconds))
     count = 0
     for row in read(root):
         if row.get("kind") != "action":
             continue
         if tool and row.get("tool") != tool:
+            continue
+        if mutating_only and row.get("risk") == "read":
             continue
         ts = row.get("ts", "")
         try:
@@ -259,7 +262,8 @@ def consume_approval(root, seq: int, tool: str, args_sha256: str,
                          and r.get("approval_for") == seq
                          and r.get("approved") is True
                          and r.get("tool") == tool
-                         and r.get("args_sha256") == args_sha256), None)
+                         and r.get("args_sha256") == args_sha256
+                         and r.get("tenant", tenant) == tenant), None)
         if approval is None:
             return None
         return _append_locked(root, {
@@ -275,7 +279,8 @@ def consume_approval(root, seq: int, tool: str, args_sha256: str,
 
 
 def find_approval(root=None, seq: int | None = None, tool: str | None = None,
-                  args_sha256: str | None = None) -> dict | None:
+                  args_sha256: str | None = None,
+                  tenant: str = "default") -> dict | None:
     if seq is None:
         return None
     rows = read(root)
@@ -288,6 +293,7 @@ def find_approval(root=None, seq: int | None = None, tool: str | None = None,
                 and row.get("approved") is True
                 and row.get("tool") == tool
                 and row.get("args_sha256") == args_sha256
+                and row.get("tenant", "default") == (tenant or "default")
                 and seq not in consumed):
             return row
     return None

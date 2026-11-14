@@ -19,8 +19,10 @@ channels = [
 # Forward alerts above this criticality (gene 0-10 scale).
 criticality-treshold = 5
 
-# Enable enrichment/dump hooks and gene filtering rules.
-en-hooks = true
+# Enrichment/dump hooks are OFF in detect-only mode. A field host reached
+# 145k dump files / 2.3 GB, after which WHIDS hung at init and the SCM gave
+# up (7009). Gene filters stay on; hooks are not needed for alerting.
+en-hooks = false
 en-filters = true
 
 # Engine messages.
@@ -41,14 +43,6 @@ rotation-interval = "1h0m0s"
 bin = "C:\\Windows\\Sysmon64.exe"
 archive-directory = "C:\\Sysmon\\"
 clean-archived = true
-
-[dump]
-mode = "file|registry"
-dir = "C:\\Program Files\\Whids\\Dumps"
-treshold = 8
-max-dumps = 4
-compression = true
-dump-untracked = false
 
 [rules]
 rules-db = "C:\\Program Files\\Whids\\Database\\Rules"

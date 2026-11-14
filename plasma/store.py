@@ -35,18 +35,24 @@ def rotate(events_path, max_mb: float = DEFAULT_MAX_MB,
     if size < limit:
         return {"rotated": False, "reason": f"{size} bytes < {limit} limit",
                 "size_bytes": size}
-    # shift elders: .(keep-1) -> deleted, .k -> .(k+1)
+    # shift elders: .keep -> removed, .k -> .(k+1). A sensor may hold the
+    # live file open, so failures are returned as data rather than crashing
+    # the whole watch/ops loop.
     removed = None
-    oldest = path.with_name(path.name + f".{keep}")
-    if oldest.exists():
-        removed = str(oldest)
-        oldest.unlink()
-    for k in range(keep - 1, 0, -1):
-        src = path.with_name(path.name + f".{k}")
-        if src.exists():
-            src.rename(path.with_name(path.name + f".{k + 1}"))
-    path.rename(path.with_name(path.name + ".1"))
-    path.touch()
+    try:
+        oldest = path.with_name(path.name + f".{keep}")
+        if oldest.exists():
+            removed = str(oldest)
+            oldest.unlink()
+        for k in range(keep - 1, 0, -1):
+            src = path.with_name(path.name + f".{k}")
+            if src.exists():
+                src.rename(path.with_name(path.name + f".{k + 1}"))
+        path.rename(path.with_name(path.name + ".1"))
+        path.touch()
+    except OSError as exc:
+        return {"rotated": False, "error": f"rotation failed: {exc}",
+                "size_bytes": size, "limit_bytes": limit}
     return {"rotated": True, "size_bytes": size, "limit_bytes": limit,
             "kept": keep, "removed_elder": removed,
             "live_file": str(path)}

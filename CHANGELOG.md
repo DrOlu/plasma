@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.8.0 — 2026-11-14
+
+Production hardening after a full Windows-estate re-test.
+
+- **WHIDS hang root-caused**: 145k dump files / 2.3 GB inside the install
+  directory made WHIDS' startup ACL reset exceed the SCM timeout. Detect-only
+  config now ships with `en-hooks = false`; `plasma whids prune` and the
+  watchdog move oversized/legacy trees out of the install path.
+- **watch**: surfaces a single criticality-8+ alert immediately, using
+  per-file offsets that handle append, truncation and rotation.
+- **fleet**: lateral movement requires network logons and a same-user
+  pattern; `linked` is true only with a source-address link to another host.
+  Shared domains/IPs need at least one scored row.
+- **chain**: brute-force success must belong to the same user as the burst.
+- **actuate**: kill switch enforced on CLI/playbook applies; rotated
+  credentials redacted from the journal; quarantine hash-pinned with
+  protected paths; WMI undo restores bindings by name; isolation verifies
+  management allows before blocking; journal is locked, fsynced, id-safe.
+- **MCP**: rate limit counts actions, not reads; approvals are tenant-scoped.
+- **collectors**: empty stores are degraded; deep persistence no longer
+  flags unsigned Windows binaries; identity drops malformed domains and
+  timestamps; store rotation failures are data.
+- 440 passed / 21 skipped.
+
 ## 1.7.2 — 2026-11-13
 
 ### Fixed — implicit state machines

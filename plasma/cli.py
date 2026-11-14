@@ -826,6 +826,14 @@ def cmd_install(args) -> int:
                     parents=True, exist_ok=True)
             for sub in ("Logs", "Dumps"):
                 (install_dir / sub).mkdir(parents=True, exist_ok=True)
+            # Detect-only nodes do not keep process dumps; bound any tree a
+            # previous build or hook configuration left behind.
+            pruned = whids.prune_dumps(install_dir)
+            if pruned.get("removed_files"):
+                config["sensors"]["whids"]["dumps_pruned"] = {
+                    "files": pruned["removed_files"],
+                    "mb": round(pruned["removed_bytes"] / (1024 * 1024), 1),
+                }
 
         bin_path = f'"{exe}" -c "{install_dir}\\config.toml"'
         if not _service_present("Whids*"):
@@ -1045,9 +1053,10 @@ def cmd_actuate_apply(args) -> int:
         args.action, args.root, target=args.target, reason=args.reason,
         apply=args.apply, timeout=args.timeout, plan=args.plan)
     print(json.dumps(result, indent=2, default=str))
-    # dry-runs succeed by definition; applied actions report via "error"/rc
+    # 2 = refused (plan/guard/kill switch), 3 = execution or verification
+    # failure, 1 = malformed request or data error.
     if "error" in result:
-        return 1
+        return 2 if result.get("code") in ("REFUSED", "KILLSWITCH") else 1
     if args.apply:
         run = result.get("result") or {}
         if run.get("error") or run.get("rc") not in (None, 0):
@@ -1069,7 +1078,11 @@ def cmd_actuate_undo(args) -> int:
     result = actuate.undo(args.root, args.id, apply=args.apply,
                           plan=args.plan, timeout=args.timeout)
     print(json.dumps(result, indent=2, default=str))
-    return 0 if "error" not in result else 1
+    if "error" in result:
+        return 2 if result.get("code") == "REFUSED" else 1
+    if args.apply and result.get("ok") is False:
+        return 3
+    return 0
 
 
 def cmd_chain_score(args) -> int:
@@ -1126,7 +1139,7 @@ def cmd_playbook_apply(args) -> int:
                                plan=args.plan, timeout=args.timeout)
     print(json.dumps(result, indent=2, default=str))
     if "error" in result:
-        return 1
+        return 2 if result.get("code") in ("REFUSED", "KILLSWITCH") else 1
     if args.apply:
         if result.get("aborted_at"):
             return 3
@@ -1140,7 +1153,13 @@ def cmd_playbook_undo(args) -> int:
     result = playbooks.undo(args.root, args.id, apply=args.apply,
                             plan=args.plan, timeout=args.timeout)
     print(json.dumps(result, indent=2, default=str))
-    return 0 if "error" not in result else 1
+    if "error" in result:
+        return 2 if result.get("code") == "REFUSED" else 1
+    if args.apply:
+        for step in result.get("steps", []):
+            if step.get("error"):
+                return 3
+    return 0
 
 
 def cmd_trace_list(args) -> int:
@@ -1200,10 +1219,17 @@ def cmd_whids_ensure(args) -> int:
     return 0 if result.get("ok") else 1
 
 
+def cmd_whids_prune(args) -> int:
+    result = whids.prune_dumps(args.install_dir, max_mb=args.max_mb,
+                               keep_days=args.keep_days, dry_run=args.dry_run)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 1
+
+
 def cmd_canary_deploy(args) -> int:
     result = canary.deploy(args.root, extra_dirs=args.dir)
     print(json.dumps(result, indent=2, default=str))
-    return 0
+    return 2 if result.get("code") == "KILLSWITCH" else (1 if "error" in result else 0)
 
 
 def cmd_canary_verify(args) -> int:
@@ -1813,6 +1839,14 @@ def build_parser() -> argparse.ArgumentParser:
     spe.add_argument("--wait", type=int, default=30, help="seconds to wait per state transition")
     spe.set_defaults(func=cmd_whids_ensure)
 
+    spr = sns.add_parser("prune", help="bound the WHIDS dump tree (detect-only nodes keep none)")
+    spr.add_argument("--install-dir", default=None,
+                     help="WHIDS install directory (default: %%ProgramFiles%%\\Whids)")
+    spr.add_argument("--max-mb", type=int, default=512)
+    spr.add_argument("--keep-days", type=int, default=7)
+    spr.add_argument("--dry-run", action="store_true")
+    spr.set_defaults(func=cmd_whids_prune)
+
     cn = sub.add_parser("canary", help="decoys for impact detection (T1486)")
     cns = cn.add_subparsers(dest="canary_action", required=True)
     cnd = cns.add_parser("deploy", help="create canary files and record their hashes")
@@ -1933,7 +1967,7 @@ def build_parser() -> argparse.ArgumentParser:
     dps = dp.add_subparsers(dest="deep_action", required=True)
     dpp = dps.add_parser("persistence", help="every auto-start location + signature status")
     dpp.add_argument("--json-out", default=None, help="also write the full result here")
-    dpp.add_argument("--cap", type=int, default=40)
+    dpp.add_argument("--cap", type=int, default=200)
     dpp.set_defaults(func=cmd_deep_persistence)
 
     pb = sub.add_parser("playbook", help="named plan-gated action sequences")

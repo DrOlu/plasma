@@ -314,7 +314,8 @@ def test_actuate_wmi_undo_restores_bindings(tmp_path, monkeypatch):
     and undo re-creates each filter/consumer pair."""
     root = _fresh_root(tmp_path)
     binds_file = tmp_path / "bindings.json"
-    binds_file.write_text('[{"filter":"\\\\G1","consumer":"\\\\C1"}]')
+    binds_file.write_text('[{"filter_name":"G1","consumer_name":"C1",'
+              '"consumer_class":"CommandLineEventConsumer"}]')
     calls = []
 
     def fake_run(payload, timeout=60):
@@ -322,7 +323,7 @@ def test_actuate_wmi_undo_restores_bindings(tmp_path, monkeypatch):
         if "Get-CimInstance -Namespace root/subscription" in payload:
             return {"rc": 0, "output": f"{binds_file}\nbindings removed",
                     "output_head": f"{binds_file}\nbindings removed"}
-        if payload.startswith("New-CimInstance"):
+        if "New-CimInstance" in payload:
             return {"rc": 0, "output": "bindings restored",
                     "output_head": "bindings restored"}
         return {"rc": 0, "output": "ok", "output_head": "ok"}
@@ -335,7 +336,8 @@ def test_actuate_wmi_undo_restores_bindings(tmp_path, monkeypatch):
     undo_dry = actuate.undo(root, entry["id"])
     undone = actuate.undo(root, entry["id"], apply=True, plan=undo_dry["id"])
     assert undone["result"]["rc"] == 0
-    assert calls[-1].startswith("New-CimInstance")
+    assert "New-CimInstance" in calls[-1]
+    assert "Get-CimInstance" in calls[-1] and "Name=''G1''" in calls[-1]
 
 
 def test_actuate_journal_tolerates_torn_lines(tmp_path, mock_run):

@@ -62,6 +62,11 @@ def _sha256(path: Path) -> str:
 def deploy(root, extra_dirs=None, names=None) -> dict:
     """Create canary files and record their hashes. Existing canaries are
     left untouched (their current hash is recorded, not overwritten)."""
+    from . import killswitch
+    import socket
+    if killswitch.blocked(root, host=socket.gethostname(), risk="medium"):
+        return {"error": "kill switch is engaged for this host — canary "
+                         "deployment is blocked", "code": "KILLSWITCH"}
     root = Path(root)
     names = names or CANARY_NAMES
     dirs = [default_dir(root)] + [Path(d) for d in (extra_dirs or [])]
@@ -71,12 +76,14 @@ def deploy(root, extra_dirs=None, names=None) -> dict:
         directory.mkdir(parents=True, exist_ok=True)
         for name in names:
             path = directory / name
-            key = str(path.resolve()) if path.exists() else str(path)
-            if key in entries:
-                continue
             if not path.exists():
                 path.write_text(CANARY_BODY, encoding="utf-8")
                 created += 1
+            # Resolve only after creation so relative and absolute roots
+            # produce one manifest key per file (not two entries).
+            key = str(path.resolve())
+            if key in entries:
+                continue
             entries[key] = {
                 "path": str(path),
                 "sha256": _sha256(path),
@@ -135,7 +142,11 @@ def status(root) -> dict:
     if not mpath.exists():
         return {"deployed": False,
                 "hint": "plasma canary deploy --root <root>"}
-    manifest = json.loads(mpath.read_text(encoding="utf-8-sig"))
+    try:
+        manifest = json.loads(mpath.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"deployed": True, "error": f"canary manifest unreadable: {exc}",
+                "manifest": str(mpath)}
     result = verify(root)
     return {"deployed": True,
             "manifest": str(mpath),

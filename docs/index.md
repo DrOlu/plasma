@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.7.2</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.8.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.7.2</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.8.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">91.7% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">398 tests</span>
+<span class="raft-badge">440 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -80,6 +80,35 @@ ON-DEVICE BRAIN    frozen neuralOS instance — 10 probes, refuse-if-unknown
 DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
+
+## What's new in 1.8.0
+
+This is the production-hardening release, driven by a full re-test on the
+Windows estate.
+
+- **WHIDS init hang, root-caused** — an oversized `Dumps` tree inside the
+  install directory made WHIDS' startup ACL reset exceed the SCM timeout.
+  Detect-only nodes now ship with dump hooks off; `whids prune` and the
+  watchdog move legacy trees out of the install path, not delete them file
+  by file.
+- **Watch surfaces lone critical alerts** — a criticality-8+ WHIDS alert is
+  reported on the next sweep, with per-file offsets that survive log
+  rotation. Previously only the 25-row growth counter was visible.
+- **Fleet false positives cut** — lateral movement now requires network
+  logons (`type=3/10`) and reports `linked` only when the source address is
+  another host in the case; shared domains/IPs need at least one scored row.
+- **Chain user binding** — a brute-force burst must end in a success for the
+  same user; another user's success no longer completes the story.
+- **Response safety** — the kill switch now blocks CLI and playbook applies,
+  rotated credentials are redacted from the journal, quarantine is
+  hash-pinned and refuses protected paths, WMI undo restores bindings by
+  name, isolation verifies management allows before blocking, and the
+  journal is locked, fsynced and id-safe.
+- **Collector edge cases** — empty stores are no longer "ok", deep
+  persistence no longer flags unsigned Windows binaries, and identity drops
+  malformed domains/timestamps.
+
+440 tests pass (21 skipped).
 
 ## What's new in 1.7.2
 

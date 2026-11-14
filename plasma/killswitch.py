@@ -63,6 +63,10 @@ def blocked(root=None, host: str | None = None, risk: str = "medium") -> bool:
     state = status(root)
     if state["global"]:
         return True
-    if host and host in state["hosts"]:
-        return True
+    if host:
+        # Windows hostnames are case-insensitive; the switch is stored as
+        # entered by the operator, the caller may use either case.
+        wanted = str(host).strip().lower()
+        if any(str(h).strip().lower() == wanted for h in state["hosts"]):
+            return True
     return False

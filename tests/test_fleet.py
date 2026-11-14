@@ -185,28 +185,75 @@ def test_pull_winrm_missing_env_is_data(tmp_path, monkeypatch):
 
 def test_correlate_lateral_hop(tmp_path):
     cd = fleet.init_case(tmp_path, "hop", window_seconds=1800)
-    _write_host_events(cd, "WS1", [ev("WS1", user="CORP\\olu", ts_=ts(0))])
-    _write_host_events(cd, "WS2", [ev("WS2", user="olu", ts_=ts(180))])
+    meta = json.loads((cd / "case.json").read_text())
+    meta["host_addresses"] = {"WS1": "10.0.0.10", "WS2": "10.0.0.20"}
+    (cd / "case.json").write_text(json.dumps(meta))
+    _write_host_events(cd, "WS1", [ev(
+        "WS1", user="CORP\\olu", ts_=ts(0), kind="auth",
+        dest_ip="10.0.0.5", description="logon success type=3")])
+    _write_host_events(cd, "WS2", [ev(
+        "WS2", user="olu", ts_=ts(180), kind="auth",
+        dest_ip="10.0.0.10", description="logon success type=10")])
     out = fleet.correlate(tmp_path, "hop")
     hops = [f for f in out["findings"] if f["type"] == "lateral_hop"]
     assert len(hops) == 1
     assert hops[0]["hosts"] == ["WS1", "WS2"]         # time-ordered
-    assert hops[0]["score"] == 9
+    assert hops[0]["score"] == 9 and hops[0]["linked"] is True
     assert out["verdict"] == "act now"
+
+
+def test_correlate_lateral_without_source_link_is_not_act_now(tmp_path):
+    """Same user, network logons, no address link: a lead, not proof."""
+    cd = fleet.init_case(tmp_path, "hop2", window_seconds=1800)
+    _write_host_events(cd, "WS1", [ev(
+        "WS1", user="olu", ts_=ts(0), kind="auth", dest_ip="10.9.9.9",
+        description="logon success type=3")])
+    _write_host_events(cd, "WS2", [ev(
+        "WS2", user="olu", ts_=ts(60), kind="auth", dest_ip="10.8.8.8",
+        description="logon success type=3")])
+    out = fleet.correlate(tmp_path, "hop2")
+    hop = next(f for f in out["findings"] if f["type"] == "lateral_hop")
+    assert hop["score"] == 7 and hop["linked"] is False
+    assert out["verdict"] == "investigate"
+
+
+def test_correlate_alert_rows_do_not_make_a_lateral_hop(tmp_path):
+    """Process/alert rows carry users too; local execution is not a hop."""
+    cd = fleet.init_case(tmp_path, "nothop", window_seconds=1800)
+    _write_host_events(cd, "WS1", [ev("WS1", user="olu", kind="alert",
+                                      dest_ip="10.0.0.1", ts_=ts(0))])
+    _write_host_events(cd, "WS2", [ev("WS2", user="olu", kind="alert",
+                                      dest_ip="10.0.0.1", ts_=ts(30))])
+    out = fleet.correlate(tmp_path, "nothop")
+    assert not [f for f in out["findings"] if f["type"] == "lateral_hop"]
+
+
+def test_correlate_local_console_logons_do_not_make_a_hop(tmp_path):
+    cd = fleet.init_case(tmp_path, "local", window_seconds=1800)
+    _write_host_events(cd, "WS1", [ev("WS1", user="olu", kind="auth",
+                                      description="logon success type=2", ts_=ts(0))])
+    _write_host_events(cd, "WS2", [ev("WS2", user="olu", kind="auth",
+                                      description="logon success type=2", ts_=ts(30))])
+    out = fleet.correlate(tmp_path, "local")
+    assert not [f for f in out["findings"] if f["type"] == "lateral_hop"]
 
 
 def test_correlate_window_boundary(tmp_path):
     cd = fleet.init_case(tmp_path, "win", window_seconds=600)
-    _write_host_events(cd, "WS1", [ev("WS1", user="bob", ts_=ts(0))])
-    _write_host_events(cd, "WS2", [ev("WS2", user="bob", ts_=ts(601))])
+    _write_host_events(cd, "WS1", [ev("WS1", user="bob", ts_=ts(0), kind="auth",
+                                      dest_ip="10.0.0.1")])
+    _write_host_events(cd, "WS2", [ev("WS2", user="bob", ts_=ts(601), kind="auth",
+                                      dest_ip="10.0.0.1")])
     out = fleet.correlate(tmp_path, "win")
     assert [f for f in out["findings"] if f["type"] == "lateral_hop"] == []
 
 
 def test_correlate_same_user_one_host_is_clean(tmp_path):
     cd = fleet.init_case(tmp_path, "one", window_seconds=1800)
-    _write_host_events(cd, "WS1", [ev("WS1", user="bob", ts_=ts(0)),
-                                   ev("WS1", user="bob", ts_=ts(60))])
+    _write_host_events(cd, "WS1", [ev("WS1", user="bob", ts_=ts(0), kind="auth",
+                                      dest_ip="10.0.0.1"),
+                                   ev("WS1", user="bob", ts_=ts(60), kind="auth",
+                                      dest_ip="10.0.0.1")])
     out = fleet.correlate(tmp_path, "one")
     assert out["findings"] == [] and out["verdict"] == "clean"
 
@@ -238,11 +285,11 @@ def test_correlate_canary_anywhere_is_ten(tmp_path):
 
 def test_correlate_machine_and_system_accounts_ignored(tmp_path):
     cd = fleet.init_case(tmp_path, "mach")
-    _write_host_events(cd, "WS1", [ev("WS1", user="WS1$", ts_=ts(0)),
-                                   ev("WS1", user="SYSTEM", ts_=ts(1)),
-                                   ev("WS1", user="-", ts_=ts(2))])
-    _write_host_events(cd, "WS2", [ev("WS2", user="WS2$", ts_=ts(3)),
-                                   ev("WS2", user="SYSTEM", ts_=ts(4))])
+    _write_host_events(cd, "WS1", [ev("WS1", user="WS1$", ts_=ts(0), kind="auth"),
+                                   ev("WS1", user="SYSTEM", ts_=ts(1), kind="auth"),
+                                   ev("WS1", user="-", ts_=ts(2), kind="auth")])
+    _write_host_events(cd, "WS2", [ev("WS2", user="WS2$", ts_=ts(3), kind="auth"),
+                                   ev("WS2", user="SYSTEM", ts_=ts(4), kind="auth")])
     out = fleet.correlate(tmp_path, "mach")
     assert out["findings"] == []
 
@@ -269,8 +316,13 @@ def test_correlate_missing_case_is_helpful(tmp_path):
 
 def test_report_renders_and_persists(tmp_path):
     cd = fleet.init_case(tmp_path, "rep")
-    _write_host_events(cd, "WS1", [ev("WS1", user="bob", ts_=ts(0))])
-    _write_host_events(cd, "WS2", [ev("WS2", user="bob", ts_=ts(30))])
+    meta = json.loads((cd / "case.json").read_text())
+    meta["host_addresses"] = {"WS1": "10.0.0.10"}
+    (cd / "case.json").write_text(json.dumps(meta))
+    _write_host_events(cd, "WS1", [ev("WS1", user="bob", ts_=ts(0), kind="auth",
+                                      dest_ip="10.0.0.5")])
+    _write_host_events(cd, "WS2", [ev("WS2", user="bob", ts_=ts(30), kind="auth",
+                                      dest_ip="10.0.0.10")])
     fleet.correlate(tmp_path, "rep")
     out = fleet.report(tmp_path, "rep")
     md = Path(out["report"]).read_text()
@@ -295,3 +347,27 @@ def test_cli_fleet_group_wiring():
     p.parse_args(["fleet", "correlate", "--case", "c"])
     p.parse_args(["fleet", "report", "--case", "c"])
     p.parse_args(["fleet", "scan", "--inventory", "i.json", "--case", "c"])
+
+
+def test_shared_public_indicator_without_a_signal_is_suppressed(tmp_path):
+    """Two hosts hitting the same CDN is background, not lateral movement."""
+    cd = fleet.init_case(tmp_path, "noise")
+    for host in ("WS1", "WS2"):
+        _write_host_events(cd, host, [
+            ev(host, dns_query="cdn.example.net", dest_ip="93.184.216.34",
+               severity="info", score=0.1, ts_=ts(0))])
+    out = fleet.correlate(tmp_path, "noise")
+    assert not [f for f in out["findings"]
+                if f["type"] in ("shared_domain", "shared_ip")]
+
+
+def test_shared_public_indicator_with_one_scored_row_is_kept(tmp_path):
+    cd = fleet.init_case(tmp_path, "signal")
+    _write_host_events(cd, "WS1", [
+        ev("WS1", dns_query="c2.bad.example", severity="critical", score=0.9,
+           ts_=ts(0))])
+    _write_host_events(cd, "WS2", [
+        ev("WS2", dns_query="c2.bad.example", severity="info", score=0.1,
+           ts_=ts(30))])
+    out = fleet.correlate(tmp_path, "signal")
+    assert [f for f in out["findings"] if f["type"] == "shared_domain"]

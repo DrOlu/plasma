@@ -79,15 +79,22 @@ def normalize_logon(row: dict, host: str) -> dict:
     """One Security 4624/4625 record -> strict PlasmaEvent dict (kind=auth)."""
     eid = int(row.get("event_id") or 0)
     domain, user = row.get("domain"), row.get("user")
+    # TargetDomainName is "-" for several local-logon shapes; treating it as
+    # a real domain produced "-\\Administrator" and broke user joins.
+    if str(domain or "").strip() in ("", "-"):
+        domain = None
     full_user = f"{domain}\\{user}" if domain and user and \
         str(user).lower() not in ("-", "") else user
     if str(full_user or "").endswith("$") or str(user or "").lower() in ("-", ""):
         full_user = None                      # machine accounts are noise
     source_ip = row.get("source_ip")
-    if source_ip in ("-", "", "::1", "127.0.0.1", None):
+    if source_ip in ("-", "", "::1", "127.0.0.1", "0.0.0.0", None):
         source_ip = None
+    ts = str(row.get("ts") or "").strip()
+    if not ts:
+        raise ValueError("logon record has no timestamp")
     event = {
-        "ts": row.get("ts"),
+        "ts": ts,
         "host": host,
         "source": "plasma",
         "kind": "auth",
@@ -109,6 +116,9 @@ def normalize_logon(row: dict, host: str) -> dict:
 
 def pull(events_path, host: str, since_minutes: int = 15) -> dict:
     """Read recent logons from the local Security channel into the store."""
+    # Bound an operator-supplied window: a year of Security log is not a
+    # bounded read, and Get-WinEvent would churn for minutes.
+    since_minutes = max(1, min(int(since_minutes), 10080))
     result = _run_ps(since_minutes)
     if "error" in result:
         result.setdefault("written", 0)

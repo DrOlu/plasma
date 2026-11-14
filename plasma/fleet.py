@@ -218,6 +218,21 @@ def pull(root, inventory_path, case, cap=DEFAULT_CAP, window_seconds=DEFAULT_WIN
     """Pull a capped events tail from every inventory host into the case."""
     entries = load_inventory(inventory_path)
     cd = init_case(root, case, window_seconds=window_seconds, canaries=canaries)
+    # Remember each host's address (when the inventory supplies one) so
+    # correlate can distinguish a real lateral link from two independent
+    # logons that merely share a username.
+    try:
+        meta_file = cd / "case.json"
+        meta = json.loads(meta_file.read_text(encoding="utf-8-sig"))
+        addresses = dict(meta.get("host_addresses") or {})
+        for entry in entries:
+            addr = str(entry.get("address") or entry.get("endpoint") or "").strip()
+            if addr:
+                addresses[entry["name"]] = addr
+        meta["host_addresses"] = addresses
+        meta_file.write_text(json.dumps(meta, indent=1) + "\n", encoding="utf-8")
+    except (OSError, json.JSONDecodeError):
+        pass
     results = []
     for entry in entries:
         out_file = cd / "answers" / f"{entry['name']}.events.jsonl"
@@ -245,6 +260,17 @@ def _norm_user(user):
                                          "network service", "-"):
         return None
     return u
+
+
+def _interesting(row) -> bool:
+    """Is this row strong enough to make a shared indicator worth a finding?"""
+    try:
+        if float(row.get("score") or 0) >= 0.5:
+            return True
+    except (TypeError, ValueError):
+        pass
+    return str(row.get("severity") or "").lower() in (
+        "medium", "high", "critical")
 
 
 def _load_case_events(cd) -> dict[str, list[dict]]:
@@ -291,32 +317,63 @@ def correlate(root, case, window_seconds=None, cap_findings=50) -> dict:
                 })
                 break
 
-    # --- lateral_hop: same user on 2+ hosts within the window ---------------
+    # --- lateral_hop: a *network* logon by the same user on 2+ hosts -------
+    # Process/alert rows carry a username too, but a user running locally on
+    # two boxes is not a hop. Only Security-channel auth rows with network
+    # logon evidence count (type 3/10 or a source address).
+    meta = {}
+    try:
+        meta = json.loads((cd / "case.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        meta = {}
+    addresses = {str(k): str(v).strip().lower()
+                 for k, v in (meta.get("host_addresses") or {}).items()}
     user_hosts: dict[str, dict[str, list]] = {}
     for host, rows in per_host.items():
         for row in rows:
+            if str(row.get("kind")) != "auth":
+                continue
             u = _norm_user(row.get("user"))
             if not u or u in canaries:
+                continue
+            desc = str(row.get("description") or "")
+            network = bool(row.get("dest_ip")) or bool(
+                re.search(r"(?i:\btype=(3|10)\b)", desc))
+            if not network:
                 continue
             ts = _parse_ts(row.get("ts"))
             if ts is None:
                 continue
-            user_hosts.setdefault(u, {}).setdefault(host, []).append(ts)
+            user_hosts.setdefault(u, {}).setdefault(host, []).append(
+                {"ts": ts, "dest_ip": str(row.get("dest_ip") or "").lower()})
     for u, hosts in user_hosts.items():
         if len(hosts) < 2:
             continue
-        stamps = sorted(t for ts in hosts.values() for t in ts)
+        stamps = sorted(item["ts"] for items in hosts.values() for item in items)
         span = (stamps[-1] - stamps[0]).total_seconds()
-        if span <= window:
-            order = sorted(
-                ((min(ts), h) for h, ts in hosts.items()), key=lambda x: x[0])
-            findings.append({
-                "type": "lateral_hop", "score": 9,
-                "hosts": [h for _, h in order], "user": u,
-                "detail": f"user '{u}' on {len(hosts)} hosts within "
-                          f"{int(span/60)} min: " +
-                          " -> ".join(h for _, h in order),
-            })
+        if span > window:
+            continue
+        order = sorted(
+            ((min(i["ts"] for i in items), h) for h, items in hosts.items()),
+            key=lambda x: x[0])
+        # A source address that names another host in the case is direct
+        # evidence; without it this is a same-user pattern, not a proven hop.
+        linked = False
+        for h, items in hosts.items():
+            for item in items:
+                for other, addr in addresses.items():
+                    if other != h and addr and item["dest_ip"] == addr:
+                        linked = True
+                        break
+        findings.append({
+            "type": "lateral_hop", "score": 9 if linked else 7,
+            "hosts": [h for _, h in order], "user": u, "linked": linked,
+            "detail": (f"user '{u}' network logons on {len(hosts)} hosts "
+                       f"within {int(span/60)} min: "
+                       + " -> ".join(h for _, h in order)
+                       + ("" if linked else " (no source-address link — "
+                          "same-user pattern, verify before acting)")),
+        })
 
     # --- shared indicators: same hash/domain/ip on 2+ hosts -----------------
     for field, ftype, score in (("file_hash", "shared_hash", 8),
@@ -332,9 +389,17 @@ def correlate(root, case, window_seconds=None, cap_findings=50) -> dict:
                 v = str(v).lower()
                 by_value.setdefault(v, set()).add(host)
                 evidence.setdefault(v, []).append(
-                    {"host": host, "ts": row.get("ts"), field: str(v)})
+                    {"host": host, "ts": row.get("ts"), field: str(v),
+                     "interesting": _interesting(row)})
         for v, hosts in by_value.items():
             if len(hosts) < 2:
+                continue
+            # A shared *hash* is strong evidence on its own. A shared domain
+            # or destination IP is background noise unless at least one host
+            # saw it in a scored/medium-or-worse row. Every browser and
+            # Windows update hits the same CDN; that is not lateral movement.
+            if field != "file_hash" and not any(
+                    item.get("interesting") for item in evidence.get(v, [])):
                 continue
             findings.append({
                 "type": ftype, "score": score, "hosts": sorted(hosts),
