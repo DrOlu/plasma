@@ -25,6 +25,8 @@ import subprocess
 import time
 from pathlib import Path
 
+from .redact import redact_text
+
 MARKER = "plasma|"
 ALLOWED_PROBES = ("syscall", "fbt", "pid", "profile", "etw", "sched")
 FORBIDDEN = ("system(", "exec(", "raise(", "panic(", "abort(")
@@ -260,6 +262,7 @@ def normalize(row: dict, info: dict, host: str) -> dict:
                         + (f" {json.dumps(detail, sort_keys=True)[:200]}"
                            if detail else ""))[:512],
     }
+    event["description"] = redact_text(event["description"])
     if info.get("technique"):
         event["technique"] = info["technique"]
     return {k: v for k, v in event.items() if v is not None}
