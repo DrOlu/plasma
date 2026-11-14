@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.9.2</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.9.3</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.9.2</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.9.3</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">91.7% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">475 tests</span>
+<span class="raft-badge">484 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -80,6 +80,18 @@ ON-DEVICE BRAIN    frozen neuralOS instance — 10 probes, refuse-if-unknown
 DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
+
+## What's new in 1.9.3
+
+- **Kernel-boundary injection evidence (T1055)** — two reviewed DTrace
+  scripts witness the RWX permission flip (`inject-rwx`) and thread creation
+  in another process (`inject-remote-thread`); `injection_chain` binds both
+  to the same image at score 9.
+- Field-verified on WS1 and WS2 (DTrace Sun D 1.13.1). Coverage stays
+  91.7% rollup / 75.0% exact / 83.3% weighted; blind spots T1056,
+  T1056.001, T1112.
+
+484 tests pass (21 skipped).
 
 ## What's new in 1.9.2
 

@@ -123,3 +123,48 @@ def test_scan_store_reads_tail_and_ignores_noise(tmp_path):
 def test_scan_store_missing_file_is_data(tmp_path):
     result = chain.scan_store(tmp_path / "nope.jsonl")
     assert "error" in result and result["findings"] == []
+
+
+def _trace(ts, script, process=r"C:\Users\sam\loader.exe"):
+    return _row(ts, kind="trace", source="dtrace", process=process,
+                description=f'dtrace {script}: probe {{"tid": 11}}')
+
+
+def test_injection_chain_fires_on_rwx_then_remote_thread():
+    rows = [
+        _trace("2026-11-05T11:00:00Z", "inject-rwx"),
+        _trace("2026-11-05T11:01:00Z", "inject-remote-thread"),
+    ]
+    findings = chain.scan(rows)
+    injection = [f for f in findings if f["type"] == "chain_injection_chain"]
+    assert injection, findings
+    assert injection[0]["score"] == 9
+    assert injection[0]["steps"] == 2
+
+
+def test_injection_chain_binds_both_halves_to_one_image():
+    """Remote thread creation is common system noise; the chain is only a
+    story when the same image did both."""
+    rows = [
+        _trace("2026-11-05T11:00:00Z", "inject-rwx", process=r"C:\x\loader.exe"),
+        _trace("2026-11-05T11:01:00Z", "inject-remote-thread",
+               process=r"C:\Windows\System32\svchost.exe"),
+    ]
+    assert not [f for f in chain.scan(rows)
+                if f["type"] == "chain_injection_chain"]
+
+
+def test_injection_chain_respects_the_gap_window():
+    rows = [
+        _trace("2026-11-05T11:00:00Z", "inject-rwx"),
+        _trace("2026-11-05T11:05:00Z", "inject-remote-thread"),
+    ]
+    assert not [f for f in chain.scan(rows)
+                if f["type"] == "chain_injection_chain"]
+
+
+def test_injection_chain_needs_both_halves():
+    for script in ("inject-rwx", "inject-remote-thread"):
+        rows = [_trace("2026-11-05T11:00:00Z", script)]
+        assert not [f for f in chain.scan(rows)
+                    if f["type"] == "chain_injection_chain"]

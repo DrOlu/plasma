@@ -395,3 +395,66 @@ def test_check_uses_the_resolved_dtrace_path(monkeypatch):
     res = trace.check()
     assert any("Program Files" in s and "-V" in s for s in seen)
     assert res["version"] == "dtrace: Sun D 1.13.1"
+
+
+# ---------------------------------------------------------------------------
+# process-injection evidence (T1055)
+# ---------------------------------------------------------------------------
+
+INJECTION_SCRIPTS = ("inject-rwx", "inject-remote-thread")
+
+
+def test_injection_scripts_load_with_metadata():
+    scripts = {s["name"]: s for s in trace.load_scripts()}
+    for name in INJECTION_SCRIPTS:
+        assert name in scripts, sorted(scripts)
+        info = scripts[name]
+        assert info["technique"].startswith("T")
+        assert 0 <= info["score"] <= 10
+        assert info["providers"]
+        assert len(info["sha256"]) == 64
+
+
+def test_injection_scripts_validate():
+    for name in INJECTION_SCRIPTS:
+        text = (REPO_SCRIPTS / f"{name}.d").read_text()
+        info = trace.validate_script(text, name)
+        assert info["technique"] == "T1055"
+        assert info["providers"] == ["syscall"]
+
+
+def test_injection_scripts_normalize_to_the_event_contract():
+    raw = ('plasma|{"probe":"inject_rwx","tid":4242,"comm":"loader.exe",'
+           '"protect":"0x40"}\n')
+    rows = trace.parse_output(raw)
+    info = {"name": "inject-rwx", "score": 5, "technique": "T1055"}
+    ev = trace.normalize(rows[0], info, "HOST1")
+    assert ev["kind"] == "trace"
+    assert ev["source"] == "dtrace"
+    assert ev["host"] == "HOST1"
+    assert ev["technique"] == "T1055"
+    assert ev["severity"] == "medium"
+    assert ev.get("pid") is None                  # tid only, per the estate
+    assert "tid" in ev["description"] and "4242" in ev["description"]
+    assert "inject_rwx" in ev["description"]
+
+
+def test_remote_thread_row_normalizes():
+    raw = ('plasma|{"probe":"inject_remote_thread","tid":7,'
+           '"comm":"rundll32.exe","remote":"1"}\n')
+    info = {"name": "inject-remote-thread", "score": 6, "technique": "T1055"}
+    ev = trace.normalize(trace.parse_output(raw)[0], info, "HOST1")
+    assert ev["kind"] == "trace" and ev.get("pid") is None
+    assert ev["severity"] == "medium"
+    assert "remote" in ev["description"]
+
+
+def test_dtrace_scripts_do_not_inflate_coverage():
+    """docs/trace.md: trace evidence is on-demand and must not be counted
+    in the always-on breadth number."""
+    from plasma import coverage
+    r = coverage.coverage()
+    assert round(r["coverage_pct"], 1) == 91.7
+    assert round(r["coverage_exact_pct"], 1) == 75.0
+    assert round(r["weighted_pct"], 1) == 83.3
+    assert set(r["blind"]) == {"T1056", "T1056.001", "T1112"}
