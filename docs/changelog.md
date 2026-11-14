@@ -16,6 +16,20 @@ Highlights by release:
 - **Trace rows use `tid`** — `pid` is not portable across the DTrace builds
   on the estate; `tid` works on both hosts.
 
+## 1.8.1 — 2026-11-14
+
+Follow-up from the live 1.8.0 estate run.
+
+- Service-registry alerts from Windows' own service binaries (dns.exe,
+  lsass.exe, DFSRs.exe, AD WebServices) are suppressed by System32 path
+  evidence; reg.exe/sc.exe/powershell.exe keep full severity.
+- Fleet no longer treats shared cmd.exe/powershell.exe hashes as cross-host
+  indicators; user-path hashes still produce shared_hash.
+- watch initializes new alert files at end-of-file (no history flood) and
+  ignores .gz/.old-* logs in counts.
+- Run-key suppression no longer covers Microsoft-signed LOLBins.
+- 447 passed / 21 skipped.
+
 ## 1.8.0 — 2026-11-14
 
 Production-hardening release from a full Windows-estate re-test.

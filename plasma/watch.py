@@ -56,8 +56,10 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
     alert_rows = 0
     if alerts_dir.is_dir():
         for f in alerts_dir.rglob("*"):
-            if f.is_file():
-                alert_rows += sum(1 for ln in f.read_text(errors="replace").splitlines() if ln.strip())
+            if (f.is_file() and f.suffix != ".gz"
+                    and ".old-" not in str(f)):
+                alert_rows += sum(1 for ln in f.read_text(errors="replace").splitlines()
+                                  if ln.strip().startswith("{"))
     alert_state_path = root / "watch-alerts-state.json"
     seen_alert_rows = 0
     if alert_state_path.exists():
@@ -147,7 +149,8 @@ def _new_high_alerts(root, alerts_dir: Path) -> list[dict]:
         return out
 
     for path in sorted(Path(alerts_dir).rglob("*")):
-        if not path.is_file():
+        if (not path.is_file() or path.suffix == ".gz"
+                or ".old-" in str(path)):
             continue
         key = str(path)
         try:
@@ -155,8 +158,14 @@ def _new_high_alerts(root, alerts_dir: Path) -> list[dict]:
         except OSError:
             continue
         previous = offsets.get(key) or {}
-        start = int(previous.get("offset", 0) or 0)
         head = _head_token(path)
+        if not previous:
+            # First sight (fresh install or upgrade): start at the current
+            # end. Re-alerting the entire alert history on the first sweep
+            # would flood an operator; history is available via `whids pull`.
+            offsets[key] = {"offset": size, "size": size, "head": head}
+            continue
+        start = int(previous.get("offset", 0) or 0)
         # A smaller file is truncated; a different head is a replaced file.
         # Either way, the old offset points into the wrong content.
         if size < start or (previous.get("head") and previous["head"] != head):
@@ -190,7 +199,7 @@ def _new_high_alerts(root, alerts_dir: Path) -> list[dict]:
             out.append({
                 "type": "whids_high_criticality",
                 "score": int(round(criticality)),
-                "detail": (f"WHIDS {event.get('description') or 'detection'}"
+                "detail": (f"{event.get('description') or 'WHIDS detection'}"
                            f" on {event.get('process') or 'unknown process'}"
                            f" ({event.get('technique') or 'no technique'})")[:200],
             })

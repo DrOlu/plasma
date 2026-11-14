@@ -161,8 +161,11 @@ def _benign_context(rule_name: str, event_data: dict) -> str | None:
     IOC.
     """
     rule = str(rule_name or "").lower()
-    image = _base_name(_get_flat(event_data, "Image", "ProcessName")) or ""
-    image = image.lower()
+    image_path = str(_get_flat(event_data, "Image", "ProcessName") or "").lower()
+    image = _base_name(image_path) or ""
+    system_binary = image_path.startswith((
+        "c:\\windows\\system32\\", "c:\\windows\\syswow64\\",
+        "c:\\windows\\winsxs\\", "c:\\windows\\servicing\\"))
     parent = _base_name(_get_flat(event_data, "ParentImage")) or ""
     parent = parent.lower()
     signed = str(_get_flat(event_data, "Signed") or "").strip().lower()
@@ -174,11 +177,30 @@ def _benign_context(rule_name: str, event_data: dict) -> str | None:
 
     if "execution from user paths" in rule and microsoft:
         return "Microsoft-signed binary in a user-writable path"
-    if ("run key persistence" in rule or "service registry persistence" in rule):
+    if "run key persistence" in rule:
+        # Only actual installer writers. A Microsoft-signed LOLBin (reg.exe,
+        # powershell.exe, sc.exe) writing a Run key is the technique.
         writers = {"msiexec.exe", "trustedinstaller.exe", "services.exe",
-                   "svchost.exe", "setup.exe", "update.exe", "wuauclt.exe"}
-        if image in writers or (microsoft and image and not image.endswith(".tmp")):
-            return f"expected installer/service writer ({image or 'signed'})"
+                   "setup.exe", "update.exe", "wuauclt.exe",
+                   "officeclicktorun.exe", "infdefaultinstall.exe"}
+        if image in writers:
+            return f"expected installer writer ({image})"
+    if "service registry persistence" in rule:
+        # Windows' own service binaries (dns.exe, lsass.exe, DFSRs.exe, AD
+        # WebServices, ...) update their service keys during normal servicing
+        # and produced a storm of criticality-8 false positives on a live
+        # server. Suppress only Microsoft-signed non-LOLBins; reg.exe /
+        # sc.exe / powershell.exe keep the full score.
+        lolbins = {"reg.exe", "sc.exe", "powershell.exe", "pwsh.exe",
+                   "cmd.exe", "wmic.exe", "rundll32.exe", "mshta.exe",
+                   "certutil.exe", "bitsadmin.exe"}
+        if image and image not in lolbins and (microsoft or system_binary):
+            return f"Windows service binary updating its service key ({image})"
+        writers = {"msiexec.exe", "trustedinstaller.exe", "services.exe",
+                   "svchost.exe", "setup.exe", "update.exe", "wuauclt.exe",
+                   "officeclicktorun.exe", "infdefaultinstall.exe"}
+        if image in writers and image not in lolbins:
+            return f"expected installer/service writer ({image})"
     if "scheduled task create" in rule:
         if parent in {"msiexec.exe", "trustedinstaller.exe", "svchost.exe",
                       "setup.exe", "update.exe"}:
@@ -325,7 +347,11 @@ def alert_files(root: str | Path | None = None) -> list[Path]:
     alerts = root / "Logs" / "Alerts"
     if not alerts.is_dir():
         return []
-    return sorted(p for p in alerts.rglob("*") if p.is_file())
+    # .gz archives are compressed and .old-* trees are archived copies; a
+    # text read of them produces garbage lines and inflated counts.
+    return sorted(p for p in alerts.rglob("*")
+                  if p.is_file() and p.suffix != ".gz"
+                  and ".old-" not in str(p))
 
 
 def pull(root: str | Path | None = None, out: str | Path | None = None,

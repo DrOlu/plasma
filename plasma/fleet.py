@@ -262,6 +262,20 @@ def _norm_user(user):
     return u
 
 
+def _system_image(row) -> bool:
+    """True when the row's hash belongs to a core Windows binary.
+
+    Every Windows host shares cmd.exe/powershell.exe hashes; treating those
+    as cross-host indicators produced an automatic score-8 finding on a
+    two-host estate. A hash is only interesting when it is not a system
+    image (or when the row names a non-system file path).
+    """
+    path = str(row.get("file_path") or row.get("image") or "").lower()
+    return path.startswith((
+        "c:\\windows\\system32\\", "c:\\windows\\syswow64\\",
+        "c:\\windows\\winsxs\\", "c:\\windows\\servicing\\"))
+
+
 def _interesting(row) -> bool:
     """Is this row strong enough to make a shared indicator worth a finding?"""
     try:
@@ -385,6 +399,8 @@ def correlate(root, case, window_seconds=None, cap_findings=50) -> dict:
             for row in rows:
                 v = row.get(field)
                 if not v or str(v).lower() in ("-", "none"):
+                    continue
+                if field == "file_hash" and _system_image(row):
                     continue
                 v = str(v).lower()
                 by_value.setdefault(v, set()).add(host)

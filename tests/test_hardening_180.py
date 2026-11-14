@@ -208,17 +208,26 @@ def test_watch_surfaces_a_single_high_criticality_alert_once(tmp_path, monkeypat
     f = alerts / "alerts.jsonl"
     f.write_text(json.dumps(_alert(9)) + "\n")
     first = _quiet_sweep(tmp_path, monkeypatch, alerts)
-    high = [x for x in first["findings"] if x["type"] == "whids_high_criticality"]
-    assert high and high[0]["score"] == 9
+    # First sight initializes at end-of-file (no history flood).
+    assert not [x for x in first["findings"]
+                if x["type"] == "whids_high_criticality"]
+    with f.open("a") as fh:
+        fh.write(json.dumps(_alert(9)) + "\n")
     second = _quiet_sweep(tmp_path, monkeypatch, alerts)
-    assert not [x for x in second["findings"]
+    high = [x for x in second["findings"] if x["type"] == "whids_high_criticality"]
+    assert high and high[0]["score"] == 9
+    third = _quiet_sweep(tmp_path, monkeypatch, alerts)
+    assert not [x for x in third["findings"]
                 if x["type"] == "whids_high_criticality"]
 
 
 def test_watch_ignores_low_criticality_alerts(tmp_path, monkeypatch):
     alerts = tmp_path / "alerts"
     alerts.mkdir()
-    (alerts / "alerts.jsonl").write_text(json.dumps(_alert(5)) + "\n")
+    f = alerts / "alerts.jsonl"
+    f.write_text("")
+    _quiet_sweep(tmp_path, monkeypatch, alerts)
+    f.write_text(json.dumps(_alert(5)) + "\n")
     res = _quiet_sweep(tmp_path, monkeypatch, alerts)
     assert not [x for x in res["findings"]
                 if x["type"] == "whids_high_criticality"]
@@ -523,3 +532,57 @@ def test_prune_dumps_moves_legacy_pruned_dirs_out_of_install(tmp_path):
     assert res["moved_dirs"]
     assert not (install / "Dumps.pruned-20260101-000000").exists()
     assert list(archive.rglob("old.bin"))
+
+
+def test_signed_lolbin_run_key_write_is_not_suppressed():
+    """reg.exe is Microsoft-signed but is the technique, not an installer."""
+    rec = _whids_record("Plasma Run Key Persistence", {
+        "Image": r"C:\Windows\System32\reg.exe",
+        "Signed": "Microsoft Windows", "Company": "Microsoft Corporation",
+        "TargetObject": r"HKLM\Software\Microsoft\Windows\CurrentVersion\Run\Updater"})
+    e = whids.normalize_alert(rec, host="WS1")
+    assert not e.get("suppressed") and e["score"] == 0.9
+
+
+def test_microsoft_service_binary_service_key_write_is_suppressed():
+    rec = _whids_record("Plasma Service Registry Persistence", {
+        "Image": r"C:\Windows\System32\dns.exe",
+        "Signed": "Microsoft Windows", "Company": "Microsoft Corporation",
+        "TargetObject": r"HKLM\SYSTEM\CurrentControlSet\Services\DNS\Parameters"})
+    e = whids.normalize_alert(rec, host="WS1")
+    assert e["suppressed"] and e["score"] == 0.2
+
+
+def test_sc_exe_service_key_write_keeps_full_severity():
+    rec = _whids_record("Plasma Service Registry Persistence", {
+        "Image": r"C:\Windows\System32\sc.exe",
+        "Signed": "Microsoft Windows", "Company": "Microsoft Corporation",
+        "TargetObject": r"HKLM\SYSTEM\CurrentControlSet\Services\Evil"})
+    e = whids.normalize_alert(rec, host="WS1")
+    assert not e.get("suppressed") and e["score"] == 0.9
+
+
+def test_alert_files_skips_compressed_and_archived_logs(tmp_path):
+    alerts = tmp_path / "Logs" / "Alerts"
+    alerts.mkdir(parents=True)
+    (alerts / "alerts.log").write_text("{}\n")
+    (alerts / "alerts.log.1").write_text("{}\n")
+    (alerts / "alerts.log.2.gz").write_bytes(b"\x1f\x8bnot-json")
+    (alerts / "Alerts.old-20260101").mkdir()
+    (alerts / "Alerts.old-20260101" / "alerts.log").write_text("{}\n")
+    names = {p.name for p in whids.alert_files(str(tmp_path))}
+    assert names == {"alerts.log", "alerts.log.1"}
+
+
+def test_windows_service_path_without_signature_metadata_is_suppressed():
+    """Registry events often omit Signed/Company; the System32 path is the
+    positive evidence that keeps dns.exe/lsass.exe writes out of the noise."""
+    rec = _whids_record("Plasma Service Registry Persistence", {
+        "Image": r"C:\Windows\System32\dns.exe",
+        "TargetObject": r"HKLM\SYSTEM\CurrentControlSet\Services\DNS\Parameters"})
+    e = whids.normalize_alert(rec, host="WS1")
+    assert e["suppressed"] and e["score"] == 0.2
+    evil = _whids_record("Plasma Service Registry Persistence", {
+        "Image": r"C:\Windows\Temp\svc.exe",
+        "TargetObject": r"HKLM\SYSTEM\CurrentControlSet\Services\Evil"})
+    assert not whids.normalize_alert(evil).get("suppressed")

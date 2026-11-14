@@ -371,3 +371,26 @@ def test_shared_public_indicator_with_one_scored_row_is_kept(tmp_path):
            ts_=ts(30))])
     out = fleet.correlate(tmp_path, "signal")
     assert [f for f in out["findings"] if f["type"] == "shared_domain"]
+
+
+def test_shared_system_binary_hash_is_not_a_finding(tmp_path):
+    """cmd.exe/powershell.exe hashes are identical on every Windows host."""
+    cd = fleet.init_case(tmp_path, "syshash")
+    h = "a" * 64
+    _write_host_events(cd, "WS1", [ev("WS1", file_hash=h,
+                                      image=r"C:\Windows\System32\cmd.exe")])
+    _write_host_events(cd, "WS2", [ev("WS2", file_hash=h,
+                                      image=r"C:\Windows\System32\cmd.exe")])
+    out = fleet.correlate(tmp_path, "syshash")
+    assert not [f for f in out["findings"] if f["type"] == "shared_hash"]
+
+
+def test_shared_user_binary_hash_is_still_a_finding(tmp_path):
+    cd = fleet.init_case(tmp_path, "userhash")
+    h = "b" * 64
+    _write_host_events(cd, "WS1", [ev("WS1", file_hash=h,
+                                      image=r"C:\Users\Public\dropper.exe")])
+    _write_host_events(cd, "WS2", [ev("WS2", file_hash=h,
+                                      image=r"C:\Users\Public\dropper.exe")])
+    out = fleet.correlate(tmp_path, "userhash")
+    assert [f for f in out["findings"] if f["type"] == "shared_hash"]

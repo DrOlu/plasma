@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.8.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.8.1</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.8.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.8.1</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">91.7% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">440 tests</span>
+<span class="raft-badge">447 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -81,6 +81,26 @@ DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
 
+## What's new in 1.8.1
+
+A short follow-up from the live estate run of 1.8.0.
+
+- **Service-registry false-positive storm fixed** — Windows' own service
+  binaries (`dns.exe`, `lsass.exe`, `DFSRs.exe`, AD WebServices) produced
+  401 criticality-8 alerts on one server during normal servicing. They are
+  now suppressed by System32/SysWOW64 path evidence; `reg.exe`, `sc.exe`
+  and PowerShell keep the full score.
+- **Fleet shared-hash noise fixed** — `cmd.exe`/`powershell.exe` hashes are
+  identical on every Windows host and no longer become score-8 cross-host
+  findings. User-path hashes still do.
+- **Watch first sweep no longer floods** — a fresh install/upgrade starts
+  at the current end of the alert log; only new criticality-8+ alerts are
+  surfaced. Compressed/archived logs are excluded from counts.
+- **Run-key suppression narrowed** — a Microsoft-signed LOLBin writing a
+  Run key is the technique, not a benign installer.
+
+447 tests pass (21 skipped).
+
 ## What's new in 1.8.0
 
 This is the production-hardening release, driven by a full re-test on the
@@ -108,7 +128,7 @@ Windows estate.
   persistence no longer flags unsigned Windows binaries, and identity drops
   malformed domains/timestamps.
 
-440 tests pass (21 skipped).
+447 tests pass (21 skipped).
 
 ## What's new in 1.7.2
 
