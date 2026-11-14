@@ -388,7 +388,9 @@ def coalesce_storms(events: list[dict], threshold: int = STORM_THRESHOLD,
     out: list[dict] = []
     coalesced = 0
     for key in order:
-        group = groups[key]
+        # Files are scanned by path, not by time; a storm can span rotated
+        # logs. Sort before choosing first/last so the window is coherent.
+        group = sorted(groups[key], key=lambda e: str(e.get("ts") or ""))
         if len(group) <= threshold:
             out.extend(group)
             continue

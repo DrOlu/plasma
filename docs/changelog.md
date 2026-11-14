@@ -16,6 +16,12 @@ Highlights by release:
 - **Trace rows use `tid`** — `pid` is not portable across the DTrace builds
   on the estate; `tid` works on both hosts.
 
+## 1.8.4 — 2026-11-14
+
+- Storm groups are sorted by timestamp before sampling/summary; rotated
+  logs are scanned by path, so the window could otherwise be inverted.
+- 451 passed / 21 skipped.
+
 ## 1.8.3 — 2026-11-14
 
 - whids.pull coalesces repeated identical alerts into samples + a storm

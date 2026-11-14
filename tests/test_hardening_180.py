@@ -635,3 +635,17 @@ def test_pull_coalesces_a_storm_and_is_idempotent(tmp_path):
     assert any(e.get("storm_count") == 60 for e in stored)
     second = whids.pull(str(tmp_path), out=str(out))
     assert second["written"] == 0
+
+
+def test_storm_window_is_time_sorted_across_files():
+    events = []
+    for ts in ["2026-11-14T06:00:30Z", "2026-11-14T06:00:10Z",
+               "2026-11-14T06:00:50Z"] * 10:
+        events.append({"ts": ts, "alert_id": "Plasma-Encoded-Cmd",
+                       "process": "notepad.exe", "user": "SYSTEM",
+                       "registry_path": "", "image": r"C:\Windows\notepad.exe",
+                       "score": 0.9, "severity": "critical"})
+    out, _ = whids.coalesce_storms(events, threshold=5, samples=2)
+    storm = out[-1]
+    assert storm["storm_first_ts"] == "2026-11-14T06:00:10Z"
+    assert storm["ts"] == "2026-11-14T06:00:50Z"
