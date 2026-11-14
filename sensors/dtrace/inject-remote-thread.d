@@ -4,13 +4,14 @@
 /* kind: trace */
 /* summary: NtCreateThreadEx targeting a process handle other than the caller. */
 /* */
-/* NtCurrentProcess() is the pseudo-handle -1 (0xffffffffffffffff). arg3 is */
-/* the target ProcessHandle, so any other value means the caller is starting */
-/* a thread in a different process. The row emits a normalised remote flag */
-/* rather than the raw 64-bit handle: it reads the same on every DTrace */
-/* build and keeps the printf portable. */
+/* NtCurrentProcess() is the pseudo-handle -1. Comparing only the low 32 */
+/* bits avoids depending on how this DTrace build types a 64-bit literal: */
+/* the pseudo-handle's low word is all ones, while real handle values are */
+/* small multiples of four and can never be 0xffffffff. arg3 is the target */
+/* ProcessHandle. A normalised remote flag is emitted instead of the raw */
+/* 64-bit handle so the row reads the same on every build. */
 syscall:::entry
-/probefunc == "NtCreateThreadEx" && arg3 != 0xffffffffffffffff && execname != "dtrace.exe"/
+/probefunc == "NtCreateThreadEx" && (arg3 & 0xffffffff) != 0xffffffff && execname != "dtrace.exe"/
 {
     printf("plasma|{\"probe\":\"inject_remote_thread\",\"tid\":%d,\"comm\":\"%s\",\"remote\":\"1\"}\n",
            tid, execname);

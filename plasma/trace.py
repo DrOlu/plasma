@@ -242,19 +242,30 @@ def parse_output(text: str, max_rows: int = DEFAULT_MAX_ROWS) -> list[dict]:
 
 
 def normalize(row: dict, info: dict, host: str) -> dict:
-    """One traced row -> strict PlasmaEvent (kind=trace)."""
+    """One traced row -> strict PlasmaEvent (kind=trace).
+
+    A script may emit a per-row ``score`` when one predicate covers both a
+    benign and a suspicious case (self vs cross-process RWX); otherwise the
+    script's metadata score wins.
+    """
     ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     detail = {k: v for k, v in row.items()
-              if k not in ("probe", "pid", "comm") and v not in (None, "")}
+              if k not in ("probe", "pid", "comm", "score")
+              and v not in (None, "")}
+    try:
+        score = int(row.get("score", info.get("score", 5)))
+    except (TypeError, ValueError):
+        score = int(info.get("score", 5))
+    score = min(10, max(0, score))
     event = {
         "ts": ts,
         "host": host,
         "source": "dtrace",
         "kind": "trace",
         "event_id": 0,
-        "severity": ("critical" if info.get("score", 5) >= 9 else
-                     "high" if info.get("score", 5) >= 7 else "medium"),
-        "score": min(1.0, max(0.0, info.get("score", 5) / 10)),
+        "severity": ("critical" if score >= 9 else
+                     "high" if score >= 7 else "medium"),
+        "score": min(1.0, max(0.0, score / 10)),
         "action": "observed",
         "process": str(row.get("comm") or "")[:260] or None,
         "pid": int(row["pid"]) if str(row.get("pid", "")).isdigit() else None,

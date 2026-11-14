@@ -2,17 +2,22 @@
 /* technique: T1055 */
 /* score: 5 */
 /* kind: trace */
-/* summary: NtProtectVirtualMemory granting PAGE_EXECUTE_READWRITE (0x40). */
+/* summary: NtProtectVirtualMemory granting executable writable memory. */
 /* */
-/* Executable writable memory is the permission state injected code needs */
-/* before it can run. Legitimate JITs flip RW to RX (0x20); matching that */
-/* would drown the signal, so only 0x40 is selected. */
-/* Argmap for NtProtectVirtualMemory: arg1 BaseAddress, arg2 RegionSize, */
-/* arg3 NewProtect. The syscall provider is used because its entry probes */
-/* are stable across Windows builds; fbt symbol availability is not. */
+/* Base protection lives in the low byte: 0x40 is PAGE_EXECUTE_READWRITE; */
+/* 0x140, 0x240 and 0x440 add PAGE_GUARD, PAGE_NOCACHE or PAGE_WRITECOMBINE */
+/* and are at least as suspicious. arg0 is the target process handle, so the */
+/* row separates a process flipping its own page (JIT, score 5) from one */
+/* flipping another process's page (injection, score 8). */
+/* Argmap: arg0 ProcessHandle, arg1 BaseAddress, arg2 RegionSize, arg3 NewProtect. */
 syscall:::entry
-/probefunc == "NtProtectVirtualMemory" && arg3 == 0x40 && execname != "dtrace.exe"/
+/probefunc == "NtProtectVirtualMemory" && (arg3 & 0xff) == 0x40 && execname != "dtrace.exe"/
 {
-    printf("plasma|{\"probe\":\"inject_rwx\",\"tid\":%d,\"comm\":\"%s\",\"protect\":\"0x%x\"}\n",
-           tid, execname, arg3);
+    is_self = arg0 == 0xffffffffffffffff;
+    score = 8;
+    if (is_self) {
+        score = 5;
+    }
+    printf("plasma|{\"probe\":\"inject_rwx\",\"tid\":%d,\"comm\":\"%s\",\"protect\":\"0x%x\",\"self\":%d,\"score\":%d}\n",
+           tid, execname, arg3, is_self, score);
 }

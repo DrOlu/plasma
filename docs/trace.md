@@ -55,8 +55,9 @@ plasma trace list
 | `syscall-errors` | T1106 | 6 | NT syscalls returning a non-success status: tid, image, function, status |
 | `process-create` | T1059 | 5 | `NtCreateUserProcess` / `NtCreateThreadEx` entries: tid, image |
 | `etw-kernel-process` | T1057 | 4 | ETW `Microsoft-Windows-Kernel-Process` events (header fields only) |
-| `inject-rwx` | T1055 | 5 | `NtProtectVirtualMemory` granting `PAGE_EXECUTE_READWRITE` (0x40): tid, image, protection |
+| `inject-rwx` | T1055 | 5 / 8 | `NtProtectVirtualMemory` granting RWX (base `arg3 & 0xff == 0x40`): tid, image, raw protection, self flag. Self-access scores 5; cross-process scores 8 |
 | `inject-remote-thread` | T1055 | 6 | `NtCreateThreadEx` with a target handle other than the caller: tid, image, remote flag |
+| `inject-apc` | T1055 | 5 | `NtQueueApcThread`, `NtQueueApcThreadEx` or `NtQueueApcThreadEx2`: tid, image, syscall |
 
 Scripts live in `sensors/dtrace/*.d`, carry metadata in `/* */` block
 comments, and are validated before use: an allowlisted provider is required,
@@ -91,19 +92,40 @@ plasma trace run inject-remote-thread --for 30s --events C:\ProgramData\Plasma\d
 plasma chain score --events C:\ProgramData\Plasma\data\events.jsonl
 ```
 
-`inject-rwx` fires on `NtProtectVirtualMemory` with `NewProtect == 0x40`
-(`PAGE_EXECUTE_READWRITE`). `inject-remote-thread` fires on
-`NtCreateThreadEx` when the target process handle is not the caller's
-pseudo-handle. Either row alone is medium-severity evidence; together, from
-the same image and inside 120 seconds, they form `injection_chain` at
-score 9. The chain binds on the image name: thread creation in another
-process is ordinary system activity (System, svchost, the EDR itself), so
-without binding, unrelated events would collide.
+`inject-rwx` fires on `NtProtectVirtualMemory` when the base protection is
+RWX (`arg3 & 0xff == 0x40`). Matching the low byte is deliberate: `0x140`,
+`0x240` and `0x440` add `PAGE_GUARD`, `PAGE_NOCACHE` or `PAGE_WRITECOMBINE`
+and are at least as suspicious as plain RWX. `arg0` is the target process
+handle, so the row distinguishes a process flipping its **own** page (JIT,
+.NET, V8 — score 5, medium) from one flipping **another process's** page
+(injection — score 8, high).
 
-**False positives:** RWX is normal in JIT-heavy software (browsers, .NET,
-V8), and remote thread creation is normal for system services. Treat the
-same-image chain as the signal, not either single event — that is why
-neither script scores high on its own.
+`inject-remote-thread` fires on `NtCreateThreadEx` when the target handle is
+not the caller's pseudo-handle. It compares only the low 32 bits, which is
+stable across DTrace builds and avoids the untyped 64-bit literal problem.
+
+`inject-apc` covers the `NtQueueApcThread` family (including
+`NtQueueApcThreadEx2`, which modern `QueueUserAPC` uses). A thread handle
+does not reveal its owning process at this boundary, so it is evidence at
+score 5 and is not chained on its own.
+
+`injection_chain` requires a **cross-process** RWX row (`"self": 0`) followed
+by remote thread creation, both from the same image, inside 120 seconds.
+The chain binds on the image name because thread creation in another process
+is ordinary system activity (System, svchost, the EDR itself); without
+binding, unrelated events would collide.
+
+**False positives:** self-RWX is normal in JIT-heavy software, and remote
+thread creation is normal for system services. Treat the same-image,
+cross-process chain as the signal, not either single event — that is why
+the individual scripts stay at 5/6/5.
+
+**Coverage of the family:** this covers the classic `CreateRemoteThread`
+path, RWX permission flips and APC queueing. It does **not** cover thread
+hijacking (`NtGetContextThread` / `NtSetContextThread`), process hollowing
+(`NtUnmapViewOfSection` + `NtResumeThread`) or section/DLL injection
+(`NtMapViewOfSection`); those remain visible only when another sensor sees
+them.
 
 **This is evidence, not prevention.** DTrace observes the syscall boundary;
 it cannot block an injection. `raise(` remains forbidden in reviewed

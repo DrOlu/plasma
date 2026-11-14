@@ -125,9 +125,14 @@ def test_scan_store_missing_file_is_data(tmp_path):
     assert "error" in result and result["findings"] == []
 
 
-def _trace(ts, script, process=r"C:\Users\sam\loader.exe"):
+def _trace(ts, script, process=r"C:\Users\sam\loader.exe", self_=0):
+    if script == "inject-rwx":
+        detail = (f'dtrace inject-rwx: inject_rwx {{"protect": "0x40", '
+                  f'"self": {self_}, "score": 8, "tid": 11}}')
+    else:
+        detail = f'dtrace {script}: probe {{"tid": 11}}'
     return _row(ts, kind="trace", source="dtrace", process=process,
-                description=f'dtrace {script}: probe {{"tid": 11}}')
+                description=detail)
 
 
 def test_injection_chain_fires_on_rwx_then_remote_thread():
@@ -140,6 +145,16 @@ def test_injection_chain_fires_on_rwx_then_remote_thread():
     assert injection, findings
     assert injection[0]["score"] == 9
     assert injection[0]["steps"] == 2
+
+
+def test_injection_chain_ignores_self_rwx():
+    """A process flipping its own page to RWX is JIT warm-up, not injection."""
+    rows = [
+        _trace("2026-11-05T11:00:00Z", "inject-rwx", self_=1),
+        _trace("2026-11-05T11:01:00Z", "inject-remote-thread"),
+    ]
+    assert not [f for f in chain.scan(rows)
+                if f["type"] == "chain_injection_chain"]
 
 
 def test_injection_chain_binds_both_halves_to_one_image():

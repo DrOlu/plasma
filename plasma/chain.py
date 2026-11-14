@@ -70,10 +70,11 @@ BUILTIN_CHAINS = [
         "score": 9,
         "gap_seconds": 120,
         "bind_process": True,
-        "detail": "RWX permission flip followed by thread creation in another process "
-                  "by the same image",
+        "detail": "cross-process RWX permission flip followed by thread creation "
+                  "in another process by the same image",
         "steps": [
-            {"kind": "trace", "description": r"(?i)dtrace inject-rwx"},
+            {"kind": "trace",
+             "description": r'(?i)dtrace inject-rwx.*"self":\s*0'},
             {"kind": "trace", "description": r"(?i)dtrace inject-remote-thread"},
         ],
     },
