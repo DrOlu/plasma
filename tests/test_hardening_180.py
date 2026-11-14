@@ -757,10 +757,15 @@ def test_ledger_tail_filters_by_tenant(tmp_path):
     assert [r["tenant"] for r in ledger.tail(tmp_path, 10, tenant="acme")] == ["acme"]
 
 
-def test_install_acl_hardening_is_skipped_off_windows(tmp_path):
+def test_install_acl_hardening_is_platform_aware(tmp_path):
+    """POSIX hosts skip; Windows must actually apply the two-step grant."""
     from plasma import cli
     res = cli._harden_root_acl(tmp_path / "Plasma")
-    assert res["ok"] is True and "skipped" in res
+    assert res["ok"] is True
+    if os.name == "nt":
+        assert res.get("steps")
+    else:
+        assert "skipped" in res
 
 
 def test_mcp_non_integer_approval_id_is_refused_not_crashed(tmp_path):
