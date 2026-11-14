@@ -77,6 +77,8 @@ def _v_ip(t):
     octets = [int(o) for o in t.split(".")]
     if any(o > 255 for o in octets):
         raise ValueError(f"not an IPv4 address: {t}")
+    if octets[0] in (0, 127) or t == "255.255.255.255":
+        raise ValueError(f"refusing to block a loopback/unspecified address: {t}")
 
 
 def _v_user(t):
@@ -157,7 +159,10 @@ def _g_process(t):
 
 
 def _g_user(t):
-    if t.lower() in {"administrator", "wdagutilityaccount"}:
+    current = (os.environ.get("USERNAME") or "").lower()
+    if t.lower() in {"administrator", "wdagutilityaccount", "system",
+                     "localservice", "networkservice", "defaultaccount"} or \
+            (current and t.lower() == current):
         raise PermissionError(f"'{t}' is on the protected account list — refusing")
 
 
@@ -182,6 +187,8 @@ def _build_block_ip(ip):
 
 def _build_isolate():
     allow_rdp, allow_winrm = "Plasma Isolate Allow RDP", "Plasma Isolate Allow WinRM"
+    allow_out_rdp, allow_out_winrm = ("Plasma Isolate Allow Out RDP",
+                                      "Plasma Isolate Allow Out WinRM")
     blk_in, blk_out = "Plasma Isolate Block Inbound", "Plasma Isolate Block Outbound"
     # Management-allow rules FIRST; specific allow beats generic block in
     # Windows Firewall, so RDP/WinRM stay reachable through the isolation.
@@ -192,9 +199,11 @@ def _build_isolate():
         "$ErrorActionPreference = 'Stop';"
         f"New-NetFirewallRule -DisplayName {_ps_literal(allow_rdp)} -Direction Inbound -Action Allow -Protocol TCP -LocalPort 3389 -Profile Any -ErrorAction SilentlyContinue | Out-Null;"
         f"New-NetFirewallRule -DisplayName {_ps_literal(allow_winrm)} -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5985 -Profile Any -ErrorAction SilentlyContinue | Out-Null;"
-        f"$allow = @(Get-NetFirewallRule -DisplayName {_ps_literal(allow_rdp)},{_ps_literal(allow_winrm)} -ErrorAction SilentlyContinue | Where-Object {{ $_.Enabled -eq 'True' -and $_.Action -eq 'Allow' }});"
+        f"New-NetFirewallRule -DisplayName {_ps_literal(allow_out_rdp)} -Direction Outbound -Action Allow -Protocol TCP -LocalPort 3389 -Profile Any -ErrorAction SilentlyContinue | Out-Null;"
+        f"New-NetFirewallRule -DisplayName {_ps_literal(allow_out_winrm)} -Direction Outbound -Action Allow -Protocol TCP -LocalPort 5985 -Profile Any -ErrorAction SilentlyContinue | Out-Null;"
+        f"$allow = @(Get-NetFirewallRule -DisplayName {_ps_literal(allow_rdp)},{_ps_literal(allow_winrm)},{_ps_literal(allow_out_rdp)},{_ps_literal(allow_out_winrm)} -ErrorAction SilentlyContinue | Where-Object {{ $_.Enabled -eq 'True' -and $_.Action -eq 'Allow' }});"
         "$allowCount = @($allow).Count;"
-        "if ($allowCount -lt 2) { throw 'management allow rules missing; refusing to apply isolation' };"
+        "if ($allowCount -lt 4) { throw 'management allow rules missing; refusing to apply isolation' };"
         f"New-NetFirewallRule -DisplayName {_ps_literal(blk_in)} -Direction Inbound -Action Block -RemoteAddress Any -Profile Any -ErrorAction SilentlyContinue | Out-Null;"
         f"New-NetFirewallRule -DisplayName {_ps_literal(blk_out)} -Direction Outbound -Action Block -RemoteAddress Any -Profile Any -ErrorAction SilentlyContinue | Out-Null;"
         f"$blocks = @(Get-NetFirewallRule -DisplayName {_ps_literal(blk_in)},{_ps_literal(blk_out)} -ErrorAction SilentlyContinue | Where-Object {{ $_.Enabled -eq 'True' -and $_.Action -eq 'Block' }});"
@@ -203,7 +212,8 @@ def _build_isolate():
     )
     undo = (
         "".join(f"Remove-NetFirewallRule -DisplayName {_ps_literal(n)} -ErrorAction SilentlyContinue;"
-                for n in (blk_in, blk_out, allow_rdp, allow_winrm))
+                for n in (blk_in, blk_out, allow_rdp, allow_winrm,
+                          allow_out_rdp, allow_out_winrm))
         + "'isolation removed — RDP/WinRM allows also lifted'"
     )
     return payload, undo, _fw_rule(allow_rdp) + ";" + _fw_rule(allow_winrm)

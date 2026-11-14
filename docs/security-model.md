@@ -100,3 +100,21 @@ thumbprint will be added when that application is approved.
 If you find a defect, open an issue on
 [GitHub](https://github.com/DrOlu/plasma/issues) with the command, the
 output and the expected behavior.
+
+## Secure defaults (1.9.0)
+
+- The Plasma root is restricted to SYSTEM and Administrators at install
+  (well-known SIDs, so it works on non-English Windows). Policy,
+  kill-switch state, approvals, ledger and events are not readable by
+  standard users.
+- Credential-bearing command lines are redacted at WHIDS normalization;
+  `plasma store redact --events <path>` migrates an older store.
+- MCP tenant and scopes come from `PLASMA_TENANT` / `PLASMA_SCOPES`, not
+  from the caller's `_meta`; client claims require
+  `PLASMA_TRUST_CLIENT_META=1`. Read tools are tenant-filtered.
+- WinRM fleet transport requires HTTPS unless `allow_insecure_winrm: true`
+  is set for a controlled lab.
+- The DTrace MSI is executed only after a valid Microsoft Authenticode
+  signature check.
+- HTTP webhook notification URLs are refused; Telegram tokens are redacted
+  from error strings.

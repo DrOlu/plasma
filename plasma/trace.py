@@ -335,8 +335,40 @@ def run(script_name: str, events_path, seconds: int = 10,
             "stderr": (stderr or "").strip()[:300] or None}
 
 
+def _verify_msi(path) -> dict:
+    """Require a valid Microsoft Authenticode signature before msiexec.
+
+    The MSI is fetched over HTTPS from Microsoft, but an unsigned or
+    attacker-signed payload must never be executed. Subject check is
+    deliberately broad enough for Microsoft's rotating code-signing certs.
+    """
+    ps = shutil.which("powershell.exe") or shutil.which("pwsh")
+    if not ps:
+        return {"ok": False, "error": "cannot verify MSI: no powershell"}
+    quoted = str(path).replace("'", "''")
+    try:
+        proc = subprocess.run(
+            [ps, "-NoProfile", "-NonInteractive", "-Command",
+             f"$s=Get-AuthenticodeSignature -LiteralPath '{quoted}'; "
+             f"if($s.SignerCertificate){{$s.Status + '|' + $s.SignerCertificate.Subject}}"
+             f"else{{'NOSIG|'+$s.Status}}"],
+            capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=90)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"ok": False, "error": f"MSI signature check failed: {exc}"[:200]}
+    line = (proc.stdout or "").strip().splitlines()
+    line = line[-1].strip() if line else ""
+    if "|" not in line:
+        return {"ok": False, "error": "MSI signature check emitted no verdict"}
+    status, subject = line.split("|", 1)
+    if status.strip() != "Valid" or "microsoft" not in subject.lower():
+        return {"ok": False, "error": "MSI is not validly signed by Microsoft",
+                "status": status.strip(), "subject": subject[:200]}
+    return {"ok": True, "status": status.strip(), "subject": subject[:200]}
+
+
 def _install_msi(dest_dir) -> dict:
-    """Download and silently install the official DTrace 2.0 MSI."""
+    """Download, verify, then silently install the official DTrace 2.0 MSI."""
     import urllib.request
     dest = Path(dest_dir) / "DTrace.amd64.msi"
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -344,6 +376,10 @@ def _install_msi(dest_dir) -> dict:
         urllib.request.urlretrieve(MSI_URL, dest)
     except Exception as exc:  # noqa: BLE001 — network failure is data
         return {"ok": False, "error": f"download failed: {exc}"[:200]}
+    sig = _verify_msi(dest)
+    if not sig.get("ok"):
+        return {"ok": False, "error": "refusing to install an unverified MSI",
+                "signature": sig, "msi": str(dest)}
     try:
         proc = subprocess.run(
             ["msiexec", "/i", str(dest), "/qn", "/norestart"],

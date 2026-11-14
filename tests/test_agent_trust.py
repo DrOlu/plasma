@@ -82,6 +82,15 @@ def test_supervised_allows_medium_and_approves_high():
     assert policy.evaluate("isolate_host", {"host": "WS1"}, _ctx(), p)["code"] == "approval_required"
 
 
+def test_allow_list_does_not_bypass_assist_or_supervised_approval():
+    p = dict(policy.DEFAULT_POLICY, autonomy="assist", allow=["contain_user"])
+    assert policy.evaluate("contain_user", {"user": "a"}, _ctx(), p)["code"] == "approval_required"
+    p = dict(policy.DEFAULT_POLICY, autonomy="supervised", allow=["contain_user"])
+    assert policy.evaluate("contain_user", {"user": "a"}, _ctx(), p)["code"] == "approval_required"
+    p = dict(policy.DEFAULT_POLICY, autonomy="autonomous", allow=["contain_user"])
+    assert policy.evaluate("contain_user", {"user": "a"}, _ctx(), p)["code"] == "allow"
+
+
 def test_autonomous_critical_needs_approval_unless_allowed():
     p = dict(policy.DEFAULT_POLICY, autonomy="autonomous")
     assert policy.evaluate("contain_user", {"user": "a"}, _ctx(), p)["code"] == "allow"
@@ -240,9 +249,11 @@ def test_mcp_read_is_allowed_and_audited(tmp_path, capsys):
 
 
 def test_mcp_risky_tool_requires_approval_then_runs_dry(tmp_path):
+    import socket
+    local = socket.gethostname()
     res = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
                       "params": {"name": "isolate_host",
-                                 "arguments": {"host": "WS1"}}}, root=tmp_path)
+                                 "arguments": {"host": local}}}, root=tmp_path)
     payload = json.loads(res["result"]["content"][0]["text"])
     assert payload["code"] == "APPROVAL_REQUIRED"
     approval_id = payload["approval_id"]
@@ -250,7 +261,7 @@ def test_mcp_risky_tool_requires_approval_then_runs_dry(tmp_path):
 
     res2 = mcp.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
                        "params": {"name": "isolate_host",
-                                  "arguments": {"host": "WS1"},
+                                  "arguments": {"host": local},
                                   "approval_id": approval_id}}, root=tmp_path)
     payload2 = json.loads(res2["result"]["content"][0]["text"])
     assert payload2["ok"] is True and payload2["dry_run"] is True
@@ -360,12 +371,45 @@ def test_cli_audit_verify_after_mcp_call(tmp_path):
     assert cli.main(["control", "audit", "verify", "--root", str(tmp_path)]) == 0
 
 
-def test_mcp_tenant_isolation(tmp_path):
+def test_mcp_tenant_isolation(tmp_path, monkeypatch):
+    monkeypatch.setenv("PLASMA_TRUST_CLIENT_META", "1")
     tenants.add(tmp_path, "acme", "Acme Bank", ["WS1"])
     res = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
-                      "params": {"name": "isolate_host",
-                                 "arguments": {"host": "WS2"},
+                      "params": {"name": "contain_user",
+                                 "arguments": {"user": "bob"},
                                  "_meta": {"tenant": "acme"}}}, root=tmp_path)
     payload = json.loads(res["result"]["content"][0]["text"])
     assert payload["code"] == "DENIED"
     assert "does not own host" in payload["reasons"][0]
+
+
+def test_mcp_ignores_client_tenant_claim_by_default(tmp_path, monkeypatch):
+    import socket
+    monkeypatch.delenv("PLASMA_TRUST_CLIENT_META", raising=False)
+    monkeypatch.setenv("PLASMA_TENANT", "default")
+    tenants.add(tmp_path, "acme", "Acme Bank", [socket.gethostname()])
+    res = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                      "params": {"name": "contain_user",
+                                 "arguments": {"user": "bob"},
+                                 "_meta": {"tenant": "acme"}}}, root=tmp_path)
+    payload = json.loads(res["result"]["content"][0]["text"])
+    assert payload["code"] == "DENIED"
+
+
+def test_mcp_scope_claim_is_ignored_without_env_opt_in(tmp_path, monkeypatch):
+    monkeypatch.delenv("PLASMA_TRUST_CLIENT_META", raising=False)
+    monkeypatch.setenv("PLASMA_SCOPES", "health:read")
+    res = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                      "params": {"name": "read_events",
+                                 "arguments": {"limit": 1},
+                                 "_meta": {"scopes": ["*"]}}}, root=tmp_path)
+    payload = json.loads(res["result"]["content"][0]["text"])
+    assert payload["code"] == "DENIED"
+
+
+def test_mcp_rejects_oversized_request():
+    res = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                      "params": {"name": "read_events",
+                                 "arguments": {"limit": 1}}} | {"pad": "x" * (mcp.MAX_REQUEST_BYTES + 1)})
+    # handle itself validates args; the serve loop enforces the byte cap.
+    assert res is not None

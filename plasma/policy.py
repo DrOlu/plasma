@@ -112,10 +112,6 @@ def evaluate(tool_name: str, args: dict | None, context: dict | None = None,
         return _decision(True, False, "allow", spec, policy, ["read-only tool"])
 
     allow = set(policy.get("allow") or [])
-    if tool_name in allow and risk != "critical":
-        return _decision(True, False, "allow", spec, policy,
-                         ["tool is explicitly allowed"])
-
     autonomy = policy.get("autonomy", "supervised")
     if autonomy == "assist":
         return _decision(False, True, "approval_required", spec, policy,

@@ -144,6 +144,23 @@ plasma control killswitch off
 Reads remain available; every mutating tool is blocked while the switch is
 engaged.
 
+## Trusted context (security)
+
+`_meta` in an MCP request is supplied by the connecting harness and is not
+an authorization source. Tenant and scopes come from the server
+environment:
+
+| Variable | Meaning |
+|---|---|
+| `PLASMA_TENANT` | authoritative tenant (default `default`) |
+| `PLASMA_SCOPES` | comma-separated scopes; default `*` |
+| `PLASMA_TRUST_CLIENT_META` | set `1` only for a controlled harness that may claim tenant/scopes in `_meta` |
+
+Read tools are tenant-filtered (events by host ownership, ledger and
+approvals by tenant). `isolate_host` is local-only and refuses a claimed
+remote host. Mutating tools still follow the policy/approval gate and the
+kill switch.
+
 ## Multi-tenant isolation
 
 ```powershell

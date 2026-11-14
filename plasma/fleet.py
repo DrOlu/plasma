@@ -71,8 +71,16 @@ def load_inventory(path) -> list[dict]:
         if transport == "file" and not e.get("events_path"):
             raise ValueError(f"{name}: file transport needs events_path")
         if transport == "winrm":
-            if not e.get("endpoint"):
+            endpoint = str(e.get("endpoint") or "")
+            if not endpoint:
                 raise ValueError(f"{name}: winrm transport needs endpoint")
+            # NTLM over plain HTTP is relay-prone. Require HTTPS unless the
+            # operator explicitly accepts the risk for a controlled lab.
+            if not endpoint.lower().startswith("https://") and \
+                    not e.get("allow_insecure_winrm"):
+                raise ValueError(
+                    f"{name}: winrm endpoint must be https:// (or set "
+                    f"allow_insecure_winrm: true for a controlled lab)")
             if e.get("password"):
                 raise ValueError(
                     f"{name}: inline passwords are forbidden — use password_env")

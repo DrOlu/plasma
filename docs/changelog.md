@@ -16,6 +16,23 @@ Highlights by release:
 - **Trace rows use `tid`** — `pid` is not portable across the DTrace builds
   on the estate; `tid` works on both hosts.
 
+## 1.9.0 — 2026-11-14
+
+Secure-code review release.
+
+- MCP tenant/scopes are server-authoritative; client `_meta` claims are
+  ignored unless PLASMA_TRUST_CLIENT_META=1. Tenant-filtered reads, local
+  health ownership, local-only isolate_host.
+- Allow lists cannot bypass assist/supervised approvals. Malformed params
+  and approval ids are refused; oversized JSON-RPC lines are bounded.
+- DTrace MSI requires a valid Microsoft Authenticode signature.
+- Webhook URLs must be HTTPS; Telegram tokens redacted from errors.
+- Plasma root ACL restricted to SYSTEM/Administrators at install.
+- WinRM fleet transport requires HTTPS unless explicitly opted out.
+- Isolation adds outbound management allows; loopback/broadcast block
+  targets refused; current user protected; gene domains escaped.
+- 474 passed / 21 skipped.
+
 ## 1.8.7 — 2026-11-14
 
 - Suppress PowerShell's `__PSScriptPolicyTest_*.ps1` scratch-file deletes

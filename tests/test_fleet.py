@@ -51,7 +51,7 @@ def _write_host_events(cd, host, rows):
 def test_inventory_roundtrip(tmp_path):
     inv = tmp_path / "fleet.json"
     inv.write_text(json.dumps({"hosts": [
-        {"name": "WS2", "transport": "winrm", "endpoint": "198.51.100.20",
+        {"name": "WS2", "transport": "winrm", "allow_insecure_winrm": True, "endpoint": "198.51.100.20",
          "username": "Administrator", "password_env": "WS2PW"},
         {"name": "LAB", "transport": "file", "events_path": "samples/plasma_events.jsonl"},
     ]}))
@@ -61,9 +61,9 @@ def test_inventory_roundtrip(tmp_path):
 
 @pytest.mark.parametrize("bad,why", [
     ({"hosts": [{"name": "a", "transport": "file"}]}, "file needs events_path"),
-    ({"hosts": [{"name": "a", "transport": "winrm", "endpoint": "x",
+    ({"hosts": [{"name": "a", "transport": "winrm", "allow_insecure_winrm": True, "endpoint": "x",
                  "password": "hunter2", "password_env": "P"}]}, "inline password"),
-    ({"hosts": [{"name": "a", "transport": "winrm", "endpoint": "x"}]}, "needs password_env"),
+    ({"hosts": [{"name": "a", "transport": "winrm", "allow_insecure_winrm": True, "endpoint": "x"}]}, "needs password_env"),
     ({"hosts": []}, "empty"),
     ({"hosts": [{"name": "bad name!", "transport": "file",
                  "events_path": "x"}]}, "bad name"),
@@ -115,7 +115,7 @@ def test_pull_winrm_transport_monkeypatched(tmp_path, monkeypatch):
 
     inv = tmp_path / "fleet.json"
     inv.write_text(json.dumps({"hosts": [
-        {"name": "WS2", "transport": "winrm", "endpoint": "10.0.0.9",
+        {"name": "WS2", "transport": "winrm", "allow_insecure_winrm": True, "endpoint": "10.0.0.9",
          "username": "Administrator", "password_env": "WS2PW"}]}))
     out = fleet.pull(tmp_path, inv, "c2")
     assert out["pulled"] == 1 and out["results"][0]["rows"] == 3
@@ -149,7 +149,7 @@ def test_pull_base64_read_path_preserves_unicode(tmp_path, monkeypatch):
 
     inv = tmp_path / "fleet.json"
     inv.write_text(json.dumps({"hosts": [
-        {"name": "WS2", "transport": "winrm", "endpoint": "10.0.0.9",
+        {"name": "WS2", "transport": "winrm", "allow_insecure_winrm": True, "endpoint": "10.0.0.9",
          "password_env": "WS2PW"}]}))
     out = fleet.pull(tmp_path, inv, "cb64")
     assert out["results"][0]["rows"] == 1
@@ -174,7 +174,7 @@ def test_pull_winrm_missing_env_is_data(tmp_path, monkeypatch):
     monkeypatch.delenv("NO_SUCH_PW_VAR", raising=False)
     inv = tmp_path / "fleet.json"
     inv.write_text(json.dumps({"hosts": [
-        {"name": "WS2", "transport": "winrm", "endpoint": "10.0.0.9",
+        {"name": "WS2", "transport": "winrm", "allow_insecure_winrm": True, "endpoint": "10.0.0.9",
          "password_env": "NO_SUCH_PW_VAR"}]}))
     out = fleet.pull(tmp_path, inv, "c3")
     err = out["results"][0].get("error", "")
@@ -408,3 +408,16 @@ def test_shared_powershell_policy_test_hash_is_not_a_finding(tmp_path):
             file_path=r"C:\Windows\SystemTemp\__PSScriptPolicyTest_x.ps1")])
     out = fleet.correlate(tmp_path, "pspolicy")
     assert not [f for f in out["findings"] if f["type"] == "shared_hash"]
+
+
+def test_winrm_http_requires_explicit_opt_in(tmp_path):
+    inv = tmp_path / "fleet.json"
+    inv.write_text(json.dumps({"hosts": [
+        {"name": "WS2", "transport": "winrm", "endpoint": "10.0.0.9",
+         "password_env": "WS2PW"}]}))
+    with pytest.raises(ValueError, match="https://"):
+        fleet.load_inventory(inv)
+    inv.write_text(json.dumps({"hosts": [
+        {"name": "WS2", "transport": "winrm", "endpoint": "https://10.0.0.9:5986",
+         "password_env": "WS2PW"}]}))
+    assert fleet.load_inventory(inv)[0]["name"] == "WS2"

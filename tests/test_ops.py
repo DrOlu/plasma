@@ -192,3 +192,11 @@ def test_watch_sweep_clean_without_channels(tmp_path, monkeypatch):
                         lambda root, title, body, score=None, min_score=None, throttle_key=None: {"sent": 0})
     res = watch.watch_once(tmp_path)
     assert res["verdict"] == "clean" and res["notify"] is None  # quiet when clean
+
+
+def test_notify_webhook_must_be_https(tmp_path):
+    import json as _json
+    (tmp_path / "notify.json").write_text(_json.dumps({
+        "channels": [{"type": "webhook", "url": "http://hooks.test/plasma"}]}))
+    with pytest.raises(ValueError, match="https"):
+        notify.load_config(tmp_path)

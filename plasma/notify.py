@@ -32,8 +32,11 @@ def load_config(root) -> dict:
     for ch in blob["channels"]:
         if ch.get("type") == "telegram" and "token_env" not in ch:
             raise ValueError("telegram channel needs token_env (secrets never live in config)")
-        if ch.get("type") == "webhook" and not ch.get("url"):
-            raise ValueError("webhook channel needs url")
+        if ch.get("type") == "webhook":
+            if not ch.get("url"):
+                raise ValueError("webhook channel needs url")
+            if not str(ch["url"]).lower().startswith("https://"):
+                raise ValueError("webhook url must be https://")
         for field in ch:
             if "token" in field.lower() and field != "token_env":
                 raise ValueError(f"inline secret field '{field}' is forbidden — use token_env")
@@ -68,7 +71,11 @@ def deliver(channel: dict, title: str, body: str) -> dict:
         res["channel"] = ctype
         return res
     except Exception as exc:  # noqa: BLE001 — delivery failures are data
-        return {"channel": ctype, "ok": False, "error": str(exc)[:200]}
+        detail = str(exc)
+        token = os.environ.get(channel.get("token_env", ""), "") if ctype == "telegram" else ""
+        if token:
+            detail = detail.replace(token, "<redacted>")
+        return {"channel": ctype, "ok": False, "error": detail[:200]}
 
 
 def notify_all(root, title: str, body: str, score: float | None = None,

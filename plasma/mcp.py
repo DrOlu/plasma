@@ -12,34 +12,54 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import sys
+from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 
 from . import __version__, agentstate, health, killswitch, ledger, policy, tenants, tools
 
 PROTOCOL_VERSION = "2024-11-05"
+MAX_REQUEST_BYTES = 1 << 20
 
 
 def _event_path(root) -> Path:
     return agentstate.base(root) / "data" / "events.jsonl"
 
 
-def _read_rows(root) -> list[dict]:
+def _read_rows(root, max_rows: int = 10000) -> list[dict]:
+    """Bounded tail of the event store (the MCP surface is not a lake)."""
     path = _event_path(root)
     if not path.exists():
         return []
-    rows = []
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        if not line.strip():
-            continue
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(row, dict):
-            rows.append(row)
-    return rows
+    rows = deque(maxlen=max(1, int(max_rows)))
+    with path.open(encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(row, dict):
+                rows.append(row)
+    return list(rows)
+
+
+def _local_host() -> str:
+    return socket.gethostname()
+
+
+def _tenant_rows(root, rows, tenant):
+    if not tenant:
+        return rows
+    return [r for r in rows
+            if tenants.resolve(root, str(r.get("host") or "")) == tenant]
+
+
+def _tenant_owns_local(root, tenant) -> bool:
+    return not tenant or tenants.allows(root, tenant, _local_host())
 
 
 def _since(row: dict, minutes: int) -> bool:
@@ -57,7 +77,7 @@ def _since(row: dict, minutes: int) -> bool:
 
 def _handler_read_events(root, args, context):
     limit = int(args.get("limit", 100))
-    rows = _read_rows(root)
+    rows = _tenant_rows(root, _read_rows(root), context.get("tenant"))
     if args.get("since_minutes"):
         rows = [r for r in rows if _since(r, int(args["since_minutes"]))]
     if args.get("kind"):
@@ -68,29 +88,39 @@ def _handler_read_events(root, args, context):
 def _handler_list_findings(root, args, context):
     minimum = float(args.get("min_score", 0.7))
     limit = int(args.get("limit", 100))
-    rows = [r for r in _read_rows(root)
+    rows = [r for r in _tenant_rows(root, _read_rows(root), context.get("tenant"))
             if isinstance(r.get("score"), (int, float)) and float(r["score"]) >= minimum]
     rows.sort(key=lambda r: float(r.get("score", 0)), reverse=True)
     return {"ok": True, "count": len(rows[:limit]), "findings": rows[:limit]}
 
 
 def _handler_health(root, args, context):
+    if not _tenant_owns_local(root, context.get("tenant")):
+        return {"ok": False, "code": "DENIED",
+                "error": "this tenant does not own the local host"}
     return {"ok": True, "health": health.verdict(root)}
 
 
 def _handler_policy(root, args, context):
-    return {"ok": True, "policy": policy.load(root),
-            "killswitch": killswitch.status(root)}
+    ks = killswitch.status(root)
+    tenant = context.get("tenant")
+    if tenant:
+        ks = dict(ks)
+        ks["hosts"] = {h: v for h, v in (ks.get("hosts") or {}).items()
+                       if tenants.resolve(root, h) == tenant}
+    return {"ok": True, "policy": policy.load(root), "killswitch": ks}
 
 
 def _handler_approvals(root, args, context):
     return {"ok": True, "approvals": ledger.pending_approvals(
-        root, limit=int(args.get("limit", 100)))}
+        root, limit=int(args.get("limit", 100)),
+        tenant=context.get("tenant"))}
 
 
 def _handler_audit(root, args, context):
     return {"ok": True, "ledger_ok": ledger.verify(root),
-            "rows": ledger.tail(root, int(args.get("limit", 50)))}
+            "rows": ledger.tail(root, int(args.get("limit", 50)),
+                                tenant=context.get("tenant"))}
 
 
 def _plan(tool, args, steps, note):
@@ -155,13 +185,34 @@ HANDLERS = {
 
 def _context(params: dict) -> dict:
     meta = params.get("_meta") or {}
+    if not isinstance(meta, dict):
+        meta = {}
+    # _meta is supplied by the connecting harness and is therefore NOT
+    # authoritative for authorization. Tenant and scopes come from the
+    # server environment. An operator may explicitly trust client claims
+    # for a controlled harness by setting PLASMA_TRUST_CLIENT_META=1.
+    trust_meta = os.environ.get("PLASMA_TRUST_CLIENT_META", "0") == "1"
+    env_scopes = [s.strip() for s in
+                  os.environ.get("PLASMA_SCOPES", "").split(",") if s.strip()]
+    tenant = os.environ.get("PLASMA_TENANT", "default")
+    scopes = env_scopes or ["*"]
+    if trust_meta:
+        tenant = meta.get("tenant") or tenant
+        scopes = meta.get("scopes") or scopes
+    agent = os.environ.get("PLASMA_AGENT", "mcp")
+    model = os.environ.get("PLASMA_MODEL")
+    prompt_sha = os.environ.get("PLASMA_PROMPT_SHA256")
+    if trust_meta:
+        # Audit attribution may also be claimed only by a trusted harness.
+        agent = meta.get("agent") or agent
+        model = meta.get("model") or model
+        prompt_sha = meta.get("prompt_sha256") or prompt_sha
     return {
-        "agent": meta.get("agent") or os.environ.get("PLASMA_AGENT", "mcp"),
-        "model": meta.get("model") or os.environ.get("PLASMA_MODEL"),
-        "prompt_sha256": meta.get("prompt_sha256")
-        or os.environ.get("PLASMA_PROMPT_SHA256"),
-        "tenant": meta.get("tenant") or os.environ.get("PLASMA_TENANT", "default"),
-        "scopes": meta.get("scopes") or ["*"],
+        "agent": agent,
+        "model": model,
+        "prompt_sha256": prompt_sha,
+        "tenant": tenant,
+        "scopes": scopes,
         "host": meta.get("host"),
     }
 
@@ -176,6 +227,9 @@ def handle(request: dict, root=None) -> dict | None:
     method = request.get("method")
     req_id = request.get("id")
     params = request.get("params") or {}
+    if not isinstance(params, dict):
+        return {"jsonrpc": "2.0", "id": req_id,
+                "error": {"code": -32600, "message": "params must be an object"}}
 
     if method == "initialize":
         return {"jsonrpc": "2.0", "id": req_id, "result": {
@@ -207,12 +261,21 @@ def handle(request: dict, root=None) -> dict | None:
                 "result": _text_result({"ok": False, "code": "INVALID_ARGS",
                                         "error": str(exc)}, error=True)}
 
+    local_tools = {"contain_user", "deploy_canary", "quarantine_file",
+                   "kill_process", "isolate_host"}
     host = args.get("host") or context.get("host")
-    if not host and spec.risk != "read":
-        # Local response tools act on THIS node; a per-host kill switch or
-        # tenant assignment for this node must still apply.
-        import socket
-        host = socket.gethostname()
+    if name in local_tools:
+        # These handlers act on the local node. Never let a caller claim a
+        # different host to dodge a per-host kill switch or tenant check.
+        if name == "isolate_host" and host and \
+                str(host).lower() != _local_host().lower():
+            return {"jsonrpc": "2.0", "id": req_id, "result": _text_result({
+                "ok": False, "code": "REMOTE_NOT_SUPPORTED",
+                "error": "isolate_host is local-only; run Plasma on the target"},
+                error=True)}
+        host = _local_host()
+    elif not host and spec.risk != "read":
+        host = _local_host()
     context_tenant = context.get("tenant")
     if context_tenant and host and not tenants.allows(root, context_tenant, host):
         decision = {"allowed": False, "approval_required": False, "code": "denied",
@@ -231,6 +294,13 @@ def handle(request: dict, root=None) -> dict | None:
                                recent_actions=recent, killswitch_blocked=blocked)
 
     approval_id = params.get("approval_id")
+    if approval_id is not None:
+        try:
+            approval_id = int(approval_id)
+        except (TypeError, ValueError):
+            return {"jsonrpc": "2.0", "id": req_id, "result": _text_result({
+                "ok": False, "code": "APPROVAL_INVALID",
+                "error": "approval_id must be an integer"}, error=True)}
     if decision["approval_required"] and approval_id is not None:
         args_sha = agentstate.sha256_obj({"tool": name, "args": args})
         approval = ledger.consume_approval(
@@ -309,6 +379,13 @@ def serve(root=None, stdin=None, stdout=None) -> int:
         line = line.strip()
         if not line:
             continue
+        if len(line.encode("utf-8")) > MAX_REQUEST_BYTES:
+            response = {"jsonrpc": "2.0", "id": None,
+                        "error": {"code": -32600,
+                                  "message": "request exceeds size limit"}}
+            stdout.write(json.dumps(response) + "\n")
+            stdout.flush()
+            continue
         try:
             request = json.loads(line)
         except json.JSONDecodeError:
@@ -319,7 +396,12 @@ def serve(root=None, stdin=None, stdout=None) -> int:
                 response = {"jsonrpc": "2.0", "id": None,
                             "error": {"code": -32600, "message": "invalid request"}}
             else:
-                response = handle(request, root)
+                try:
+                    response = handle(request, root)
+                except Exception as exc:  # noqa: BLE001 — keep the server alive
+                    response = {"jsonrpc": "2.0", "id": request.get("id"),
+                                "error": {"code": -32603,
+                                          "message": str(exc)[:200]}}
         if response is not None:
             stdout.write(json.dumps(response, default=str) + "\n")
             stdout.flush()

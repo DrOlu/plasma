@@ -58,6 +58,46 @@ def rotate(events_path, max_mb: float = DEFAULT_MAX_MB,
             "live_file": str(path)}
 
 
+def redact_secrets(events_path, out_path=None) -> dict:
+    """Remove credential-bearing command lines from an existing store.
+
+    Normalization redacts new rows; this is the one-time migration for
+    stores written by older releases.
+    """
+    from .redact import redact_event
+    src = Path(events_path)
+    if not src.exists():
+        return {"error": f"no store at {src}"}
+    dst = Path(out_path) if out_path else src.with_suffix(src.suffix + ".redacted")
+    rows = changed = torn = 0
+    with src.open(encoding="utf-8", errors="replace") as fh, \
+            dst.open("w", encoding="utf-8") as out:
+        for line in fh:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if not stripped.startswith("{"):
+                torn += 1
+                out.write(line)
+                continue
+            try:
+                row = json.loads(stripped)
+            except json.JSONDecodeError:
+                torn += 1
+                out.write(line)
+                continue
+            clean = redact_event(row)
+            if clean != row:
+                changed += 1
+            rows += 1
+            out.write(json.dumps(clean, sort_keys=True) + "\n")
+    if out_path is None:
+        os.replace(dst, src)
+    return {"rows": rows, "redacted_rows": changed,
+            "torn_or_noise_preserved": torn,
+            "out": str(src if out_path is None else dst)}
+
+
 def compact(events_path, out_path=None) -> dict:
     """Drop exact-duplicate lines (full-row JSON equality), keep order.
 

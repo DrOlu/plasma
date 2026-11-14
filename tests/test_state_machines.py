@@ -155,20 +155,22 @@ def test_approval_bound_to_action(tmp_path):
 
 
 def test_mcp_reusing_approval_is_refused(tmp_path):
+    import socket
+    local = socket.gethostname()
     first = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
                         "params": {"name": "isolate_host",
-                                   "arguments": {"host": "WS1"}}}, root=tmp_path)
+                                   "arguments": {"host": local}}}, root=tmp_path)
     payload = json.loads(first["result"]["content"][0]["text"])
     ledger.approve(tmp_path, payload["approval_id"], "ciso", "ok")
     ok = mcp.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
                      "params": {"name": "isolate_host",
-                                "arguments": {"host": "WS1"},
+                                "arguments": {"host": local},
                                 "approval_id": payload["approval_id"]}},
                     root=tmp_path)
     assert json.loads(ok["result"]["content"][0]["text"])["ok"] is True
     reused = mcp.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
                          "params": {"name": "isolate_host",
-                                    "arguments": {"host": "WS1"},
+                                    "arguments": {"host": local},
                                     "approval_id": payload["approval_id"]}},
                         root=tmp_path)
     assert json.loads(reused["result"]["content"][0]["text"])["code"] == "APPROVAL_INVALID"

@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .manifest import sha256_file
+from .redact import redact_text
 
 SERVICE_NAME = "Whids"
 DEFAULT_MIN_CONFIDENCE = 8
@@ -285,7 +286,7 @@ def normalize_alert(alert: dict, host: str | None = None):
         "ppid": _parse_pid(_get_flat(event_data, "ParentProcessId")),
         "parent": _base_name(_get_flat(event_data, "ParentImage")),
         "image": image,
-        "cmdline": _get_flat(event_data, "CommandLine"),
+        "cmdline": redact_text(_get_flat(event_data, "CommandLine")),
         "dest_ip": _get_flat(event_data, "DestinationIp", "DestinationHostname2"),
         "dest_port": _parse_pid(_get_flat(event_data, "DestinationPort")),
         "dns_query": _get_flat(event_data, "QueryName", "QueryResults"),
@@ -563,8 +564,13 @@ def extract_indicators(rows, min_confidence: int = DEFAULT_MIN_CONFIDENCE) -> li
             return
         if ioc_type == "ip" and not _is_public_ip(indicator):
             return
-        if ioc_type == "domain" and _is_benign_domain(indicator):
-            return
+        if ioc_type == "domain":
+            indicator = indicator.lower().rstrip(".")
+            if not re.fullmatch(r"[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?", indicator) \
+                    or ".." in indicator:
+                return
+            if _is_benign_domain(indicator):
+                return
         if ioc_type == "sha256" and not HASH_RE.match(indicator):
             return
         if criticality < min_confidence:
@@ -622,7 +628,7 @@ def build_gene_rule(indicators: list[dict]) -> dict:
             add(f"Hashes ~= '(?i)sha256={value}'")
             add(f"ImageHashes ~= '(?i)sha256={value}'")
         elif ioc["ioc_type"] == "domain":
-            escaped = value.replace(".", r"\.")
+            escaped = re.escape(value)
             add(f"QueryName ~= '(?i)^{escaped}$'")
         else:
             add(f"DestinationIp = '{value}'")

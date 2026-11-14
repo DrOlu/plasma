@@ -167,8 +167,10 @@ def verify(root=None) -> dict:
     return {"ok": True, "rows": len(rows), "broken": None, "reason": None}
 
 
-def tail(root=None, limit: int = 20) -> list[dict]:
+def tail(root=None, limit: int = 20, tenant: str | None = None) -> list[dict]:
     rows = read(root)
+    if tenant:
+        rows = [r for r in rows if r.get("tenant") == tenant]
     return rows[-max(1, int(limit)):]
 
 
@@ -202,7 +204,8 @@ def count_recent(root=None, seconds: int = 60, tool: str | None = None,
     return count
 
 
-def pending_approvals(root=None, limit: int = 200) -> list[dict]:
+def pending_approvals(root=None, limit: int = 200,
+                      tenant: str | None = None) -> list[dict]:
     rows = read(root)
     approved = {r.get("approval_for") for r in rows
                 if r.get("kind") == "approval" and r.get("approved")}
@@ -213,6 +216,8 @@ def pending_approvals(root=None, limit: int = 200) -> list[dict]:
     out = []
     for row in rows:
         if row.get("kind") != "action" or row.get("decision") != "approval_required":
+            continue
+        if tenant and row.get("tenant") != tenant:
             continue
         seq = row.get("seq")
         if seq in approved or seq in consumed:

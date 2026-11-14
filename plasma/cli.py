@@ -634,6 +634,32 @@ def _is_junction(path: Path) -> bool:
         return False
 
 
+def _harden_root_acl(root) -> dict:
+    """Restrict the Plasma root to SYSTEM and Administrators.
+
+    Policy, kill-switch state, approvals, ledger and events are security
+    data; inherited ProgramData permissions can leave them readable (and in
+    some layouts writable) by standard users. Use well-known SIDs so the
+    command works on non-English Windows.
+    """
+    if os.name != "nt":
+        return {"ok": True, "skipped": "non-windows host"}
+    root = Path(root)
+    root.mkdir(parents=True, exist_ok=True)
+    exe = shutil.which("icacls") or r"C:\Windows\System32\icacls.exe"
+    try:
+        proc = subprocess.run(
+            [exe, str(root), "/inheritance:r", "/grant:r",
+             "*S-1-5-18:(OI)(CI)F", "*S-1-5-32-544:(OI)(CI)F",
+             "/T", "/C"],
+            capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=180)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"ok": False, "error": str(exc)[:300]}
+    return {"ok": proc.returncode == 0, "rc": proc.returncode,
+            "detail": ((proc.stderr or proc.stdout or "")[:300] or None)}
+
+
 def cmd_install(args) -> int:
     """Install the embedded payload on this Windows host (single-exe flow)."""
     if os.name != "nt":
@@ -656,6 +682,7 @@ def cmd_install(args) -> int:
 
     default_root = Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Plasma"
     root = Path(args.root) if args.root else default_root
+    root_acl = _harden_root_acl(root)
     target = root / "instances" / f"plasma-{version}"
     current = root / "current"
     config_path = root / "config.json"
@@ -749,6 +776,7 @@ def cmd_install(args) -> int:
     config = {
         "product": "Plasma",
         "version": version,
+        "root_acl": root_acl,
         "instance": str(target),
         "events_path": str(events_path),
         "retention_days": 7,
@@ -1102,6 +1130,12 @@ def cmd_coverage(args) -> int:
         return 1
     print(json.dumps(result, indent=2, default=str))
     return 0
+
+
+def cmd_store_redact(args) -> int:
+    result = store.redact_secrets(args.events, out_path=args.out)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 1
 
 
 def cmd_store_rotate(args) -> int:
@@ -1959,6 +1993,10 @@ def build_parser() -> argparse.ArgumentParser:
     stc.add_argument("--events", required=True)
     stc.add_argument("--out", default=None, help="write compacted copy here instead of in place")
     stc.set_defaults(func=cmd_store_compact)
+    srd = sts.add_parser("redact", help="redact credential-bearing command lines")
+    srd.add_argument("--events", required=True)
+    srd.add_argument("--out", default=None)
+    srd.set_defaults(func=cmd_store_redact)
     stst = sts.add_parser("stats", help="row counts, kinds, time span")
     stst.add_argument("--events", required=True)
     stst.set_defaults(func=cmd_store_stats)

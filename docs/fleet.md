@@ -30,7 +30,10 @@ desk pulls a bounded event tail from each host, then joins them locally.
 
 Rules:
 
-- `transport: "winrm"` pulls over WinRM/NTLM; omit it (or use `"file"`) to
+- `transport: "winrm"` pulls over WinRM/NTLM. **HTTPS is required**
+  (`https://host:5986`) because NTLM over plain HTTP is relay-prone. A
+  controlled lab may set `"allow_insecure_winrm": true` to opt into HTTP.
+  Omit the transport (or use `"file"`) to
   read a local copy.
 - Passwords are **never in the file** — `password_env` names an environment
   variable on the desk.

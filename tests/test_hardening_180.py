@@ -15,7 +15,7 @@ import pytest
 
 from plasma import (actuate, agentstate, canary, chain, deep, fleet, health,
                     identity, killswitch, ledger, mcp, playbooks, policy,
-                    store, watch, whids)
+                    store, watch, whids, tenants)
 
 
 def _ok_run(payload, timeout=60):
@@ -666,3 +666,148 @@ def test_powershell_policy_test_delete_is_suppressed():
         "Image": r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
         "TargetFilename": r"C:\Windows\SystemTemp\__PSScriptPolicyTest_abc.xyz.ps1"})
     assert whids.normalize_alert(rec)["suppressed"]
+
+
+# ---------------------------------------------------------------------------
+# secure-review additions (1.9.0)
+# ---------------------------------------------------------------------------
+
+def test_trace_msi_refuses_unverified_payload(tmp_path, monkeypatch):
+    from plasma import trace
+    dest = tmp_path / "tools"
+    dest.mkdir()
+    calls = []
+    monkeypatch.setattr("urllib.request.urlretrieve",
+                        lambda url, path: (path, None))
+    monkeypatch.setattr(trace, "_verify_msi",
+                        lambda path: {"ok": False, "error": "not Microsoft"})
+    monkeypatch.setattr(trace.subprocess, "run",
+                        lambda *a, **k: calls.append(a) or None)
+    res = trace._install_msi(dest)
+    assert res["ok"] is False and "unverified" in res["error"]
+    assert calls == []
+
+
+def test_isolation_creates_outbound_management_allows_before_blocks():
+    payload, undo, _ = actuate._build_isolate()
+    assert "Plasma Isolate Allow Out RDP" in payload
+    assert "Plasma Isolate Allow Out WinRM" in payload
+    check = payload.index("management allow rules missing")
+    assert check < payload.index("Plasma Isolate Block Inbound")
+    assert "Allow Out RDP" in undo
+
+
+def test_block_ip_rejects_loopback_unspecified_and_broadcast():
+    for target in ("127.0.0.1", "0.0.0.0", "255.255.255.255"):
+        with pytest.raises(ValueError):
+            actuate._v_ip(target)
+
+
+def test_disable_current_user_is_refused(monkeypatch):
+    monkeypatch.setenv("USERNAME", "bob")
+    with pytest.raises(PermissionError):
+        actuate._g_user("bob")
+
+
+def test_gene_rule_rejects_rule_injection_in_dns():
+    evil = {"dns_query": "x'); system('calc'); //", "score": 0.9,
+            "severity": "critical"}
+    assert whids.extract_indicators([evil]) == []
+    good = {"dns_query": "c2.bad.example", "score": 0.9,
+            "severity": "critical"}
+    rule = whids.build_gene_rule(whids.extract_indicators([good]))
+    assert "c2\\.bad\\.example" in " ".join(rule["Matches"])
+    assert "system(" not in json.dumps(rule)
+
+
+def test_mcp_read_events_is_tenant_scoped(tmp_path, monkeypatch):
+    import socket
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "events.jsonl").write_text(
+        json.dumps({"ts": "2026-11-14T06:00:00Z", "host": "WS1",
+                    "kind": "alert", "score": 0.9}) + "\n" +
+        json.dumps({"ts": "2026-11-14T06:01:00Z", "host": "WS2",
+                    "kind": "alert", "score": 0.9}) + "\n")
+    tenants.add(tmp_path, "acme", "Acme", ["WS1"])
+    monkeypatch.setenv("PLASMA_TRUST_CLIENT_META", "1")
+    res = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                      "params": {"name": "read_events",
+                                 "arguments": {"limit": 10},
+                                 "_meta": {"tenant": "acme"}}}, root=tmp_path)
+    payload = json.loads(res["result"]["content"][0]["text"])
+    hosts = {e["host"] for e in payload["events"]}
+    assert hosts == {"WS1"}
+
+
+def test_mcp_serve_rejects_oversized_request(tmp_path):
+    import io
+    huge = "{" + '"pad": "' + ("x" * (mcp.MAX_REQUEST_BYTES + 10)) + '"}'
+    out = io.StringIO()
+    mcp.serve(root=tmp_path, stdin=io.StringIO(huge + "\n"), stdout=out)
+    assert "size limit" in out.getvalue()
+
+
+def test_ledger_tail_filters_by_tenant(tmp_path):
+    d = policy.evaluate("read_events", {}, {"scopes": ["*"]})
+    ledger.record(tmp_path, tool="read_events", args={}, decision=d,
+                  context={"tenant": "acme"})
+    ledger.record(tmp_path, tool="read_events", args={}, decision=d,
+                  context={"tenant": "default"})
+    assert [r["tenant"] for r in ledger.tail(tmp_path, 10, tenant="acme")] == ["acme"]
+
+
+def test_install_acl_hardening_is_skipped_off_windows(tmp_path):
+    from plasma import cli
+    res = cli._harden_root_acl(tmp_path / "Plasma")
+    assert res["ok"] is True and "skipped" in res
+
+
+def test_mcp_non_integer_approval_id_is_refused_not_crashed(tmp_path):
+    res = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                      "params": {"name": "contain_user",
+                                 "arguments": {"user": "bob"},
+                                 "approval_id": "not-a-number"}}, root=tmp_path)
+    payload = json.loads(res["result"]["content"][0]["text"])
+    assert payload["code"] == "APPROVAL_INVALID"
+
+
+def test_mcp_non_object_params_is_rejected(tmp_path):
+    res = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                      "params": ["not", "an", "object"]}, root=tmp_path)
+    assert res["error"]["code"] == -32600
+
+
+def test_credential_redaction_patterns():
+    from plasma.redact import redact_text
+    cases = [
+        (r"net user bob P@ssw0rd! /add", "P@ssw0rd!"),
+        (r'net1 user bob "P@ss word" /add', "P@ss word"),
+        (r"Set-LocalUser -Name bob -Password 'Secret123'", "Secret123"),
+        (r"ConvertTo-SecureString 'Secret123' -AsPlainText", "Secret123"),
+        (r"curl -H 'Authorization: Bearer abcdefghijklmnop'", "abcdefghijklmnop"),
+        (r"tool --password=hunter2", "hunter2"),
+    ]
+    for text, secret in cases:
+        redacted = redact_text(text)
+        assert secret not in redacted, text
+        assert "<redacted>" in redacted
+
+
+def test_store_redaction_migrates_existing_rows(tmp_path):
+    p = tmp_path / "events.jsonl"
+    p.write_text(json.dumps({"kind": "alert", "cmdline": "net user bob P@ss /add",
+                             "description": "ok"}) + "\n")
+    res = store.redact_secrets(p)
+    assert res["redacted_rows"] == 1
+    row = json.loads(p.read_text().splitlines()[0])
+    assert "P@ss" not in row["cmdline"] and row["description"] == "ok"
+
+
+def test_whids_normalization_redacts_command_line_secrets():
+    rec = _whids_record("Plasma Net Account Add", {
+        "Image": r"C:\Windows\System32\net.exe",
+        "CommandLine": r"net.exe user bob P@ssw0rd! /add"})
+    e = whids.normalize_alert(rec)
+    assert "P@ssw0rd!" not in e["cmdline"]
+    assert "<redacted>" in e["cmdline"]
