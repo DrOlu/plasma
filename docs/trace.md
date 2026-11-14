@@ -55,11 +55,13 @@ plasma trace list
 | `syscall-errors` | T1106 | 6 | NT syscalls returning a non-success status: tid, image, function, status |
 | `process-create` | T1059 | 5 | `NtCreateUserProcess` / `NtCreateThreadEx` entries: tid, image |
 | `etw-kernel-process` | T1057 | 4 | ETW `Microsoft-Windows-Kernel-Process` events (header fields only) |
+| `inject-rwx` | T1055 | 5 | `NtProtectVirtualMemory` granting `PAGE_EXECUTE_READWRITE` (0x40): tid, image, protection |
+| `inject-remote-thread` | T1055 | 6 | `NtCreateThreadEx` with a target handle other than the caller: tid, image, remote flag |
 
-Scripts live in `sensors/dtrace/*.d`, carry metadata in `//` comments, and
-are validated before use: an allowlisted provider is required, `system()`
-and other destructive constructs are refused, and every script must emit
-lines prefixed `plasma|{"…"}`.
+Scripts live in `sensors/dtrace/*.d`, carry metadata in `/* */` block
+comments, and are validated before use: an allowlisted provider is required,
+`system()` and other destructive constructs are refused, and every script
+must emit lines prefixed `plasma|{"…"}`.
 
 Adding a script is a review, not a config change: drop a `.d` file in the
 directory, keep the `plasma|` JSON contract, run `plasma trace selftest`.
@@ -76,6 +78,36 @@ plasma trace run process-create --for 30s --max-rows 5000 --out C:\ProgramData\P
 - Raw capture optionally kept (`--out`); normalized rows appended to the
   events store with content-hash dedupe.
 - `-w` (DTrace's destructive mode) is never used.
+
+### Process-injection evidence (T1055)
+
+A single RWX allocation is not a verdict: JIT compilers and some installers
+create executable writable pages legitimately. Trace both halves of the
+story and let the chain decide.
+
+```powershell
+plasma trace run inject-rwx --for 30s --events C:\ProgramData\Plasma\data\events.jsonl
+plasma trace run inject-remote-thread --for 30s --events C:\ProgramData\Plasma\data\events.jsonl
+plasma chain score --events C:\ProgramData\Plasma\data\events.jsonl
+```
+
+`inject-rwx` fires on `NtProtectVirtualMemory` with `NewProtect == 0x40`
+(`PAGE_EXECUTE_READWRITE`). `inject-remote-thread` fires on
+`NtCreateThreadEx` when the target process handle is not the caller's
+pseudo-handle. Either row alone is medium-severity evidence; together, from
+the same image and inside 120 seconds, they form `injection_chain` at
+score 9. The chain binds on the image name: thread creation in another
+process is ordinary system activity (System, svchost, the EDR itself), so
+without binding, unrelated events would collide.
+
+**False positives:** RWX is normal in JIT-heavy software (browsers, .NET,
+V8), and remote thread creation is normal for system services. Treat the
+same-image chain as the signal, not either single event — that is why
+neither script scores high on its own.
+
+**This is evidence, not prevention.** DTrace observes the syscall boundary;
+it cannot block an injection. `raise(` remains forbidden in reviewed
+scripts, so Plasma can witness an injection but never stop it.
 
 Each normalized row has `kind: "trace"`, `source: "dtrace"`, the script's
 technique and score, and the image/tid. That means **chains, drift, fleet

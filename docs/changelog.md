@@ -4,6 +4,20 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.9.3 — 2026-11-14
+
+Kernel-boundary process-injection evidence (T1055).
+
+- New reviewed DTrace scripts: `inject-rwx` (`NtProtectVirtualMemory` with
+  PAGE_EXECUTE_READWRITE) and `inject-remote-thread` (`NtCreateThreadEx`
+  into another process). Both use the stable syscall provider and were
+  field-verified on WS1 and WS2.
+- `injection_chain` (score 9, 120 s) binds both halves to the same image,
+  so ordinary system thread creation cannot collide with a JIT RWX page.
+- DTrace remains on-demand and is excluded from always-on coverage:
+  91.7 / 75.0 / 83.3, blind T1056, T1056.001, T1112.
+- 484 passed / 21 skipped.
+
 ## 1.6.2 — 2026-11-13
 
 - **DTrace readiness is capability-based** — the "2.0" package still calls

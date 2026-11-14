@@ -24,7 +24,8 @@ DEFAULT_MAX_ROWS = 5000      # scan tail size, bounded like every probe
 # step matcher fields:
 #   any of: kind, process (regex on basename-ish field), user (regex),
 #           event_id, description (regex), dest_ip present?
-# each built-in chain: name, score, gap_seconds, steps in time order
+# each built-in chain: name, score, gap_seconds, steps in time order;
+# bind_user / bind_process require every step to share one identity or image.
 
 BUILTIN_CHAINS = [
     {
@@ -62,6 +63,18 @@ BUILTIN_CHAINS = [
         "steps": [
             {"description": r"(?i)(net1? .*(user|localgroup).*(/add| add)|add-localgroupmember|new-localuser)"},
             {"description": r"(?i)(sched|schtasks|new-service|register-scheduledtask|run ?key|eventfilter|bindversion)"},
+        ],
+    },
+    {
+        "name": "injection_chain",
+        "score": 9,
+        "gap_seconds": 120,
+        "bind_process": True,
+        "detail": "RWX permission flip followed by thread creation in another process "
+                  "by the same image",
+        "steps": [
+            {"kind": "trace", "description": r"(?i)dtrace inject-rwx"},
+            {"kind": "trace", "description": r"(?i)dtrace inject-remote-thread"},
         ],
     },
 ]
@@ -123,12 +136,23 @@ def _user_key(row):
     return value
 
 
+def _proc_key(row):
+    """Normalized image name for cross-step binding (C:\\x\\loader.exe -> loader.exe)."""
+    process = row.get("process")
+    if not process:
+        return None
+    value = str(process).split("\\")[-1].strip().lower()
+    return value or None
+
+
 def _match_from(steps, events, start, gap, t_prev=None, bound_user=None,
-                enforce_bound=False):
+                bound_process=None, enforce_bound=False,
+                enforce_process=False):
     """Ordered forward match of steps against events[start:], full
     backtracking on step candidates. Returns indices or None. Each adjacent
     pair must sit within `gap` seconds. When `enforce_bound` is set, every
-    step must belong to the same normalized user as the first step."""
+    step must belong to the same normalized user as the first step. When
+    `enforce_process` is set, every step must carry the same image name."""
     if not steps:
         return []
     step = steps[0]
@@ -142,6 +166,12 @@ def _match_from(steps, events, start, gap, t_prev=None, bound_user=None,
                 continue
             if bound_user is not None and row_user != bound_user:
                 continue
+        if enforce_process:
+            row_process = _proc_key(row)
+            if row_process is None:
+                continue
+            if bound_process is not None and row_process != bound_process:
+                continue
         t = _ts(row)
         if t_prev is not None and (t - t_prev).total_seconds() > gap:
             break          # sorted input: every later candidate is later still
@@ -153,8 +183,11 @@ def _match_from(steps, events, start, gap, t_prev=None, bound_user=None,
                     < step["min_count"]:
                 continue
         user = bound_user if bound_user is not None else _user_key(row)
+        process = bound_process if bound_process is not None else _proc_key(row)
         rest = _match_from(steps[1:], events, i + 1, gap, t_prev=t,
-                           bound_user=user, enforce_bound=enforce_bound)
+                           bound_user=user, bound_process=process,
+                           enforce_bound=enforce_bound,
+                           enforce_process=enforce_process)
         if rest is not None:
             return [i] + rest
     return None
@@ -170,7 +203,8 @@ def scan(rows: list[dict], chains: list[dict] | None = None,
     for chain in chains:
         gap = int(chain.get("gap_seconds", gap_seconds))
         idxs = _match_from(chain["steps"], events, 0, gap,
-                           enforce_bound=bool(chain.get("bind_user")))
+                           enforce_bound=bool(chain.get("bind_user")),
+                           enforce_process=bool(chain.get("bind_process")))
         if idxs:
             matched = [events[i] for i in idxs]
             t0, t1 = _ts(matched[0]), _ts(matched[-1])
