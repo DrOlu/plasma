@@ -97,10 +97,12 @@ def test_pull_file_transport(tmp_path):
 
 
 def test_pull_winrm_transport_monkeypatched(tmp_path, monkeypatch):
+    import base64 as _b64
+    _blob = _b64.b64encode(("\n".join(json.dumps(ev("WS2", user="EC2\\olu"))
+                                     for _ in range(3)) + "\n").encode()).decode()
     class FakeResult:
         status_code = 0
-        std_out = ("\n".join(json.dumps(ev("WS2", user="EC2\\olu"))
-                             for _ in range(3))).encode()
+        std_out = _blob.encode()
         std_err = b""
     class FakeSession:
         def __init__(self, *a, **k): pass
@@ -151,7 +153,7 @@ def test_pull_base64_read_path_preserves_unicode(tmp_path, monkeypatch):
          "password_env": "WS2PW"}]}))
     out = fleet.pull(tmp_path, inv, "cb64")
     assert out["results"][0]["rows"] == 1
-    assert out["results"][0]["read_via"] == "base64"
+    assert out["results"][0]["read_via"] == "base64-tail"
     got = [json.loads(l) for l in
            (fleet.case_dir(tmp_path, "cb64") / "answers" / "WS2.events.jsonl")
            .read_text().splitlines()]

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.8.6 — 2026-11-14
+
+- fleet WinRM pull reads a bounded tail instead of the whole store; large
+  stores no longer exceed the WinRM envelope (HTTP 400).
+- 452 passed / 21 skipped.
+
 ## 1.8.5 — 2026-11-14
 
 - whids.pull updates watch-alerts-state so a pull is not immediately

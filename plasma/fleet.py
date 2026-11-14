@@ -149,12 +149,22 @@ def _pull_winrm(entry, out_file: Path, cap) -> dict:
                              auth=(entry.get("username", "Administrator"), password),
                              transport="ntlm", read_timeout_sec=120)
         rows: list[dict] = []
-        via = "base64"
+        via = "base64-tail"
+        # Read only a bounded tail. The old read returned the whole file in
+        # one base64 blob; an 18k-row store exceeded the WinRM envelope and
+        # the server answered HTTP 400. cap*8KB is generous for 200 rows.
+        tail_bytes = max(1 << 20, int(cap) * 8192)
+        read_tail = (
+            f"$p='{quoted}'; $fs=[IO.File]::Open($p,'Open','Read','ReadWrite');"
+            f"try {{ $take=[Math]::Min($fs.Length,{tail_bytes});"
+            f"$fs.Seek(-$take,'End') | Out-Null;"
+            f"$buf=New-Object byte[] $take;"
+            f"$fs.Read($buf,0,$take) | Out-Null;"
+            f"[Convert]::ToBase64String($buf) }} finally {{ $fs.Close() }}")
         try:
-            res = sess.run_ps(f"[IO.File]::ReadAllBytes('{quoted}').Length | Out-Null; "
-                              f"[Convert]::ToBase64String([IO.File]::ReadAllBytes('{quoted}'))")
+            res = sess.run_ps(read_tail)
             token = max(res.std_out.decode(errors="replace").split(), key=len)
-            raw = base64.b64decode(token).decode("utf-8")
+            raw = base64.b64decode(token).decode("utf-8", "replace")
             rows = _rows_from_text(raw, cap)
         except Exception:  # locked file / no bytes API — fall back to line mode
             via = "tail-text"

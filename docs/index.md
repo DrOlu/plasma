@@ -1,12 +1,12 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.8.5</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.8.6</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.8.5</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.8.6</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
@@ -80,6 +80,15 @@ ON-DEVICE BRAIN    frozen neuralOS instance — 10 probes, refuse-if-unknown
 DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
+
+## What's new in 1.8.6
+
+- **Fleet reads a bounded tail over WinRM** — the previous base64 read
+  returned the whole events store; a large store exceeded the WinRM
+  envelope and the host answered HTTP 400. The pull now reads only the
+  last ~1 MB (enough for the 200-row cap), then falls back to line mode.
+
+452 tests pass (21 skipped).
 
 ## What's new in 1.8.5
 
