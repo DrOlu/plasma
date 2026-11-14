@@ -13,13 +13,16 @@ neuralOS engine         on-device 121M tool-calling model (selection only)
 frozen instance         Pydantic contract + probe menu + bridge + graph layer
 ```
 
-The result is an endpoint agent whose detection and containment stay
-deterministic (WHIDS actionable rules), while operators can ask plain-English
-questions about what happened: *"why did WHIDS kill PID 4832?"*,
-*"which processes made outbound connections?"*, *"any persistence on WS2?"*
+The result is an endpoint agent whose detection stays deterministic (WHIDS
+gene rules), with containment kept in a separate, plan-gated response plane.
+Operators can ask plain-English questions about what happened: *"why did
+WHIDS report PID 4832?"*, *"which processes made outbound connections?"*,
+*"any persistence on WS2?"*
 
-The model is **never** in the kill path. Situational awareness is the model's
-job; response remains policy-driven and, for model recommendations, human-approved.
+The shipped WHIDS config is detect-only (`report`); it does not kill or block.
+The model is **never** in the response path. Situational awareness is the
+model's job; response remains policy-driven and, for model recommendations,
+human-approved.
 
 ## Agent-native operation
 
@@ -121,7 +124,7 @@ plasma whids status
 
 **Pull** reads the WHIDS alert JSONL under `Logs\Alerts` (gene `EdrEvent`
 records) and maps them to the Plasma schema: gene `Criticality` (0-10) →
-severity/score, `ATTACK[].ID` → technique, `Actions` → killed/blocked/logged,
+severity/score, `ATTACK[].ID` → technique, `Actions` → reported/logged,
 event fields → process/hash/network context.
 
 **Push** writes `Database\Rules\plasma-iocs.gen` — a gene schema-2.0.0 rule
@@ -132,7 +135,8 @@ alerts carrying the Plasma signature.
 
 Safety: dry-run by default; private/reserved IPs and benign domains excluded;
 expressions merged and deduplicated; the previous rule file is backed up; every
-apply is journaled. WHIDS owns response actions — Plasma never drives them.
+apply is journaled. The shipped WHIDS config is detect-only (`report`); Plasma
+never drives WHIDS response actions.
 
 ## Observatory, drift and actuation (rmagent lineage)
 

@@ -183,3 +183,41 @@ def test_injection_chain_needs_both_halves():
         rows = [_trace("2026-11-05T11:00:00Z", script)]
         assert not [f for f in chain.scan(rows)
                     if f["type"] == "chain_injection_chain"]
+
+
+def test_injection_apc_chain_fires_on_cross_process_rwx_then_apc():
+    rows = [
+        _trace("2026-11-05T11:00:00Z", "inject-rwx"),
+        _trace("2026-11-05T11:00:20Z", "inject-apc"),
+    ]
+    findings = [f for f in chain.scan(rows)
+                if f["type"] == "chain_injection_apc_chain"]
+    assert findings and findings[0]["score"] == 9
+
+
+def test_injection_apc_chain_ignores_self_rwx():
+    rows = [
+        _trace("2026-11-05T11:00:00Z", "inject-rwx", self_=1),
+        _trace("2026-11-05T11:00:20Z", "inject-apc"),
+    ]
+    assert not [f for f in chain.scan(rows)
+                if f["type"] == "chain_injection_apc_chain"]
+
+
+def test_injection_apc_chain_respects_the_short_gap():
+    rows = [
+        _trace("2026-11-05T11:00:00Z", "inject-rwx"),
+        _trace("2026-11-05T11:01:00Z", "inject-apc"),
+    ]
+    assert not [f for f in chain.scan(rows)
+                if f["type"] == "chain_injection_apc_chain"]
+
+
+def test_injection_apc_chain_binds_one_image():
+    rows = [
+        _trace("2026-11-05T11:00:00Z", "inject-rwx", process=r"C:\x\loader.exe"),
+        _trace("2026-11-05T11:00:20Z", "inject-apc",
+               process=r"C:\Windows\System32\svchost.exe"),
+    ]
+    assert not [f for f in chain.scan(rows)
+                if f["type"] == "chain_injection_apc_chain"]
