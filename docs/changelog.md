@@ -16,6 +16,12 @@ Highlights by release:
 - **Trace rows use `tid`** — `pid` is not portable across the DTrace builds
   on the estate; `tid` works on both hosts.
 
+## 1.8.7 — 2026-11-14
+
+- Suppress PowerShell's `__PSScriptPolicyTest_*.ps1` scratch-file deletes
+  in whids and exclude their identical hashes from fleet shared_hash.
+- 454 passed / 21 skipped.
+
 ## 1.8.6 — 2026-11-14
 
 - fleet WinRM pull reads a bounded tail instead of the whole store; large

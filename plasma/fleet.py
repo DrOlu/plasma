@@ -281,6 +281,9 @@ def _system_image(row) -> bool:
     image (or when the row names a non-system file path).
     """
     path = str(row.get("file_path") or row.get("image") or "").lower()
+    name = path.replace("\\", "/").rsplit("/", 1)[-1]
+    if name.startswith("__psscriptpolicytest_"):
+        return True
     return path.startswith((
         "c:\\windows\\system32\\", "c:\\windows\\syswow64\\",
         "c:\\windows\\winsxs\\", "c:\\windows\\servicing\\"))

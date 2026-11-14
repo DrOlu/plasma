@@ -659,3 +659,10 @@ def test_pull_updates_the_watch_backlog_counter(tmp_path):
     whids.pull(str(tmp_path / "Whids"), out=str(out))
     state = json.loads((tmp_path / "Plasma" / "watch-alerts-state.json").read_text())
     assert state["seen_alert_rows"] == 1
+
+
+def test_powershell_policy_test_delete_is_suppressed():
+    rec = _whids_record("Plasma File Delete by LOLBin", {
+        "Image": r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+        "TargetFilename": r"C:\Windows\SystemTemp\__PSScriptPolicyTest_abc.xyz.ps1"})
+    assert whids.normalize_alert(rec)["suppressed"]

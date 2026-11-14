@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.8.6</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.8.7</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.8.6</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.8.7</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">91.7% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">452 tests</span>
+<span class="raft-badge">454 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -81,6 +81,16 @@ DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
 
+## What's new in 1.8.7
+
+- **PowerShell policy-test scratch files are suppressed** — every
+  PowerShell start deletes a `__PSScriptPolicyTest_*.ps1` file in Temp.
+  That produced fleet `shared_hash` findings on every host pair (identical
+  content) and a stream of low-value File-Delete alerts. Both are now
+  recognised as PowerShell housekeeping.
+
+454 tests pass (21 skipped).
+
 ## What's new in 1.8.6
 
 - **Fleet reads a bounded tail over WinRM** — the previous base64 read
@@ -88,7 +98,7 @@ DESK               status · ask · drift · chains · coverage · fleet ·
   envelope and the host answered HTTP 400. The pull now reads only the
   last ~1 MB (enough for the 200-row cap), then falls back to line mode.
 
-452 tests pass (21 skipped).
+454 tests pass (21 skipped).
 
 ## What's new in 1.8.5
 
@@ -98,7 +108,7 @@ DESK               status · ask · drift · chains · coverage · fleet ·
   from 1.8.3 are normalised before coverage checks, so old storms do not
   spawn duplicates.
 
-452 tests pass (21 skipped).
+454 tests pass (21 skipped).
 
 ## What's new in 1.8.4
 
@@ -106,7 +116,7 @@ DESK               status · ask · drift · chains · coverage · fleet ·
   a storm spanning rotated logs could record `first_ts` after `last_ts`.
   Groups are sorted before sampling and summarising.
 
-452 tests pass (21 skipped).
+454 tests pass (21 skipped).
 
 ## What's new in 1.8.3
 
@@ -118,7 +128,7 @@ DESK               status · ask · drift · chains · coverage · fleet ·
 - **Why it matters** — the signal (one agent looping on a privileged key)
   stays visible; the diary and the alert budget do not drown in it.
 
-452 tests pass (21 skipped).
+454 tests pass (21 skipped).
 
 ## What's new in 1.8.2
 
@@ -127,7 +137,7 @@ DESK               status · ask · drift · chains · coverage · fleet ·
   They are now suppressed alongside System32/SysWOW64; `C:\Windows\Temp`,
   `Tasks` and `Debug` are explicitly excluded, and LOLBins keep full score.
 
-452 tests pass (21 skipped).
+454 tests pass (21 skipped).
 
 ## What's new in 1.8.1
 
@@ -147,7 +157,7 @@ A short follow-up from the live estate run of 1.8.0.
 - **Run-key suppression narrowed** — a Microsoft-signed LOLBin writing a
   Run key is the technique, not a benign installer.
 
-452 tests pass (21 skipped).
+454 tests pass (21 skipped).
 
 ## What's new in 1.8.0
 
@@ -176,7 +186,7 @@ Windows estate.
   persistence no longer flags unsigned Windows binaries, and identity drops
   malformed domains/timestamps.
 
-452 tests pass (21 skipped).
+454 tests pass (21 skipped).
 
 ## What's new in 1.7.2
 

@@ -396,3 +396,15 @@ def test_shared_user_binary_hash_is_still_a_finding(tmp_path):
                                       image=r"C:\Users\Public\dropper.exe")])
     out = fleet.correlate(tmp_path, "userhash")
     assert [f for f in out["findings"] if f["type"] == "shared_hash"]
+
+
+def test_shared_powershell_policy_test_hash_is_not_a_finding(tmp_path):
+    cd = fleet.init_case(tmp_path, "pspolicy")
+    h = "c" * 64
+    for host in ("WS1", "WS2"):
+        _write_host_events(cd, host, [ev(
+            host, file_hash=h,
+            image=r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+            file_path=r"C:\Windows\SystemTemp\__PSScriptPolicyTest_x.ps1")])
+    out = fleet.correlate(tmp_path, "pspolicy")
+    assert not [f for f in out["findings"] if f["type"] == "shared_hash"]

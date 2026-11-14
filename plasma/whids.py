@@ -208,6 +208,11 @@ def _benign_context(rule_name: str, event_data: dict) -> str | None:
         if parent in {"msiexec.exe", "trustedinstaller.exe", "svchost.exe",
                       "setup.exe", "update.exe"}:
             return f"task created by expected installer parent ({parent})"
+    if "file delete by lolbin" in rule:
+        target = str(_get_flat(event_data, "TargetFilename") or "")
+        name = _base_name(target).lower()
+        if image == "powershell.exe" and name.startswith("__psscriptpolicytest_"):
+            return "PowerShell policy-test scratch file"
     if "encoded cmd" in rule:
         if parent in {"svchost.exe", "taskeng.exe", "taskhostw.exe"} and (
                 user in ("system", "nt authority\\system")
