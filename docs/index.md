@@ -118,7 +118,7 @@ A focused secure-code review of the agent and desk surfaces.
   is protected from disable/rotate, and gene-rule domains are escaped and
   validated against rule injection.
 
-475 tests pass (21 skipped).
+474 tests pass (21 skipped).
 
 ## What's new in 1.8.7
 
