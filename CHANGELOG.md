@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.2 — 2026-11-14
+
+- Service-registry suppression now covers Windows service binaries under
+  ADFS and Microsoft.NET as well as System32/SysWOW64. Temp/Tasks/Debug are
+  excluded; reg.exe/sc.exe/powershell.exe keep full severity.
+- 448 passed / 21 skipped.
+
 ## 1.8.1 — 2026-11-14
 
 Follow-up from the live 1.8.0 estate run.

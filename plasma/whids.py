@@ -163,9 +163,12 @@ def _benign_context(rule_name: str, event_data: dict) -> str | None:
     rule = str(rule_name or "").lower()
     image_path = str(_get_flat(event_data, "Image", "ProcessName") or "").lower()
     image = _base_name(image_path) or ""
-    system_binary = image_path.startswith((
-        "c:\\windows\\system32\\", "c:\\windows\\syswow64\\",
-        "c:\\windows\\winsxs\\", "c:\\windows\\servicing\\"))
+    # Windows service binaries live in System32, but also in ADFS,
+    # Microsoft.NET, WinSxS and servicing. Temp/Tasks/Debug are writable
+    # staging areas and must never inherit that trust.
+    system_binary = image_path.startswith("c:\\windows\\") and not image_path.startswith((
+        "c:\\windows\\temp\\", "c:\\windows\\tasks\\",
+        "c:\\windows\\debug\\"))
     parent = _base_name(_get_flat(event_data, "ParentImage")) or ""
     parent = parent.lower()
     signed = str(_get_flat(event_data, "Signed") or "").strip().lower()

@@ -586,3 +586,14 @@ def test_windows_service_path_without_signature_metadata_is_suppressed():
         "Image": r"C:\Windows\Temp\svc.exe",
         "TargetObject": r"HKLM\SYSTEM\CurrentControlSet\Services\Evil"})
     assert not whids.normalize_alert(evil).get("suppressed")
+
+
+def test_adfs_service_binary_is_suppressed_but_windows_temp_is_not():
+    adfs = _whids_record("Plasma Service Registry Persistence", {
+        "Image": r"C:\Windows\ADFS\Microsoft.ActiveDirectory.WebServices.exe",
+        "TargetObject": r"HKLM\SYSTEM\CurrentControlSet\Services\ADFS"})
+    assert whids.normalize_alert(adfs)["suppressed"]
+    temp = _whids_record("Plasma Service Registry Persistence", {
+        "Image": r"C:\Windows\Temp\svc.exe",
+        "TargetObject": r"HKLM\SYSTEM\CurrentControlSet\Services\Evil"})
+    assert not whids.normalize_alert(temp).get("suppressed")
