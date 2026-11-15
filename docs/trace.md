@@ -58,6 +58,10 @@ plasma trace list
 | `inject-rwx` | T1055 | 5 / 8 | `NtProtectVirtualMemory` granting RWX (base `arg3 & 0xff == 0x40`): tid, image, raw protection, self flag. Self-access scores 5; cross-process scores 8 |
 | `inject-remote-thread` | T1055 | 6 | `NtCreateThreadEx` with a target handle other than the caller: tid, image, remote flag |
 | `inject-apc` | T1055 | 5 (chain 9) | `NtQueueApcThread`, `NtQueueApcThreadEx` or `NtQueueApcThreadEx2`: tid, image, syscall |
+| `inject-hijack` | T1055 | 5 (chain 8) | `NtSetContextThread` on a thread other than the caller (`NtCurrentThread` is -2): tid, image |
+| `inject-hollow` | T1055 | 6 (chain 9) | `NtUnmapViewOfSection` against another process: tid, image, remote flag |
+| `inject-section` | T1055 | 5 (chain 9) | `NtMapViewOfSection` into another process: tid, image, remote flag |
+| `inject-write` | T1055 | 5 (chain 9) | `NtWriteVirtualMemory` into another process: tid, image, remote flag |
 
 Scripts live in `sensors/dtrace/*.d`, carry metadata in `/* */` block
 comments, and are validated before use: an allowlisted provider is required,
@@ -126,12 +130,23 @@ thread creation is normal for system services. Treat the same-image,
 cross-process chain as the signal, not either single event — that is why
 the individual scripts stay at 5/6/5.
 
-**Coverage of the family:** this covers the classic `CreateRemoteThread`
-path, RWX permission flips and APC queueing. It does **not** cover thread
-hijacking (`NtGetContextThread` / `NtSetContextThread`), process hollowing
-(`NtUnmapViewOfSection` + `NtResumeThread`) or section/DLL injection
-(`NtMapViewOfSection`); those remain visible only when another sensor sees
-them.
+**Coverage of the family:** the reviewed set now covers the classic
+`CreateRemoteThread` path, RWX permission flips, APC queueing, thread
+context rewriting, process hollowing, section mapping and remote writes into
+already-executable memory. Four chains bind each primitive to a remote
+thread from the same image:
+
+| Chain | Steps | Score |
+|---|---|---|
+| `injection_chain` | RWX flip → remote thread | 9 |
+| `injection_apc_chain` | RWX flip → APC | 9 |
+| `injection_hollow_chain` | unmap → write → remote thread | 9 |
+| `injection_section_chain` | section map → remote thread | 9 |
+| `injection_write_chain` | remote write → remote thread | 9 |
+| `injection_hijack_chain` | context rewrite → remote thread | 8 |
+
+The write chain is the one that leaves neither an RWX flip nor a new thread
+on its own; it still requires the remote thread to complete the story.
 
 **This is evidence, not prevention.** DTrace observes the syscall boundary;
 it cannot block an injection. `raise(` remains forbidden in reviewed

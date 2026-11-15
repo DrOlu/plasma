@@ -157,3 +157,47 @@ def test_no_tap_rule_hand_labels_evidence():
     doc = json.loads((coverage._repo_sensors() /
                       "plasma-tap-rules.json").read_text(encoding="utf-8"))
     assert all("evidence" not in rule for rule in doc["rules"])
+
+
+def test_telemetry_axis_is_derived_from_the_sysmon_config():
+    enabled = coverage.enabled_event_ids()
+    assert enabled is not None
+    for eid in (1, 3, 6, 7, 10, 11, 12, 13, 14, 17, 18, 22, 23):
+        assert eid in enabled, eid
+    cov = coverage.coverage()
+    assert cov["telemetry_breakdown"]["live"] == cov["core_covered"]
+    assert cov["telemetry_breakdown"]["dormant"] == 0
+    assert cov["dormant_techniques"] == []
+    assert cov["weighted_pct"] == cov["weighted_all_pct"]
+
+
+def test_dormant_rules_do_not_count_as_weighted_coverage(tmp_path):
+    sensors = tmp_path / "sensors"
+    sensors.mkdir()
+    (sensors / "plasma-tap-rules.json").write_text('{"rules": []}\n')
+    (sensors / "sysmon-config.xml").write_text(
+        '<Sysmon><EventFiltering><ProcessCreate onmatch="exclude"/>'
+        '</EventFiltering></Sysmon>')
+    (sensors / "plasma-baseline.gen").write_text(json.dumps({
+        "Name": "dormant LSASS", "Tags": ["T1003.001"],
+        "Meta": {"EventIDs": [10], "Criticality": 9},
+        "Matches": ["$x: TargetImage ~= 'lsass'"], "Condition": "$x"}) + "\n")
+    cov = coverage.coverage(sensors)
+    assert cov["covered"]["T1003.001"]["telemetry"] == "dormant"
+    # only the live canary capability remains (1.0 / 37)
+    assert cov["weighted_pct"] == 2.7
+    assert cov["weighted_all_pct"] > cov["weighted_pct"]
+    assert "T1003.001" in cov["dormant_techniques"]
+
+
+def test_missing_sysmon_config_is_unknown_not_dormant(tmp_path):
+    sensors = tmp_path / "sensors"
+    sensors.mkdir()
+    (sensors / "plasma-tap-rules.json").write_text('{"rules": []}\n')
+    (sensors / "plasma-baseline.gen").write_text(json.dumps({
+        "Name": "x", "Tags": ["T1003.001"],
+        "Meta": {"EventIDs": [10], "Criticality": 9},
+        "Matches": ["$x: TargetImage ~= 'lsass'"], "Condition": "$x"}) + "\n")
+    cov = coverage.coverage(sensors)
+    assert cov["covered"]["T1003.001"]["telemetry"] == "unknown"
+    assert cov["weighted_pct"] > 0

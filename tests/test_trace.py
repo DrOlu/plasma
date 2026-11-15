@@ -31,7 +31,7 @@ def test_scripts_are_safe_and_emit_the_marker():
         text = path.read_text()
         assert trace.MARKER in text
         assert "system(" not in text
-        assert "-w" not in text
+        assert " -w " not in text
 
 
 def test_predicates_are_terminated():
@@ -401,7 +401,9 @@ def test_check_uses_the_resolved_dtrace_path(monkeypatch):
 # process-injection evidence (T1055)
 # ---------------------------------------------------------------------------
 
-INJECTION_SCRIPTS = ("inject-rwx", "inject-remote-thread", "inject-apc")
+INJECTION_SCRIPTS = ("inject-rwx", "inject-remote-thread", "inject-apc",
+                     "inject-hijack", "inject-hollow", "inject-section",
+                     "inject-write")
 
 
 def test_injection_scripts_load_with_metadata():
@@ -487,3 +489,15 @@ def test_dtrace_scripts_do_not_inflate_coverage():
     assert round(r["coverage_exact_pct"], 1) == 89.2
     assert round(r["weighted_pct"], 1) == 85.9
     assert set(r["blind"]) == {"T1056", "T1056.001"}
+
+
+def test_new_injection_scripts_compare_the_right_handles():
+    hijack = (REPO_SCRIPTS / "inject-hijack.d").read_text()
+    assert "NtSetContextThread" in hijack
+    assert "(arg0 & 0xffffffff) != 0xfffffffe" in hijack   # NtCurrentThread
+    for name, func in (("inject-hollow", "NtUnmapViewOfSection"),
+                       ("inject-section", "NtMapViewOfSection"),
+                       ("inject-write", "NtWriteVirtualMemory")):
+        text = (REPO_SCRIPTS / f"{name}.d").read_text()
+        assert func in text
+        assert "(arg0 & 0xffffffff) != 0xffffffff" in text

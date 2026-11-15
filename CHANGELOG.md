@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.14.0 — 2026-11-15
+
+Telemetry provenance, and the injection primitives that leave no RWX flip.
+
+- **Third provenance axis** — coverage derives `live` / `partial` / `dormant`
+  / `unknown` per rule and technique from the shipped Sysmon config. Weighted
+  coverage counts only rules that can fire; `weighted_all_pct` keeps the
+  unfiltered number for comparison, and `dormant_techniques` names what is
+  inventory rather than coverage.
+- **Dormant rules made live** — the config now enables DriverLoad (6),
+  unsigned ImageLoad (7), LSASS ProcessAccess (10) and PipeEvent (17/18).
+  The LSASS, unsigned-driver and named-pipe rules from 1.10.0 are no longer
+  inventory. `sysmon_config` is a health check that names missing event IDs.
+- **Config drift fixed** — `sensors/sysmon-config.xml` and the installed
+  config are now the same document; the FileDelete include filter the docs
+  promised is present, and FileCreate is documented.
+- **Injection depth** — four new reviewed DTrace scripts: thread hijack
+  (`NtSetContextThread`), hollowing (`NtUnmapViewOfSection`), section map
+  (`NtMapViewOfSection`) and remote write (`NtWriteVirtualMemory`). Four
+  chains bind them to a remote thread from the same image; the write chain
+  covers the case with no RWX flip and no new thread of its own.
+- 580 passed / 21 skipped.
+
 ## 1.13.0 — 2026-11-15
 
 Detection breadth, finally. The pipeline existed; the corpus did not.

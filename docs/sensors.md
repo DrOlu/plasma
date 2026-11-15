@@ -11,14 +11,18 @@ DNS and file telemetry.
 
 - **Install**: downloaded by the intelligent installer, EULA accepted
   non-interactively (`-accepteula`).
-- **Health**: `sysmon_service` (service running) and `sysmon_feed` (newest
-  Sysmon event within 60 minutes) are part of `plasma health`.
+- **Health**: `sysmon_service` (service running), `sysmon_feed` (newest
+  Sysmon event within 60 minutes) and `sysmon_config` (the installed config
+  enables every event ID the rules need) are part of `plasma health`.
 - **Read**: via Event Log API and WHIDS; never by loading a driver of our own.
-- **Baseline config**: ProcessCreate, NetworkConnect, DnsQuery, RegistryEvent
-  and a bounded **FileDelete include filter** (executable/archive extensions
-  only) so T1070.004 is evidence, not flood. On a node where Sysmon already
-  runs, apply the updated config with
-  `Sysmon64.exe -c C:\ProgramData\Plasma\tools\sysmon-baseline.xml`.
+- **Baseline config** enables: ProcessCreate (1), NetworkConnect (3),
+  DriverLoad (6), ImageLoad (7, unsigned only), ProcessAccess (10, LSASS
+  only), FileCreate (11), RegistryEvent (12/13/14), PipeEvent (17/18,
+  CreatePipe only), DnsQuery (22) and FileDelete (23, executable/archive
+  extensions only). The bounded filters keep volume down without making the
+  rules dormant. On a node where Sysmon already runs, apply the updated
+  config with
+  `Sysmon64.exe -c C:\ProgramData\Plasma\tools\plasma-sysmon-baseline.xml`.
 
 ## WHIDS — written suspicion rules
 
