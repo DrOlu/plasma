@@ -200,3 +200,21 @@ def test_capture_is_skipped_when_not_allowlisted(tmp_path, monkeypatch):
     out = enforce.run(tmp_path, findings=[injection_finding()])
     assert out["capture"]["status"] == "skipped"
     assert calls == ["kill_process", "kill_process"]
+
+
+def test_credential_access_and_token_theft_reach_containment():
+    out = enforce.proposals([injection_finding(technique="T1003.001")], policy())
+    assert out[0]["action"] == "kill_process"
+    out = enforce.proposals([injection_finding(technique="T1134.001")], policy())
+    assert out[0]["action"] == "kill_process"
+
+
+def test_run_surfaces_capture_success_at_run_level(tmp_path, monkeypatch):
+    def fake(action, root, target=None, reason=None, apply=False, plan=None):
+        return {"id": 1} if not apply else {"id": 1}
+
+    monkeypatch.setattr(enforce.actuate, "execute", fake)
+    (tmp_path / "config.json").write_text(json.dumps(
+        {"enforcement": {"enabled": True, "mode": "enforce"}}))
+    out = enforce.run(tmp_path, findings=[injection_finding()])
+    assert out["capture_ok"] is True

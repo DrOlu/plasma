@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.12.2</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.13.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.12.2</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.13.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
-<span class="raft-badge">91.9% rollup coverage</span>
+<span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">563 tests</span>
+<span class="raft-badge">572 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -93,8 +93,12 @@ PREVENTION         enforce (containment) · prevent (AppLocker, egress,
                    Defender ASR, LSA protection)
 ```
 
-## What's new in 1.12.2
+## What's new in 1.13.0
 
+- **259-rule Sigma corpus** — the Windows/Sysmon SigmaHQ tree converted,
+  curated and vendored (168 techniques, DRL 1.1, provenance pinned).
+  Coverage moves to **94.6 rollup / 89.2 exact / 85.9 weighted**; the blind
+  set is down to input capture (T1056, T1056.001).
 - **Capture before containment** — `enforce` writes a host snapshot before
   the first automatic kill, so the response does not delete the evidence
   the detection produced.
@@ -106,13 +110,13 @@ PREVENTION         enforce (containment) · prevent (AppLocker, egress,
   and rollbackable.
 - **Full identity plane** — 4624/4625 logons, 4768/4769/4770/4771 Kerberos,
   4776 NTLM and 4688 process lineage with creator, parent and command line.
-- **Coverage provenance** — evidence class derived from rule shape, so all
-  15 substr-only techniques are labelled keyword-only. 91.9 rollup /
-  75.7 exact / 64.7 weighted; blind spots T1056, T1056.001, T1112.
+- **Coverage provenance** — evidence class derived from rule shape, so
+  substr-only techniques are labelled keyword-only. 94.6 rollup /
+  89.2 exact / 85.9 weighted; blind spots T1056, T1056.001.
 - **Sigma, FIM, Sysmon gaps** — Sigma→gene conversion, critical-file
   integrity, and LSASS access / unsigned driver / named-pipe rules.
 - **PyYAML is a feature dependency** — only `sigma convert` asks for it.
-- 558 tests pass (21 skipped).
+- 572 tests pass (21 skipped).
 
 ## What's new in 1.9.5
 

@@ -90,7 +90,9 @@ def _whids_files_to_stage(install_dir: Path, whids_dir: Path,
     wanted = {}
     if exe_src is not None:
         wanted[install_dir / "whids.exe"] = exe_src
-    for name in ("plasma-iocs.gen", "LICENSE"):
+    for name in ("plasma-iocs.gen", "plasma-baseline.gen",
+                 "plasma-sigma.gen", "sigma-sources.json",
+                 "SIGMA-DRL-1.1.md", "LICENSE"):
         src = whids_dir / name
         if src.exists():
             wanted[install_dir / name] = src

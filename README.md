@@ -166,6 +166,15 @@ rule so management access survives isolation; `--reason` is mandatory;
 every apply and undo is journaled (`actuate-journal.jsonl`) with its
 verification result; nothing runs without an explicit `--apply`.
 
+## Detection content
+
+18 hand-written gene rules, 30 IOC indicators, 31 tap rules and a vendored
+**259-rule SigmaHQ corpus** (`sensors/plasma-sigma.gen`, 168 techniques,
+DRL 1.1, upstream commit pinned in `sensors/sigma-sources.json`). WHIDS
+loads 278 rules on a converged node. Coverage is reported honestly:
+94.6% rollup, 89.2% exact, 85.9% fidelity-weighted, with the two remaining
+blind spots named.
+
 ## Prevention (opt-in)
 
 Two tiers, both dry-run first and off by default.

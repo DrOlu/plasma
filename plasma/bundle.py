@@ -28,7 +28,9 @@ INSTANCE_FILES = [
 ]
 
 PACKAGING_FILES = ["install.ps1", "verify.ps1", "config.example.json"]
-SENSOR_FILES = ["whids.pin.json", "whids.toml", "plasma-iocs.gen", "sealighter.pin.json"]
+SENSOR_FILES = ["whids.pin.json", "whids.toml", "plasma-iocs.gen",
+                "plasma-baseline.gen", "plasma-sigma.gen", "sigma-sources.json",
+                "SIGMA-DRL-1.1.md", "sealighter.pin.json"]
 DOC_FILES = ["ARCHITECTURE.md", "deployment.md", "SECURITY.md"]
 
 

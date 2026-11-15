@@ -147,9 +147,10 @@ def collect_rule_techniques(sensors_dir=None) -> dict:
             add(tech, f"tap:{rule['name']}", rule.get("fidelity"),
                 rule_evidence(rule))
 
-    gen = sensors / "plasma-baseline.gen"
-    if gen.exists():
-        for line in gen.read_text(encoding="utf-8").splitlines():
+    def gene_file(path, label):
+        if not path.exists():
+            return
+        for line in path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line:
                 continue
@@ -160,9 +161,21 @@ def collect_rule_techniques(sensors_dir=None) -> dict:
             if not isinstance(obj, dict):
                 continue
             for tag in obj.get("Tags", []):
-                if _T_RE.fullmatch(str(tag)):
-                    add(tag, f"gene:{obj['Name']}",
-                        GENE_FIDELITY.get(obj.get("Name"), "medium"))
+                if not _T_RE.fullmatch(str(tag)):
+                    continue
+                if label == "sigma":
+                    # Converted SigmaHQ rules carry the upstream level as
+                    # criticality; weight them by that, not by name.
+                    criticality = int((obj.get("Meta") or {}).get(
+                        "Criticality", 6) or 6)
+                    fidelity = ("high" if criticality >= 8 else
+                                "medium" if criticality >= 6 else "low")
+                else:
+                    fidelity = GENE_FIDELITY.get(obj.get("Name"), "medium")
+                add(tag, f"{label}:{obj.get('Name')}", fidelity)
+
+    gene_file(sensors / "plasma-baseline.gen", "gene")
+    gene_file(sensors / "plasma-sigma.gen", "sigma")
 
     iocs = sensors / "plasma-iocs.gen"
     if iocs.exists():

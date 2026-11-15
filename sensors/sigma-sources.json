@@ -1,0 +1,26 @@
+{
+  "candidates_after_filter": 638,
+  "commit": "54967d64e6dda2b4daa81f47f7a8bf1f591b68a0",
+  "converted": 962,
+  "files_scanned": 2427,
+  "generated": "2026-11-15",
+  "levels": {
+    "6": 83,
+    "8": 150,
+    "9": 26
+  },
+  "license": "Detection Rule License (DRL) 1.1",
+  "license_file": "sensors/SIGMA-DRL-1.1.md",
+  "note": "Converted rules preserve the upstream author and name the source file in Meta.Comment. The generated file is data under DRL 1.1, not MIT; see the license file.",
+  "path": "rules/windows",
+  "selected": 259,
+  "selection": "Windows/Sysmon categories, level medium+, Sysmon event IDs [1, 3, 6, 7, 10, 11, 12, 13, 14, 17, 18], one primary technique per rule, deduplicated, up to 2 per technique, cap 300",
+  "skipped_reasons": {
+    "field modifier(s) not supported": 107,
+    "no EventID and no mapped category": 301,
+    "unsupported selection shape": 4,
+    "wildcard/quantified conditions are not supported": 1053
+  },
+  "techniques": 168,
+  "upstream": "https://github.com/SigmaHQ/sigma"
+}

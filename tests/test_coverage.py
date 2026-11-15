@@ -28,15 +28,14 @@ def test_coverage_over_real_shipped_rules():
 
 def test_parents_roll_up_from_covered_subtechniques():
     cov = coverage.coverage()
-    for parent in ("T1003", "T1059", "T1071", "T1078", "T1136"):
+    for parent in ("T1078", "T1136"):
         assert parent in cov["covered"], parent
         assert cov["covered"][parent]["via_subtechnique"] is True
-        assert parent not in {t for t, _ in
-                              [(t, v) for t, v in cov["covered"].items()
-                               if not v["via_subtechnique"]]}
+    for parent in ("T1003", "T1059", "T1071"):
+        assert parent in cov["covered"], parent
     # rollup is not inflation: the exact count stays below the rollup count
     assert cov["coverage_exact_pct"] < cov["coverage_pct"]
-    assert 70 <= cov["coverage_exact_pct"] <= 76
+    assert 85 <= cov["coverage_exact_pct"] <= 95
 
 
 def test_one_three_zero_rules_close_their_techniques():
@@ -51,7 +50,7 @@ def test_honest_blind_spots_remain():
     """Keylogging needs kernel hooks; generic registry edits are
     deliberately not checkbox-covered."""
     cov = coverage.coverage()
-    assert set(cov["blind"]) == {"T1056", "T1056.001", "T1112"}
+    assert set(cov["blind"]) == {"T1056", "T1056.001"}
 
 
 def test_canary_capability_covers_impact():
@@ -134,14 +133,13 @@ def test_keyword_only_evidence_is_labelled_and_discounted():
     """Every substr-only tap rule is keyword evidence, derived not declared."""
     cov = coverage.coverage()
     assert cov["keyword_only"] == [
-        "T1055", "T1055.001", "T1059", "T1059.001", "T1071", "T1071.001",
-        "T1071.004", "T1078", "T1078.003", "T1105", "T1134", "T1546.003",
-        "T1560.001", "T1562.001", "T1564.003"]
-    assert cov["covered"]["T1055"]["evidence"] == "keyword-only"
+        "T1078", "T1078.003", "T1134", "T1562.001"]
+    assert cov["covered"]["T1055"]["evidence"] == "behavioural"
     assert all(r["evidence"] == "keyword"
-               for r in cov["covered"]["T1055"]["rules"])
-    assert cov["evidence_breakdown"] == {"behavioural": 19, "keyword_only": 15}
-    assert cov["weighted_pct"] == 64.7
+               for r in cov["covered"]["T1562.001"]["rules"]
+               if r["rule"].startswith("tap:"))
+    assert cov["evidence_breakdown"] == {"behavioural": 31, "keyword_only": 4}
+    assert cov["weighted_pct"] == 85.9
     assert cov["weighted_pct"] < cov["coverage_pct"]
 
 

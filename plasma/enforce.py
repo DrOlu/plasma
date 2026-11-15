@@ -74,6 +74,10 @@ KILL_TECHNIQUES = {
     "T1055", "T1055.001", "T1055.002", "T1055.003", "T1055.004",
     "T1055.005", "T1055.008", "T1055.009", "T1055.011", "T1055.012",
     "T1055.013", "T1055.014",
+    # Credential access by a specific process is equally time-critical.
+    "T1003", "T1003.001", "T1003.002",
+    # Token theft/manipulation used as a privilege-escalation primitive.
+    "T1134", "T1134.001", "T1134.002", "T1134.003",
 }
 
 
@@ -368,6 +372,7 @@ def run(root, findings: list[dict] | None = None, apply: bool | None = None,
         "pending": sum(1 for r in results if r["status"] == "pending_approval"),
         "dry_run": sum(1 for r in results if r["status"] == "dry-run"),
         "capture": capture,
+        "capture_ok": capture_ok,
         "results": results,
     }
 

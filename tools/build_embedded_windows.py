@@ -32,7 +32,8 @@ INSTANCE_FILES = [
     "bridge.py", "bridge.ps1", "README.md", "golden.json", "verification.txt",
 ]
 SENSOR_ROOT_FILES = ["whids.pin.json", "whids.toml", "plasma-iocs.gen",
-                     "plasma-baseline.gen",
+                     "plasma-baseline.gen", "plasma-sigma.gen",
+                     "sigma-sources.json", "SIGMA-DRL-1.1.md",
                      "sealighter.pin.json", "plasma-tap-rules.json"]
 
 

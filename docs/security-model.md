@@ -49,6 +49,7 @@ to a marketing page.
 | Enforcement policy + journal | `config.json`, `enforce-journal.jsonl` | unattended actions exceeding policy |
 | Capture-before-containment | host snapshot written before the first automatic kill | losing host state to its own response |
 | Prevention journal + backups | `prevent-journal.jsonl`, `prevent-backups/` | unrecoverable policy changes |
+| Sigma corpus provenance | `sigma-sources.json`, `SIGMA-DRL-1.1.md` | untraceable or mislicensed detection content |
 | Refusal gate (`GATE_VERSION 1`) | frozen instance | the model guessing instead of refusing |
 
 ## Threat model boundaries
