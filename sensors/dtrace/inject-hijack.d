@@ -12,6 +12,6 @@
 syscall:::entry
 /probefunc == "NtSetContextThread" && (arg0 & 0xffffffff) != 0xfffffffe && execname != "dtrace.exe"/
 {
-    printf("plasma|{\"probe\":\"inject_hijack\",\"tid\":%d,\"comm\":\"%s\",\"remote_thread\":\"1\"}\n",
+    printf("plasma|{\"probe\":\"inject_hijack\",\"tid\":%d,\"comm\":\"%s\"}\n",
            tid, execname);
 }

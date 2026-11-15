@@ -11,6 +11,6 @@
 syscall:::entry
 /probefunc == "NtUnmapViewOfSection" && (arg0 & 0xffffffff) != 0xffffffff && execname != "dtrace.exe"/
 {
-    printf("plasma|{\"probe\":\"inject_hollow\",\"tid\":%d,\"comm\":\"%s\",\"remote\":\"1\"}\n",
+    printf("plasma|{\"probe\":\"inject_hollow\",\"tid\":%d,\"comm\":\"%s\"}\n",
            tid, execname);
 }
