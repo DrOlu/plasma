@@ -242,3 +242,10 @@ def test_stale_lock_is_reclaimed(tmp_path):
     os.utime(lock, (old, old))
     with agentstate.lock(lock, timeout=2, stale=300):
         assert lock.exists()
+
+
+def test_read_json_accepts_a_powershell_bom(tmp_path):
+    from plasma import agentstate
+    path = tmp_path / "state.json"
+    path.write_bytes(b"\xef\xbb\xbf" + b'{"global": false}')
+    assert agentstate.read_json(path) == {"global": False}

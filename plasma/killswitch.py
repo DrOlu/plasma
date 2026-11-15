@@ -23,7 +23,7 @@ def status(root=None) -> dict:
     state_path = path(root)
     if state_path.exists():
         try:
-            data = json.loads(state_path.read_text(encoding="utf-8"))
+            data = json.loads(state_path.read_text(encoding="utf-8-sig"))
         except (OSError, json.JSONDecodeError):
             # Fail closed: an unreadable switch must not silently disable
             # containment.

@@ -4,6 +4,20 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.15.1 — 2026-11-15
+
+Two field-found follow-ups to the review.
+
+- **Non-terminating PowerShell errors now fail the action.** `Disable-LocalUser`
+  on a missing account writes an error but leaves `$LASTEXITCODE` at 0, so
+  the action was journaled as applied. `actuate` now runs payloads with
+  `$ErrorActionPreference='Stop'`; the estate drill now records
+  `mode: failed`.
+- **PowerShell BOM state files are readable.** `Set-Content -Encoding UTF8`
+  writes a BOM; `agentstate.read_json` and the kill-switch reader now use
+  `utf-8-sig`. The kill-switch restore drill had left the switch engaged.
+- 605 passed / 21 skipped.
+
 ## 1.15.0 — 2026-11-15
 
 Holistic security and state-machine review.
