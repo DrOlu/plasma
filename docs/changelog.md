@@ -4,6 +4,16 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.14.1 — 2026-11-15
+
+Ship the config the telemetry axis reads.
+
+- `sysmon-config.xml` is now part of the embedded sensor payload. Without
+  it, an installed node could not derive `live`/`dormant` and reported 17
+  techniques as `unknown` (weighted 82.7 instead of 85.9). The field check
+  caught it on both hosts.
+- 581 passed / 21 skipped.
+
 ## 1.14.0 — 2026-11-15
 
 Telemetry provenance, and the injection primitives that leave no RWX flip.
