@@ -924,7 +924,7 @@ def ensure(root=None, wait_seconds: int = 30) -> dict:
     return result
 
 
-RULE_FILES = ("plasma-iocs.gen", "plasma-baseline.gen")
+RULE_FILES = ("plasma-iocs.gen", "plasma-baseline.gen", "plasma-sigma.gen")
 
 
 def deploy_rules(src_dir, rules_db) -> list[str]:

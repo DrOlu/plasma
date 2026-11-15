@@ -112,22 +112,22 @@ collection — a broken baseline is worse than none.
 plasma coverage
 ```
 
-Diffs the shipped rules (tap + gene baseline + IOC feed) against a curated
-list of 37 core on-box ATT&CK techniques. It reports:
+Diffs the shipped rules (tap + gene baseline + IOC feed + the 259-rule
+Sigma corpus) against a curated list of 37 core on-box ATT&CK techniques.
+It reports:
 
-- `coverage_pct` — **91.9%** (34/37) with ATT&CK parent rollup
+- `coverage_pct` — **94.6%** (35/37) with ATT&CK parent rollup
   (a parent counts when any sub-technique is covered);
-- `coverage_exact_pct` — **75.7%** (28/37) counting only exact tags;
-- `weighted_pct` — **64.7%**, discounting low/medium-fidelity rules
+- `coverage_exact_pct` — **89.2%** (33/37) counting only exact tags;
+- `weighted_pct` — **85.9%**, discounting low/medium-fidelity rules
   (weights 1.0 / 0.7 / 0.4) and halving purely keyword-only evidence;
 - `covered` — technique → rules + per-rule fidelity + `evidence` + `via_subtechnique`;
-- `keyword_only` — the 15 techniques backed solely by literal string
+- `keyword_only` — the 4 techniques still backed solely by literal string
   matches; they count for breadth but not full weight. The label is
   derived from the rule shape (a rule whose only match key is `substr`),
   never hand-set, so it cannot drift from the rules themselves;
-- `blind` — the three honest gaps: **T1056 / T1056.001** (input capture —
-  needs kernel hooks) and **T1112** (generic registry edits — not worth a
-  noisy checkbox). **T1486** is covered by the canary capability
+- `blind` — the two honest gaps: **T1056 / T1056.001** (input capture —
+  needs kernel hooks). **T1486** is covered by the canary capability
   (`canary:verify`), reported with its own provenance;
 - `extra_coverage` — techniques watched outside the core list.
 

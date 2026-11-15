@@ -86,6 +86,9 @@ def _value_regex(values, modifier: str) -> str:
     return _regex(values, modifier)
 
 
+SUPPORTED_MODIFIERS = {"contains", "startswith", "endswith", "re", "all", "i"}
+
+
 def _selection(name: str, spec) -> tuple[list[str], str]:
     """One selection -> (match variables, gene-side expression)."""
     if isinstance(spec, dict):
@@ -93,13 +96,27 @@ def _selection(name: str, spec) -> tuple[list[str], str]:
         for field, values in spec.items():
             parts = str(field).split("|")
             base, modifiers = parts[0], [p.lower() for p in parts[1:]]
+            unknown = [m for m in modifiers if m not in SUPPORTED_MODIFIERS]
+            if unknown:
+                raise SigmaError(
+                    f"field modifier(s) not supported: {', '.join(unknown)}")
             modifier = next((m for m in modifiers
                              if m in ("contains", "startswith", "endswith",
                                       "re")), "equals")
-            var = "$" + re.sub(r"[^A-Za-z0-9]+", "_", name + "_" + base).lower()
+            prefix = "$" + re.sub(r"[^A-Za-z0-9]+", "_",
+                                  name + "_" + base).lower()
+            if "all" in modifiers and isinstance(values, (list, tuple)) \
+                    and len(values) > 1:
+                # Sigma `|all` means every listed value must match the field.
+                for i, value in enumerate(values):
+                    var = f"{prefix}_all{i}"
+                    variables.append(
+                        f"{var}: {base} ~= '{_regex(value, modifier)}'")
+                    exprs.append(var)
+                continue
             variables.append(
-                f"{var}: {base} ~= '{_value_regex(values, modifier)}'")
-            exprs.append(var)
+                f"{prefix}: {base} ~= '{_value_regex(values, modifier)}'")
+            exprs.append(prefix)
         if not variables:
             raise SigmaError("empty selection")
         return variables, " and ".join(exprs)
@@ -120,7 +137,11 @@ def _condition(text: str, names: dict[str, str]) -> str:
     out = []
     for token in tokens:
         low = token.lower()
-        if low in ("and", "or", "not", "all", "of", "them"):
+        # Gene's condition grammar uses "!$var" (or "!(...)"), not Sigma's
+        # "not" keyword. Emitting "not" made WHIDS reject the whole rule file.
+        if low == "not":
+            out.append("!")
+        elif low in ("and", "or", "all", "of", "them"):
             if low in ("of", "them"):
                 raise SigmaError("'1 of' conditions are not supported")
             out.append(low)
@@ -166,7 +187,7 @@ def _logsource(logsource: dict, selections: dict) -> tuple[list[int], str]:
     return ids, channel
 
 
-def convert_rule(doc: dict) -> dict:
+def convert_rule(doc: dict, source: str | None = None) -> dict:
     """One parsed Sigma document -> one WHIDS gene rule. Raises SigmaError."""
     if not isinstance(doc, dict):
         raise SigmaError("rule is not a mapping")
@@ -200,7 +221,7 @@ def convert_rule(doc: dict) -> dict:
             names[name] = expr
     gene_condition = _condition(condition, names)
 
-    tags = ["Sigma"]
+    tags = ["Sigma", "SigmaHQ"]
     for tag in doc.get("tags") or []:
         found = _T_RE.search(str(tag))
         if found:
@@ -214,8 +235,11 @@ def convert_rule(doc: dict) -> dict:
             "Channels": [channel],
             "Computers": [],
             "Criticality": LEVEL_SCORE.get(str(doc.get("level", "")).lower(), 6),
-            "Author": "Sigma/Plasma converter",
-            "Comment": str(doc.get("description") or title)[:300],
+            # DRL attribution: keep the upstream author and name the source
+            # file so the converted rule can be traced back.
+            "Author": str(doc.get("author") or "SigmaHQ")[:200],
+            "Comment": (str(doc.get("description") or title)
+                        + (f" (source: {source})" if source else ""))[:300],
             "Schema": "1.0.0",
         },
         "Matches": matches,
@@ -240,7 +264,7 @@ def convert_path(path) -> dict:
             if not isinstance(doc, dict):
                 continue
             try:
-                rules.append(convert_rule(doc))
+                rules.append(convert_rule(doc, source=file.name))
             except SigmaError as exc:
                 skipped.append({"file": str(file),
                                 "rule": str(doc.get("title") or "")[:100],

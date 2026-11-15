@@ -4,6 +4,30 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.13.0 — 2026-11-15
+
+Detection breadth, finally. The pipeline existed; the corpus did not.
+
+- **259-rule SigmaHQ corpus** (`sensors/plasma-sigma.gen`) converted from
+  the Windows/Sysmon tree at commit `54967d64`, curated to 168 techniques.
+  Provenance in `sigma-sources.json`; the data ships under DRL 1.1 with the
+  licence text, not MIT. Rebuild with `tools/sync_sigma_corpus.py`.
+- **Coverage** moves to **94.6% rollup (35/37), 89.2% exact (33/37), 85.9%
+  fidelity-weighted**. Blind set is down to input capture: T1056,
+  T1056.001.
+- **Converter correctness** — gene conditions now translate Sigma `not` to
+  the gene `!` grammar. The first field load proved WHIDS rejects `not`
+  outright; 278 rules (19 baseline/IOC + 259 Sigma) now compile and load
+  with no errors. Unsupported modifiers (`windash`, `cidr`, `base64offset`,
+  `fieldref`) are refused rather than mistranslated. `|all` is implemented
+  as an AND of per-value match variables; upstream author and source file
+  are preserved for DRL attribution.
+- **Containment auto-path** now includes credential access (T1003 family)
+  and token manipulation (T1134 family), still behind the score-9 floor and
+  the capture-first snapshot.
+- **Prevention safety** surfaces `capture_ok` at run level.
+- 572 passed / 21 skipped.
+
 ## 1.12.2 — 2026-11-15
 
 Response review fixes: capture the evidence before deleting it.

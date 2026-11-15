@@ -55,7 +55,8 @@ def test_condition_and_not_filter():
         "level": "medium",
     })
     assert gene["Meta"]["EventIDs"] == [1]
-    assert "and not" in gene["Condition"]
+    assert "not" not in gene["Condition"]
+    assert "!" in gene["Condition"]          # gene grammar, not Sigma syntax
     assert gene["Condition"].count("$selection_") >= 1
 
 
@@ -137,3 +138,33 @@ raise SystemExit(cli.main(["coverage"]))
                           capture_output=True, text=True, timeout=120)
     assert proc.returncode == 0, proc.stderr[-2000:]
     assert "coverage_pct" in proc.stdout
+
+
+def test_all_modifier_and_attribution():
+    gene = sigma.convert_rule(_rule(
+        author="Analyst X",
+        detection={
+            "selection": {"CommandLine|contains|all": ["-nop", "-w hidden"]},
+            "condition": "selection",
+        }))
+    assert len(gene["Matches"]) == 2
+    assert " and " in gene["Condition"]
+    assert gene["Meta"]["Author"] == "Analyst X"
+    assert "SigmaHQ" in gene["Tags"]
+
+
+def test_unsupported_modifier_is_refused_not_silently_wrong():
+    with pytest.raises(sigma.SigmaError, match="modifier"):
+        sigma.convert_rule(_rule(detection={
+            "selection": {"CommandLine|windash": "-enc"},
+            "condition": "selection",
+        }))
+
+
+def test_convert_path_records_the_source_file(tmp_path):
+    (tmp_path / "one.yml").write_text(
+        "title: Sourced\nlogsource:\n  product: windows\n"
+        "  category: process_creation\ndetection:\n  selection:\n"
+        "    Image|endswith: '\\\\cmd.exe'\n  condition: selection\nlevel: low\n")
+    result = sigma.convert_path(tmp_path)
+    assert "source: one.yml" in result["rules"][0]["Meta"]["Comment"]
