@@ -158,3 +158,9 @@ def test_status_ignores_null_asr_entries(monkeypatch):
     monkeypatch.setattr(prevent, "_ps_json", lambda s, timeout=120: (
         {"asr_ids": [None], "asr_actions": []}, None))
     assert prevent.status()["asr"] == {}
+
+
+def test_egress_warns_when_dns_is_not_allowlisted():
+    warnings = prevent.egress_warnings(["10.0.0.0/8"])
+    assert warnings and "port-53" in warnings[0]
+    assert prevent.egress_warnings(["10.0.0.0/8", "10.0.0.2:53"]) == []

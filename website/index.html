@@ -340,7 +340,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <a class="skip" href="#main">Skip to content</a>
 
 <div class="announce">
-  <b>v1.12.1 is out</b> &nbsp;·&nbsp; prevention drill fixes: AppLocker verify and rollback &nbsp;·&nbsp;
+  <b>v1.12.2 is out</b> &nbsp;·&nbsp; capture before containment, and DNS warnings for egress policy &nbsp;·&nbsp;
   <a href="https://drolu.github.io/plasma/changelog/">read the changelog</a>
 </div>
 
@@ -348,7 +348,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
   <div class="wrap header-inner">
     <a class="brand" href="#top" aria-label="Plasma home">
       <span class="brand-mark" aria-hidden="true">P</span>
-      <span>Plasma</span><em>v1.12.1</em>
+      <span>Plasma</span><em>v1.12.2</em>
     </a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
       <a href="#architecture">Architecture</a>
@@ -377,7 +377,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <section class="hero">
   <div class="wrap hero-grid">
     <div class="reveal">
-      <span class="pill"><i></i> Windows EDR · on-device · v1.12.1</span>
+      <span class="pill"><i></i> Windows EDR · on-device · v1.12.2</span>
       <h1>No log lake.<br>No cloud.<br><span class="hl">No blind trust.</span></h1>
       <p class="sub">
         Plasma is a <strong>lake-less, agent-native Windows EDR</strong>: on-box sensors normalize into
@@ -439,7 +439,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <div class="stat"><div class="num"><span data-count="13">0</span></div><div class="lbl">reversible actions</div></div>
       <div class="stat"><div class="num"><span data-count="11">0</span></div><div class="lbl">typed agent tools</div></div>
       <div class="stat"><div class="num"><span data-count="2">0</span></div><div class="lbl">prevention tiers</div></div>
-      <div class="stat"><div class="num"><span data-count="558">0</span></div><div class="lbl">tests passing</div></div>
+      <div class="stat"><div class="num"><span data-count="563">0</span></div><div class="lbl">tests passing</div></div>
     </div>
   </div>
 </section>
@@ -836,7 +836,7 @@ plasma control audit verify</pre>
       <div class="card c-coral">
         <div class="cap"><span>Tier 0</span><b>react</b></div>
         <h3>Containment</h3>
-        <p><code>plasma enforce</code> turns findings into allowlisted, reversible actions. Injection findings kill the accessing process; a tripped canary queues host isolation for approval. Score floor, per-run cap, per-target cooldown, approval queue and kill switch are enforced in code.</p>
+        <p><code>plasma enforce</code> turns findings into allowlisted, reversible actions. Injection findings capture one host snapshot and then kill the accessing process; a tripped canary queues host isolation for approval. Score floor, per-run cap, per-target cooldown, approval queue and kill switch are enforced in code.</p>
         <div class="mini">applied in the estate drill: 1 kill · 1 isolation held for approval</div>
       </div>
       <div class="card c-lime">
@@ -1089,7 +1089,7 @@ plasma store rotate --events events.jsonl --max-mb 256</pre>
     <div class="faq reveal">
       <details>
         <summary>Does Plasma block anything?</summary>
-        <p>Yes, if you turn it on. Two tiers: <code>enforce</code> reacts to findings with allowlisted, reversible actions (kill the accessing process, isolate a host); <code>prevent</code> configures AppLocker, firewall egress, Defender ASR and LSA protection so the behaviour never starts. Both are off by default and dry-run first. Plasma ships no kernel driver of its own.</p>
+        <p>Yes, if you turn it on. Two tiers: <code>enforce</code> reacts to findings with allowlisted, reversible actions (snapshot, then kill the accessing process; isolate a host); <code>prevent</code> configures AppLocker, firewall egress, Defender ASR and LSA protection so the behaviour never starts. Both are off by default and dry-run first. Plasma ships no kernel driver of its own.</p>
       </details>
       <details>
         <summary>Is this a replacement for commercial EDR?</summary>
@@ -1131,7 +1131,7 @@ plasma store rotate --events events.jsonl --max-mb 256</pre>
       <p>Install the signed release, point the harness at the MCP server, and let the policy engine decide what the model is allowed to do.</p>
     </div>
     <div class="cta-actions">
-      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.12.1</a>
+      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.12.2</a>
       <a class="btn pink" href="https://drolu.github.io/plasma/getting-started/">Read the docs</a>
     </div>
   </div>

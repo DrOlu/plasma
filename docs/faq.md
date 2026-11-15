@@ -30,8 +30,8 @@ tails on the desk.
 Yes, if you configure it. There are two tiers, both **off by default**:
 
 - **Containment** (`plasma enforce`) reacts to findings in seconds:
-  injection findings kill the accessing process; a tripped canary queues
-  host isolation for approval. Policy sets the score floor, allowlist,
+  injection findings first write a host snapshot, then kill the accessing
+  process; a tripped canary queues host isolation for approval. Policy sets the score floor, allowlist,
   cooldown, per-run cap and which actions need a human.
 - **Enforcement points** (`plasma prevent`) stop behaviour before it runs
   by configuring AppLocker, firewall egress, Defender ASR and LSA

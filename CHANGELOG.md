@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.12.2 — 2026-11-15
+
+Response review fixes: capture the evidence before deleting it.
+
+- **Capture before containment.** `enforce` now writes one host-state
+  snapshot (read-only export, through the dry-run + plan gate) before the
+  first automatic `kill_process` in a run. Killing the injecting process
+  destroys the in-memory artifact the detection exists to surface; the
+  journal records `capture: applied|failed|skipped`. Default
+  `allowed_actions` is now `["snapshot", "kill_process"]`. Operators can
+  drop snapshot for speed or move kill into `require_approval` for
+  forensics first.
+- **Egress DNS warning.** `prevent egress` warns when no port-53 destination
+  is in the allowlist, instead of leaving the documentation to promise a
+  guard the code did not enforce. It still refuses an empty allowlist.
+- **Security-model anchors committed** — enforcement and prevention
+  journals/backups are recorded in the published threat model (the edit
+  landed after the 1.12.1 tag).
+- Website response copy no longer implies all action is manual.
+- 563 passed / 21 skipped.
+
 ## 1.12.1 — 2026-11-15
 
 Field fixes from the first prevention drill on the estate.

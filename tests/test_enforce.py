@@ -98,12 +98,16 @@ def test_armed_run_applies_through_dry_run_plan(tmp_path, monkeypatch):
     (tmp_path / "config.json").write_text(json.dumps(cfg))
     out = enforce.run(tmp_path, findings=[injection_finding()])
     assert out["applied"] == 1
+    assert out["capture"]["status"] == "applied"
     assert calls == [
+        {"action": "snapshot", "target": None, "apply": False, "plan": None},
+        {"action": "snapshot", "target": None, "apply": True, "plan": 7},
         {"action": "kill_process", "target": "4321", "apply": False, "plan": None},
         {"action": "kill_process", "target": "4321", "apply": True, "plan": 7},
     ]
     rows = enforce._read_journal(tmp_path)
-    assert rows[0]["status"] == "applied" and rows[0]["plan"] == 7
+    assert [r["status"] for r in rows] == ["applied", "applied"]
+    assert rows[0]["type"] == "capture" and rows[1]["plan"] == 7
 
 
 def test_per_run_cap_and_cooldown(tmp_path, monkeypatch):
@@ -146,3 +150,53 @@ def test_config_invalid_values_fall_back(tmp_path):
     p = enforce.load_policy(tmp_path)
     assert p["mode"] == "dry-run" and p["min_score"] == 10
     assert p["allowed_actions"] == []
+
+
+def test_default_policy_captures_before_it_kills():
+    """Kill is the only irreversible mutating action; capture comes first."""
+    assert enforce.DEFAULT_POLICY["allowed_actions"] == ["snapshot",
+                                                        "kill_process"]
+    assert "kill_process" not in enforce.DEFAULT_POLICY["require_approval"]
+
+
+def test_capture_runs_once_for_multiple_kills(tmp_path, monkeypatch):
+    calls = []
+
+    def fake(action, root, target=None, reason=None, apply=False, plan=None):
+        calls.append((action, apply))
+        return {"id": 1} if not apply else {"id": 1}
+
+    monkeypatch.setattr(enforce.actuate, "execute", fake)
+    (tmp_path / "config.json").write_text(json.dumps(
+        {"enforcement": {"enabled": True, "mode": "enforce"}}))
+    enforce.run(tmp_path, findings=[injection_finding(pid=1),
+                                    injection_finding(pid=2)])
+    assert [c for c in calls if c[0] == "snapshot"] == [
+        ("snapshot", False), ("snapshot", True)]
+
+
+def test_capture_failure_does_not_block_containment(tmp_path, monkeypatch):
+    def fake(action, root, target=None, reason=None, apply=False, plan=None):
+        if action == "snapshot" and apply:
+            return {"error": "snapshot failed"}
+        return {"id": 1} if not apply else {"id": 1}
+
+    monkeypatch.setattr(enforce.actuate, "execute", fake)
+    (tmp_path / "config.json").write_text(json.dumps(
+        {"enforcement": {"enabled": True, "mode": "enforce"}}))
+    out = enforce.run(tmp_path, findings=[injection_finding()])
+    assert out["capture"]["status"] == "failed"
+    assert out["applied"] == 1
+    assert out["results"][0]["capture"] == "failed"
+
+
+def test_capture_is_skipped_when_not_allowlisted(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(enforce.actuate, "execute",
+                        lambda *a, **k: calls.append(a[0]) or {"id": 1})
+    (tmp_path / "config.json").write_text(json.dumps(
+        {"enforcement": {"enabled": True, "mode": "enforce",
+                         "allowed_actions": ["kill_process"]}}))
+    out = enforce.run(tmp_path, findings=[injection_finding()])
+    assert out["capture"]["status"] == "skipped"
+    assert calls == ["kill_process", "kill_process"]

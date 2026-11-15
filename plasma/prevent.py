@@ -308,6 +308,17 @@ def validate_allow(entries) -> list[dict]:
     return out
 
 
+def egress_warnings(entries) -> list[str]:
+    """Advisory checks the payload cannot enforce for the operator."""
+    allows = validate_allow(entries)
+    warnings = []
+    if not any(item["port"] == 53 for item in allows):
+        warnings.append(
+            "no port-53 destination in the allowlist: DNS resolution may "
+            "fail — add your DNS server explicitly (IP:53)")
+    return warnings
+
+
 def egress_payload(entries) -> str:
     """Render the PowerShell that creates allow rules then one block rule."""
     allows = validate_allow(entries)
@@ -342,10 +353,11 @@ def egress(root, allow, apply=False, plan=None, reason=None) -> dict:
     except ValueError as exc:
         return {"error": str(exc), "code": "REFUSED"}
     digest = hashlib.sha256(payload.encode()).hexdigest()
+    warnings = egress_warnings(allow)
     if not apply:
         return _append_journal(root, {
             "control": "egress", "payload_sha256": digest, "status": "dry-run",
-            "reason": reason, "allow": list(allow or []),
+            "reason": reason, "allow": list(allow or []), "warnings": warnings,
             "undo": {"kind": "egress"}, "preview": payload[:4000],
         })
     entry = _check_plan(root, plan, "egress", digest, reason)
@@ -359,7 +371,8 @@ def egress(root, allow, apply=False, plan=None, reason=None) -> dict:
     return _append_journal(root, {
         "control": "egress", "payload_sha256": digest, "status": "applied",
         "reason": reason, "plan": plan, "allow": list(allow or []),
-        "verification": result, "undo": {"kind": "egress"},
+        "warnings": warnings, "verification": result,
+        "undo": {"kind": "egress"},
     })
 
 
