@@ -81,11 +81,14 @@ The store stays a plain JSONL file — rotation never changes the contract.
 ## Identity pulls
 
 ```powershell
-plasma identity pull --events <store> --since 60 [--host NAME]
+plasma identity pull --events <store> --since 60 [--host NAME] \
+                    [--ids 4624,4625,4688,4768,4769,4776] [--max-events 2000]
 ```
 
-Reads 4624/4625 from the local Security channel, normalizes them, and
-appends with dedupe. `--host` labels the rows when the store is shared.
+Reads the Security channel from the local host, normalizes auth and process
+records onto the event contract, and appends with dedupe. `--host` labels the
+rows when the store is shared. Kerberos IDs are only meaningful on a domain
+controller; on a member server they return zero rows by design.
 
 ## Drift baselines
 

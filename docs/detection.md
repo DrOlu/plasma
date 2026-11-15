@@ -40,8 +40,11 @@ fields validated against pipes and newlines.
 ## Identity — standing pulls
 
 The shipped product registers a SYSTEM task (`PlasmaIdentityPull`) that runs
-the bounded Security-log pull every 15 minutes, so 4624/4625 events reach
-the store between operator sweeps. Manage it explicitly with:
+the bounded Security-log pull every 15 minutes, so authentication and
+process-lineage events reach the store between operator sweeps: 4624/4625
+logons, 4768/4769/4770/4771 Kerberos, 4776 NTLM and 4688 process creation.
+Kerberos events exist only on a KDC, so a member server reports zero of them —
+that is data, not an error. Manage the task explicitly with:
 
 ```powershell
 plasma identity schedule --root C:\ProgramData\Plasma --every 15

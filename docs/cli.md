@@ -35,9 +35,21 @@ Refusals are structured, never guesses.
 
 ```text
 plasma identity pull --events FILE [--host NAME] [--since MINUTES]
+                     [--ids LIST] [--max-events N]
 ```
 
-Reads 4624/4625 through the Event Log API, UTC-normalized, deduped.
+Reads the Security channel through the Event Log API, UTC-normalized,
+deduped and bounded (`--max-events`, default 2000).
+
+| Event | Kind | What it gives you |
+|---|---|---|
+| 4624 / 4625 | `auth` | logon success / failure, type, source, workstation |
+| 4768 / 4769 / 4770 / 4771 | `auth` | Kerberos TGT, service ticket, renewal, pre-auth failure (KDC only — zero on a member server, reported as zero) |
+| 4776 | `auth` | NTLM credential validation |
+| 4688 | `process` | process creation with creator subject, parent image and command line (when audit policy records it) |
+
+`--ids` takes a comma list from that set and is allowlisted: anything else is
+rejected before PowerShell is invoked.
 
 ### whids
 

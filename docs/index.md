@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.10.1</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.11.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.10.1</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.11.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">91.9% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">513 tests</span>
+<span class="raft-badge">529 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -81,7 +81,7 @@ DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
 
-## What's new in 1.10.1
+## What's new in 1.11.0
 
 - **Sigma conversion** — `plasma sigma convert` turns Sigma YAML into gene
   rules and reports every refusal, instead of hand-copying detections.
@@ -90,7 +90,9 @@ DESK               status · ask · drift · chains · coverage · fleet ·
   verdict. PCI DSS 11.5.1, without pretending canaries are FIM.
 - **Three Sysmon gaps** — LSASS access (10), unsigned driver load (6), and
   suspicious named pipes (17/18).
-- **Standing identity** — a SYSTEM task pulls 4624/4625 every 15 minutes.
+- **Full identity coverage** — logons, Kerberos (4768/4769/4770/4771),
+  NTLM (4776) and 4688 process lineage; the Kerberos spray chain fires on
+  pre-auth failure bursts.
 - **Coverage provenance** — evidence class is derived from rule shape, so
   all 15 substr-only techniques (`T1055`, `T1059`, `T1071`, `T1078`, …)
   are labelled keyword-only and weighted down; T1021 is covered.

@@ -56,6 +56,19 @@ BUILTIN_CHAINS = [
         ],
     },
     {
+        "name": "kerberos_brute_force",
+        "score": 9,
+        "gap_seconds": 1800,
+        "min_failures": 5,
+        "bind_user": True,
+        "detail": "repeated Kerberos pre-auth failures for one account, then a "
+                  "TGT success for that same account (password spray)",
+        "steps": [
+            {"kind": "auth", "event_id": 4771, "user": r".+", "min_count": 5},
+            {"kind": "auth", "event_id": 4768, "user": r".+"},
+        ],
+    },
+    {
         "name": "persistence_after_privilege",
         "score": 9,
         "gap_seconds": 3600,

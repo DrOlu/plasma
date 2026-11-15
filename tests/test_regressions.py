@@ -98,7 +98,14 @@ def test_init_case_updates_window_and_canaries(tmp_path):
 def test_identity_ps_template_emits_utc_and_basename():
     text = identity._PS_TEMPLATE
     assert "ToUniversalTime()" in text, "TimeCreated is local; Z suffix would lie"
-    assert "Split-Path -Leaf" in text, "process must be a basename"
+    # Basename conversion moved from the PowerShell template into Python when
+    # 4688 lineage landed; the host-agnostic helper is what enforces it now.
+    assert identity._base_name(r"C:\Windows\System32\cmd.exe") == "cmd.exe"
+    ev = identity.normalize_process(
+        {"ts": "2026-11-15T00:00:00.000Z", "event_id": 4688,
+         "process": r"C:\Windows\System32\cmd.exe",
+         "parent": r"C:\Windows\explorer.exe"}, host="WS1")
+    assert ev["process"] == "cmd.exe" and ev["parent"] == "explorer.exe"
 
 
 # ---------------------------------------------------------------------------
