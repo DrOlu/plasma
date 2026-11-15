@@ -93,8 +93,12 @@ PREVENTION         enforce (containment) · prevent (AppLocker, egress,
                    Defender ASR, LSA protection)
 ```
 
-## What's new in 1.14.0
+## What's new in 1.14.3
 
+- **Section-injection predicate fixed** — `NtMapViewOfSection` takes
+  `(SectionHandle, ProcessHandle, ...)`; the script filtered `arg0`, so it
+  fired on every section map. It now filters `arg1`. Negative control on
+  WS2: 12 rows/5 s before, 0 after.
 - **Telemetry provenance** — coverage now derives a third axis from the
   shipped Sysmon config: `live`, `partial`, `dormant` or `unknown` per rule
   and technique. Weighted coverage counts only rules that can actually fire.
@@ -126,7 +130,7 @@ PREVENTION         enforce (containment) · prevent (AppLocker, egress,
 - **Sigma, FIM, Sysmon gaps** — Sigma→gene conversion, critical-file
   integrity, and LSASS access / unsigned driver / named-pipe rules.
 - **PyYAML is a feature dependency** — only `sigma convert` asks for it.
-- 580 tests pass (21 skipped).
+- 583 tests pass (21 skipped).
 
 ## What's new in 1.9.5
 

@@ -340,7 +340,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <a class="skip" href="#main">Skip to content</a>
 
 <div class="announce">
-  <b>v1.14.3 is out</b> &nbsp;·&nbsp; telemetry provenance and four new injection chains &nbsp;·&nbsp;
+  <b>v1.14.3 is out</b> &nbsp;·&nbsp; telemetry provenance, injection depth, and the section-predicate fix &nbsp;·&nbsp;
   <a href="https://drolu.github.io/plasma/changelog/">read the changelog</a>
 </div>
 
@@ -974,7 +974,7 @@ plasma trace run syscall-errors \
       <div>
         <div class="card c-lav" style="margin-bottom:12px">
           <h3>Reviewed, not free-form</h3>
-          <p>Three shipped scripts: <code>syscall-errors</code> (T1106), <code>process-create</code> (T1059), <code>etw-kernel-process</code> (T1057). The loader refuses <code>system()</code>, unknown providers and rows without the <code>plasma|</code> marker.</p>
+          <p>Ten shipped scripts: <code>syscall-errors</code> (T1106), <code>process-create</code> (T1059), <code>etw-kernel-process</code> (T1057) and seven injection probes — RWX, remote thread, APC, hijack, hollow, section and remote write. The loader refuses <code>system()</code>, unknown providers and rows without the <code>plasma|</code> marker.</p>
         </div>
         <div class="card" style="margin-bottom:12px">
           <h3>Bounded by construction</h3>
@@ -982,7 +982,7 @@ plasma trace run syscall-errors \
         </div>
         <div class="card c-orange">
           <h3>Estate-honest</h3>
-          <p>Microsoft’s current package is labelled 2.0 but still reports <code>Sun D 1.13.1</code>. Readiness is capability-based: installed + enabled is ready. Scripts emit <code>tid</code> because <code>pid</code> is not portable across Windows builds.</p>
+          <p>Microsoft’s current package is labelled 2.0 but still reports <code>Sun D 1.13.1</code>. Readiness is capability-based: installed + enabled is ready. Scripts emit <code>tid</code> because <code>pid</code> is not portable across Windows builds. Field check: 10/10 compile; EID 10/17/18 observed; the section predicate went from 12 rows/5 s to 0 after the arg1 fix.</p>
         </div>
       </div>
     </div>
