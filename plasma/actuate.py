@@ -549,6 +549,10 @@ def _run(payload, timeout=60):
     exe = shutil.which("powershell.exe") or shutil.which("pwsh")
     if not exe:
         return {"error": "powershell not available on this host"}
+    # Non-terminating cmdlet errors (e.g. Disable-LocalUser on a missing
+    # account) leave $LASTEXITCODE at 0. Make them terminating so a failed
+    # action cannot be journaled as applied.
+    payload = "$ErrorActionPreference='Stop'; " + payload
     try:
         proc = subprocess.run(
             [exe, "-NoProfile", "-NonInteractive", "-Command", payload],

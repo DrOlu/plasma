@@ -40,7 +40,9 @@ def now_iso() -> str:
 
 def read_json(path: Path, default=None):
     try:
-        return json.loads(Path(path).read_text(encoding="utf-8"))
+        # utf-8-sig: PowerShell's Set-Content -Encoding UTF8 writes a BOM,
+        # and a BOM made every such state file unreadable.
+        return json.loads(Path(path).read_text(encoding="utf-8-sig"))
     except (OSError, json.JSONDecodeError):
         return default
 
