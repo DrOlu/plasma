@@ -4,6 +4,30 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.11.0 — 2026-11-15
+
+Identity coverage beyond logons, and the lineage edge that was missing.
+
+- **Kerberos and NTLM** — `identity pull` now reads 4768 (TGT), 4769
+  (service ticket), 4770 (renewal), 4771 (pre-auth failure) and 4776 (NTLM
+  credential validation) in addition to 4624/4625. Kerberos IDs are
+  KDC-generated: a domain controller reports them, a member server reports
+  zero, and the result says so rather than erroring.
+- **4688 process lineage** — process-creation records are normalized as
+  `kind="process"` with creator subject, parent image, full image path and
+  command line (redacted). This is the creator→child edge the store did not
+  have; Sysmon EID 1 remains the richer source where installed.
+- **`kerberos_brute_force` chain** (score 9) — five 4771 pre-auth failures
+  followed by a 4768 TGT success for the same account within 30 minutes.
+- **Bounded and allowlisted** — `--max-events` (default 2000) caps every
+  pull; `--ids` accepts only the supported set, rejecting anything else
+  before PowerShell runs. Machine accounts and realm-qualified UPNs are
+  normalized correctly.
+- Field-verified on the estate: WS1 (DC) produced 4768/4769/4771/4776 and
+  4688 rows with zero normalization failures; WS2 (member) produced 4688
+  lineage and zero Kerberos, as expected.
+- 529 passed / 21 skipped.
+
 ## 1.10.1 — 2026-11-15
 
 Two claims made honest, one release after the features landed.

@@ -221,3 +221,27 @@ def test_injection_apc_chain_binds_one_image():
     ]
     assert not [f for f in chain.scan(rows)
                 if f["type"] == "chain_injection_apc_chain"]
+
+
+def test_kerberos_spray_then_tgt_success_fires():
+    rows = [_auth(f"2026-11-05T04:{m:02d}:00Z", 4771, "olu@CORP.LOCAL")
+            for m in range(5)]
+    rows.append(_auth("2026-11-05T04:10:00Z", 4768, "olu@CORP.LOCAL"))
+    findings = chain.scan(rows)
+    k = [f for f in findings if f["type"] == "chain_kerberos_brute_force"]
+    assert k and k[0]["score"] == 9
+    assert k[0]["users"] == ["olu"]
+
+
+def test_kerberos_spray_needs_the_burst_and_the_same_account():
+    rows = [_auth(f"2026-11-05T04:{m:02d}:00Z", 4771, "olu@CORP.LOCAL")
+            for m in range(4)]
+    rows.append(_auth("2026-11-05T04:10:00Z", 4768, "olu@CORP.LOCAL"))
+    assert not [f for f in chain.scan(rows)
+                if f["type"] == "chain_kerberos_brute_force"]
+
+    rows = [_auth(f"2026-11-05T05:{m:02d}:00Z", 4771, "olu@CORP.LOCAL")
+            for m in range(5)]
+    rows.append(_auth("2026-11-05T05:10:00Z", 4768, "someone.else@CORP.LOCAL"))
+    assert not [f for f in chain.scan(rows)
+                if f["type"] == "chain_kerberos_brute_force"]

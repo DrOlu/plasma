@@ -1600,7 +1600,8 @@ def cmd_identity_schedule_status(args) -> int:
 
 def cmd_identity_pull(args) -> int:
     result = identity.pull(args.events, host=args.host or _platform.node() or "localhost",
-                           since_minutes=args.since)
+                           since_minutes=args.since, ids=args.ids,
+                           max_events=args.max_events)
     print(json.dumps(result, indent=2, default=str))
     return 0 if "error" not in result else 1
 
@@ -2195,10 +2196,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     idp = sub.add_parser("identity", help="identity plane: logon events into the store (Event Log API)")
     idps = idp.add_subparsers(dest="identity_action", required=True)
-    idpp = idps.add_parser("pull", help="pull recent 4624/4625 logons into the events store")
+    idpp = idps.add_parser("pull", help="pull recent identity events into the events store")
     idpp.add_argument("--events", required=True)
     idpp.add_argument("--host", default=None)
     idpp.add_argument("--since", type=int, default=15, help="minutes to look back")
+    idpp.add_argument("--ids", default=None,
+                      help="comma list of Security event ids (default: "
+                           "4624,4625,4688,4768,4769,4770,4771,4776)")
+    idpp.add_argument("--max-events", type=int, default=2000,
+                      help="bounded read per pull (default 2000)")
     idpp.set_defaults(func=cmd_identity_pull)
     idsch = idps.add_parser("schedule", help="register a SYSTEM task that pulls logons on a cadence")
     idsch.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
