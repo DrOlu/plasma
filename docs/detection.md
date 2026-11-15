@@ -110,11 +110,13 @@ list of 37 core on-box ATT&CK techniques. It reports:
 - `coverage_pct` — **91.9%** (34/37) with ATT&CK parent rollup
   (a parent counts when any sub-technique is covered);
 - `coverage_exact_pct` — **75.7%** (28/37) counting only exact tags;
-- `weighted_pct` — **80.3%**, discounting low/medium-fidelity rules
+- `weighted_pct` — **64.7%**, discounting low/medium-fidelity rules
   (weights 1.0 / 0.7 / 0.4) and halving purely keyword-only evidence;
 - `covered` — technique → rules + per-rule fidelity + `evidence` + `via_subtechnique`;
-- `keyword_only` — techniques backed solely by literal string matches
-  (`T1055`, `T1055.001`); they count for breadth but not full weight;
+- `keyword_only` — the 15 techniques backed solely by literal string
+  matches; they count for breadth but not full weight. The label is
+  derived from the rule shape (a rule whose only match key is `substr`),
+  never hand-set, so it cannot drift from the rules themselves;
 - `blind` — the three honest gaps: **T1056 / T1056.001** (input capture —
   needs kernel hooks) and **T1112** (generic registry edits — not worth a
   noisy checkbox). **T1486** is covered by the canary capability

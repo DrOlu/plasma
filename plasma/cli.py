@@ -1233,7 +1233,7 @@ def cmd_playbook_undo(args) -> int:
 def cmd_sigma_convert(args) -> int:
     try:
         result = sigma.convert_path(args.inp)
-    except FileNotFoundError as exc:
+    except (FileNotFoundError, sigma.SigmaError) as exc:
         print(json.dumps({"error": str(exc)}, indent=2))
         return 2
     summary = {"converted": result["converted"], "files": result["files"],

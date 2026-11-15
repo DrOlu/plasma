@@ -1,5 +1,6 @@
 """Sigma -> WHIDS gene conversion: structure, modifiers, skips."""
 import json
+from pathlib import Path
 
 import pytest
 
@@ -106,3 +107,33 @@ def test_write_gen_refuses_duplicate_names(tmp_path):
     assert result["written"] == 1
     assert len(out.read_text().strip().splitlines()) == 1
     assert json.loads(out.read_text().splitlines()[0])["Name"].startswith("Sigma:")
+
+
+def test_yaml_is_a_feature_dependency_not_a_startup_one(monkeypatch):
+    """The CLI imports sigma unconditionally; yaml must load only on use."""
+    import sys
+    monkeypatch.setitem(sys.modules, "yaml", None)  # makes `import yaml` fail
+    with pytest.raises(sigma.SigmaError, match="PyYAML"):
+        sigma._yaml()
+
+
+def test_cli_runs_with_pyyaml_blocked(tmp_path):
+    """plasma coverage must work on a host with no PyYAML installed."""
+    import subprocess
+    import sys
+    repo = Path(__file__).resolve().parent.parent
+    code = """
+import importlib.abc, sys
+class Blocker(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "yaml" or fullname.startswith("yaml."):
+            raise ModuleNotFoundError("No module named 'yaml'")
+        return None
+sys.meta_path.insert(0, Blocker())
+import plasma.cli as cli
+raise SystemExit(cli.main(["coverage"]))
+"""
+    proc = subprocess.run([sys.executable, "-c", code], cwd=repo,
+                          capture_output=True, text=True, timeout=120)
+    assert proc.returncode == 0, proc.stderr[-2000:]
+    assert "coverage_pct" in proc.stdout

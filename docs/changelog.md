@@ -4,6 +4,22 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.10.1 — 2026-11-15
+
+Two claims made honest, one release after the features landed.
+
+- **Evidence class is derived, not declared.** A tap rule whose only match
+  key is `substr` is keyword evidence; anything structured is behavioural.
+  The label is computed from the rule at coverage time, so it cannot drift
+  from the rules. Result: 15 keyword-only techniques (was reported as 2),
+  and `weighted_pct` falls to the honest **64.7%** (was 80.3%). It climbs
+  back as behavioural rules land.
+- **PyYAML is no longer a startup dependency.** `import yaml` moved into the
+  Sigma parser; `plasma sigma convert` gives a clean message if PyYAML is
+  absent, and every other command (watch, canary, coverage, `--version`)
+  starts without it.
+- 513 passed / 21 skipped.
+
 ## 1.10.0 — 2026-11-15
 
 Detection breadth, standing authentication, and coverage honesty.
