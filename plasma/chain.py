@@ -250,6 +250,8 @@ def scan(rows: list[dict], chains: list[dict] | None = None,
                 "events": [
                     {"ts": m.get("ts"), "kind": m.get("kind"),
                      "user": m.get("user"), "process": m.get("process"),
+                     "pid": m.get("pid"), "dest_ip": m.get("dest_ip"),
+                     "image": m.get("image"),
                      "description": str(m.get("description") or "")[:160]}
                     for m in matched][:8],
             })
