@@ -69,3 +69,9 @@ def test_deploy_rules_ships_the_sigma_corpus(tmp_path):
     assert copied == ["plasma-iocs.gen", "plasma-baseline.gen",
                       "plasma-sigma.gen"]
     assert (db / "plasma-sigma.gen").exists()
+
+
+def test_bundle_ships_the_sysmon_config_for_telemetry():
+    from plasma import bundle
+    assert "sysmon-config.xml" in bundle.SENSOR_FILES
+    assert (SENSORS / "sysmon-config.xml").exists()

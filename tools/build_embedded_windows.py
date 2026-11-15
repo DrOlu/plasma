@@ -34,7 +34,8 @@ INSTANCE_FILES = [
 SENSOR_ROOT_FILES = ["whids.pin.json", "whids.toml", "plasma-iocs.gen",
                      "plasma-baseline.gen", "plasma-sigma.gen",
                      "sigma-sources.json", "SIGMA-DRL-1.1.md",
-                     "sealighter.pin.json", "plasma-tap-rules.json"]
+                     "sysmon-config.xml", "sealighter.pin.json",
+                     "plasma-tap-rules.json"]
 
 
 def gzip_file(src: Path, dst: Path):
