@@ -36,7 +36,7 @@ The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 </div></div>
 </div>
 
-<div class="raft-strip">Ask one machine what happened. Get an answer it can prove.</div>
+<div class="raft-strip">Detects always. Contains only when armed. Blocks only through Microsoft's own enforcement points.</div>
 
 ## Quick start
 
