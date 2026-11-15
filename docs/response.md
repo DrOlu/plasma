@@ -3,6 +3,16 @@
 Plasma's response layer follows one promise: **a human decides, a machine
 executes carefully — and everything is reversible or visibly not.**
 
+There are three ways to act, and they are deliberately separate:
+
+| Plane | Command | Gate |
+|---|---|---|
+| Manual response | `plasma actuate` / `playbook` | `--apply --plan <seen dry-run>` |
+| Automatic containment | `plasma enforce` | policy + approval queue + actuate plan gate |
+| Inline prevention | `plasma prevent` | dry-run plan + payload digest + rollback id |
+
+See [Prevention and blocking](prevention.md) for the latter two.
+
 ## The gate
 
 ```powershell

@@ -30,6 +30,10 @@ The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <h3>Reversible by construction</h3>
 <p>Plan-gated actions with single-use approvals, a hash-chained provenance ledger, a kill switch and undo for every change.</p>
 </div></div>
+<div class="raft-card"><div class="swatch yellow">PREVENTION</div><div class="body">
+<h3>Off until you arm it</h3>
+<p><code>enforce</code> contains in seconds; <code>prevent</code> configures AppLocker, firewall egress, ASR and LSA. Dry-run first, journaled, rollbackable &mdash; no Plasma kernel driver.</p>
+</div></div>
 </div>
 
 <div class="raft-strip">Ask one machine what happened. Get an answer it can prove.</div>
@@ -47,6 +51,10 @@ The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 plasma health
 plasma identity pull --events C:\ProgramData\Plasma\data\events.jsonl --since 60
 plasma watch once
+
+# 4. optional: see what prevention would do (nothing is applied)
+plasma enforce run
+plasma prevent status
 ```
 
 Every command prints JSON and uses meaningful exit codes, so it composes
@@ -64,10 +72,10 @@ without sending its diary anywhere?**
 | Streams events to a vendor cloud | Normalizes them **on the box** into one local JSONL contract |
 | Central lake required for correlation | A desk pulls bounded tails and correlates **only when asked** |
 | Model in the cloud decides | A 121M **on-device** model picks from a **closed menu of probes** |
-| Response is a vendor API call | Response is a **named, allowlisted, dry-run-first** action with undo |
+| Response is a vendor API call | Response is **named, allowlisted and dry-run first**; containment is policy-gated; prevention uses Windows enforcement points |
 | "Trust us" | Manifest digests, SHA256SUMS, pinned signer thumbprints, and a refusal gate |
 
-## The three layers
+## The layers
 
 ```text
 SENSORS            Sysmon · WHIDS gene rules · Security-log identity ·
@@ -79,29 +87,29 @@ ON-DEVICE BRAIN    frozen neuralOS instance — 10 probes, refuse-if-unknown
         ▼  pull-based answers over WinRM/SSM, never a standing server
 DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
+        │
+        ▼  opt-in, policy-gated, journaled
+PREVENTION         enforce (containment) · prevent (AppLocker, egress,
+                   Defender ASR, LSA protection)
 ```
 
 ## What's new in 1.12.1
 
-- **Sigma conversion** — `plasma sigma convert` turns Sigma YAML into gene
-  rules and reports every refusal, instead of hand-copying detections.
-- **FIM** — `plasma fim baseline|verify` hashes configurable critical paths
-  and reports changed/removed files at score 8; watch lifts them into the
-  verdict. PCI DSS 11.5.1, without pretending canaries are FIM.
-- **Three Sysmon gaps** — LSASS access (10), unsigned driver load (6), and
-  suspicious named pipes (17/18).
-- **Prevention, two tiers** — `plasma enforce` turns findings into
-  policy-gated, reversible containment; `plasma prevent` configures
-  AppLocker, firewall egress, Defender ASR and LSA protection. Off by
-  default, dry-run first, rollbackable.
-- **Coverage provenance** — evidence class is derived from rule shape, so
-  all 15 substr-only techniques (`T1055`, `T1059`, `T1071`, `T1078`, …)
-  are labelled keyword-only and weighted down; T1021 is covered.
-  91.9 rollup / 75.7 exact / 64.7 weighted; blind spots T1056,
-  T1056.001, T1112.
-- **PyYAML is a feature dependency** — `plasma sigma convert` asks for it
-  on use; every other command starts and runs without it.
-- 513 tests pass (21 skipped).
+- **Prevention, two tiers** — `plasma enforce` turns watch findings into
+  policy-gated, reversible containment (injection → kill the accessing
+  process, canary → isolation for approval). `plasma prevent` configures
+  the Windows enforcement points: AppLocker, firewall egress default-deny,
+  Defender ASR and LSA protection. Off by default, dry-run first, journaled
+  and rollbackable.
+- **Full identity plane** — 4624/4625 logons, 4768/4769/4770/4771 Kerberos,
+  4776 NTLM and 4688 process lineage with creator, parent and command line.
+- **Coverage provenance** — evidence class derived from rule shape, so all
+  15 substr-only techniques are labelled keyword-only. 91.9 rollup /
+  75.7 exact / 64.7 weighted; blind spots T1056, T1056.001, T1112.
+- **Sigma, FIM, Sysmon gaps** — Sigma→gene conversion, critical-file
+  integrity, and LSASS access / unsigned driver / named-pipe rules.
+- **PyYAML is a feature dependency** — only `sigma convert` asks for it.
+- 558 tests pass (21 skipped).
 
 ## What's new in 1.9.5
 
@@ -379,15 +387,18 @@ Prefer a visual tour? **[Open the one-page overview](https://drolu.github.io/pla
 
 ## Doctrine
 
-1. **Read-only first.** Nothing changes on a host unless a human passes
-   `--apply --plan <id>`.
-2. **Deterministic.** Detection is written rules and written chains. The
+1. **Read-only by default.** Collectors read. Manual actions require
+   `--apply --plan <id>` from a seen dry-run.
+2. **Prevention is opt-in.** `enforce` and `prevent` do nothing until you
+   enable them; both are dry-run first, policy-gated and journaled.
+3. **Deterministic.** Detection is written rules and written chains. The
    model selects probes; it never decides guilt and never runs commands.
-3. **Bounded.** Every collector has a time window, a row cap and a size cap.
-4. **Local.** Events never leave the host by default. The desk pulls what it
+4. **Bounded.** Every collector has a time window, a row cap and a size cap.
+5. **Local.** Events never leave the host by default. The desk pulls what it
    needs.
-5. **Reversible.** Every applied action carries a journal entry and an undo
-   payload — where an action cannot be undone, the CLI says so up front.
+6. **Reversible.** Every applied action or prevention control carries a
+   journal entry and an undo recipe — where something cannot be undone, the
+   CLI says so up front.
 
 ## Where to go next
 

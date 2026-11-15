@@ -4,6 +4,11 @@ Detection in Plasma is written rules and written sequences — nothing is
 learned in the detection path. Every statement carries a fixed score and an
 ATT&CK technique where one applies.
 
+Detection feeds three consumers: `watch` (operator sweep), `chain` (story
+matching) and `enforce` (policy-gated containment). Only the last can change
+a host, and only when you have enabled it. See
+[Prevention and blocking](prevention.md).
+
 ## Scores and verdicts
 
 | Score | Meaning | Typical source |
