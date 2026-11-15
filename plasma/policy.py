@@ -49,12 +49,22 @@ def save(root, policy: dict) -> dict:
     merged.update(policy or {})
     if merged.get("autonomy") not in AUTONOMY:
         raise ValueError("autonomy must be assist, supervised or autonomous")
-    agentstate.write_json(policy_path(root), merged)
+    with agentstate.lock(policy_path(root).with_suffix(".lock"), stale=300):
+        agentstate.write_json(policy_path(root), merged)
     return merged
 
 
+def _int(value, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _scopes_ok(tool: tools.ToolSpec, context: dict) -> tuple[bool, list[str]]:
-    scopes = context.get("scopes") or ["*"]
+    # No scopes means no authority. The MCP server always supplies them;
+    # a direct caller that omits them must not inherit a wildcard.
+    scopes = context.get("scopes") or []
     if "*" in scopes:
         return True, []
     missing = [s for s in tool.scopes if s not in scopes]
@@ -98,12 +108,12 @@ def evaluate(tool_name: str, args: dict | None, context: dict | None = None,
         hosts = args["hosts"]
     elif args.get("host"):
         hosts = [args["host"]]
-    cap = int(policy.get("max_hosts_per_action") or 1)
+    cap = _int(policy.get("max_hosts_per_action"), 1)
     if len(hosts) > cap:
         reasons.append(f"blast radius {len(hosts)} exceeds limit {cap}")
         return _decision(False, False, "denied", spec, policy, reasons)
 
-    limit = int(policy.get("max_actions_per_minute") or 0)
+    limit = _int(policy.get("max_actions_per_minute"), 0)
     if limit and recent_actions >= limit:
         reasons.append(f"rate limit reached ({limit}/min)")
         return _decision(False, False, "denied", spec, policy, reasons)

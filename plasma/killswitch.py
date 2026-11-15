@@ -7,6 +7,7 @@ can flip it without touching the harness.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from . import agentstate
@@ -19,7 +20,19 @@ def path(root=None) -> Path:
 
 
 def status(root=None) -> dict:
-    data = agentstate.read_json(path(root), {}) or {}
+    state_path = path(root)
+    if state_path.exists():
+        try:
+            data = json.loads(state_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            # Fail closed: an unreadable switch must not silently disable
+            # containment.
+            return {"global": True, "hosts": {},
+                    "reason": "killswitch state unreadable — failing closed",
+                    "at": None, "error": "unreadable"}
+    else:
+        data = {}
+    data = data or {}
     return {
         "global": bool(data.get("global", False)),
         "hosts": dict(data.get("hosts") or {}),
@@ -36,6 +49,11 @@ def _save(root, data: dict) -> dict:
 
 
 def set_global(root, enabled: bool, reason: str = "", actor: str = "cli") -> dict:
+    with agentstate.lock(path(root).with_suffix(".lock"), stale=300):
+        return _set_global(root, enabled, reason, actor)
+
+
+def _set_global(root, enabled: bool, reason: str = "", actor: str = "cli") -> dict:
     data = agentstate.read_json(path(root), {}) or {}
     data["global"] = bool(enabled)
     data["reason"] = reason
@@ -45,6 +63,12 @@ def set_global(root, enabled: bool, reason: str = "", actor: str = "cli") -> dic
 
 def set_host(root, host: str, enabled: bool, reason: str = "",
              actor: str = "cli") -> dict:
+    with agentstate.lock(path(root).with_suffix(".lock"), stale=300):
+        return _set_host(root, host, enabled, reason, actor)
+
+
+def _set_host(root, host: str, enabled: bool, reason: str = "",
+              actor: str = "cli") -> dict:
     data = agentstate.read_json(path(root), {}) or {}
     hosts = dict(data.get("hosts") or {})
     if enabled:

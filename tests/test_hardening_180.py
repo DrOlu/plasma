@@ -353,6 +353,7 @@ def test_approval_is_scoped_to_its_tenant(tmp_path):
 
 def test_mcp_local_mutation_uses_local_host_for_killswitch(tmp_path, monkeypatch):
     import socket
+    monkeypatch.setenv("PLASMA_SCOPES", "*")
     killswitch.set_host(tmp_path, socket.gethostname(), True, "pause")
     res = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
                       "params": {"name": "contain_user",

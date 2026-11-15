@@ -7,6 +7,7 @@ import json
 import os
 import tempfile
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -61,3 +62,45 @@ def write_json(path: Path, obj) -> None:
                 os.unlink(tmp)
             except OSError:
                 pass
+
+@contextmanager
+def lock(path, timeout: float = 10.0, stale: float = 300.0):
+    """Cross-process lock with a PID token and a stale-lock reclaim.
+
+    The stale window must exceed the longest operation that holds the lock
+    (actuate applies can run for 60 s); a 30 s window let a second process
+    steal the journal lock mid-apply.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    token = f"{os.getpid()}:{time.time():.6f}"
+    deadline = time.time() + timeout
+    fd = None
+    while fd is None:
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, token.encode("ascii"))
+        except FileExistsError:
+            try:
+                if time.time() - path.stat().st_mtime > stale:
+                    path.unlink()
+                    continue
+            except OSError:
+                pass
+            if time.time() > deadline:
+                raise TimeoutError(f"lock is held by another writer: {path}")
+            time.sleep(0.05)
+    try:
+        yield
+    finally:
+        # Close before reading/unlinking: Windows keeps the file locked
+        # while the handle is open, which left every lock behind.
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        try:
+            if path.read_text(encoding="ascii", errors="replace") == token:
+                path.unlink()
+        except OSError:
+            pass

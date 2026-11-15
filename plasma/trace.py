@@ -91,8 +91,10 @@ def parse_metadata(text: str) -> dict:
 
 def validate_script(text: str, name: str = "") -> dict:
     """Refuse destructive D and require the strict row marker."""
-    if "system(" in text:
-        raise ScriptError(f"{name}: D system() is forbidden")
+    # Whitespace between the function name and "(" is legal D; match it.
+    if re.search(r"\b(system|exec|raise|panic|abort)\s*\(", text):
+        raise ScriptError(f"{name}: forbidden destructive construct "
+                              "(system/exec/raise/panic/abort)")
     for token in FORBIDDEN:
         if token in text:
             raise ScriptError(f"{name}: forbidden construct {token!r}")

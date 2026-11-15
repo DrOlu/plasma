@@ -131,7 +131,8 @@ def test_approval_flow(tmp_path, monkeypatch):
 
     def fake(action, root, target=None, reason=None, apply=False, plan=None):
         calls.append(apply)
-        return {"id": 11, "payload": "x"} if not apply else {"id": 11}
+        return ({"id": 11, "payload": "x"} if not apply
+                else {"id": 11, "ok": True, "mode": "applied"})
 
     monkeypatch.setattr(enforce.actuate, "execute", fake)
     cfg = {"enforcement": {"enabled": True, "mode": "enforce"}}

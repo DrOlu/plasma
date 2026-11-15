@@ -4,6 +4,36 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.15.0 — 2026-11-15
+
+Holistic security and state-machine review.
+
+- **Failed actions are no longer reported as applied.** `actuate` now checks
+  the payload exit code, journals `mode: failed` with a `failure` reason,
+  and still allows undo of a partially applied action. Playbook undo marks
+  the whole reversal failed instead of claiming success.
+- **Locks cover the whole operation.** A shared `agentstate.lock` uses a PID
+  token and a 300 s stale window; the old 30 s window let a second process
+  steal the actuate journal lock during a 60 s apply. State machines,
+  ledger, prevention, enforcement, rings, killswitch and policy writes use
+  it.
+- **Kill switch fails closed.** A corrupt `killswitch.json` now reports the
+  switch engaged instead of silently disabling containment.
+- **MCP is least-privilege by default.** A harness that does not declare
+  `PLASMA_SCOPES` gets read-only scopes, not `*`. Policy evaluation with no
+  scopes denies instead of inheriting a wildcard.
+- **Update pinning works.** `download_and_verify` honours the requested tag
+  (it silently installed latest before), matches the SHA256SUMS line to the
+  actual exe asset, and `update apply --tag` exposes it.
+- **Path and quoting hardening.** Manifest verification rejects `..` paths;
+  the WHIDS watchdog task escapes single quotes; DTrace validation catches
+  whitespace-separated `system (`; AppLocker allow paths reject control
+  characters; WMI capture and removal use the same bounded set.
+- **Enforcement approvals are single-use and policy-checked.** Pending
+  requests are deduplicated, consumed on approval, and re-checked against
+  the current allowlist.
+- 602 passed / 21 skipped.
+
 ## 1.14.3 — 2026-11-15
 
 Fix the section-injection predicate.

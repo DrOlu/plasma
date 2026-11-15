@@ -19,10 +19,10 @@ import sys
 from pathlib import Path
 
 from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary, trace, sigma, fim, enforce, prevent
-from . import agentstate, statemachine, policy as agent_policy, ledger, killswitch, tenants, rings, evidence, assurance, evals, mcp as mcp_server, tools as agent_tools
+from . import agentstate, statemachine, policy as agent_policy, ledger, killswitch, tenants, rings, evidence, assurance, evals, mcp as mcp_server
 from . import update as updater
 from .bundle import build_bundle
-from .manifest import create_manifest, sha256_file, verify_manifest
+from .manifest import create_manifest, verify_manifest
 
 MENU = "instance/needle_menu.json"
 
@@ -483,9 +483,11 @@ def _register_whids_watchdog(bin_exe: Path, root: Path) -> dict:
     SCM failure actions only cover crashes, not hangs. `whids ensure`
     force-stops and restarts, and this task runs it as SYSTEM.
     """
+    exe_q = str(bin_exe).replace("'", "''")
+    root_q = str(root).replace("'", "''")
     script = (
-        f"$a = New-ScheduledTaskAction -Execute '{bin_exe}' "
-        f"-Argument 'whids ensure --root \"{root}\"'; "
+        f"$a = New-ScheduledTaskAction -Execute '{exe_q}' "
+        f"-Argument 'whids ensure --root \"{root_q}\"'; "
         f"$t = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) "
         f"-RepetitionInterval (New-TimeSpan -Minutes 2) "
         f"-RepetitionDuration (New-TimeSpan -Days 3650); "
@@ -788,7 +790,7 @@ def cmd_install(args) -> int:
             f"copy {Path(sys.executable).name} to {root / 'bin'}",
             f"write {config_path}",
             f"point {current} -> {target}",
-        ] + ([f"install Sysmon from Sysinternals (EULA accepted via -accepteula)"]
+        ] + (["install Sysmon from Sysinternals (EULA accepted via -accepteula)"]
              if decision.get("sysmon") == "installed at install time (EULA accepted via -accepteula)" else [])
           + ([f"install or refresh WHIDS config/rules from embedded payload "
               f"(service '{whids.SERVICE_NAME}')"] if whids_planned else [])
@@ -1587,7 +1589,8 @@ def cmd_update_apply(args) -> int:
         pass
 
     staged = root / "tools" / "plasma-update-staged.exe"
-    res = updater.download_and_verify(args.repo, "", token, staged)
+    res = updater.download_and_verify(args.repo, getattr(args, "tag", "") or "",
+                                      token, staged)
     print(json.dumps({"stage": "download", **{k: v for k, v in res.items() if k != 'ok'}}, indent=2, default=str))
     if not res["ok"]:
         _state("failed", "download failed")
@@ -2452,6 +2455,8 @@ def build_parser() -> argparse.ArgumentParser:
     upa.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     upa.add_argument("--bin", default=None, help="canonical exe copy to rotate (default <root>/bin)")
     upa.add_argument("--ring", default=None, help="only update if this host is in the named ring")
+    upa.add_argument("--tag", default=None,
+                     help="pin a specific release tag instead of latest")
     upa.set_defaults(func=cmd_update_apply)
 
     ctl = sub.add_parser("control", help="agent control plane: policy, approvals, audit, kill switch, tenants")
