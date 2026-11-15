@@ -60,6 +60,18 @@ plasma prevent status
 Every command prints JSON and uses meaningful exit codes, so it composes
 with Task Scheduler, cron or another agent.
 
+## PDF guides
+
+The same material as printable, offline documents:
+
+- [Plasma Product Guide (PDF, 15 pages)](Plasma_Product_Guide.pdf) — architecture,
+  detection, coverage, prevention, response and the honest limits.
+- [Plasma Operations Guide (PDF, 16 pages)](Plasma_Operations_Guide.pdf) —
+  install, configuration, daily operations, prevention runbook, fleet,
+  troubleshooting and cheat sheet.
+
+Both are built for the current release and published in the site root.
+
 ## Why it's different
 
 Commercial EDR ships every event to a central lake and asks you to trust the
