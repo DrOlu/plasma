@@ -47,6 +47,7 @@ to a marketing page.
 | Pinned Authenticode signer | baked into the installed exe (`update.py`) | a compromised release page/repository |
 | WHIDS detect-only config | `config.toml` (all action bands `report`) | the sensor acting destructively |
 | Enforcement policy + journal | `config.json`, `enforce-journal.jsonl` | unattended actions exceeding policy |
+| Capture-before-containment | host snapshot written before the first automatic kill | losing host state to its own response |
 | Prevention journal + backups | `prevent-journal.jsonl`, `prevent-backups/` | unrecoverable policy changes |
 | Refusal gate (`GATE_VERSION 1`) | frozen instance | the model guessing instead of refusing |
 

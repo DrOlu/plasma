@@ -178,8 +178,10 @@ plasma enforce pending                   # isolation etc. wait for a human
 plasma enforce approve --id 4 --apply
 ```
 
-Injection findings kill the accessing process; a tripped canary queues host
-isolation for approval. Score floor, action allowlist, per-run cap,
+Injection findings write one host snapshot and then kill the accessing
+process; a tripped canary queues host isolation for approval. The snapshot
+is host state, not process memory — remove it from `allowed_actions` for
+speed, or move `kill_process` into `require_approval` for forensics first. Score floor, action allowlist, per-run cap,
 per-target cooldown, approval queue and kill switch are all enforced in
 code, and every apply still passes actuate's dry-run + plan gate.
 

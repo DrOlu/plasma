@@ -29,8 +29,8 @@ Findings map to actions:
 
 | Finding | Action | Default |
 |---|---|---|
-| injection technique (T1055 family) with a PID | `kill_process` | automatic when armed |
-| `chain_injection_chain` / `chain_injection_apc_chain` | `kill_process` on the image PID | automatic when armed |
+| injection technique (T1055 family) with a PID | `snapshot`, then `kill_process` | automatic when armed |
+| `chain_injection_chain` / `chain_injection_apc_chain` | `snapshot`, then `kill_process` on the image PID | automatic when armed |
 | `canary_tripped` | `isolate_host` | approval required |
 
 Policy lives in `config.json`:
@@ -41,13 +41,27 @@ Policy lives in `config.json`:
     "enabled": true,
     "mode": "enforce",
     "min_score": 9,
-    "allowed_actions": ["kill_process"],
+    "allowed_actions": ["snapshot", "kill_process"],
     "require_approval": ["isolate_host"],
     "cooldown_minutes": 30,
     "max_actions_per_run": 2
   }
 }
 ```
+
+**Evidence before containment.** A kill destroys the in-memory artifact the
+injection detection exists to surface. Before the first automatic kill in a
+run, Plasma writes one host-state snapshot through the same dry-run + plan
+gate. The snapshot is a read-only export (users, admins, services, tasks,
+firewall, audit policy) — it does not capture process memory. If the
+snapshot fails, containment still proceeds and the journal records
+`capture: failed`.
+
+Operators who want forensics ahead of speed can either:
+
+- remove `"snapshot"` from `allowed_actions` to skip the capture, or
+- move `"kill_process"` into `require_approval` so every kill is
+  human-gated and the capture can be examined first.
 
 Guardrails are code, not convention:
 
@@ -95,9 +109,10 @@ and constrained language mode where appropriate.
 
 Creates `PlasmaPrevent-Egress-*` rules: one allow per destination, then a
 default-block outbound rule (Windows gives explicit allows precedence). An
-allowlist is mandatory — blocking all egress without DNS and update
-destinations locks the host out of patching. Rollback removes the prefix
-rules.
+an allowlist is mandatory — blocking all egress without DNS and update
+destinations locks the host out of patching. Plasma warns when no port-53
+destination is present, but it does not guess your DNS servers; add them
+explicitly. Rollback removes the prefix rules.
 
 Blocking **outbound** does not affect inbound WinRM/RDP, but it will break
 anything that needs the internet; pilot it and keep the allowlist current.

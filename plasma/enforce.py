@@ -37,7 +37,11 @@ DEFAULT_POLICY = {
     "enabled": False,
     "mode": "dry-run",                       # dry-run | enforce
     "min_score": 9,
-    "allowed_actions": ["kill_process"],
+    # Containment is evidence-first: capture host state (snapshot is a
+    # read-only export) before the irreversible action. An operator can
+    # remove snapshot to choose speed over forensics, or move kill_process
+    # into require_approval to make every kill human-gated.
+    "allowed_actions": ["snapshot", "kill_process"],
     "require_approval": ["isolate_host", "quarantine_file", "disable_user",
                          "remove_admin", "stop_service", "rotate_credential",
                          "delete_task", "disable_task", "remove_run_key",
@@ -233,6 +237,41 @@ def _cooling_down(root, action: str, target, minutes: int) -> bool:
     return False
 
 
+def _capture(root, trigger: dict, policy: dict):
+    """Take one host-state snapshot before irreversible containment."""
+    reason = ("enforce: capture host state before containment for "
+              f"{trigger['type']} score={trigger['score']}")
+    entry = {
+        "type": "capture", "action": "snapshot", "target": None,
+        "score": trigger.get("score"), "technique": trigger.get("technique"),
+        "risk": "low", "mode": "auto",
+        "finding_digest": hashlib.sha256(
+            json.dumps({"type": trigger["type"], "detail": trigger["detail"]},
+                       sort_keys=True).encode()).hexdigest()[:16],
+        "reasons": ["capture before kill_process"],
+    }
+    if "snapshot" not in policy["allowed_actions"]:
+        entry["status"] = "skipped"
+        entry["reason"] = "snapshot is not in allowed_actions"
+        return _append_journal(root, entry), False
+    dry = actuate.execute("snapshot", root=root, reason=reason, apply=False)
+    if "error" in dry:
+        entry["status"] = "refused"
+        entry["reason"] = dry["error"]
+        return _append_journal(root, entry), False
+    applied = actuate.execute("snapshot", root=root, reason=reason,
+                              apply=True, plan=dry["id"])
+    if "error" in applied:
+        entry["status"] = "failed"
+        entry["reason"] = applied["error"]
+        return _append_journal(root, entry), False
+    entry["status"] = "applied"
+    entry["plan"] = dry["id"]
+    entry["result"] = {k: applied.get(k) for k in
+                       ("verification", "output_head") if k in applied}
+    return _append_journal(root, entry), True
+
+
 def run(root, findings: list[dict] | None = None, apply: bool | None = None,
         sweep=None) -> dict:
     """Propose containment for a set of findings; act only per policy.
@@ -253,6 +292,18 @@ def run(root, findings: list[dict] | None = None, apply: bool | None = None,
     armed = policy["enabled"] and (policy["mode"] == "enforce" or apply is True)
     if apply is False:
         armed = False
+
+    # Evidence first: a kill destroys the in-memory artifact that the
+    # injection detection exists to surface. Take one host snapshot before
+    # the first automatic containment in this run. Snapshot is a read-only
+    # export, so it needs no approval and does not consume the action cap.
+    capture = None
+    capture_ok = False
+    if armed:
+        triggers = [p for p in proposed
+                    if p["eligible"] and p["action"] == "kill_process"]
+        if triggers:
+            capture, capture_ok = _capture(root, triggers[0], policy)
 
     results = []
     actions_taken = 0
@@ -301,6 +352,8 @@ def run(root, findings: list[dict] | None = None, apply: bool | None = None,
                         ("verified", "verification", "output", "action")
                         if k in applied}
                     actions_taken += 1
+        if item["action"] == "kill_process" and capture is not None:
+            entry["capture"] = capture.get("status")
         results.append(_append_journal(root, entry))
 
     return {
@@ -314,6 +367,7 @@ def run(root, findings: list[dict] | None = None, apply: bool | None = None,
         "applied": sum(1 for r in results if r["status"] == "applied"),
         "pending": sum(1 for r in results if r["status"] == "pending_approval"),
         "dry_run": sum(1 for r in results if r["status"] == "dry-run"),
+        "capture": capture,
         "results": results,
     }
 
