@@ -433,6 +433,7 @@ SYSMON_BASELINE_CONFIG = (
     # Named pipes: creation only, not every connect.
     '<PipeEvent onmatch="include">'
     '<EventType condition="is">CreatePipe</EventType>'
+    '<EventType condition="is">ConnectPipe</EventType>'
     '</PipeEvent>'
     '<FileCreate onmatch="exclude"/>'
     '<RegistryEvent onmatch="exclude"/>'

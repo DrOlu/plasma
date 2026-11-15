@@ -89,3 +89,12 @@ def test_apply_sysmon_config_missing_binary(tmp_path, monkeypatch):
     monkeypatch.setenv("SystemRoot", str(tmp_path / "empty"))
     result = cli._apply_sysmon_config(tmp_path / "tools")
     assert result["ok"] is False and "not found" in result["reason"]
+
+
+def test_pipe_events_include_create_and_connect():
+    """The named-pipe rule cites 17 and 18; enabling only CreatePipe made
+    half the rule dormant (field-found by triggering a pipe connect)."""
+    pipe = _root().find("EventFiltering/PipeEvent")
+    assert pipe is not None and pipe.get("onmatch") == "include"
+    types = {el.text for el in pipe if el.tag == "EventType"}
+    assert types == {"CreatePipe", "ConnectPipe"}
