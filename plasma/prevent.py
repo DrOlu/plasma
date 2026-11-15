@@ -119,9 +119,13 @@ $pref = Get-MpPreference -ErrorAction SilentlyContinue
 if($pref){ $d.asr_ids=@($pref.AttackSurfaceReductionRules_Ids);
            $d.asr_actions=@($pref.AttackSurfaceReductionRules_Actions) }
 $d.applocker_service = (Get-Service AppIDSvc -ErrorAction SilentlyContinue).Status
-$xml = (Get-AppLockerPolicy -Effective -Xml -ErrorAction SilentlyContinue)
-$d.applocker_rules = if($xml){ ([regex]::Matches($xml,'<FilePathRule|<FilePublisherRule|<FileHashRule')).Count } else { 0 }
-$d.applocker_audit = if($xml){ ($xml -match 'EnforcementMode="AuditOnly"') } else { $false }
+$local = Get-AppLockerPolicy -Local -ErrorAction SilentlyContinue
+$d.applocker_rules = if($local){
+  [int](@($local.RuleCollections | ForEach-Object { $_.Count }) |
+        Measure-Object -Sum).Sum } else { 0 }
+$d.applocker_audit = if($local){
+  [bool](@($local.RuleCollections | Where-Object { "$($_.EnforcementMode)" -eq 'AuditOnly' }).Count)
+} else { $false }
 $d.wdac_policies = @(Get-ChildItem 'C:\Windows\System32\CodeIntegrity\CiPolicies\Active\*.cip' -ErrorAction SilentlyContinue).Count
 $d.firewall = @(Get-NetFirewallProfile -ErrorAction SilentlyContinue | ForEach-Object {
   "$($_.Name):$($_.DefaultOutboundAction)" })
@@ -136,7 +140,9 @@ def status() -> dict:
     data, err = _ps_json(_STATUS_PS)
     if data is None:
         return {"error": "could not read prevention state", "detail": err}
-    data["asr"] = dict(zip(data.get("asr_ids") or [], data.get("asr_actions") or []))
+    ids = [i for i in (data.get("asr_ids") or []) if i]
+    actions = list(data.get("asr_actions") or [])
+    data["asr"] = dict(zip(ids, actions)) if ids else {}
     data.pop("asr_ids", None)
     data.pop("asr_actions", None)
     return data
@@ -200,9 +206,15 @@ _APPLOCKER_APPLY_PS = r"""
 $ErrorActionPreference='Stop'
 $policy = __POLICY_PATH__
 Set-AppLockerPolicy -XmlPolicy $policy -ErrorAction Stop | Out-Null
-$xml = (Get-AppLockerPolicy -Effective -Xml -ErrorAction SilentlyContinue)
-$rules = if($xml){ ([regex]::Matches($xml,'<FilePathRule|<FilePublisherRule|<FileHashRule')).Count } else { 0 }
-$audit = if($xml){ ($xml -match 'EnforcementMode="AuditOnly"') } else { $false }
+# Verify against the LOCAL policy object. `-Effective` lags the local write
+# and returned zero rules in the field even though the policy had applied.
+$local = Get-AppLockerPolicy -Local -ErrorAction SilentlyContinue
+$rules = if($local){
+  [int](@($local.RuleCollections | ForEach-Object { $_.Count }) |
+        Measure-Object -Sum).Sum } else { 0 }
+$audit = if($local){
+  [bool](@($local.RuleCollections | Where-Object { "$($_.EnforcementMode)" -eq 'AuditOnly' }).Count)
+} else { $false }
 [pscustomobject]@{applied=$true; rules=$rules; audit=$audit; sha=$(
   (Get-FileHash $policy -Algorithm SHA256).Hash.ToLower())} | ConvertTo-Json -Compress
 """
@@ -218,9 +230,10 @@ if($backup -and (Test-Path $backup)){
     exit 0
   }
 }
-# No prior policy: remove the local SrpV2 policy values.
-$key='HKLM:\SOFTWARE\Policies\Microsoft\Windows\SrpV2'
-if(Test-Path $key){ Remove-Item $key -Recurse -Force }
+# No prior policy: apply an empty policy, which clears the local rule set.
+$empty = Join-Path $env:TEMP 'plasma-empty-applocker.xml'
+[IO.File]::WriteAllText($empty, '<AppLockerPolicy Version="1" />')
+Set-AppLockerPolicy -XmlPolicy $empty -ErrorAction Stop | Out-Null
 [pscustomobject]@{restored=$false; cleared=$true} | ConvertTo-Json -Compress
 """
 
