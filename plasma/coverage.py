@@ -31,6 +31,7 @@ CORE_TECHNIQUES = {
     "T1071": "Application Layer Protocol",
     "T1071.001": "Web Protocols",
     "T1071.004": "DNS",
+    "T1021": "Remote Services",
     "T1078": "Valid Accounts",
     "T1078.003": "Local Accounts",
     "T1098": "Account Manipulation",
@@ -98,6 +99,9 @@ GENE_FIDELITY = {
     "Plasma Service Registry Persistence": "high",
     "Plasma Privileged Group Add": "high",
     "Plasma Execution From User Paths": "medium",
+    "Plasma LSASS Access": "high",
+    "Plasma Unsigned Driver Load": "high",
+    "Plasma Suspicious Named Pipe": "medium",
 }
 
 
@@ -112,15 +116,18 @@ def collect_rule_techniques(sensors_dir=None) -> dict:
     sensors = Path(sensors_dir) if sensors_dir else _repo_sensors()
     covered: dict[str, list[dict]] = {}
 
-    def add(tech, label, fidelity):
+    def add(tech, label, fidelity, evidence="behavioural"):
         covered.setdefault(tech, []).append(
-            {"rule": label, "fidelity": _norm_fidelity(fidelity)})
+            {"rule": label, "fidelity": _norm_fidelity(fidelity),
+             "evidence": ("keyword" if str(evidence).lower() == "keyword"
+                          else "behavioural")})
 
     tap_doc = json.loads((sensors / "plasma-tap-rules.json").read_text(encoding="utf-8"))
     for rule in tap_doc.get("rules", []):
         tech = rule.get("technique", "")
         if _T_RE.fullmatch(tech):
-            add(tech, f"tap:{rule['name']}", rule.get("fidelity"))
+            add(tech, f"tap:{rule['name']}", rule.get("fidelity"),
+                rule.get("evidence", "behavioural"))
 
     gen = sensors / "plasma-baseline.gen"
     if gen.exists():
@@ -201,14 +208,24 @@ def coverage(sensors_dir=None) -> dict:
     covered_out = {}
     weighted_sum = 0.0
     fidelity_breakdown = {"high": 0, "medium": 0, "low": 0}
+    keyword_only = []
     for t, rules in sorted(rollup_core.items()):
         best = _best_fidelity(rules)
-        weighted_sum += FIDELITY_WEIGHTS[best]
+        solely_keyword = all(
+            str(r.get("evidence", "behavioural")).lower() == "keyword"
+            for r in rules)
+        # A keyword-only technique keeps its breadth but cannot carry the
+        # same weight as behavioural evidence. The rollup/exact numbers are
+        # unchanged; weighted_pct tells the honest strength of the claim.
+        weighted_sum += FIDELITY_WEIGHTS[best] * (0.5 if solely_keyword else 1.0)
         fidelity_breakdown[best] += 1
+        if solely_keyword:
+            keyword_only.append(t)
         covered_out[t] = {
             "name": CORE_TECHNIQUES[t],
             "rules": rules,
             "fidelity": best,
+            "evidence": "keyword-only" if solely_keyword else "behavioural",
             "via_subtechnique": t not in exact_core,
         }
 
@@ -222,6 +239,11 @@ def coverage(sensors_dir=None) -> dict:
         "coverage_exact_pct": pct(len(exact_core)),
         "weighted_pct": round(100 * weighted_sum / total, 1) if total else 0.0,
         "fidelity_breakdown": fidelity_breakdown,
+        "evidence_breakdown": {
+            "behavioural": len(rollup_core) - len(keyword_only),
+            "keyword_only": len(keyword_only),
+        },
+        "keyword_only": keyword_only,
         "covered": covered_out,
         "blind": dict(sorted(blind.items())),
         "extra_coverage": {t: rules for t, rules in sorted(extra.items())},

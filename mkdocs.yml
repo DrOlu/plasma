@@ -43,6 +43,8 @@ nav:
   - Detect:
       - Sensors: sensors.md
       - Detection: detection.md
+      - File integrity (FIM): fim.md
+      - Sigma conversion: sigma.md
       - DTrace tracing: trace.md
   - Operate:
       - Response: response.md

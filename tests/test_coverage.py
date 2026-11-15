@@ -12,7 +12,7 @@ def _labels(info):
 
 def test_coverage_over_real_shipped_rules():
     cov = coverage.coverage()
-    assert cov["core_total"] == len(CORE) == 36
+    assert cov["core_total"] == len(CORE) == 37
     # rollup coverage is the headline; exact stays lower by design
     assert cov["coverage_pct"] >= 85
     assert cov["coverage_exact_pct"] < cov["coverage_pct"]
@@ -36,7 +36,7 @@ def test_parents_roll_up_from_covered_subtechniques():
                                if not v["via_subtechnique"]]}
     # rollup is not inflation: the exact count stays below the rollup count
     assert cov["coverage_exact_pct"] < cov["coverage_pct"]
-    assert 70 <= cov["coverage_exact_pct"] <= 75
+    assert 70 <= cov["coverage_exact_pct"] <= 76
 
 
 def test_one_three_zero_rules_close_their_techniques():
@@ -127,4 +127,15 @@ def test_sensors_resolve_from_frozen_bundle(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     assert coverage._repo_sensors() == sensors
     cov = coverage.coverage()
-    assert cov["core_total"] == 36
+    assert cov["core_total"] == 37
+
+
+def test_keyword_only_evidence_is_labelled_and_discounted():
+    """T1055 must not hide a PowerShell substring behind high fidelity."""
+    cov = coverage.coverage()
+    assert cov["keyword_only"] == ["T1055", "T1055.001"]
+    assert cov["covered"]["T1055"]["evidence"] == "keyword-only"
+    assert any(r.get("evidence") == "keyword"
+               for r in cov["covered"]["T1055"]["rules"])
+    assert cov["evidence_breakdown"]["keyword_only"] == 2
+    assert cov["weighted_pct"] < cov["coverage_pct"]

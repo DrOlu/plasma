@@ -64,3 +64,39 @@ def test_pull_collector_failure_is_data(tmp_path, monkeypatch):
 def test_cli_identity_wiring():
     from plasma import cli
     cli.build_parser().parse_args(["identity", "pull", "--events", "e.jsonl", "--since", "30"])
+
+
+def test_schedule_registers_a_system_task(tmp_path, monkeypatch):
+    seen = []
+    monkeypatch.setattr(identity, "_ps_task",
+                        lambda script, timeout=120: (seen.append(script) or (0, "ok")))
+    res = identity.schedule(tmp_path, every_minutes=10,
+                            exe=r"C:\Program Files\Plasma\plasma.exe")
+    assert res["ok"] is True
+    assert res["every_minutes"] == 10
+    script = seen[0]
+    assert identity.TASK_NAME in script
+    assert "identity pull" in script and "--since 10" in script
+    assert "SYSTEM" in script and "Highest" in script
+
+
+def test_schedule_clamps_interval(tmp_path, monkeypatch):
+    monkeypatch.setattr(identity, "_ps_task", lambda script, timeout=120: (0, "ok"))
+    assert identity.schedule(tmp_path, every_minutes=0)["every_minutes"] == 1
+    assert identity.schedule(tmp_path, every_minutes=99999)["every_minutes"] == 1440
+
+
+def test_unschedule_reports_task_name(monkeypatch):
+    seen = []
+    monkeypatch.setattr(identity, "_ps_task",
+                        lambda script, timeout=120: (seen.append(script) or (0, "")))
+    res = identity.unschedule()
+    assert res["ok"] and identity.TASK_NAME in seen[0]
+
+
+def test_schedule_status_parses_json(monkeypatch):
+    payload = '{"installed":true,"state":"Ready","last_result":0}'
+    monkeypatch.setattr(identity, "_ps_task",
+                        lambda script, timeout=60: (0, payload))
+    res = identity.schedule_status()
+    assert res["installed"] is True and res["state"] == "Ready"

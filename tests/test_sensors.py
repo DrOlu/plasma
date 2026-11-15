@@ -54,7 +54,7 @@ def _rule_by_name(rules, name):
 
 def test_baseline_every_line_is_valid_json_with_compileable_regex():
     rules = _baseline_rules()
-    assert len(rules) == 15
+    assert len(rules) == 18
     for obj in rules:
         assert obj["Meta"]["Schema"] == "1.0.0"
         assert obj["Meta"]["EventIDs"], obj["Name"]

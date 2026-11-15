@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary, trace
+from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary, trace, sigma, fim
 from . import agentstate, statemachine, policy as agent_policy, ledger, killswitch, tenants, rings, evidence, assurance, evals, mcp as mcp_server, tools as agent_tools
 from . import update as updater
 from .bundle import build_bundle
@@ -981,6 +981,19 @@ def cmd_install(args) -> int:
         config_path.write_text(json.dumps(config, indent=2) + "\n",
                                encoding="utf-8")
 
+    # 3a-bis. Standing authentication pull. Watch-only HIDS misses brute
+    # force between operator sweeps; a SYSTEM task keeps 4624/4625 flowing.
+    ident = identity.schedule(root, every_minutes=15,
+                              exe=str(bindir / me.name))
+    config["sensors"]["identity"]["schedule"] = (
+        ident["task"] if ident["ok"] else "failed")
+    config["sensors"]["identity"]["mode"] = (
+        "scheduled" if ident["ok"] else "on-demand")
+    if not ident["ok"]:
+        config["sensors"]["identity"]["schedule_error"] = ident.get("detail")
+    config_path.write_text(json.dumps(config, indent=2) + "\n",
+                           encoding="utf-8")
+
     # 3b. Sysmon config convergence. `--force` is the repair verb (and what
     # `update apply` calls), so an upgrade refreshes the detection config an
     # old node was installed with. Sysmon applies it hot — no service bounce.
@@ -1217,6 +1230,22 @@ def cmd_playbook_undo(args) -> int:
     return 0
 
 
+def cmd_sigma_convert(args) -> int:
+    try:
+        result = sigma.convert_path(args.inp)
+    except FileNotFoundError as exc:
+        print(json.dumps({"error": str(exc)}, indent=2))
+        return 2
+    summary = {"converted": result["converted"], "files": result["files"],
+               "skipped": result["skipped"]}
+    if args.dry_run:
+        summary["dry_run"] = True
+    else:
+        summary.update(sigma.write_gen(args.out, result["rules"]))
+    print(json.dumps(summary, indent=2, default=str))
+    return 0
+
+
 def cmd_trace_list(args) -> int:
     try:
         scripts = trace.load_scripts(args.root)
@@ -1304,6 +1333,24 @@ def cmd_canary_status(args) -> int:
     print(json.dumps(result, indent=2, default=str))
     return 0
 
+
+
+def cmd_fim_baseline(args) -> int:
+    result = fim.baseline(args.root, args.path or None)
+    print(json.dumps(result, indent=2, default=str))
+    return 0
+
+
+def cmd_fim_verify(args) -> int:
+    result = fim.verify(args.root)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if result.get("top_score", 0) == 0 and "error" not in result else 2
+
+
+def cmd_fim_status(args) -> int:
+    result = fim.status(args.root)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if result.get("baselined") else 1
 
 def cmd_tap_list(args) -> int:
     rules_path = _locate_tap_rules()
@@ -1531,6 +1578,24 @@ def cmd_update_apply(args) -> int:
     _state("rotated", f"tag={res.get('tag')}")
     print(json.dumps({"ok": True, "updated_to": res.get("tag")}, indent=2))
     return 0
+
+
+def cmd_identity_schedule(args) -> int:
+    result = identity.schedule(args.root, every_minutes=args.every, exe=args.exe)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if result.get("ok") else 1
+
+
+def cmd_identity_unschedule(args) -> int:
+    result = identity.unschedule()
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if result.get("ok") else 1
+
+
+def cmd_identity_schedule_status(args) -> int:
+    result = identity.schedule_status()
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if result.get("installed") else 1
 
 
 def cmd_identity_pull(args) -> int:
@@ -1916,6 +1981,28 @@ def build_parser() -> argparse.ArgumentParser:
     cnsx.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     cnsx.set_defaults(func=cmd_canary_status)
 
+    fm = sub.add_parser("fim", help="critical-file integrity monitoring")
+    fms = fm.add_subparsers(dest="fim_action", required=True)
+    fmb = fms.add_parser("baseline", help="record hashes for critical paths")
+    fmb.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    fmb.add_argument("--path", action="append", default=[],
+                     help="extra path or glob (repeatable)")
+    fmb.set_defaults(func=cmd_fim_baseline)
+    fmv = fms.add_parser("verify", help="diff critical files against the baseline")
+    fmv.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    fmv.set_defaults(func=cmd_fim_verify)
+    fmsx = fms.add_parser("status", help="FIM baseline summary")
+    fmsx.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    fmsx.set_defaults(func=cmd_fim_status)
+
+    sg = sub.add_parser("sigma", help="Sigma rule conversion to WHIDS gene JSONL")
+    sgs = sg.add_subparsers(dest="sigma_action", required=True)
+    sgc = sgs.add_parser("convert", help="convert Sigma YAML files to a .gen rule file")
+    sgc.add_argument("--in", dest="inp", required=True,
+                     help="Sigma file or directory")
+    sgc.add_argument("--out", default="sensors/plasma-sigma.gen")
+    sgc.add_argument("--dry-run", action="store_true")
+    sgc.set_defaults(func=cmd_sigma_convert)
     tr = sub.add_parser("trace", help="DTrace on-demand kernel tracing (bounded, reviewed scripts)")
     trs = tr.add_subparsers(dest="trace_action", required=True)
     trl = trs.add_parser("list", help="reviewed D scripts with metadata + hashes")
@@ -2113,6 +2200,15 @@ def build_parser() -> argparse.ArgumentParser:
     idpp.add_argument("--host", default=None)
     idpp.add_argument("--since", type=int, default=15, help="minutes to look back")
     idpp.set_defaults(func=cmd_identity_pull)
+    idsch = idps.add_parser("schedule", help="register a SYSTEM task that pulls logons on a cadence")
+    idsch.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    idsch.add_argument("--every", type=int, default=15, help="minutes between pulls")
+    idsch.add_argument("--exe", default=None, help="plasma executable (default: newest in bin/)")
+    idsch.set_defaults(func=cmd_identity_schedule)
+    iduns = idps.add_parser("unschedule", help="remove the identity pull task")
+    iduns.set_defaults(func=cmd_identity_unschedule)
+    idst = idps.add_parser("schedule-status", help="is the identity pull task installed and running?")
+    idst.set_defaults(func=cmd_identity_schedule_status)
 
     hp = sub.add_parser("health", help="is this node's Plasma stack actually alive?")
     hp.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")

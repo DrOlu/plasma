@@ -37,6 +37,20 @@ assembly loads and more. They only exist while `plasma tap run` is alive.
 Rules are rendered into the 7-field pipe format the C++ tap consumes, with
 fields validated against pipes and newlines.
 
+## Identity — standing pulls
+
+The shipped product registers a SYSTEM task (`PlasmaIdentityPull`) that runs
+the bounded Security-log pull every 15 minutes, so 4624/4625 events reach
+the store between operator sweeps. Manage it explicitly with:
+
+```powershell
+plasma identity schedule --root C:\ProgramData\Plasma --every 15
+plasma identity schedule-status
+plasma identity unschedule
+```
+
+The task is registered by `install`/`update` and is independent of `watch`.
+
 ## DTrace — on-demand syscall evidence
 
 `plasma trace run <script> --for 10s` opens a bounded DTrace window (kernel
@@ -91,14 +105,16 @@ plasma coverage
 ```
 
 Diffs the shipped rules (tap + gene baseline + IOC feed) against a curated
-list of 36 core on-box ATT&CK techniques. It reports:
+list of 37 core on-box ATT&CK techniques. It reports:
 
-- `coverage_pct` — **91.7%** (33/36) with ATT&CK parent rollup
+- `coverage_pct` — **91.9%** (34/37) with ATT&CK parent rollup
   (a parent counts when any sub-technique is covered);
-- `coverage_exact_pct` — **75.0%** (27/36) counting only exact tags;
-- `weighted_pct` — **83.3%**, discounting low/medium-fidelity rules
-  (weights 1.0 / 0.7 / 0.4);
-- `covered` — technique → rules + per-rule fidelity + `via_subtechnique`;
+- `coverage_exact_pct` — **75.7%** (28/37) counting only exact tags;
+- `weighted_pct` — **80.3%**, discounting low/medium-fidelity rules
+  (weights 1.0 / 0.7 / 0.4) and halving purely keyword-only evidence;
+- `covered` — technique → rules + per-rule fidelity + `evidence` + `via_subtechnique`;
+- `keyword_only` — techniques backed solely by literal string matches
+  (`T1055`, `T1055.001`); they count for breadth but not full weight;
 - `blind` — the three honest gaps: **T1056 / T1056.001** (input capture —
   needs kernel hooks) and **T1112** (generic registry edits — not worth a
   noisy checkbox). **T1486** is covered by the canary capability
@@ -111,6 +127,21 @@ rise.
 
 This is the anti-marketing page: a product that cannot list its blind spots
 is not measuring anything.
+
+### What the always-on plane now reads
+
+Beyond process creation and registry events, the gene baseline consumes
+three Sysmon events that were previously ignored:
+
+| Event | Rule | Technique |
+|---|---|---|
+| 10 ProcessAccess | LSASS opened with credential-dump access rights | T1003.001 |
+| 6 DriverLoad | unsigned driver loaded from a user-writable path | T1014 |
+| 17/18 PipeCreated | named pipe shaped like PsExec/Cobalt/Beacon | T1021, T1090 |
+
+Sigma rules can be converted mechanically into the same gene format; see
+[Sigma conversion](sigma.md). Critical-file integrity is covered by
+[FIM](fim.md).
 
 ## Canary files — impact detection (T1486)
 
