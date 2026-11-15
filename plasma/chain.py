@@ -92,6 +92,55 @@ BUILTIN_CHAINS = [
         ],
     },
     {
+        "name": "injection_hollow_chain",
+        "score": 9,
+        "gap_seconds": 120,
+        "bind_process": True,
+        "detail": "remote image unmap, remote write, then thread creation by "
+                  "the same image (process hollowing)",
+        "steps": [
+            {"kind": "trace", "description": r"(?i)dtrace inject-hollow"},
+            {"kind": "trace", "description": r"(?i)dtrace inject-write"},
+            {"kind": "trace", "description": r"(?i)dtrace inject-remote-thread"},
+        ],
+    },
+    {
+        "name": "injection_section_chain",
+        "score": 9,
+        "gap_seconds": 60,
+        "bind_process": True,
+        "detail": "remote section map followed by thread creation by the same "
+                  "image",
+        "steps": [
+            {"kind": "trace", "description": r"(?i)dtrace inject-section"},
+            {"kind": "trace", "description": r"(?i)dtrace inject-remote-thread"},
+        ],
+    },
+    {
+        "name": "injection_write_chain",
+        "score": 9,
+        "gap_seconds": 60,
+        "bind_process": True,
+        "detail": "remote memory write followed by thread creation by the same "
+                  "image (no RWX flip required)",
+        "steps": [
+            {"kind": "trace", "description": r"(?i)dtrace inject-write"},
+            {"kind": "trace", "description": r"(?i)dtrace inject-remote-thread"},
+        ],
+    },
+    {
+        "name": "injection_hijack_chain",
+        "score": 8,
+        "gap_seconds": 60,
+        "bind_process": True,
+        "detail": "thread context rewritten on another thread, then a remote "
+                  "thread created by the same image",
+        "steps": [
+            {"kind": "trace", "description": r"(?i)dtrace inject-hijack"},
+            {"kind": "trace", "description": r"(?i)dtrace inject-remote-thread"},
+        ],
+    },
+    {
         "name": "injection_apc_chain",
         "score": 9,
         "gap_seconds": 30,

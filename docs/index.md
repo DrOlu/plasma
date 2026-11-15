@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.13.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.14.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.13.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.14.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">572 tests</span>
+<span class="raft-badge">580 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -93,8 +93,18 @@ PREVENTION         enforce (containment) · prevent (AppLocker, egress,
                    Defender ASR, LSA protection)
 ```
 
-## What's new in 1.13.0
+## What's new in 1.14.0
 
+- **Telemetry provenance** — coverage now derives a third axis from the
+  shipped Sysmon config: `live`, `partial`, `dormant` or `unknown` per rule
+  and technique. Weighted coverage counts only rules that can actually fire.
+- **The dormant rules are live** — the config now enables DriverLoad (6),
+  unsigned ImageLoad (7), LSASS ProcessAccess (10) and PipeEvent (17/18),
+  so the LSASS, unsigned-driver and named-pipe rules are no longer
+  inventory. `sysmon_config` is a health check.
+- **Injection depth** — four new DTrace scripts (hijack, hollow, section,
+  remote write) and four chains, covering the primitives that leave no RWX
+  flip or no new thread on their own.
 - **259-rule Sigma corpus** — the Windows/Sysmon SigmaHQ tree converted,
   curated and vendored (168 techniques, DRL 1.1, provenance pinned).
   Coverage moves to **94.6 rollup / 89.2 exact / 85.9 weighted**; the blind
@@ -116,7 +126,7 @@ PREVENTION         enforce (containment) · prevent (AppLocker, egress,
 - **Sigma, FIM, Sysmon gaps** — Sigma→gene conversion, critical-file
   integrity, and LSASS access / unsigned driver / named-pipe rules.
 - **PyYAML is a feature dependency** — only `sigma convert` asks for it.
-- 572 tests pass (21 skipped).
+- 580 tests pass (21 skipped).
 
 ## What's new in 1.9.5
 

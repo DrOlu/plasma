@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 # curated core on-box Windows techniques (detection-relevant, endpoint scope)
@@ -55,6 +56,57 @@ CORE_TECHNIQUES = {
 }
 
 _T_RE = re.compile(r"T\d{4}(?:\.\d{3})?")
+
+# Sysmon config element -> event IDs it enables. A rule whose EventIDs are
+# not enabled by the shipped config cannot fire; that is inventory, not
+# coverage. Derived from the config, never declared per rule.
+SYSMON_EIDS = {
+    "ProcessCreate": {1}, "FileCreateTime": {2}, "NetworkConnect": {3},
+    "ProcessTerminate": {5}, "DriverLoad": {6}, "ImageLoad": {7},
+    "CreateRemoteThread": {8}, "RawAccessRead": {9}, "ProcessAccess": {10},
+    "FileCreate": {11}, "RegistryEvent": {12, 13, 14},
+    "FileCreateStreamHash": {15}, "ServiceConfiguration": {16},
+    "PipeEvent": {17, 18}, "WmiEvent": {19, 20, 21}, "DnsQuery": {22},
+    "FileDelete": {23}, "ClipboardChange": {24}, "ProcessTampering": {25},
+    "FileDeleteDetected": {26}, "FileBlockExecutable": {27},
+    "FileBlockShredding": {28}, "FileExecutableDetected": {29},
+}
+
+
+def enabled_event_ids(sensors_dir=None,
+                      filename: str = "sysmon-config.xml") -> set[int] | None:
+    """Event IDs the shipped Sysmon config actually enables.
+
+    None means the config is unavailable (custom sensor dir, non-Windows
+    desk): telemetry is then unknown, not assumed live.
+    """
+    sensors = Path(sensors_dir) if sensors_dir else _repo_sensors()
+    path = sensors / filename
+    if not path.exists():
+        return None
+    try:
+        root = ET.fromstring(path.read_text(encoding="utf-8"))
+    except (OSError, ET.ParseError):
+        return None
+    filtering = root.find("EventFiltering")
+    if filtering is None:
+        return None
+    ids: set[int] = set()
+    for child in filtering:
+        ids |= SYSMON_EIDS.get(child.tag, set())
+    return ids
+
+
+def _telemetry(event_ids, enabled) -> str:
+    if enabled is None:
+        return "unknown"
+    ids = set(event_ids or [])
+    if not ids:
+        return "unknown"
+    live = ids & enabled
+    if live == ids:
+        return "live"
+    return "partial" if live else "dormant"
 
 
 def _repo_sensors() -> Path:
@@ -134,18 +186,22 @@ def collect_rule_techniques(sensors_dir=None) -> dict:
     sensors = Path(sensors_dir) if sensors_dir else _repo_sensors()
     covered: dict[str, list[dict]] = {}
 
-    def add(tech, label, fidelity, evidence="behavioural"):
+    enabled = enabled_event_ids(sensors)
+
+    def add(tech, label, fidelity, evidence="behavioural", event_ids=None,
+            telemetry=None):
         covered.setdefault(tech, []).append(
             {"rule": label, "fidelity": _norm_fidelity(fidelity),
              "evidence": ("keyword" if str(evidence).lower() == "keyword"
-                          else "behavioural")})
+                          else "behavioural"),
+             "telemetry": telemetry or _telemetry(event_ids, enabled)})
 
     tap_doc = json.loads((sensors / "plasma-tap-rules.json").read_text(encoding="utf-8"))
     for rule in tap_doc.get("rules", []):
         tech = rule.get("technique", "")
         if _T_RE.fullmatch(tech):
             add(tech, f"tap:{rule['name']}", rule.get("fidelity"),
-                rule_evidence(rule))
+                rule_evidence(rule), telemetry="live")
 
     def gene_file(path, label):
         if not path.exists():
@@ -172,7 +228,8 @@ def collect_rule_techniques(sensors_dir=None) -> dict:
                                 "medium" if criticality >= 6 else "low")
                 else:
                     fidelity = GENE_FIDELITY.get(obj.get("Name"), "medium")
-                add(tag, f"{label}:{obj.get('Name')}", fidelity)
+                add(tag, f"{label}:{obj.get('Name')}", fidelity,
+                    event_ids=(obj.get("Meta") or {}).get("EventIDs"))
 
     gene_file(sensors / "plasma-baseline.gen", "gene")
     gene_file(sensors / "plasma-sigma.gen", "sigma")
@@ -191,7 +248,8 @@ def collect_rule_techniques(sensors_dir=None) -> dict:
                 continue
             for tag in obj.get("Tags", []):
                 if _T_RE.fullmatch(str(tag)):
-                    add(tag, f"ioc:{obj['Name']}", "high")
+                    add(tag, f"ioc:{obj['Name']}", "high",
+                        event_ids=(obj.get("Meta") or {}).get("EventIDs"))
     return covered
 
 
@@ -204,7 +262,8 @@ def _best_fidelity(rules: list[dict]) -> str:
 # Capabilities that watch a technique without a Sysmon/ETW rule. They are
 # reported with explicit provenance so a reader can see what backs the claim.
 CAPABILITY_RULES = {
-    "T1486": [{"rule": "canary:verify", "fidelity": "high"}],
+    "T1486": [{"rule": "canary:verify", "fidelity": "high",
+               "telemetry": "live"}],
 }
 
 
@@ -238,18 +297,41 @@ def coverage(sensors_dir=None) -> dict:
 
     covered_out = {}
     weighted_sum = 0.0
+    weighted_all_sum = 0.0
     fidelity_breakdown = {"high": 0, "medium": 0, "low": 0}
+    telemetry_breakdown = {"live": 0, "partial": 0, "dormant": 0, "unknown": 0}
     keyword_only = []
+    dormant_techniques = []
     for t, rules in sorted(rollup_core.items()):
         best = _best_fidelity(rules)
         solely_keyword = all(
             str(r.get("evidence", "behavioural")).lower() == "keyword"
             for r in rules)
+        # Telemetry is the third provenance axis: a rule whose event IDs the
+        # shipped config does not enable cannot fire. Weight only what can
+        # actually run; keep the all-rules number for comparison.
+        live_rules = [r for r in rules if r.get("telemetry") == "live"]
+        partial_rules = [r for r in rules if r.get("telemetry") == "partial"]
+        if live_rules:
+            telemetry = "live"
+            weight = FIDELITY_WEIGHTS[_best_fidelity(live_rules)]
+        elif partial_rules:
+            telemetry = "partial"
+            weight = 0.5 * FIDELITY_WEIGHTS[_best_fidelity(partial_rules)]
+        elif any(r.get("telemetry") == "unknown" for r in rules):
+            telemetry = "unknown"
+            weight = FIDELITY_WEIGHTS[best]
+        else:
+            telemetry = "dormant"
+            weight = 0.0
+            dormant_techniques.append(t)
         # A keyword-only technique keeps its breadth but cannot carry the
-        # same weight as behavioural evidence. The rollup/exact numbers are
-        # unchanged; weighted_pct tells the honest strength of the claim.
-        weighted_sum += FIDELITY_WEIGHTS[best] * (0.5 if solely_keyword else 1.0)
+        # same weight as behavioural evidence.
+        weighted_sum += weight * (0.5 if solely_keyword else 1.0)
+        weighted_all_sum += (FIDELITY_WEIGHTS[best]
+                             * (0.5 if solely_keyword else 1.0))
         fidelity_breakdown[best] += 1
+        telemetry_breakdown[telemetry] += 1
         if solely_keyword:
             keyword_only.append(t)
         covered_out[t] = {
@@ -257,6 +339,7 @@ def coverage(sensors_dir=None) -> dict:
             "rules": rules,
             "fidelity": best,
             "evidence": "keyword-only" if solely_keyword else "behavioural",
+            "telemetry": telemetry,
             "via_subtechnique": t not in exact_core,
         }
 
@@ -269,7 +352,10 @@ def coverage(sensors_dir=None) -> dict:
         "coverage_pct": pct(len(rollup_core)),
         "coverage_exact_pct": pct(len(exact_core)),
         "weighted_pct": round(100 * weighted_sum / total, 1) if total else 0.0,
+        "weighted_all_pct": round(100 * weighted_all_sum / total, 1) if total else 0.0,
         "fidelity_breakdown": fidelity_breakdown,
+        "telemetry_breakdown": telemetry_breakdown,
+        "dormant_techniques": dormant_techniques,
         "evidence_breakdown": {
             "behavioural": len(rollup_core) - len(keyword_only),
             "keyword_only": len(keyword_only),

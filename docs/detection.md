@@ -120,7 +120,13 @@ It reports:
   (a parent counts when any sub-technique is covered);
 - `coverage_exact_pct` — **89.2%** (33/37) counting only exact tags;
 - `weighted_pct` — **85.9%**, discounting low/medium-fidelity rules
-  (weights 1.0 / 0.7 / 0.4) and halving purely keyword-only evidence;
+  (weights 1.0 / 0.7 / 0.4), halving purely keyword-only evidence, and
+  counting only rules whose event IDs the shipped Sysmon config enables;
+- `weighted_all_pct` — the same number without the telemetry filter, for
+  comparison;
+- `telemetry_breakdown` — techniques by `live` / `partial` / `dormant` /
+  `unknown`, derived from each rule's `Meta.EventIDs` against the config;
+- `dormant_techniques` — techniques backed only by rules that cannot fire;
 - `covered` — technique → rules + per-rule fidelity + `evidence` + `via_subtechnique`;
 - `keyword_only` — the 4 techniques still backed solely by literal string
   matches; they count for breadth but not full weight. The label is
@@ -128,7 +134,8 @@ It reports:
   never hand-set, so it cannot drift from the rules themselves;
 - `blind` — the two honest gaps: **T1056 / T1056.001** (input capture —
   needs kernel hooks). **T1486** is covered by the canary capability
-  (`canary:verify`), reported with its own provenance;
+  (`canary:verify`), reported with its own provenance. A rule you cannot
+  fire is inventory, not coverage: the telemetry axis makes that explicit;
 - `extra_coverage` — techniques watched outside the core list.
 
 Breadth is deliberately reported alongside fidelity: a report cannot reach

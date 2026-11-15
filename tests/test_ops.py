@@ -200,3 +200,25 @@ def test_notify_webhook_must_be_https(tmp_path):
         "channels": [{"type": "webhook", "url": "http://hooks.test/plasma"}]}))
     with pytest.raises(ValueError, match="https"):
         notify.load_config(tmp_path)
+
+
+def test_health_flags_a_sysmon_config_that_cannot_fire_the_rules(tmp_path, monkeypatch):
+    (tmp_path / "config.json").write_text(json.dumps({
+        "events_path": str(tmp_path / "e.jsonl"), "degraded": False,
+        "sensors": {"whids": {"status": "active"},
+                    "sysmon": {"status": "active"}}}))
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    (tools / "plasma-sysmon-baseline.xml").write_text(
+        '<Sysmon><EventFiltering><ProcessCreate onmatch="exclude"/>'
+        '</EventFiltering></Sysmon>')
+    monkeypatch.setattr(health, "IS_WINDOWS", True)
+    monkeypatch.setattr(health, "_ps", lambda s, timeout=60: "Running")
+    checks = {c["check"]: c for c in health.checks(tmp_path)}
+    assert checks["sysmon_config"]["ok"] is False
+    assert "10" in checks["sysmon_config"]["detail"]
+
+    from plasma.cli import SYSMON_BASELINE_CONFIG
+    (tools / "plasma-sysmon-baseline.xml").write_text(SYSMON_BASELINE_CONFIG)
+    checks = {c["check"]: c for c in health.checks(tmp_path)}
+    assert checks["sysmon_config"]["ok"] is True

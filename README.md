@@ -173,7 +173,9 @@ verification result; nothing runs without an explicit `--apply`.
 DRL 1.1, upstream commit pinned in `sensors/sigma-sources.json`). WHIDS
 loads 278 rules on a converged node. Coverage is reported honestly:
 94.6% rollup, 89.2% exact, 85.9% fidelity-weighted, with the two remaining
-blind spots named.
+blind spots named. A third provenance axis derives `live` / `partial` /
+`dormant` from the shipped Sysmon config, so a rule whose event IDs are not
+enabled cannot inflate the weighted number.
 
 ## Prevention (opt-in)
 

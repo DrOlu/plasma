@@ -417,7 +417,23 @@ SYSMON_BASELINE_CONFIG = (
     '<FileCreateTime onmatch="exclude"/>'
     '<NetworkConnect onmatch="exclude"/>'
     '<ProcessTerminate onmatch="exclude"/>'
-    '<ImageLoad onmatch="exclude"/>'
+    # ImageLoad is high volume; log only unsigned images, which is the
+    # security-relevant subset the Sigma image_load rules care about.
+    '<ImageLoad onmatch="include">'
+    '<Signed condition="is">false</Signed>'
+    '</ImageLoad>'
+    # DriverLoad is low volume and closes the unsigned-driver rule.
+    '<DriverLoad onmatch="include">'
+    '<ImageLoaded condition="begin with">C:\\</ImageLoaded>'
+    '</DriverLoad>'
+    # LSASS access only: the canonical credential-dump signal, bounded.
+    '<ProcessAccess onmatch="include">'
+    '<TargetImage condition="is">C:\\Windows\\System32\\lsass.exe</TargetImage>'
+    '</ProcessAccess>'
+    # Named pipes: creation only, not every connect.
+    '<PipeEvent onmatch="include">'
+    '<EventType condition="is">CreatePipe</EventType>'
+    '</PipeEvent>'
     '<FileCreate onmatch="exclude"/>'
     '<RegistryEvent onmatch="exclude"/>'
     '<DnsQuery onmatch="exclude"/>'

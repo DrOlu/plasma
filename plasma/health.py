@@ -109,6 +109,26 @@ def checks(root) -> list[dict]:
                         "detail": f"not active on this node ({whids_status}) — "
                                   "identity + tap carry detection"})
 
+    # Sysmon config: the rules are only real if the config emits their
+    # event IDs. Static check, so a quiet host is not called unhealthy.
+    if (is_windows and whids_status in ("active", "installing")
+            and sensors.get("sysmon", {}).get("status") == "active"):
+        from . import coverage
+        cfg = root / "tools" / "plasma-sysmon-baseline.xml"
+        enabled = coverage.enabled_event_ids(
+            cfg.parent, filename=cfg.name) if cfg.exists() else None
+        required = {1, 3, 6, 7, 10, 11, 12, 13, 14, 17, 18, 22, 23}
+        if enabled is None:
+            results.append({"check": "sysmon_config", "ok": False,
+                            "detail": f"config not readable: {cfg}"})
+        else:
+            missing = sorted(required - enabled)
+            results.append({
+                "check": "sysmon_config", "ok": not missing,
+                "detail": ("all required event IDs enabled" if not missing
+                           else "missing event IDs: "
+                                + ", ".join(str(i) for i in missing))})
+
     # Sysmon itself, whenever WHIDS is expected to be alive
     if is_windows and whids_status in ("active", "installing"):
         state = _service_state("Sysmon64")

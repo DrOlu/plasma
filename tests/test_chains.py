@@ -245,3 +245,42 @@ def test_kerberos_spray_needs_the_burst_and_the_same_account():
     rows.append(_auth("2026-11-05T05:10:00Z", 4768, "someone.else@CORP.LOCAL"))
     assert not [f for f in chain.scan(rows)
                 if f["type"] == "chain_kerberos_brute_force"]
+
+
+def _trace_row(ts, script, process="loader.exe"):
+    return _row(ts, kind="trace", process=process,
+                description=f"dtrace {script}: event")
+
+
+def test_hollowing_chain_needs_unmap_write_and_thread():
+    rows = [_trace_row("2026-11-05T12:00:00Z", "inject-hollow"),
+            _trace_row("2026-11-05T12:00:20Z", "inject-write"),
+            _trace_row("2026-11-05T12:00:40Z", "inject-remote-thread")]
+    found = [f for f in chain.scan(rows)
+             if f["type"] == "chain_injection_hollow_chain"]
+    assert found and found[0]["score"] == 9
+    assert not [f for f in chain.scan(rows[:2])
+                if f["type"] == "chain_injection_hollow_chain"]
+
+
+def test_section_and_write_chains_require_a_remote_thread():
+    for script, name in (("inject-section", "injection_section_chain"),
+                         ("inject-write", "injection_write_chain")):
+        rows = [_trace_row("2026-11-05T12:00:00Z", script),
+                _trace_row("2026-11-05T12:00:20Z", "inject-remote-thread")]
+        found = [f for f in chain.scan(rows) if f["type"] == f"chain_{name}"]
+        assert found and found[0]["score"] == 9
+        assert not [f for f in chain.scan(rows[:1])
+                    if f["type"] == f"chain_{name}"]
+
+
+def test_hijack_chain_binds_the_same_image():
+    rows = [_trace_row("2026-11-05T12:00:00Z", "inject-hijack"),
+            _trace_row("2026-11-05T12:00:20Z", "inject-remote-thread")]
+    found = [f for f in chain.scan(rows)
+             if f["type"] == "chain_injection_hijack_chain"]
+    assert found and found[0]["score"] == 8
+    other = [_trace_row("2026-11-05T12:00:00Z", "inject-hijack", "a.exe"),
+             _trace_row("2026-11-05T12:00:20Z", "inject-remote-thread", "b.exe")]
+    assert not [f for f in chain.scan(other)
+                if f["type"] == "chain_injection_hijack_chain"]

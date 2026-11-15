@@ -165,7 +165,9 @@ def test_tap_rules_security_channel_not_in_realtime_rules():
 
 def test_file_delete_by_lolbin_matches_binaries_only():
     rule = _rule_by_name(_baseline_rules(), "Plasma File Delete by LOLBin")
-    assert rule["Meta"]["EventIDs"] == [23, 26]
+    # 23 is the archived FileDelete the shipped config enables; 26 is not
+    # enabled, so citing it would make the rule dormant.
+    assert rule["Meta"]["EventIDs"] == [23]
     img = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$img"))
     ext = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$ext"))
     assert img.search(r"C:\Windows\System32\powershell.exe")
