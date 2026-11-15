@@ -4,6 +4,23 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.14.3 — 2026-11-15
+
+Fix the section-injection predicate.
+
+- `NtMapViewOfSection` takes `(SectionHandle, ProcessHandle, ...)`. The
+  script filtered `arg0` (the section handle) against the process
+  pseudo-handle, so the predicate was always true and fired on every
+  section map. It now filters `arg1`.
+- Negative control on WS2: the old predicate produced 12 rows in 5 s
+  (including Sysmon mapping its own sections); the fixed predicate produced
+  0. The chain still requires a remote thread from the same image.
+- Removed the constant `remote` / `remote_thread` fields the scripts emitted
+  after the predicate had already established the distinction.
+- The handle test is split per script instead of looping over three
+  different syscall signatures.
+- 583 passed / 21 skipped.
+
 ## 1.14.2 — 2026-11-15
 
 Enable both halves of the named-pipe rule.

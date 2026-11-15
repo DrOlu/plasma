@@ -13,6 +13,6 @@
 syscall:::entry
 /probefunc == "NtCreateThreadEx" && (arg3 & 0xffffffff) != 0xffffffff && execname != "dtrace.exe"/
 {
-    printf("plasma|{\"probe\":\"inject_remote_thread\",\"tid\":%d,\"comm\":\"%s\",\"remote\":\"1\"}\n",
+    printf("plasma|{\"probe\":\"inject_remote_thread\",\"tid\":%d,\"comm\":\"%s\"}\n",
            tid, execname);
 }

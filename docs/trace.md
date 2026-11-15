@@ -56,12 +56,12 @@ plasma trace list
 | `process-create` | T1059 | 5 | `NtCreateUserProcess` / `NtCreateThreadEx` entries: tid, image |
 | `etw-kernel-process` | T1057 | 4 | ETW `Microsoft-Windows-Kernel-Process` events (header fields only) |
 | `inject-rwx` | T1055 | 5 / 8 | `NtProtectVirtualMemory` granting RWX (base `arg3 & 0xff == 0x40`): tid, image, raw protection, self flag. Self-access scores 5; cross-process scores 8 |
-| `inject-remote-thread` | T1055 | 6 | `NtCreateThreadEx` with a target handle other than the caller: tid, image, remote flag |
+| `inject-remote-thread` | T1055 | 6 | `NtCreateThreadEx` with a target handle other than the caller: tid, image |
 | `inject-apc` | T1055 | 5 (chain 9) | `NtQueueApcThread`, `NtQueueApcThreadEx` or `NtQueueApcThreadEx2`: tid, image, syscall |
 | `inject-hijack` | T1055 | 5 (chain 8) | `NtSetContextThread` on a thread other than the caller (`NtCurrentThread` is -2): tid, image |
-| `inject-hollow` | T1055 | 6 (chain 9) | `NtUnmapViewOfSection` against another process: tid, image, remote flag |
-| `inject-section` | T1055 | 5 (chain 9) | `NtMapViewOfSection` into another process: tid, image, remote flag |
-| `inject-write` | T1055 | 5 (chain 9) | `NtWriteVirtualMemory` into another process: tid, image, remote flag |
+| `inject-hollow` | T1055 | 6 (chain 9) | `NtUnmapViewOfSection` against another process (arg0): tid, image |
+| `inject-section` | T1055 | 5 (chain 9) | `NtMapViewOfSection` into another process (arg1 is the ProcessHandle; arg0 is the SectionHandle): tid, image |
+| `inject-write` | T1055 | 5 (chain 9) | `NtWriteVirtualMemory` into another process (arg0): tid, image |
 
 Scripts live in `sensors/dtrace/*.d`, carry metadata in `/* */` block
 comments, and are validated before use: an allowlisted provider is required,
@@ -147,6 +147,12 @@ thread from the same image:
 
 The write chain is the one that leaves neither an RWX flip nor a new thread
 on its own; it still requires the remote thread to complete the story.
+
+**Volume:** `inject-section` is the noisiest primitive. `NtMapViewOfSection`
+is used by every memory-mapped file and .NET assembly load; the predicate
+requires a remote process handle (arg1), and the chain requires a remote
+thread, but expect rows on hosts that map sections heavily. The other three
+scripts are low-volume by comparison.
 
 **This is evidence, not prevention.** DTrace observes the syscall boundary;
 it cannot block an injection. `raise(` remains forbidden in reviewed

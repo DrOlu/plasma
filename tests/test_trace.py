@@ -492,12 +492,19 @@ def test_dtrace_scripts_do_not_inflate_coverage():
 
 
 def test_new_injection_scripts_compare_the_right_handles():
+    """Each syscall has a different ProcessHandle position; a shared loop
+    hid the section bug (arg0 is the SectionHandle, arg1 the process)."""
     hijack = (REPO_SCRIPTS / "inject-hijack.d").read_text()
     assert "NtSetContextThread" in hijack
     assert "(arg0 & 0xffffffff) != 0xfffffffe" in hijack   # NtCurrentThread
+
     for name, func in (("inject-hollow", "NtUnmapViewOfSection"),
-                       ("inject-section", "NtMapViewOfSection"),
                        ("inject-write", "NtWriteVirtualMemory")):
         text = (REPO_SCRIPTS / f"{name}.d").read_text()
         assert func in text
         assert "(arg0 & 0xffffffff) != 0xffffffff" in text
+
+    section = (REPO_SCRIPTS / "inject-section.d").read_text()
+    assert "NtMapViewOfSection" in section
+    assert "(arg1 & 0xffffffff) != 0xffffffff" in section
+    assert "(arg0 & 0xffffffff) != 0xffffffff" not in section
