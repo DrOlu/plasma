@@ -21,6 +21,9 @@ Operators can ask plain-English questions about what happened: *"why did
 WHIDS report PID 4832?"*, *"which processes made outbound connections?"*,
 *"any persistence on WS2?"*
 
+**Detects always. Contains only when armed. Blocks only through Microsoft's
+own enforcement points.**
+
 The shipped WHIDS sensor config is detect-only (`report`): it reports, it
 does not kill. Prevention is a separate, opt-in layer — `plasma enforce`
 for policy-gated containment and `plasma prevent` for AppLocker, firewall,
