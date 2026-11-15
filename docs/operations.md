@@ -62,6 +62,23 @@ investigate / act now**. `watch-state.json` records each run;
   next sweep.
 - `plasma notify show` validates the file; `plasma notify test` sends one.
 
+## Enforcement and prevention
+
+```powershell
+plasma enforce status                  # policy, journal counts, kill switch
+plasma enforce run                     # dry-run proposals
+plasma enforce run --apply             # arm this run; policy still gates
+plasma enforce pending
+plasma enforce approve --id 4 --apply
+plasma prevent status                  # read-only posture
+plasma prevent rollback --id 7 --apply # undo an applied prevention control
+```
+
+`enforce-journal.jsonl` records every decision (including refusals and
+cooldowns); `prevent-journal.jsonl` records every control change with its
+undo recipe. Prevention backups live in `prevent-backups/`. Neither file is
+rotated automatically — they are audit records.
+
 ## Store hygiene
 
 ```powershell

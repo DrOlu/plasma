@@ -71,6 +71,8 @@ Terms used consistently in this documentation:
 | **Finding** | A scored statement about risk, produced by a rule, chain, drift comparison, or fleet correlation |
 | **Action** | A named, reversible mutation of the host (actuate) |
 | **Playbook** | A named sequence of actions applied as one plan-gated unit |
+| **Enforcement** | A policy that maps findings to allowlisted actions automatically (`enforce`) |
+| **Prevention control** | A Windows enforcement point configured by Plasma: AppLocker, firewall egress, Defender ASR, LSA protection (`prevent`) |
 
 ## The on-device brain
 

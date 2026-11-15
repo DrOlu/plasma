@@ -5,12 +5,14 @@
 **Documentation:** https://drolu.github.io/plasma/
 **One-page visual overview:** https://drolu.github.io/plasma/onepager.html
 
-Plasma packages three layers into one installable product:
+Plasma packages three detection/agent layers plus an opt-in prevention plane into one installable product:
 
 ```
 WHIDS agent             detection (gene rules) + artifact collection + response
 neuralOS engine         on-device 121M tool-calling model (selection only)
 frozen instance         Pydantic contract + probe menu + bridge + graph layer
+prevention (opt-in)     enforce: policy-gated containment
+                        prevent: AppLocker · egress · ASR · LSA protection
 ```
 
 The result is an endpoint agent whose detection stays deterministic (WHIDS
@@ -19,10 +21,11 @@ Operators can ask plain-English questions about what happened: *"why did
 WHIDS report PID 4832?"*, *"which processes made outbound connections?"*,
 *"any persistence on WS2?"*
 
-The shipped WHIDS config is detect-only (`report`); it does not kill or block.
-The model is **never** in the response path. Situational awareness is the
-model's job; response remains policy-driven and, for model recommendations,
-human-approved.
+The shipped WHIDS sensor config is detect-only (`report`): it reports, it
+does not kill. Prevention is a separate, opt-in layer — `plasma enforce`
+for policy-gated containment and `plasma prevent` for AppLocker, firewall,
+Defender ASR and LSA controls. The model is **never** in the action path;
+containment runs through written policy, an approval queue and a journal.
 
 ## Agent-native operation
 
@@ -159,6 +162,44 @@ refused (WinRM, TermService, WHIDS, Sysmon, BFE, MpsSvc, lsass, ...);
 rule so management access survives isolation; `--reason` is mandatory;
 every apply and undo is journaled (`actuate-journal.jsonl`) with its
 verification result; nothing runs without an explicit `--apply`.
+
+## Prevention (opt-in)
+
+Two tiers, both dry-run first and off by default.
+
+**Containment** — findings become allowlisted, reversible actions:
+
+```powershell
+plasma enforce status
+plasma enforce run                       # proposals only
+plasma enforce run --apply               # policy still gates each action
+plasma watch once --enforce              # sweep + policy in one cron entry
+plasma enforce pending                   # isolation etc. wait for a human
+plasma enforce approve --id 4 --apply
+```
+
+Injection findings kill the accessing process; a tripped canary queues host
+isolation for approval. Score floor, action allowlist, per-run cap,
+per-target cooldown, approval queue and kill switch are all enforced in
+code, and every apply still passes actuate's dry-run + plan gate.
+
+**Enforcement points** — stop behaviour before it runs:
+
+```powershell
+plasma prevent status
+plasma prevent applocker --mode audit                 # plan
+plasma prevent applocker --mode audit --apply --plan 3 --reason "pilot"
+plasma prevent egress --allow 10.0.0.0/8 --allow 1.2.3.4:443
+plasma prevent asr --ids <rule-guid> --action Audit
+plasma prevent lsa
+plasma prevent rollback --id 7 --apply
+```
+
+AppLocker (audit by default), firewall egress default-deny with a mandatory
+allowlist, Defender ASR and LSA protection. Plasma ships no kernel driver:
+inline blocking is delegated to Microsoft's signed enforcement points, with
+Plasma owning policy, evidence and rollback. Details and limits:
+<https://drolu.github.io/plasma/prevention/>.
 
 ## ETW tap (krabsetw) — the gap providers
 

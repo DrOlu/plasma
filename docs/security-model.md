@@ -6,11 +6,18 @@ to a marketing page.
 
 ## Guarantees
 
-1. **Read-only first.** Collectors and probes read. The only mutations come
-   from `actuate`, and only behind a dry-run + plan gate.
-2. **Human gate is enforced in code.** `--apply` without `--plan <dry-run
-   id>` is refused; the plan must match the action, the target and the
-   rendered payload digest.
+1. **Read-only by default.** Collectors and probes read. Mutations happen
+   only in two opt-in planes, both dry-run first:
+   - **Containment** (`actuate`, driven by `plasma enforce`) — named,
+     reversible actions behind a plan gate and a policy.
+   - **Enforcement points** (`plasma prevent`) — AppLocker, firewall,
+     Defender ASR and LSA controls, plan-gated on the rendered payload and
+     rollbackable by journal id.
+2. **Gate is enforced in code.** Manual applies require `--plan <dry-run
+   id>` matching the action, target and payload digest. Automatic
+   containment still runs through actuate's dry-run + plan gate, and only
+   after a written policy allows the action and a human approves
+   high/critical actions.
 3. **Allowlisted actions only.** No arbitrary shell. Targets are validated
    against strict patterns; protected services, processes and accounts are
    refused before any payload runs.
@@ -38,7 +45,9 @@ to a marketing page.
 | Payload manifest (SHA-256 per file) | inside the installed bundle | tampered sensor payloads |
 | Release `SHA256SUMS` | published with each release | corrupted downloads |
 | Pinned Authenticode signer | baked into the installed exe (`update.py`) | a compromised release page/repository |
-| WHIDS detect-only config | `config.toml` (all action bands `report`) | the EDR acting destructively |
+| WHIDS detect-only config | `config.toml` (all action bands `report`) | the sensor acting destructively |
+| Enforcement policy + journal | `config.json`, `enforce-journal.jsonl` | unattended actions exceeding policy |
+| Prevention journal + backups | `prevent-journal.jsonl`, `prevent-backups/` | unrecoverable policy changes |
 | Refusal gate (`GATE_VERSION 1`) | frozen instance | the model guessing instead of refusing |
 
 ## Threat model boundaries
@@ -53,8 +62,11 @@ to a marketing page.
 
 **Explicitly out of scope (today):**
 
-- **Real-time blocking.** Plasma does not stop process execution or
-  interrupt syscalls. It detects and responds with named actions.
+- **Inline blocking from a Plasma driver.** Plasma ships no minifilter,
+  WFP callout or process-veto driver. Prevention is delivered through
+  Windows enforcement points (AppLocker, firewall, Defender ASR, LSA
+  protection) configured by `plasma prevent`, plus containment actions.
+  A process can therefore execute once before containment.
 - **Kernel-level self-protection.** There is no Plasma driver; a
   local administrator can stop the services. (Sysmon and WHIDS can be
   protected by their own mechanisms, but Plasma does not claim tamper-proof

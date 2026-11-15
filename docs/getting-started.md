@@ -46,7 +46,8 @@ The installer:
 1. verifies the embedded payload against its SHA-256 manifest;
 2. decides FULL or MINIMAL from the box's actual state;
 3. installs Sysmon when needed (official package, EULA accepted non-interactively);
-4. provisions WHIDS in **detect-only** mode and registers the service;
+4. provisions WHIDS in **detect-only** mode and registers the service
+   (prevention is separate and off by default);
 5. writes `config.json` (sensors, paths, install mode);
 6. flips `instances\current` to the new version atomically;
 7. reports the whole decision as JSON.
@@ -108,6 +109,22 @@ plasma watch once     # health + drift + new alerts + chains → verdict
 Exit codes: `0` clean, non-zero when findings exist — ideal for Task
 Scheduler. Configure Telegram/webhook delivery in
 `C:\ProgramData\Plasma\notify.json` (see [Operations](operations.md)).
+
+## Optional: prevention
+
+Blocking is opt-in. Start with observations, then a plan:
+
+```powershell
+plasma enforce status                 # policy, journal, kill switch
+plasma enforce run                    # proposals only (dry-run)
+plasma prevent status                 # AppLocker / Defender / firewall posture
+plasma prevent applocker --mode audit # generate a plan; nothing applied yet
+```
+
+To arm containment, set `enforcement.enabled` and `mode: "enforce"` in
+`config.json`, then run `plasma watch once --enforce`. Start with
+`allowed_actions: ["kill_process"]` and leave isolation behind approval.
+The full safety model is in [Prevention and blocking](prevention.md).
 
 ## Upgrade
 

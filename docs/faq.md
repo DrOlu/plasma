@@ -27,8 +27,19 @@ tails on the desk.
 
 ### Can it block or kill automatically?
 
-No. Every mutation requires a human passing `--apply --plan <id>` from a
-seen dry-run. Detection is automatic; response is not.
+Yes, if you configure it. There are two tiers, both **off by default**:
+
+- **Containment** (`plasma enforce`) reacts to findings in seconds:
+  injection findings kill the accessing process; a tripped canary queues
+  host isolation for approval. Policy sets the score floor, allowlist,
+  cooldown, per-run cap and which actions need a human.
+- **Enforcement points** (`plasma prevent`) stop behaviour before it runs
+  by configuring AppLocker, firewall egress, Defender ASR and LSA
+  protection. Each control is dry-run first, plan-gated, verified and
+  rollbackable by journal id.
+
+Every apply still passes a dry-run + plan gate, and the kill switch blocks
+all containment. Plasma does not ship its own kernel driver.
 
 ### Does the AI decide anything?
 

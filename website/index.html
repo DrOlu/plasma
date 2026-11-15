@@ -356,6 +356,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <a href="#sensors">Sensors</a>
       <a href="#detection">Detection</a>
       <a href="#response">Response</a>
+      <a href="#prevention">Prevention</a>
       <a href="#fleet">Fleet</a>
       <a href="#deploy">Deploy</a>
       <a href="#dtrace">DTrace</a>
@@ -381,7 +382,8 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <p class="sub">
         Plasma is a <strong>lake-less, agent-native Windows EDR</strong>: on-box sensors normalize into
         one local event contract, an agent harness investigates through a typed capability contract,
-        and every response is policy-gated, journaled and reversible.
+        and every response is policy-gated, journaled and reversible. Prevention is
+        opt-in: containment in seconds, or Windows enforcement points that stop it first.
       </p>
       <div class="hero-cta">
         <a class="btn pink" href="https://drolu.github.io/plasma/">Read the documentation →</a>
@@ -389,9 +391,9 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       </div>
       <div class="hero-badges">
         <span><b>0</b> standing cloud calls</span>
-        <span><b>16</b> gene rules</span>
+        <span><b>18</b> gene rules</span>
         <span><b>11</b> typed agent tools</span>
-        <span><b>36</b> ATT&amp;CK techniques</span>
+        <span><b>37</b> ATT&amp;CK techniques</span>
         <span><b>1</b> self-contained exe</span>
       </div>
     </div>
@@ -412,7 +414,11 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 
 <span class="c">$ plasma actuate apply kill_process --target 4242</span>
 {<span class="b">"mode"</span>:<span class="y">"plan"</span>, <span class="b">"plan"</span>:17, <span class="b">"undo"</span>:true}
-<span class="p">↳ nothing ran. pass --apply --plan 17 to act.</span></pre>
+<span class="p">↳ nothing ran. pass --apply --plan 17 to act.</span>
+
+<span class="c">$ plasma enforce run --apply</span>
+{<span class="b">"applied"</span>:1, <span class="b">"pending"</span>:1, <span class="b">"policy"</span>:<span class="y">"enforce"</span>}
+<span class="p">↳ kill applied; isolation queued for approval.</span></pre>
       </div>
     </div>
   </div>
@@ -432,6 +438,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <div class="stat"><div class="num"><span data-count="64.7" data-dec="1">0</span><small>%</small></div><div class="lbl">fidelity-weighted</div></div>
       <div class="stat"><div class="num"><span data-count="13">0</span></div><div class="lbl">reversible actions</div></div>
       <div class="stat"><div class="num"><span data-count="11">0</span></div><div class="lbl">typed agent tools</div></div>
+      <div class="stat"><div class="num"><span data-count="2">0</span></div><div class="lbl">prevention tiers</div></div>
       <div class="stat"><div class="num"><span data-count="558">0</span></div><div class="lbl">tests passing</div></div>
     </div>
   </div>
@@ -502,8 +509,8 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <div class="stage">
         <div class="n">04 · Desk</div>
         <h4>Act</h4>
-        <p>Pull-based questions, drift, chains, coverage, fleet and plan-gated response. No inbound service on the host.</p>
-        <div class="chips"><span>winrm</span><span>case files</span><span>dry-run first</span></div>
+        <p>Pull-based questions, drift, chains, coverage, fleet, plan-gated response and opt-in prevention. No inbound service on the host.</p>
+        <div class="chips"><span>winrm</span><span>case files</span><span>dry-run first</span><span>enforce · prevent</span></div>
       </div>
     </div>
 
@@ -605,17 +612,17 @@ plasma control audit verify</pre>
       </article>
 
       <article class="card c-lav reveal">
-        <div class="cap"><span>WHIDS</span><b>16 rules</b></div>
+        <div class="cap"><span>WHIDS</span><b>19 rules</b></div>
         <h3>Gene rules</h3>
-        <p>15 written baseline rules plus the IOC feed — 16 loaded on a converged node. Detect-only: every action band is set to report, never kill or block.</p>
+        <p>18 written baseline rules plus the IOC feed — 19 loaded on a converged node. The sensor is detect-only: every action band is set to report. Prevention is a separate, opt-in Plasma layer.</p>
         <div class="tags"><span>T1059</span><span>T1003</span><span>T1070.004</span><span>T1547.001</span></div>
       </article>
 
       <article class="card c-orange reveal">
-        <div class="cap"><span>Identity</span><b>4624/4625</b></div>
+        <div class="cap"><span>Identity</span><b>auth + lineage</b></div>
         <h3>Logon plane</h3>
-        <p>Logon events through the Event Log API. UTC-normalized, deduplicated, and joined across hosts by the desk when you ask.</p>
-        <div class="tags"><span>logon type</span><span>source IP</span><span>cross-host</span></div>
+        <p>Logons, Kerberos, NTLM and 4688 process lineage through the Event Log API. UTC-normalized, deduplicated, and joined across hosts when you ask.</p>
+        <div class="tags"><span>4768/4769</span><span>4776</span><span>4688 lineage</span></div>
       </article>
 
       <article class="card reveal">
@@ -643,7 +650,7 @@ plasma control audit verify</pre>
         <div class="cap"><span>DTrace</span><b>surgical</b></div>
         <h3>A microscope, not a standing tap</h3>
         <p>Reviewed D scripts for syscall errors, process creation and kernel-process ETW. Bounded by a wall-clock window and a row cap; the process is killed at the end. No <code>-w</code>, no <code>system()</code>, no persistence.</p>
-        <div class="tags"><span>T1106</span><span>T1059</span><span>T1057</span><span>3 scripts</span><span>tid</span></div>
+        <div class="tags"><span>T1106</span><span>T1059</span><span>T1057</span><span>6 scripts</span><span>tid</span></div>
       </article>
 
       <article class="card reveal">
@@ -809,10 +816,57 @@ plasma control audit verify</pre>
       </div>
       <div class="card c-coral">
         <h3>What it will not do</h3>
-        <p>No free-form command execution. No deleting a protected account or service. No silent unisolate. No response in detect-only mode until an operator supplies the plan id.</p>
+        <p>No free-form command execution. No deleting a protected account or service. No silent unisolate. Automatic containment exists, but only under a written policy and, for high-impact actions, a human approval.</p>
         <div class="mini">an EDR that cannot remove remote access is a liability.</div>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- PREVENTION -->
+<section class="block alt" id="prevention">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Prevention</span>
+      <h2>Two speeds of stopping things.</h2>
+      <p class="lede">Containment reacts in seconds and can be reversed. Enforcement points stop the behaviour before it starts. Both are off by default, dry-run first, and journaled.</p>
+    </div>
+
+    <div class="grid c2 reveal">
+      <div class="card c-coral">
+        <div class="cap"><span>Tier 0</span><b>react</b></div>
+        <h3>Containment</h3>
+        <p><code>plasma enforce</code> turns findings into allowlisted, reversible actions. Injection findings kill the accessing process; a tripped canary queues host isolation for approval. Score floor, per-run cap, per-target cooldown, approval queue and kill switch are enforced in code.</p>
+        <div class="mini">applied in the estate drill: 1 kill · 1 isolation held for approval</div>
+      </div>
+      <div class="card c-lime">
+        <div class="cap"><span>Tier 1</span><b>prevent</b></div>
+        <h3>Enforcement points</h3>
+        <p><code>plasma prevent</code> configures what Microsoft already enforces: AppLocker for execution, firewall egress default-deny, Defender ASR rules and LSA protection. Each control is plan-gated on its rendered payload and rollbackable by journal id.</p>
+        <div class="mini">drill: AppLocker audit applied 4 rules → rollback 0</div>
+      </div>
+    </div>
+
+    <div class="grid c3 reveal" style="margin-top:16px">
+      <div class="card">
+        <h3>Off by default</h3>
+        <p>Enforcement needs <code>enabled</code> plus <code>mode: "enforce"</code>. Prevention controls only change a host after an operator applies a seen plan.</p>
+      </div>
+      <div class="card">
+        <h3>Bounded blast radius</h3>
+        <p>Minimum score, action allowlist, actions-per-run cap and per-target cooldown. Protected services, processes and accounts are refused.</p>
+      </div>
+      <div class="card">
+        <h3>No Plasma driver</h3>
+        <p>Inline blocking is delegated to Microsoft's signed enforcement points. Plasma owns policy, evidence and rollback — and says so plainly.</p>
+      </div>
+    </div>
+
+    <pre class="reveal" style="margin-top:16px"><span class="c">$ plasma prevent applocker --mode audit</span>
+{<span class="b">"status"</span>:<span class="y">"dry-run"</span>, <span class="b">"id"</span>:3, <span class="b">"preview"</span>:"&lt;AppLockerPolicy …"}
+
+<span class="c">$ plasma prevent applocker --mode audit --apply --plan 3 --reason "pilot"</span>
+{<span class="b">"status"</span>:<span class="y">"applied"</span>, <span class="b">"verification"</span>:{<span class="b">"rules"</span>:4, <span class="b">"audit"</span>:true}}</pre>
   </div>
 </section>
 
@@ -992,12 +1046,12 @@ plasma store rotate --events events.jsonl --max-mb 256</pre>
   <div class="wrap">
     <div class="section-head reveal">
       <span class="kicker">Security model</span>
-      <h2>Read-only first. Deterministic always.</h2>
-      <p class="lede">The design assumes the box may be compromised and the operator may be wrong. Both are handled with evidence and gates, not promises.</p>
+      <h2>Read-only by default. Gated when it acts.</h2>
+      <p class="lede">The design assumes the box may be compromised and the operator may be wrong. Both are handled with evidence and gates, not promises. Prevention exists — and is never implicit.</p>
     </div>
 
     <div class="principles reveal">
-      <div class="pr"><div class="n">01</div><h4>Read-only first</h4><p>Nothing changes on a host until a human passes <code>--apply --plan &lt;id&gt;</code>.</p></div>
+      <div class="pr"><div class="n">01</div><h4>Read-only by default</h4><p>Collectors read. Mutations happen only in the response and prevention planes, after a plan you have seen — or under a written enforcement policy you enabled.</p></div>
       <div class="pr"><div class="n">02</div><h4>Deterministic detection</h4><p>Rules and chains are written code. The model selects probes; it never decides guilt.</p></div>
       <div class="pr"><div class="n">03</div><h4>Bounded collectors</h4><p>Every collector has a time window, row cap and size cap. No unbounded tail.</p></div>
       <div class="pr"><div class="n">04</div><h4>Local by default</h4><p>Events stay on the host. The desk pulls only what it needs, only when asked.</p></div>
@@ -1008,12 +1062,12 @@ plasma store rotate --events events.jsonl --max-mb 256</pre>
     <div class="grid c3 reveal" style="margin-top:16px">
       <div class="card c-lime">
         <h3>Tested on a live estate</h3>
-        <p>Two Windows Server 2022 hosts: signed updates, 16 gene rules, Sysmon FileDelete, canaries, fleet correlation, MSI install and DTrace runs — plus the field WHIDS dump-tree hang, recovered and permanently bounded.</p>
-        <div class="mini">509 unit tests · 21 skipped</div>
+        <p>Two Windows Server hosts: signed updates, 18 gene rules, Sysmon FileDelete, canaries, fleet correlation, AppLocker/egress apply-and-rollback drills, MSI install and DTrace runs — plus the field WHIDS dump-tree hang, recovered and permanently bounded.</p>
+        <div class="mini">558 unit tests · 21 skipped</div>
       </div>
       <div class="card c-orange">
         <h3>Known limits</h3>
-        <p>Not a kernel driver of its own. No memory scanning. Coverage gaps are named. DTrace needs a host that supports it. There is no central console by design.</p>
+        <p>No kernel driver of its own: inline blocking uses AppLocker, firewall, ASR and LSA. No memory scanning. Coverage gaps are named. DTrace needs a host that supports it. No central console by design.</p>
         <div class="mini">blind spots: T1056 · T1056.001 · T1112</div>
       </div>
       <div class="card c-lav">
@@ -1034,6 +1088,10 @@ plasma store rotate --events events.jsonl --max-mb 256</pre>
     </div>
     <div class="faq reveal">
       <details>
+        <summary>Does Plasma block anything?</summary>
+        <p>Yes, if you turn it on. Two tiers: <code>enforce</code> reacts to findings with allowlisted, reversible actions (kill the accessing process, isolate a host); <code>prevent</code> configures AppLocker, firewall egress, Defender ASR and LSA protection so the behaviour never starts. Both are off by default and dry-run first. Plasma ships no kernel driver of its own.</p>
+      </details>
+      <details>
         <summary>Is this a replacement for commercial EDR?</summary>
         <p>It is a different trade. Plasma trades the vendor console and the cloud lake for on-box evidence, a closed probe menu, and reversible actions. For commodity malware blocking at scale, a commercial EDR may still be the right tool. For identity-led investigation, lateral movement, LOTL and root-cause on boxes you administer, Plasma is deliberately better at answering “what happened here?”</p>
       </details>
@@ -1047,7 +1105,7 @@ plasma store rotate --events events.jsonl --max-mb 256</pre>
       </details>
       <details>
         <summary>Why is WHIDS detect-only?</summary>
-        <p>Because an EDR that can remove remote access can lock its operators out. Every action band is set to <code>report</code>. Response lives in <code>actuate</code>, behind a human plan gate and an undo journal.</p>
+        <p>Because a sensor that can remove remote access can lock its operators out. Every WHIDS action band is set to <code>report</code>. Action lives in Plasma: <code>actuate</code> for manual response, <code>enforce</code> for policy-gated containment, <code>prevent</code> for Windows enforcement points — all journaled and reversible.</p>
       </details>
       <details>
         <summary>What happens when WHIDS hangs?</summary>
