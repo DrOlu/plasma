@@ -81,6 +81,24 @@ def _repo_sensors() -> Path:
 FIDELITY_WEIGHTS = {"high": 1.0, "medium": 0.7, "low": 0.4}
 FIDELITY_RANK = {"high": 3, "medium": 2, "low": 1}
 
+# Match keys a tap rule can carry. A rule whose matches are all `substr` is a
+# keyword match over provider text; anything structured (field equals/regex)
+# is behavioural evidence. Deriving this from the rule shape means the label
+# cannot drift away from the rule the way a hand-maintained "evidence" field
+# would.
+TAP_MATCH_KEYS = ("substr", "regex", "equals", "contains", "startswith",
+                  "endswith")
+KEYWORD_MATCH_KEYS = {"substr"}
+
+
+def rule_evidence(rule: dict) -> str:
+    """Evidence class for one tap rule, derived from its match shape."""
+    kinds = {key for key in TAP_MATCH_KEYS if key in rule}
+    if not kinds:
+        # Unknown shape: do not claim behavioural evidence we cannot see.
+        return "keyword"
+    return "keyword" if kinds <= KEYWORD_MATCH_KEYS else "behavioural"
+
 # Gene rules carry no fidelity field in the WHIDS schema; the judgement lives
 # here, next to the coverage math that consumes it.
 GENE_FIDELITY = {
@@ -127,7 +145,7 @@ def collect_rule_techniques(sensors_dir=None) -> dict:
         tech = rule.get("technique", "")
         if _T_RE.fullmatch(tech):
             add(tech, f"tap:{rule['name']}", rule.get("fidelity"),
-                rule.get("evidence", "behavioural"))
+                rule_evidence(rule))
 
     gen = sensors / "plasma-baseline.gen"
     if gen.exists():

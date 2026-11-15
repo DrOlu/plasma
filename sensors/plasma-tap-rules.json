@@ -258,8 +258,7 @@
       "substr": "Invoke-Shellcode",
       "severity": "critical",
       "technique": "T1055",
-      "fidelity": "high",
-      "evidence": "keyword"
+      "fidelity": "high"
     },
     {
       "name": "ps-invoke-dllinjection",
@@ -269,8 +268,7 @@
       "substr": "Invoke-DllInjection",
       "severity": "critical",
       "technique": "T1055.001",
-      "fidelity": "high",
-      "evidence": "keyword"
+      "fidelity": "high"
     },
     {
       "name": "ps-compress-archive",

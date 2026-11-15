@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.10.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.10.1</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.10.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.10.1</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">91.9% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">509 tests</span>
+<span class="raft-badge">513 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -81,7 +81,7 @@ DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
 ```
 
-## What's new in 1.10.0
+## What's new in 1.10.1
 
 - **Sigma conversion** — `plasma sigma convert` turns Sigma YAML into gene
   rules and reports every refusal, instead of hand-copying detections.
@@ -91,10 +91,14 @@ DESK               status · ask · drift · chains · coverage · fleet ·
 - **Three Sysmon gaps** — LSASS access (10), unsigned driver load (6), and
   suspicious named pipes (17/18).
 - **Standing identity** — a SYSTEM task pulls 4624/4625 every 15 minutes.
-- **Coverage provenance** — keyword-only T1055 evidence is labelled and
-  weighted down; T1021 is covered. 91.9 rollup / 75.7 exact / 80.3 weighted;
-  blind spots T1056, T1056.001, T1112.
-- 509 tests pass (21 skipped).
+- **Coverage provenance** — evidence class is derived from rule shape, so
+  all 15 substr-only techniques (`T1055`, `T1059`, `T1071`, `T1078`, …)
+  are labelled keyword-only and weighted down; T1021 is covered.
+  91.9 rollup / 75.7 exact / 64.7 weighted; blind spots T1056,
+  T1056.001, T1112.
+- **PyYAML is a feature dependency** — `plasma sigma convert` asks for it
+  on use; every other command starts and runs without it.
+- 513 tests pass (21 skipped).
 
 ## What's new in 1.9.5
 
@@ -353,8 +357,9 @@ Prefer a visual tour? **[Open the one-page overview](https://drolu.github.io/pla
 - **Story detection** — deterministic chain rules (phish spawn, brute-force
   success, persistence-after-privilege) that fire on sequences, not single
   events, and run inside every `watch` sweep.
-- **Honest ATT&CK coverage** — 91.9% with parent rollup, 80.3%
-  fidelity-weighted (keyword-only evidence discounted), and the blind spots named out loud.
+- **Honest ATT&CK coverage** — 91.9% with parent rollup, 64.7%
+  fidelity-weighted (keyword-only evidence derived and discounted), and the
+  blind spots named out loud.
 - **Deep persistence probe** — every auto-start location with Authenticode
   status and a surfaced `suspect` heuristic; no driver, no service.
 - **Signed updates** — `update apply` refuses any binary whose Authenticode

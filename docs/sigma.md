@@ -10,6 +10,10 @@ plasma sigma convert --in .\sigma-rules --out sensors\plasma-sigma.gen
 plasma sigma convert --in rule.yml --dry-run
 ```
 
+PyYAML is loaded only when this command runs. Every other Plasma command
+starts and works without it; if it is missing here you get one clear message
+instead of an import traceback at startup.
+
 Output is JSONL in the WHIDS gene schema, ready to drop into
 `Database\Rules` (or `plasma whids push` for indicators). Duplicate names
 are refused; the converter prints `converted`, `files` and a `skipped` list

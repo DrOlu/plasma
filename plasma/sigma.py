@@ -23,8 +23,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import yaml
-
 LEVEL_SCORE = {"critical": 9, "high": 8, "medium": 6, "low": 4,
                "informational": 2}
 CHANNEL_SYSMON = "Microsoft-Windows-Sysmon/Operational"
@@ -49,6 +47,22 @@ _T_RE = re.compile(r"attack\.(t\d{4}(?:\.\d{3})?)", re.I)
 
 class SigmaError(ValueError):
     pass
+
+
+def _yaml():
+    """PyYAML is a Sigma feature dependency, not a startup dependency.
+
+    The CLI imports this module unconditionally, so a module-level import
+    would make every command fail on a host without PyYAML. Importing it at
+    first use keeps the product's no-dependency startup path intact.
+    """
+    try:
+        import yaml
+    except ImportError as exc:  # pragma: no cover - depends on environment
+        raise SigmaError(
+            "Sigma conversion needs PyYAML (pip install pyyaml); "
+            "all other plasma commands run without it") from exc
+    return yaml
 
 
 def _regex(value, modifier: str) -> str:
@@ -214,6 +228,7 @@ def convert_path(path) -> dict:
     base = Path(path)
     files = [base] if base.is_file() else sorted(
         list(base.rglob("*.yml")) + list(base.rglob("*.yaml")))
+    yaml = _yaml()
     rules, skipped = [], []
     for file in files:
         try:

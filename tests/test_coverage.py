@@ -131,11 +131,31 @@ def test_sensors_resolve_from_frozen_bundle(tmp_path, monkeypatch):
 
 
 def test_keyword_only_evidence_is_labelled_and_discounted():
-    """T1055 must not hide a PowerShell substring behind high fidelity."""
+    """Every substr-only tap rule is keyword evidence, derived not declared."""
     cov = coverage.coverage()
-    assert cov["keyword_only"] == ["T1055", "T1055.001"]
+    assert cov["keyword_only"] == [
+        "T1055", "T1055.001", "T1059", "T1059.001", "T1071", "T1071.001",
+        "T1071.004", "T1078", "T1078.003", "T1105", "T1134", "T1546.003",
+        "T1560.001", "T1562.001", "T1564.003"]
     assert cov["covered"]["T1055"]["evidence"] == "keyword-only"
-    assert any(r.get("evidence") == "keyword"
+    assert all(r["evidence"] == "keyword"
                for r in cov["covered"]["T1055"]["rules"])
-    assert cov["evidence_breakdown"]["keyword_only"] == 2
+    assert cov["evidence_breakdown"] == {"behavioural": 19, "keyword_only": 15}
+    assert cov["weighted_pct"] == 64.7
     assert cov["weighted_pct"] < cov["coverage_pct"]
+
+
+def test_evidence_is_derived_from_match_shape():
+    assert coverage.rule_evidence({"substr": "x"}) == "keyword"
+    assert coverage.rule_evidence({"substr": "x", "regex": "y"}) == "behavioural"
+    assert coverage.rule_evidence({"field": "Image", "equals": "x"}) == "behavioural"
+    # An unrecognised shape cannot claim behavioural evidence.
+    assert coverage.rule_evidence({"field": "Image"}) == "keyword"
+
+
+def test_no_tap_rule_hand_labels_evidence():
+    """Hand-maintained labels drift; the label must come from the rule."""
+    import json
+    doc = json.loads((coverage._repo_sensors() /
+                      "plasma-tap-rules.json").read_text(encoding="utf-8"))
+    assert all("evidence" not in rule for rule in doc["rules"])
