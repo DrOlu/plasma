@@ -116,6 +116,18 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
         findings.append({"type": "canary_scan_error", "score": 5,
                          "detail": str(exc)[:160]})
 
+    # 6. critical-file integrity — configurable FIM baseline.
+    try:
+        from . import fim as fim_mod
+        fres = fim_mod.verify(root)
+        for f in fres.get("findings", []):
+            findings.append({
+                "type": f["type"], "score": f["score"],
+                "detail": f"{f['path']}: {f['detail']}"[:200]})
+    except Exception as exc:  # noqa: BLE001 — collector failures are data
+        findings.append({"type": "fim_scan_error", "score": 5,
+                         "detail": str(exc)[:160]})
+
     top = max((f["score"] for f in findings), default=0)
     return {"info": info, "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "health": hv["status"], "findings": findings, "top_score": top,

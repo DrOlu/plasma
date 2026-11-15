@@ -16,9 +16,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
+import sys
+from pathlib import Path
 
+TASK_NAME = "PlasmaIdentityPull"
 SEVERITY_BY_ID = {4624: "info", 4625: "medium"}
 SCORE_BY_ID = {4624: 0.2, 4625: 0.5}
 
@@ -156,3 +160,81 @@ def pull(events_path, host: str, since_minutes: int = 15) -> dict:
             written += 1
     return {"since_minutes": since_minutes, "logons_seen": len(rows),
             "written": written, "store": str(events)}
+
+
+def _ps_task(script: str, timeout: int = 120) -> tuple[int, str]:
+    exe = shutil.which("powershell.exe") or shutil.which("pwsh")
+    if not exe:
+        return 1, "powershell not available"
+    try:
+        proc = subprocess.run(
+            [exe, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+            capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return 1, str(exc)[:200]
+    return proc.returncode, ((proc.stdout or "") + (proc.stderr or "")).strip()
+
+
+def _canonical_exe(root) -> str | None:
+    bin_dir = Path(root) / "bin"
+    candidates = sorted(bin_dir.glob("plasma-*.exe"),
+                        key=lambda p: p.stat().st_mtime, reverse=True)
+    return str(candidates[0]) if candidates else None
+
+
+def _q(value) -> str:
+    return str(value).replace("'", "''")
+
+
+def schedule(root, every_minutes: int = 15, exe=None) -> dict:
+    """Register a SYSTEM task that pulls logons on a cadence.
+
+    Authentication is the one thing a HIDS should watch continuously; leaving
+    4624/4625 behind an operator command made brute force a scheduled-scan
+    finding. The task runs the same bounded pull `watch` would otherwise
+    require a human to run.
+    """
+    minutes = max(1, min(int(every_minutes), 1440))
+    root = Path(root)
+    exe = exe or _canonical_exe(root) or sys.executable
+    events = root / "data" / "events.jsonl"
+    argument = f'identity pull --events "{events}" --since {minutes}'
+    script = (
+        f"$a = New-ScheduledTaskAction -Execute '{_q(exe)}' "
+        f"-Argument '{_q(argument)}'; "
+        f"$t = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) "
+        f"-RepetitionInterval (New-TimeSpan -Minutes {minutes}) "
+        f"-RepetitionDuration (New-TimeSpan -Days 3650); "
+        f"$p = New-ScheduledTaskPrincipal -UserId 'SYSTEM' "
+        f"-LogonType ServiceAccount -RunLevel Highest; "
+        f"Register-ScheduledTask -TaskName '{TASK_NAME}' -Action $a "
+        f"-Trigger $t -Principal $p -Force | Out-Null"
+    )
+    rc, out = _ps_task(script)
+    return {"ok": rc == 0, "task": TASK_NAME, "every_minutes": minutes,
+            "exe": str(exe), "events": str(events), "detail": out[:200]}
+
+
+def unschedule() -> dict:
+    rc, out = _ps_task(
+        f"Unregister-ScheduledTask -TaskName '{TASK_NAME}' -Confirm:$false")
+    return {"ok": rc == 0, "task": TASK_NAME, "detail": out[:200]}
+
+
+def schedule_status() -> dict:
+    script = (
+        f"$t = Get-ScheduledTask -TaskName '{TASK_NAME}' -ErrorAction SilentlyContinue; "
+        f"if(-not $t){{ '{{\"installed\":false}}' }} else {{ "
+        f"$i = Get-ScheduledTaskInfo -TaskName '{TASK_NAME}'; "
+        f"[pscustomobject]@{{installed=$true; state=[string]$t.State; "
+        f"last_run=[string]$i.LastRunTime; last_result=$i.LastTaskResult; "
+        f"next_run=[string]$i.NextRunTime}} | ConvertTo-Json -Compress }}"
+    )
+    rc, out = _ps_task(script, timeout=60)
+    if rc != 0:
+        return {"installed": None, "error": out[:200]}
+    try:
+        return json.loads(out.splitlines()[-1])
+    except (json.JSONDecodeError, IndexError):
+        return {"installed": None, "error": out[:200]}

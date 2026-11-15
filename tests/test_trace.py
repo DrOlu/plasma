@@ -483,7 +483,7 @@ def test_dtrace_scripts_do_not_inflate_coverage():
     in the always-on breadth number."""
     from plasma import coverage
     r = coverage.coverage()
-    assert round(r["coverage_pct"], 1) == 91.7
-    assert round(r["coverage_exact_pct"], 1) == 75.0
-    assert round(r["weighted_pct"], 1) == 83.3
+    assert round(r["coverage_pct"], 1) == 91.9
+    assert round(r["coverage_exact_pct"], 1) == 75.7
+    assert round(r["weighted_pct"], 1) == 80.3
     assert set(r["blind"]) == {"T1056", "T1056.001", "T1112"}

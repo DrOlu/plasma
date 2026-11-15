@@ -4,6 +4,28 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.10.0 — 2026-11-15
+
+Detection breadth, standing authentication, and coverage honesty.
+
+- **Sigma -> gene converter** (`plasma sigma convert`): Windows/Sysmon
+  categories, field modifiers and boolean conditions map mechanically; every
+  refused rule is reported with its reason.
+- **Three Sysmon gaps closed** — EventID 10 (LSASS access, T1003.001),
+  EventID 6 (unsigned driver from a user-writable path, T1014), EventID
+  17/18 (PsExec/Cobalt-shaped named pipes, T1021/T1090).
+- **FIM** (`plasma fim baseline|verify|status`): configurable critical paths,
+  hash/size diff, and watch findings at 8 (modified/removed) and 6 (added).
+  This is the PCI DSS 11.5.1 control, separate from canaries.
+- **Standing identity pull** — `install`/`update` registers the SYSTEM task
+  `PlasmaIdentityPull` (15 minutes), so 4624/4625 reach the store between
+  operator sweeps. `plasma identity schedule|schedule-status|unschedule`.
+- **Coverage provenance** — T1055/T1055.001 are labelled `keyword-only` and
+  discounted in `weighted_pct`. T1021 is now in the core matrix and covered
+  by the named-pipe rule. Coverage: 91.9 rollup (34/37), 75.7 exact (28/37),
+  80.3 weighted; blind T1056, T1056.001, T1112.
+- 509 passed / 21 skipped.
+
 ## 1.9.5 — 2026-11-15
 
 Consistency and claim corrections.

@@ -45,7 +45,7 @@ Each control is marked `met`, `partial` or `gap`. Gaps are shown, not hidden.
   not an audit opinion.
 - Some controls depend on organisational policy outside Plasma (training,
   supplier contracts, business continuity).
-- Coverage is the shipped-rule view: 91.7% rollup with three named blind
+- Coverage is the shipped-rule view: 91.9% rollup with three named blind
   spots (T1056, T1056.001, T1112).
 - Have counsel map the output to the current CBN/NDPA/PCI/ISO requirements
   before submitting it to a regulator.
