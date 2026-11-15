@@ -201,3 +201,20 @@ def test_missing_sysmon_config_is_unknown_not_dormant(tmp_path):
     cov = coverage.coverage(sensors)
     assert cov["covered"]["T1003.001"]["telemetry"] == "unknown"
     assert cov["weighted_pct"] > 0
+
+
+def test_pipe_telemetry_honours_the_event_type_filter(tmp_path):
+    sensors = tmp_path / "sensors"
+    sensors.mkdir()
+    (sensors / "plasma-tap-rules.json").write_text('{"rules": []}\n')
+    (sensors / "sysmon-config.xml").write_text(
+        '<Sysmon><EventFiltering><PipeEvent onmatch="include">'
+        '<EventType condition="is">CreatePipe</EventType>'
+        '</PipeEvent></EventFiltering></Sysmon>')
+    assert coverage.enabled_event_ids(sensors) == {17}
+    (sensors / "sysmon-config.xml").write_text(
+        '<Sysmon><EventFiltering><PipeEvent onmatch="include">'
+        '<EventType condition="is">CreatePipe</EventType>'
+        '<EventType condition="is">ConnectPipe</EventType>'
+        '</PipeEvent></EventFiltering></Sysmon>')
+    assert coverage.enabled_event_ids(sensors) == {17, 18}

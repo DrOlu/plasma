@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.14.2 — 2026-11-15
+
+Enable both halves of the named-pipe rule.
+
+- The Sysmon `PipeEvent` include filter named only `CreatePipe`, so EID 18
+  (ConnectPipe) never fired. A live pipe-connect test on WS1/WS2 returned
+  zero EID 18 events. The config now includes both types.
+- The telemetry parser honours the `EventType` filter instead of assuming
+  the element enables 17 and 18 together.
+- 583 passed / 21 skipped.
+
 ## 1.14.1 — 2026-11-15
 
 Ship the config the telemetry axis reads.

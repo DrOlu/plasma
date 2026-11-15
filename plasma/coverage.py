@@ -93,6 +93,19 @@ def enabled_event_ids(sensors_dir=None,
         return None
     ids: set[int] = set()
     for child in filtering:
+        if child.tag == "PipeEvent":
+            # 17 = CreatePipe, 18 = ConnectPipe. An include filter that
+            # names only one type does not enable the other.
+            types = {el.text for el in child
+                     if el.tag == "EventType" and el.text}
+            if child.get("onmatch") == "include" and types:
+                if "CreatePipe" in types:
+                    ids.add(17)
+                if "ConnectPipe" in types:
+                    ids.add(18)
+            else:
+                ids |= {17, 18}
+            continue
         ids |= SYSMON_EIDS.get(child.tag, set())
     return ids
 
