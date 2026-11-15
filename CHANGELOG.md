@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.12.1 — 2026-11-15
+
+Field fixes from the first prevention drill on the estate.
+
+- **AppLocker verification** now reads the local policy object. `-Effective`
+  lagged the local write and reported zero rules immediately after a
+  successful apply; the field drill showed `applied: true, rules: 0`.
+  Verified on WS2: apply → 4 rules, audit mode; rollback → 0 rules.
+- **AppLocker rollback** applies an empty policy when there was no prior
+  policy. Removing the registry key did not clear a locally-applied policy;
+  the empty-policy path does (verified on WS2).
+- **Prevention status** no longer reports a phantom `null` ASR rule when
+  Defender returns empty arrays.
+- 558 passed / 21 skipped.
+
 ## 1.12.0 — 2026-11-15
 
 Prevention, in two honest tiers.

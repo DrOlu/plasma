@@ -142,3 +142,19 @@ def test_status_surfaces_what_is_not_available(monkeypatch):
     out = prevent.status()
     assert out["asr"] == {GUID: "AuditMode"}
     assert "asr_ids" not in out
+
+
+def test_applocker_verification_uses_local_policy_not_effective():
+    """Field bug: -Effective lagged the write and reported zero rules."""
+    assert "Get-AppLockerPolicy -Local" in prevent._APPLOCKER_APPLY_PS
+    assert "Get-AppLockerPolicy -Effective" not in prevent._APPLOCKER_APPLY_PS
+
+
+def test_applocker_rollback_clears_with_an_empty_policy():
+    assert "<AppLockerPolicy Version=\"1\" />" in prevent._APPLOCKER_ROLLBACK_PS
+
+
+def test_status_ignores_null_asr_entries(monkeypatch):
+    monkeypatch.setattr(prevent, "_ps_json", lambda s, timeout=120: (
+        {"asr_ids": [None], "asr_actions": []}, None))
+    assert prevent.status()["asr"] == {}
