@@ -98,7 +98,9 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
             cres = chain_mod.scan_store(store)
             for f in cres.get("findings", []):
                 findings.append({"type": f["type"], "score": f["score"],
-                                 "detail": str(f["detail"])[:200]})
+                                 "detail": str(f["detail"])[:200],
+                                 "users": f.get("users"),
+                                 "events": f.get("events")})
     except Exception as exc:  # noqa: BLE001 — collector failures are data
         findings.append({"type": "chain_scan_error", "score": 5,
                          "detail": str(exc)[:160]})
@@ -111,7 +113,8 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
         for t in can.get("tripped", []):
             findings.append({
                 "type": "canary_tripped", "score": 10,
-                "detail": f"canary {t['reason']}: {t['path']}"[:200]})
+                "detail": f"canary {t['reason']}: {t['path']}"[:200],
+                "path": t.get("path"), "reason": t.get("reason")})
     except Exception as exc:  # noqa: BLE001 — collector failures are data
         findings.append({"type": "canary_scan_error", "score": 5,
                          "detail": str(exc)[:160]})
@@ -123,7 +126,8 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
         for f in fres.get("findings", []):
             findings.append({
                 "type": f["type"], "score": f["score"],
-                "detail": f"{f['path']}: {f['detail']}"[:200]})
+                "detail": f"{f['path']}: {f['detail']}"[:200],
+                "path": f.get("path")})
     except Exception as exc:  # noqa: BLE001 — collector failures are data
         findings.append({"type": "fim_scan_error", "score": 5,
                          "detail": str(exc)[:160]})
@@ -214,6 +218,14 @@ def _new_high_alerts(root, alerts_dir: Path) -> list[dict]:
                 "detail": (f"{event.get('description') or 'WHIDS detection'}"
                            f" on {event.get('process') or 'unknown process'}"
                            f" ({event.get('technique') or 'no technique'})")[:200],
+                # Structured entities so enforcement can act on the finding
+                # instead of re-parsing its human-readable detail.
+                "pid": event.get("pid"),
+                "user": event.get("user"),
+                "process": event.get("process"),
+                "dest_ip": event.get("dest_ip"),
+                "technique": event.get("technique"),
+                "alert_id": event.get("alert_id"),
             })
         offsets[key] = {"offset": consumed, "size": size, "head": head}
 

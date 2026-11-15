@@ -173,6 +173,36 @@ plasma playbook undo  --id ID [--apply]
 
 `--apply` requires `--plan` from a seen dry-run of the same action + target.
 
+### enforce
+
+```text
+plasma enforce run [--root DIR] [--apply | --dry-run]
+plasma enforce status
+plasma enforce pending
+plasma enforce approve --id ID [--apply]
+```
+
+Tier 0 prevention: findings become allowlisted, reversible containment.
+Off by default; `--apply` arms a run but the policy still gates each action
+(score floor, allowlist, approval queue, per-run cap, cooldown, kill switch).
+`plasma watch once --enforce` wires it to a sweep.
+
+### prevent
+
+```text
+plasma prevent status
+plasma prevent applocker [--mode audit|enforce] [--allow-path P]... [--apply --plan ID --reason TEXT]
+plasma prevent egress --allow IP[:PORT]... [--apply --plan ID --reason TEXT]
+plasma prevent asr --ids GUID[,GUID] [--action Audit|Enabled|Disabled] [--apply --plan ID --reason TEXT]
+plasma prevent lsa [--off] [--apply --plan ID --reason TEXT]
+plasma prevent rollback --id ID [--apply]
+```
+
+Tier 1 prevention through Windows enforcement points. Every control is
+dry-run first, plan-gated, verified, journaled and undoable by id.
+AppLocker defaults to audit; egress requires an explicit allowlist; ASR needs
+Defender; LSA takes effect after a reboot.
+
 ### update
 
 ```text

@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary, trace, sigma, fim
+from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary, trace, sigma, fim, enforce, prevent
 from . import agentstate, statemachine, policy as agent_policy, ledger, killswitch, tenants, rings, evidence, assurance, evals, mcp as mcp_server, tools as agent_tools
 from . import update as updater
 from .bundle import build_bundle
@@ -802,6 +802,15 @@ def cmd_install(args) -> int:
         "events_path": str(events_path),
         "retention_days": 7,
         "response": {"mode": "advisory", "require_human_approval": True},
+        # Prevention is opt-in: the policy block ships disabled and in
+        # dry-run. Operationally-chosen values survive a reinstall below.
+        "enforcement": {
+            "enabled": False, "mode": "dry-run", "min_score": 9,
+            "allowed_actions": ["kill_process"],
+            "require_approval": ["isolate_host"],
+            "cooldown_minutes": 30, "max_actions_per_run": 2,
+        },
+        "prevention": {"applocker": {"mode": "audit"}, "egress": {"applied": False}},
         "degraded": degraded,
         "sensors": {
             "whids": {"required": False, "min_version": "1.7.0",
@@ -818,6 +827,16 @@ def cmd_install(args) -> int:
             "sealighter": {"required": False, "mode": "on-demand"},
         },
     }
+    # An operator's enforcement/prevention decisions must not be reset by a
+    # routine upgrade: carry the existing blocks across the rewrite.
+    try:
+        previous = json.loads(config_path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        previous = {}
+    if isinstance(previous, dict):
+        for key in ("enforcement", "prevention"):
+            if isinstance(previous.get(key), dict):
+                config[key] = previous[key]
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
 
@@ -1470,6 +1489,12 @@ def cmd_watch_once(args) -> int:
     n = result.get("notify")
     if n is not None:
         print(json.dumps({"notify": n}, indent=2))
+    if getattr(args, "enforce", False):
+        # Policy decides whether anything is actually applied; watch only
+        # supplies the findings. Dry-run remains the default.
+        print(json.dumps({"enforce": enforce.run(
+            args.root, findings=result.get("findings", []))},
+            indent=2, default=str))
     return 0 if result["top_score"] == 0 else 2
 
 
@@ -1477,8 +1502,12 @@ def cmd_watch_loop(args) -> int:
     import time as _time
     while True:
         result = watch.watch_once(args.root, quiet_clean=True)
-        print(json.dumps({"at": result["at"], "verdict": result["verdict"],
-                          "top_score": result["top_score"]}, default=str))
+        line = {"at": result["at"], "verdict": result["verdict"],
+                "top_score": result["top_score"]}
+        if getattr(args, "enforce", False):
+            line["enforce"] = enforce.run(
+                args.root, findings=result.get("findings", []))
+        print(json.dumps(line, default=str))
         _time.sleep(args.every)
 
 
@@ -1604,6 +1633,84 @@ def cmd_identity_pull(args) -> int:
                            max_events=args.max_events)
     print(json.dumps(result, indent=2, default=str))
     return 0 if "error" not in result else 1
+
+
+def cmd_prevent_status(args) -> int:
+    print(json.dumps(prevent.status(), indent=2, default=str))
+    return 0
+
+
+def cmd_prevent_applocker(args) -> int:
+    result = prevent.applocker(args.root, mode=args.mode,
+                               allow_paths=args.allow_path,
+                               apply=args.apply, plan=args.plan,
+                               reason=args.reason)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 2
+
+
+def cmd_prevent_egress(args) -> int:
+    result = prevent.egress(args.root, args.allow, apply=args.apply,
+                            plan=args.plan, reason=args.reason)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 2
+
+
+def cmd_prevent_asr(args) -> int:
+    result = prevent.asr(args.ids, action=args.action, apply=args.apply,
+                         plan=args.plan, reason=args.reason, root=args.root)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 2
+
+
+def cmd_prevent_lsa(args) -> int:
+    result = prevent.lsa(apply=args.apply, plan=args.plan, reason=args.reason,
+                         root=args.root, enable=not args.disable)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 2
+
+
+def cmd_prevent_rollback(args) -> int:
+    result = prevent.rollback(args.root, args.id, apply=args.apply)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 2
+
+
+def cmd_enforce_run(args) -> int:
+    findings = None
+    if args.findings:
+        try:
+            findings = json.loads(Path(args.findings).read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(json.dumps({"error": f"cannot read findings: {exc}"}, indent=2))
+            return 2
+        if isinstance(findings, dict):
+            findings = findings.get("findings", [findings])
+        if not isinstance(findings, list):
+            print(json.dumps({"error": "findings file must contain a list"}, indent=2))
+            return 2
+    result = enforce.run(args.root, findings=findings,
+                         apply=True if args.apply else
+                         (False if args.dry_run else None))
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if not any(r["status"] == "refused" for r in result["results"]) else 1
+
+
+def cmd_enforce_status(args) -> int:
+    print(json.dumps(enforce.status(args.root), indent=2, default=str))
+    return 0
+
+
+def cmd_enforce_pending(args) -> int:
+    result = enforce.pending(args.root)
+    print(json.dumps(result, indent=2, default=str))
+    return 0
+
+
+def cmd_enforce_approve(args) -> int:
+    result = enforce.approve(args.root, args.id, apply=args.apply)
+    print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 2
 
 
 def cmd_fleet_pull(args) -> int:
@@ -2194,6 +2301,70 @@ def build_parser() -> argparse.ArgumentParser:
     fls2.add_argument("--canary", nargs="*", default=None)
     fls2.set_defaults(func=cmd_fleet_scan)
 
+    pv = sub.add_parser("prevent", help="Tier 1 prevention: AppLocker, egress, ASR, LSA")
+    pvs = pv.add_subparsers(dest="prevent_action", required=True)
+    pvst = pvs.add_parser("status", help="read-only prevention posture")
+    pvst.set_defaults(func=cmd_prevent_status)
+    pva = pvs.add_parser("applocker", help="AppLocker Exe policy (audit by default)")
+    pva.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    pva.add_argument("--mode", choices=["audit", "enforce"], default="audit")
+    pva.add_argument("--allow-path", action="append", default=[],
+                     help="additional allowed path rule (repeatable)")
+    pva.add_argument("--apply", action="store_true")
+    pva.add_argument("--plan", type=int, default=None)
+    pva.add_argument("--reason", default=None)
+    pva.set_defaults(func=cmd_prevent_applocker)
+    pve = pvs.add_parser("egress", help="default-deny outbound with explicit allowlist")
+    pve.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    pve.add_argument("--allow", action="append", required=True,
+                     help="IP or CIDR, optionally :port (repeatable)")
+    pve.add_argument("--apply", action="store_true")
+    pve.add_argument("--plan", type=int, default=None)
+    pve.add_argument("--reason", default=None)
+    pve.set_defaults(func=cmd_prevent_egress)
+    pvr = pvs.add_parser("asr", help="Defender attack surface reduction rules")
+    pvr.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    pvr.add_argument("--ids", required=True, help="comma list of ASR rule GUIDs")
+    pvr.add_argument("--action", choices=["Audit", "AuditMode", "Enabled",
+                                          "Block", "Disabled"], default="Audit")
+    pvr.add_argument("--apply", action="store_true")
+    pvr.add_argument("--plan", type=int, default=None)
+    pvr.add_argument("--reason", default=None)
+    pvr.set_defaults(func=cmd_prevent_asr)
+    pvl = pvs.add_parser("lsa", help="LSA protection (RunAsPPL); reboot to take effect")
+    pvl.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    pvl.add_argument("--disable", action="store_true")
+    pvl.add_argument("--apply", action="store_true")
+    pvl.add_argument("--plan", type=int, default=None)
+    pvl.add_argument("--reason", default=None)
+    pvl.set_defaults(func=cmd_prevent_lsa)
+    pvb = pvs.add_parser("rollback", help="roll back an applied prevention control")
+    pvb.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    pvb.add_argument("--id", type=int, required=True)
+    pvb.add_argument("--apply", action="store_true")
+    pvb.set_defaults(func=cmd_prevent_rollback)
+    enf = sub.add_parser("enforce", help="policy-gated automatic containment from watch findings")
+    enfs = enf.add_subparsers(dest="enforce_action", required=True)
+    enr = enfs.add_parser("run", help="propose containment; apply only per policy")
+    enr.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    enr.add_argument("--apply", action="store_true",
+                     help="arm enforcement for this run (policy still gates every action)")
+    enr.add_argument("--dry-run", action="store_true",
+                     help="force dry-run even if policy mode is enforce")
+    enr.add_argument("--findings", default=None,
+                     help="JSON file of findings to evaluate instead of a live sweep")
+    enr.set_defaults(func=cmd_enforce_run)
+    ens = enfs.add_parser("status", help="policy, journal and kill-switch state")
+    ens.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    ens.set_defaults(func=cmd_enforce_status)
+    enp = enfs.add_parser("pending", help="requests waiting for approval")
+    enp.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    enp.set_defaults(func=cmd_enforce_pending)
+    ena = enfs.add_parser("approve", help="execute one pending request (dry-run by default)")
+    ena.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    ena.add_argument("--id", type=int, required=True)
+    ena.add_argument("--apply", action="store_true", help="execute; without it only the plan is shown")
+    ena.set_defaults(func=cmd_enforce_approve)
     idp = sub.add_parser("identity", help="identity plane: logon events into the store (Event Log API)")
     idps = idp.add_subparsers(dest="identity_action", required=True)
     idpp = idps.add_parser("pull", help="pull recent identity events into the events store")
@@ -2225,10 +2396,14 @@ def build_parser() -> argparse.ArgumentParser:
     wpo = wps.add_parser("once", help="one sweep (cron/Task Scheduler friendly)")
     wpo.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     wpo.add_argument("--notify-clean", action="store_true", help="notify even when clean")
+    wpo.add_argument("--enforce", action="store_true",
+                     help="feed findings to the enforcement policy (dry-run unless policy says enforce)")
     wpo.set_defaults(func=cmd_watch_once)
     wpl = wps.add_parser("loop", help="sweep forever every N seconds")
     wpl.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     wpl.add_argument("--every", type=int, default=3600)
+    wpl.add_argument("--enforce", action="store_true",
+                     help="feed each sweep to the enforcement policy")
     wpl.set_defaults(func=cmd_watch_loop)
 
     np_ = sub.add_parser("notify", help="alert channel configuration and delivery")

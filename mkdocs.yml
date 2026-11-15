@@ -48,6 +48,7 @@ nav:
       - DTrace tracing: trace.md
   - Operate:
       - Response: response.md
+      - Prevention and blocking: prevention.md
       - Fleet: fleet.md
       - Operations: operations.md
       - Updates & signing: update-signing.md

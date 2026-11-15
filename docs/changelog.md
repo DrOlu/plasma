@@ -4,6 +4,29 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.12.0 — 2026-11-15
+
+Prevention, in two honest tiers.
+
+- **Tier 0 — `plasma enforce`**: watch findings become policy-gated,
+  reversible containment. Injection findings and chain detections kill the
+  accessing process; a tripped canary queues host isolation for approval.
+  Off by default and dry-run unless `enabled` + `mode: enforce` are set.
+  Score floor, per-run cap, cooldown, action allowlist, approval queue,
+  kill switch and a decision journal. `watch once --enforce` wires it to a
+  sweep.
+- **Tier 1 — `plasma prevent`**: AppLocker (audit by default), firewall
+  egress default-deny with a mandatory allowlist, Defender ASR rules and LSA
+  protection. Every control is dry-run first, plan-gated, verified, journaled
+  and rollbackable by id.
+- **Still no kernel driver.** Inline blocking at the file/process/network
+  boundary is delegated to Microsoft's signed enforcement points; Plasma owns
+  the policy, evidence and rollback. This is a deliberate limit, documented
+  in `docs/prevention.md`.
+- Findings now carry structured entities (pid, user, path, technique) so
+  enforcement acts on data instead of re-parsing text.
+- 555 passed / 21 skipped.
+
 ## 1.11.0 — 2026-11-15
 
 Identity coverage beyond logons, and the lineage edge that was missing.
