@@ -248,8 +248,9 @@ def test_mcp_read_is_allowed_and_audited(tmp_path, capsys):
     assert ledger.verify(tmp_path)["ok"] is True
 
 
-def test_mcp_risky_tool_requires_approval_then_runs_dry(tmp_path):
+def test_mcp_risky_tool_requires_approval_then_runs_dry(tmp_path, monkeypatch):
     import socket
+    monkeypatch.setenv("PLASMA_SCOPES", "*")
     local = socket.gethostname()
     res = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
                       "params": {"name": "isolate_host",

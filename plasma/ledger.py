@@ -34,30 +34,11 @@ def ledger_path(root=None) -> Path:
 def _lock(root=None):
     directory = agentstate.ensure(root) / LEDGER_DIR
     directory.mkdir(parents=True, exist_ok=True)
-    lock = directory / ".lock"
-    deadline = time.time() + 10
-    fd = None
-    while fd is None:
-        try:
-            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError:
-            try:
-                if time.time() - lock.stat().st_mtime > 30:
-                    lock.unlink()
-                    continue
-            except OSError:
-                pass
-            if time.time() > deadline:
-                raise LedgerError("ledger is locked by another writer")
-            time.sleep(0.05)
     try:
-        yield
-    finally:
-        os.close(fd)
-        try:
-            lock.unlink()
-        except OSError:
-            pass
+        with agentstate.lock(directory / ".lock", timeout=10, stale=300):
+            yield
+    except TimeoutError as exc:
+        raise LedgerError(str(exc)) from exc
 
 
 def read(root=None) -> list[dict]:

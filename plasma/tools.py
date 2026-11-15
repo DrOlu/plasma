@@ -238,7 +238,11 @@ def validate_args(name: str, args: dict | None) -> dict:
         if typ == "array":
             if "maxItems" in rule and len(value) > rule["maxItems"]:
                 raise ToolError(f"{key} has too many items")
-            item_type = (rule.get("items") or {}).get("type")
+            item_rule = rule.get("items") or {}
+            item_type = item_rule.get("type")
             if item_type and not all(_type_ok(v, item_type) for v in value):
                 raise ToolError(f"{key} items must be {item_type}")
+            if item_type == "string" and "maxLength" in item_rule:
+                if any(len(v) > item_rule["maxLength"] for v in value):
+                    raise ToolError(f"{key} item is too long")
     return args

@@ -154,8 +154,9 @@ def test_approval_bound_to_action(tmp_path):
                                    row["args_sha256"]) is None
 
 
-def test_mcp_reusing_approval_is_refused(tmp_path):
+def test_mcp_reusing_approval_is_refused(tmp_path, monkeypatch):
     import socket
+    monkeypatch.setenv("PLASMA_SCOPES", "*")
     local = socket.gethostname()
     first = mcp.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
                         "params": {"name": "isolate_host",

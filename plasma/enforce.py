@@ -31,7 +31,7 @@ import json
 import time
 from pathlib import Path
 
-from . import actuate, killswitch
+from . import actuate, agentstate, killswitch
 
 DEFAULT_POLICY = {
     "enabled": False,
@@ -106,11 +106,12 @@ def _read_journal(root) -> list[dict]:
 def _append_journal(root, entry: dict) -> dict:
     path = journal_path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    rows = _read_journal(root)
-    entry["id"] = max((int(r.get("id") or 0) for r in rows), default=0) + 1
-    entry.setdefault("ts", _now())
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(entry, sort_keys=True) + "\n")
+    with agentstate.lock(path.parent / ".enforce-journal.lock", stale=300):
+        rows = _read_journal(root)
+        entry["id"] = max((int(r.get("id") or 0) for r in rows), default=0) + 1
+        entry.setdefault("ts", _now())
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry, sort_keys=True) + "\n")
     return entry
 
 
@@ -241,6 +242,15 @@ def _cooling_down(root, action: str, target, minutes: int) -> bool:
     return False
 
 
+def _applied_ok(result: dict) -> bool:
+    """Actuate sets ok/mode; tolerate older/mocked results without them."""
+    if "ok" in result:
+        return bool(result["ok"])
+    if "mode" in result:
+        return result["mode"] == "applied"
+    return "error" not in result
+
+
 def _capture(root, trigger: dict, policy: dict):
     """Take one host-state snapshot before irreversible containment."""
     reason = ("enforce: capture host state before containment for "
@@ -268,6 +278,10 @@ def _capture(root, trigger: dict, policy: dict):
     if "error" in applied:
         entry["status"] = "failed"
         entry["reason"] = applied["error"]
+        return _append_journal(root, entry), False
+    if not _applied_ok(applied):
+        entry["status"] = "failed"
+        entry["reason"] = applied.get("failure") or "snapshot failed"
         return _append_journal(root, entry), False
     entry["status"] = "applied"
     entry["plan"] = dry["id"]
@@ -321,6 +335,14 @@ def run(root, findings: list[dict] | None = None, apply: bool | None = None,
             entry["reason"] = ("enforcement disabled" if not policy["enabled"]
                                else "policy mode is dry-run")
         elif item["mode"] == "pending_approval" or not item["eligible"]:
+            existing = _pending_exists(root, item["action"], item["target"],
+                                       entry["finding_digest"])
+            if existing is not None:
+                entry["status"] = "pending_approval"
+                entry["duplicate_of"] = existing["id"]
+                entry["reason"] = "already pending approval"
+                results.append(entry)
+                continue
             entry["status"] = "pending_approval"
         elif actions_taken >= policy["max_actions_per_run"]:
             entry["status"] = "skipped"
@@ -348,12 +370,16 @@ def run(root, findings: list[dict] | None = None, apply: bool | None = None,
                 if "error" in applied:
                     entry["status"] = "refused"
                     entry["reason"] = applied["error"]
+                elif not _applied_ok(applied):
+                    entry["status"] = "failed"
+                    entry["reason"] = applied.get("failure") or "action failed"
+                    entry["plan"] = plan
                 else:
                     entry["status"] = "applied"
                     entry["plan"] = plan
                     entry["result"] = {
                         k: applied.get(k) for k in
-                        ("verified", "verification", "output", "action")
+                        ("ok", "verification", "output", "action")
                         if k in applied}
                     actions_taken += 1
         if item["action"] == "kill_process" and capture is not None:
@@ -377,9 +403,38 @@ def run(root, findings: list[dict] | None = None, apply: bool | None = None,
     }
 
 
+def _approved_ids(root) -> set:
+    return {r.get("approved_from") for r in _read_journal(root)
+            if r.get("status") == "approved"}
+
+
+def _pending_exists(root, action, target, digest):
+    approved = _approved_ids(root)
+    for row in _read_journal(root):
+        if (row.get("status") == "pending_approval"
+                and row.get("id") not in approved
+                and row.get("action") == action
+                and str(row.get("target") or "") == str(target or "")
+                and row.get("finding_digest") == digest):
+            return row
+    return None
+
+
 def pending(root) -> dict:
-    rows = [r for r in _read_journal(root)
-            if r.get("status") == "pending_approval"]
+    approved = _approved_ids(root)
+    seen = set()
+    rows = []
+    for row in _read_journal(root):
+        if row.get("status") != "pending_approval":
+            continue
+        if row.get("id") in approved:
+            continue
+        key = (row.get("action"), str(row.get("target") or ""),
+               row.get("finding_digest"))
+        if key in seen:
+            continue
+        seen.add(key)
+        rows.append(row)
     return {"count": len(rows), "pending": rows}
 
 
@@ -392,6 +447,13 @@ def approve(root, entry_id: int, apply: bool = False) -> dict:
         return {"error": f"no enforcement entry {entry_id}"}
     if row.get("status") != "pending_approval":
         return {"error": f"entry {entry_id} is {row.get('status')}, not pending"}
+    if entry_id in _approved_ids(root):
+        return {"error": f"entry {entry_id} has already been approved"}
+    policy = load_policy(root)
+    action = row.get("action")
+    if action not in policy["allowed_actions"] and \
+            action not in policy["require_approval"]:
+        return {"error": f"action {action} is no longer allowlisted by policy"}
     reason = f"enforce approval #{entry_id}: {row.get('type')} score={row.get('score')}"
     dry = actuate.execute(row["action"], root=root, target=row.get("target"),
                           reason=reason, apply=False)
@@ -406,17 +468,27 @@ def approve(root, entry_id: int, apply: bool = False) -> dict:
                                apply=True, plan=dry["id"])
         if "error" in done:
             return {"error": done["error"], "stage": "apply", **result}
+        ok = _applied_ok(done)
+        if ok:
+            _append_journal(root, {
+                "status": "approved", "approved_from": entry_id,
+                "action": row["action"], "target": row.get("target"),
+                "risk": row.get("risk"), "type": row.get("type"),
+                "score": row.get("score"), "technique": row.get("technique"),
+                "reasons": ["approved by operator"],
+            })
         _append_journal(root, {
-            "status": "applied", "action": row["action"],
+            "status": "applied" if ok else "failed", "action": row["action"],
             "target": row.get("target"), "risk": row.get("risk"),
             "type": row.get("type"), "score": row.get("score"),
             "technique": row.get("technique"),
             "approved_from": entry_id, "plan": dry["id"],
             "reasons": ["approved by operator"],
         })
-        result["applied"] = True
+        result["applied"] = bool(ok)
         result["result"] = {k: done.get(k) for k in
-                            ("verified", "verification", "output") if k in done}
+                            ("ok", "failure", "verification", "output")
+                            if k in done}
     return result
 
 

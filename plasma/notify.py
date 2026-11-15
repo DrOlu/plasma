@@ -107,7 +107,6 @@ def notify_all(root, title: str, body: str, score: float | None = None,
         except (json.JSONDecodeError, OSError):
             state = {}
     if throttle_key:
-        import os as _os
         try:
             last = float(state.get(throttle_key, 0))
         except (TypeError, ValueError):

@@ -19,6 +19,7 @@ import os
 import re
 import shutil
 import subprocess
+import urllib.parse
 import urllib.request
 
 # Signer pinning: an update is executed only if the downloaded exe carries an
@@ -92,9 +93,18 @@ def _gh(url: str, token: str = "", timeout: int = 60,
         return resp.read()
 
 
-def latest_release(repo: str, token: str) -> dict:
-    data = json.loads(_gh(f"https://api.github.com/repos/{repo}/releases/latest",
-                          token).decode("utf-8"))
+def latest_release(repo: str, token: str, tag: str | None = None) -> dict:
+    """Latest release, or the exact tag when one is requested.
+
+    The tag argument used to be ignored: a caller asking for a pinned
+    release silently received whatever was latest.
+    """
+    if tag:
+        quoted = urllib.parse.quote(str(tag), safe="")
+        url = f"https://api.github.com/repos/{repo}/releases/tags/{quoted}"
+    else:
+        url = f"https://api.github.com/repos/{repo}/releases/latest"
+    data = json.loads(_gh(url, token).decode("utf-8"))
     assets = {a["name"]: a["url"] for a in data.get("assets", [])}
     return {"tag": data.get("tag_name", ""), "assets": assets}
 
@@ -119,8 +129,12 @@ def download_and_verify(repo: str, tag: str, token: str, dest) -> dict:
     """Download the release exe + SHA256SUMS, verify, keep the verified exe."""
     from pathlib import Path
     dest = Path(dest)
-    rel = latest_release(repo, token)
-    exe_url = next((u for n, u in rel["assets"].items() if n.endswith(".exe")), None)
+    rel = latest_release(repo, token, tag=tag)
+    if tag and rel.get("tag") and rel["tag"] != tag:
+        return {"ok": False, "error": "release tag mismatch",
+                "requested": tag, "received": rel["tag"]}
+    exe_name = next((n for n in rel["assets"] if n.endswith(".exe")), None)
+    exe_url = rel["assets"].get(exe_name) if exe_name else None
     sums_url = next((u for n, u in rel["assets"].items() if n == "SHA256SUMS"), None)
     if not exe_url or not sums_url:
         return {"ok": False, "error": "release lacks exe/SHA256SUMS assets"}
@@ -132,7 +146,7 @@ def download_and_verify(repo: str, tag: str, token: str, dest) -> dict:
     expected = ""
     for line in sums_bytes.splitlines():
         parts = line.split()
-        if len(parts) == 2 and parts[1].endswith(".exe"):
+        if len(parts) == 2 and parts[1] == exe_name:
             expected = parts[0].lower()
             break
     actual = hashlib.sha256(exe_bytes).hexdigest()

@@ -45,12 +45,29 @@ def status(root=None) -> dict:
             "rings": {k: sorted(set(v)) for k, v in data["rings"].items()}}
 
 
+def _host(value) -> str:
+    host = str(value or "").strip().lower()
+    if not host:
+        raise ValueError("host must not be empty")
+    return host
+
+
+def _lock(root):
+    return agentstate.lock(path(root).with_suffix(".lock"), stale=300)
+
+
 def assign(root, host: str, ring: str = "canary") -> dict:
+    with _lock(root):
+        return _assign(root, host, ring)
+
+
+def _assign(root, host: str, ring: str = "canary") -> dict:
     data = _load(root)
     if ring not in data["rings"]:
         raise ValueError(f"unknown ring {ring!r}")
+    host = _host(host)
     for name, hosts in data["rings"].items():
-        data["rings"][name] = [h for h in hosts if h != host]
+        data["rings"][name] = [h for h in hosts if str(h).lower() != host]
     data["rings"][ring].append(host)
     data["rings"][ring] = sorted(set(data["rings"][ring]))
     _save(root, data)
@@ -58,14 +75,26 @@ def assign(root, host: str, ring: str = "canary") -> dict:
 
 
 def remove_host(root, host: str) -> dict:
+    with _lock(root):
+        return _remove_host(root, host)
+
+
+def _remove_host(root, host: str) -> dict:
     data = _load(root)
+    host = _host(host)
     for name in data["rings"]:
-        data["rings"][name] = [h for h in data["rings"][name] if h != host]
+        data["rings"][name] = [h for h in data["rings"][name]
+                               if str(h).lower() != host]
     _save(root, data)
     return status(root)
 
 
 def promote(root, ring: str) -> dict:
+    with _lock(root):
+        return _promote(root, ring)
+
+
+def _promote(root, ring: str) -> dict:
     data = _load(root)
     if ring not in data["rings"]:
         raise ValueError(f"unknown ring {ring!r}")
@@ -79,7 +108,9 @@ def allows(root, host: str, ring: str | None = None) -> bool:
     target = ring or data["current"]
     if target not in data["rings"]:
         return False
-    return host in data["rings"][target] or "*" in data["rings"][target]
+    wanted = str(host or "").strip().lower()
+    return (wanted in {str(h).lower() for h in data["rings"][target]}
+            or "*" in data["rings"][target])
 
 
 def rollback(bin_exe) -> dict:

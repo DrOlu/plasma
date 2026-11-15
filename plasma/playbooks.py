@@ -191,6 +191,7 @@ def undo(root, entry_id: int, apply: bool = False, plan: int | None = None,
         planned_steps = dr.get("steps") or []
 
     reversals = []
+    failed = False
     rows_by_id = {r.get("id"): r for r in rows}
     for step in reversed(match.get("steps", [])):
         applied_id = step.get("applied_id")
@@ -217,15 +218,15 @@ def undo(root, entry_id: int, apply: bool = False, plan: int | None = None,
         if res.get("id") is not None:
             item["plan"] = res.get("id")
         reversals.append(item)
-        if res.get("error"):
+        if res.get("error") or res.get("mode") == "failed":
+            failed = True
             break
 
     summary = {
-        "id": actuate._next_id(root),
         "action": f"undo:{match['action']}", "undoes": entry_id,
         "target": match.get("target"),
         "reason": f"undo of playbook entry {entry_id}",
-        "mode": "applied" if apply else "dry-run",
+        "mode": ("failed" if failed else "applied") if apply else "dry-run",
         "steps": reversals,
     }
     if apply:

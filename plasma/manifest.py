@@ -94,9 +94,13 @@ def verify_manifest(root: str | Path) -> dict:
         return {"ok": False, "error": f"invalid manifest: {exc}", "checked": 0}
 
     recorded = manifest.get("files", {})
-    missing, mismatched, present = [], [], set()
+    missing, mismatched, present, invalid = [], [], set(), []
+    root_resolved = root.resolve()
     for rel, expected in recorded.items():
-        path = root / rel
+        path = (root / rel).resolve()
+        if not path.is_relative_to(root_resolved):
+            invalid.append(rel)
+            continue
         present.add(rel)
         if not path.exists():
             missing.append(rel)
@@ -107,13 +111,14 @@ def verify_manifest(root: str | Path) -> dict:
     extra = sorted(
         rel for rel, _ in iter_bundle_files(root) if rel not in recorded
     )
-    ok = not missing and not mismatched and not extra
+    ok = not missing and not mismatched and not extra and not invalid
     return {
         "ok": ok,
         "checked": len(recorded),
         "missing": missing,
         "mismatched": mismatched,
         "extra": extra,
+        "invalid": invalid,
         "version": manifest.get("version"),
         "schema_version": manifest.get("schema_version"),
         "sensor_requirements": manifest.get("sensor_requirements", {}),

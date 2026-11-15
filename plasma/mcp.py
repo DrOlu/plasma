@@ -195,7 +195,10 @@ def _context(params: dict) -> dict:
     env_scopes = [s.strip() for s in
                   os.environ.get("PLASMA_SCOPES", "").split(",") if s.strip()]
     tenant = os.environ.get("PLASMA_TENANT", "default")
-    scopes = env_scopes or ["*"]
+    # Least privilege by default: a harness that does not declare scopes
+    # gets read-only access, not the wildcard.
+    scopes = env_scopes or ["events:read", "health:read", "policy:read",
+                            "approvals:read", "audit:read"]
     if trust_meta:
         tenant = meta.get("tenant") or tenant
         scopes = meta.get("scopes") or scopes

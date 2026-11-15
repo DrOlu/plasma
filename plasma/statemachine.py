@@ -51,34 +51,40 @@ def save(root, machine: Machine, data: dict) -> dict:
     return data
 
 
+def _lock_path(root, machine: Machine) -> Path:
+    return state_path(root, machine.name).with_suffix(".lock")
+
+
 def transition(root, machine: Machine, target: str, detail=None) -> dict:
-    data = load(root, machine)
-    current = data["state"]
-    if target == current:
-        return data
-    if not machine.allows(current, target):
-        raise StateError(
-            f"{machine.name}: illegal transition {current!r} -> {target!r}")
-    data["state"] = target
-    data["history"].append({
-        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "from": current,
-        "to": target,
-        "detail": detail,
-    })
-    data["history"] = data["history"][-50:]
-    return save(root, machine, data)
+    with agentstate.lock(_lock_path(root, machine), stale=300):
+        data = load(root, machine)
+        current = data["state"]
+        if target == current:
+            return data
+        if not machine.allows(current, target):
+            raise StateError(
+                f"{machine.name}: illegal transition {current!r} -> {target!r}")
+        data["state"] = target
+        data["history"].append({
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "from": current,
+            "to": target,
+            "detail": detail,
+        })
+        data["history"] = data["history"][-50:]
+        return save(root, machine, data)
 
 
 def reset(root, machine: Machine, detail=None) -> dict:
-    data = load(root, machine)
-    data["history"].append({
-        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "from": data["state"], "to": machine.initial, "detail": detail,
-    })
-    data["state"] = machine.initial
-    data["history"] = data["history"][-50:]
-    return save(root, machine, data)
+    with agentstate.lock(_lock_path(root, machine), stale=300):
+        data = load(root, machine)
+        data["history"].append({
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "from": data["state"], "to": machine.initial, "detail": detail,
+        })
+        data["state"] = machine.initial
+        data["history"] = data["history"][-50:]
+        return save(root, machine, data)
 
 
 UPDATE_MACHINE = Machine(

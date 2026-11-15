@@ -30,10 +30,11 @@ import re
 import shutil
 import socket
 import subprocess
-import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+
+from . import agentstate
 
 PROTECTED_SERVICES = {
     "winrm", "termService", "termservice", "sessionenv", "umrdpservice",
@@ -358,8 +359,10 @@ def _build_disable_wmi_sub():
     # CimInstance cannot be passed back as one.
     payload = (
         "New-Item -ItemType Directory -Force -Path '" + JOURNAL_BACKUP_DIR + "' | Out-Null;"
-        "$binds = Get-CimInstance -Namespace root/subscription -ClassName __FilterToConsumerBinding;"
-        "$defs = @($binds | Select-Object -First 200 | ForEach-Object { "
+        # Capture and remove the SAME bounded set: capturing 200 but
+        # removing all would make the undo incomplete.
+        "$binds = @(Get-CimInstance -Namespace root/subscription -ClassName __FilterToConsumerBinding | Select-Object -First 200);"
+        "$defs = @($binds | ForEach-Object { "
         "@{ filter_name=$_.Filter.Name; consumer_name=$_.Consumer.Name; "
         "consumer_class=$_.Consumer.CimClass.CimClassName } });"
         "$file = '" + JOURNAL_BACKUP_DIR + "\\' + 'bindings-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.json';"
@@ -486,35 +489,11 @@ def journal_path(root):
 @contextmanager
 def _journal_lock(root):
     """Cross-process lock so two agents cannot mint the same journal id or
-    consume the same plan. Stale locks are reclaimed after 30s."""
-    directory = journal_path(root).parent
-    directory.mkdir(parents=True, exist_ok=True)
-    lock = directory / ".actuate-journal.lock"
-    deadline = time.time() + 10
-    fd = None
-    while fd is None:
-        try:
-            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError:
-            try:
-                if time.time() - lock.stat().st_mtime > 30:
-                    lock.unlink()
-                    continue
-            except OSError:
-                pass
-            if time.time() > deadline:
-                raise RuntimeError("actuate journal is locked by another writer")
-            time.sleep(0.05)
-    try:
+    consume the same plan. The stale window exceeds the 60 s apply timeout;
+    a 30 s window let a second process steal the lock mid-apply."""
+    lock = journal_path(root).parent / ".actuate-journal.lock"
+    with agentstate.lock(lock, timeout=10, stale=300):
         yield
-    finally:
-        try:
-            os.close(fd)
-        finally:
-            try:
-                lock.unlink()
-            except OSError:
-                pass
 
 
 def _journal_append(root, entry):
@@ -671,6 +650,16 @@ def execute(action, root, target=None, reason=None, apply=False, timeout=60,
             return entry
 
         result = _run(payload, timeout=timeout)
+        ok = (not result.get("error")
+              and result.get("rc") in (0, None))
+        entry["ok"] = ok
+        entry["mode"] = "applied" if ok else "failed"
+        if not ok:
+            # "error" is reserved for refusals; a payload that ran and
+            # failed is a failure, not a refusal (playbooks branch on it).
+            entry["failure"] = (result.get("stderr")
+                                or result.get("error")
+                                or f"payload exited {result.get('rc')}")[:500]
         entry["result"] = result
         entry["verification"] = _run(verify, timeout=30) if verify else None
         if undo:
@@ -807,7 +796,7 @@ def undo(root, entry_id, apply=False, plan=None, timeout=60):
         match = next((r for r in rows if r.get("id") == entry_id), None)
         if not match:
             return {"error": f"no journal entry {entry_id}"}
-        if match.get("mode") != "applied":
+        if match.get("mode") not in ("applied", "failed"):
             return {"error": f"entry {entry_id} is '{match.get('mode')}', nothing to undo"}
         if not match.get("undoable") or not match.get("undo"):
             return {"error": f"entry {entry_id} has no undo (undoable={match.get('undoable')})"}
@@ -859,6 +848,11 @@ def undo(root, entry_id, apply=False, plan=None, timeout=60):
         entry["result"] = result
         entry["ok"] = (not result.get("error")
                        and result.get("rc") in (0, None))
+        entry["mode"] = "applied" if entry["ok"] else "failed"
+        if not entry["ok"]:
+            entry["failure"] = (result.get("stderr")
+                                or result.get("error")
+                                or f"undo exited {result.get('rc')}")[:500]
         _journal_append(root, entry)
         entry.pop("payload", None)
         return entry

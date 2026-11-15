@@ -126,7 +126,7 @@ def test_download_and_verify(monkeypatch, tmp_path):
     payload = b"MZ fake exe"
     good_sha = __import__("hashlib").sha256(payload).hexdigest()
     def fake_gh(url, token, timeout=60, accept="json"):
-        if "/releases/latest" in url:
+        if "/releases/" in url:
             return json.dumps({"tag_name": "v0.11.0", "assets": [
                 {"name": "plasma-0.11.0.exe", "url": "https://x/plasma.exe"},
                 {"name": "SHA256SUMS", "url": "https://x/sums"}]}).encode()
@@ -139,13 +139,13 @@ def test_download_and_verify(monkeypatch, tmp_path):
 
 def test_download_rejects_bad_hash(monkeypatch, tmp_path):
     def fake_gh(url, token, timeout=60, accept="json"):
-        if "/releases/latest" in url:
+        if "/releases/" in url:
             return json.dumps({"tag_name": "v0.11.0", "assets": [
                 {"name": "plasma.exe", "url": "https://x/plasma.exe"},
                 {"name": "SHA256SUMS", "url": "https://x/sums"}]}).encode()
         return b"tampered" if url.endswith("plasma.exe") else f"{'0'*64}  plasma.exe".encode()
     monkeypatch.setattr(update, "_gh", fake_gh)
-    res = update.download_and_verify("r/p", "v", "tok", tmp_path / "s.exe")
+    res = update.download_and_verify("r/p", "v0.11.0", "tok", tmp_path / "s.exe")
     assert not res["ok"] and res["error"] == "sha256 mismatch"
 
 

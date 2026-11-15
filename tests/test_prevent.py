@@ -19,10 +19,11 @@ def fake_ps(monkeypatch):
         if "Set-AppLockerPolicy" in script:
             return 0, json.dumps({"applied": True, "rules": 4, "audit": True,
                                   "sha": "x"})
+        if "Add-MpPreference" in script:
+            return 0, json.dumps({"applied": True, "ids": [GUID],
+                                  "actions": ["AuditMode"]})
         if "Get-MpPreference" in script:
             return 0, json.dumps({"ids": [GUID], "actions": ["Disabled"]})
-        if "Add-MpPreference" in script:
-            return 0, json.dumps({"applied": True})
         if "RunAsPPL" in script:
             return 0, json.dumps({"applied": True, "RunAsPPL": 1,
                                   "reboot_required": True})

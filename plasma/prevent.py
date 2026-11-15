@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import shutil
 import subprocess
@@ -29,6 +28,8 @@ import time
 import uuid
 from pathlib import Path
 from xml.sax.saxutils import escape
+
+from . import agentstate
 
 PREFIX = "PlasmaPrevent"
 JOURNAL = "prevent-journal.jsonl"
@@ -67,11 +68,17 @@ def _read_journal(root) -> list[dict]:
 def _append_journal(root, entry) -> dict:
     path = journal_path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    rows = _read_journal(root)
-    entry["id"] = max((int(r.get("id") or 0) for r in rows), default=0) + 1
-    entry.setdefault("ts", _now())
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(entry, sort_keys=True) + "\n")
+    with agentstate.lock(path.parent / ".prevent-journal.lock", stale=300):
+        rows = _read_journal(root)
+        if (entry.get("status") == "applied" and entry.get("plan") is not None
+                and any(r.get("status") == "applied"
+                        and r.get("plan") == entry["plan"] for r in rows)):
+            return {"error": f"plan {entry['plan']} has already been applied",
+                    "code": "REFUSED"}
+        entry["id"] = max((int(r.get("id") or 0) for r in rows), default=0) + 1
+        entry.setdefault("ts", _now())
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry, sort_keys=True) + "\n")
     return entry
 
 
@@ -174,7 +181,9 @@ def applocker_xml(mode: str = "audit", allow_paths=None) -> str:
     paths = list(DEFAULT_ALLOWED_PATHS)
     for path in allow_paths or []:
         path = str(path).strip()
-        if not path or len(path) > 260 or any(ch in path for ch in '<>"'):
+        if (not path or len(path) > 260
+                or any(ch in path for ch in '<>"')
+                or any(ord(ch) < 32 for ch in path)):
             raise ValueError(f"unsafe allow path: {path!r}")
         if path not in paths:
             paths.append(path)
@@ -323,6 +332,7 @@ def egress_payload(entries) -> str:
     """Render the PowerShell that creates allow rules then one block rule."""
     allows = validate_allow(entries)
     lines = ["$ErrorActionPreference='Stop'",
+             "try {",
              "Get-NetFirewallRule -DisplayName 'PlasmaPrevent-Egress-*' "
              "-ErrorAction SilentlyContinue | Remove-NetFirewallRule "
              "-ErrorAction SilentlyContinue"]
@@ -343,6 +353,12 @@ def egress_payload(entries) -> str:
     lines.append(
         "$n = @(Get-NetFirewallRule -DisplayName 'PlasmaPrevent-Egress-*').Count; "
         "[pscustomobject]@{applied=$true; rules=$n} | ConvertTo-Json -Compress")
+    lines.append("} catch {")
+    lines.append("  Get-NetFirewallRule -DisplayName 'PlasmaPrevent-Egress-*' "
+                 "-ErrorAction SilentlyContinue | Remove-NetFirewallRule "
+                 "-ErrorAction SilentlyContinue;")
+    lines.append("  throw")
+    lines.append("}")
     return "\n".join(lines)
 
 
@@ -430,7 +446,11 @@ def asr(ids, action="Audit", apply=False, plan=None, reason=None, root=".") -> d
         "$ErrorActionPreference='Stop'\n"
         f"Add-MpPreference -AttackSurfaceReductionRules_Ids {list_literal} "
         f"-AttackSurfaceReductionRules_Actions {target} -ErrorAction Stop\n"
-        "[pscustomobject]@{applied=$true} | ConvertTo-Json -Compress")
+        "$p = Get-MpPreference\n"
+        "[pscustomobject]@{applied=$true; "
+        "ids=@($p.AttackSurfaceReductionRules_Ids); "
+        "actions=@($p.AttackSurfaceReductionRules_Actions)} "
+        "| ConvertTo-Json -Compress")
     digest = hashlib.sha256(payload.encode()).hexdigest()
     if not apply:
         return _append_journal(root, {
@@ -447,6 +467,13 @@ def asr(ids, action="Audit", apply=False, plan=None, reason=None, root=".") -> d
     if result is None:
         return {"error": "ASR apply failed (Defender may be absent or managed "
                          "by policy)", "detail": err, "code": "FAILED"}
+    current = {str(k).lower(): str(v).lower()
+               for k, v in zip(result.get("ids") or [],
+                               result.get("actions") or [])}
+    missing = [r for r in rules if current.get(r.lower()) != target.lower()]
+    if missing:
+        return {"error": "ASR rules did not take effect",
+                "missing": missing, "code": "FAILED"}
     return _append_journal(root, {
         "control": "asr", "action": target, "ids": rules,
         "payload_sha256": digest, "status": "applied", "reason": reason,

@@ -30,7 +30,6 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .manifest import sha256_file
 from .redact import redact_text
 
 SERVICE_NAME = "Whids"

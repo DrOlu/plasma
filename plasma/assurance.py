@@ -129,7 +129,7 @@ def safety_case(root=None, out=None) -> dict:
         "## Controls",
         "",
         f"- Autonomy tier: **{policy_state.get('autonomy')}**",
-        f"- Tools are typed and scoped; mutating tools are dry-run-only in MCP.",
+        "- Tools are typed and scoped; mutating tools are dry-run-only in MCP.",
         f"- High/critical actions require approval: {policy_state.get('require_approval')}",
         f"- Blast radius limit: {policy_state.get('max_hosts_per_action')} host(s)",
         f"- Rate limit: {policy_state.get('max_actions_per_minute')} actions/min",
