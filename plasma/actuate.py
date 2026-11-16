@@ -220,6 +220,28 @@ def _build_isolate():
     return payload, undo, _fw_rule(allow_rdp) + ";" + _fw_rule(allow_winrm)
 
 
+
+def _admin_members_ps():
+    """PowerShell that lists Administrators members without Get-LocalGroupMember.
+
+    Get-LocalGroupMember -Group 'Administrators' fails on domain controllers
+    and on hosts where the local group provider is unavailable (observed:
+    "Group Administrators was not found" and Win32 error 1789). `net localgroup`
+    is present on every supported Windows host and returns the same names.
+    """
+    return (
+        "$raw = @(& net.exe localgroup Administrators 2>$null);"
+        "$start = 0;"
+        "for ($i = 0; $i -lt $raw.Count; $i++) { "
+        "if ($raw[$i] -match '^-+$') { $start = $i + 1; break } };"
+        "$admins = @();"
+        "if ($raw.Count -gt $start) { "
+        "$admins = @($raw[$start..($raw.Count - 1)] | "
+        "Where-Object { $_.Trim() -and $_ -notmatch 'command completed' } | "
+        "ForEach-Object { $_.Trim() }) };"
+    )
+
+
 def _build_disable_user(user):
     payload = f"Disable-LocalUser -Name {_ps_literal(user)}; (Get-LocalUser -Name {_ps_literal(user)}).Enabled"
     undo = f"Enable-LocalUser -Name {_ps_literal(user)}; (Get-LocalUser -Name {_ps_literal(user)}).Enabled"
@@ -227,11 +249,11 @@ def _build_disable_user(user):
 
 
 def _build_remove_admin(user):
-    payload = (f"Remove-LocalGroupMember -Group 'Administrators' -Member {_ps_literal(user)};"
-               f"Get-LocalGroupMember -Group 'Administrators' | Select-Object -ExpandProperty Name | ConvertTo-Json -Compress")
-    undo = (f"Add-LocalGroupMember -Group 'Administrators' -Member {_ps_literal(user)};"
-            f"Get-LocalGroupMember -Group 'Administrators' | Select-Object -ExpandProperty Name | ConvertTo-Json -Compress")
-    return payload, undo, "(Get-LocalGroupMember -Group 'Administrators').Name | ConvertTo-Json -Compress"
+    payload = (f"& net.exe localgroup Administrators {_ps_literal(user)} /delete;"
+               + _admin_members_ps() + "$admins | ConvertTo-Json -Compress")
+    undo = (f"& net.exe localgroup Administrators {_ps_literal(user)} /add;"
+            + _admin_members_ps() + "$admins | ConvertTo-Json -Compress")
+    return payload, undo, _admin_members_ps() + f"$admins -contains {_ps_literal(user)}"
 
 
 def _build_kill_process(pid):
@@ -392,7 +414,7 @@ def _build_snapshot():
         "$out = @{};"
         "$out.host = $env:COMPUTERNAME;"
         "$out.users = @(Get-LocalUser | Select-Object Name,Enabled,LastLogon);"
-        "$out.admins = @(Get-LocalGroupMember -Group 'Administrators' | Select-Object Name,PrincipalType);"
+        "$out.admins = @(" + _admin_members_ps() + "$admins | ForEach-Object { [pscustomobject]@{Name=$_;PrincipalType='Unknown'} });"
         "$out.services = @(Get-CimInstance Win32_Service | Select-Object Name,State,StartMode,StartName,PathName);"
         "$out.tasks = @(Get-ScheduledTask | Select-Object TaskName,TaskPath,State);"
         "$out.firewall_rules = @(Get-NetFirewallRule | Select-Object DisplayName,Enabled,Direction,Action);"

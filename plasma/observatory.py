@@ -111,7 +111,15 @@ def _ps_sketch():
 $ans = @{}
 $since = (Get-Date).AddHours(-24)
 
-$admins = @(Get-LocalGroupMember -Group 'Administrators' | ForEach-Object { $_.Name } | Sort-Object)
+$raw = @(& net.exe localgroup Administrators 2>$null)
+$start = 0
+for ($i = 0; $i -lt $raw.Count; $i++) { if ($raw[$i] -match '^-+$') { $start = $i + 1; break } }
+$admins = @()
+if ($raw.Count -gt $start) {
+  $admins = @($raw[$start..($raw.Count - 1)] |
+    Where-Object { $_.Trim() -and $_ -notmatch 'command completed' } |
+    ForEach-Object { $_.Trim() } | Sort-Object)
+}
 $ans.administrators = $admins
 
 $adds = Get-WinEvent -FilterHashtable @{ LogName='Security'; Id=4732,4728; StartTime=$since }

@@ -1,5 +1,3 @@
-import json
-
 import pytest
 from pydantic import ValidationError
 
@@ -79,3 +77,16 @@ def test_bad_score_and_port_rejected():
 def test_extra_field_forbidden():
     with pytest.raises(ValidationError):
         PlasmaEvent(**base(unknown_field="x"))
+
+
+def test_dtrace_trace_event_parses():
+    """DTrace rows use source='dtrace' and kind='trace'; both must be in the
+    strict contract or every trace event is counted as a parse failure."""
+    ev = PlasmaEvent(**base(
+        source="dtrace", kind="trace", event_id=0, action="observed",
+        description="dtrace inject-remote-thread",
+    ))
+    assert ev.source == "dtrace"
+    assert ev.kind == "trace"
+    assert ev.event_id == 0
+    assert ev.action == "observed"

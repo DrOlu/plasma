@@ -284,3 +284,35 @@ def test_hijack_chain_binds_the_same_image():
              _trace_row("2026-11-05T12:00:20Z", "inject-remote-thread", "b.exe")]
     assert not [f for f in chain.scan(other)
                 if f["type"] == "chain_injection_hijack_chain"]
+
+
+def test_persistence_after_privilege_matches_cmdline():
+    """Real 4688 rows carry the command in cmdline, not description. The
+    chain must read both or the story is invisible on a live host."""
+    rows = [
+        _row("2026-11-05T03:00:00Z", kind="process",
+             process=r"C:\Windows\System32\net.exe", user="admin",
+             description="process created by CORP\\Administrator parent=cmd.exe image=net.exe",
+             cmdline="net user backdoor P@ss /add"),
+        _row("2026-11-05T03:05:00Z", kind="process",
+             process=r"C:\Windows\System32\schtasks.exe", user="admin",
+             description="process created by CORP\\Administrator parent=cmd.exe image=schtasks.exe",
+             cmdline="schtasks /create /tn Update /sc onstart"),
+    ]
+    findings = chain.scan(rows)
+    assert [f for f in findings if f["type"] == "chain_persistence_after_privilege"]
+
+
+def test_persistence_chain_ignores_benign_cmdline():
+    rows = [
+        _row("2026-11-05T03:00:00Z", kind="process",
+             process=r"C:\Windows\System32\net.exe", user="admin",
+             description="process created by CORP\\Administrator parent=cmd.exe image=net.exe",
+             cmdline="net user /?"),
+        _row("2026-11-05T03:05:00Z", kind="process",
+             process=r"C:\Windows\System32\schtasks.exe", user="admin",
+             description="process created by CORP\\Administrator parent=cmd.exe image=schtasks.exe",
+             cmdline="schtasks /query"),
+    ]
+    assert not [f for f in chain.scan(rows)
+                if f["type"] == "chain_persistence_after_privilege"]

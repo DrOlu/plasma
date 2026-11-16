@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.15.2 — 2026-11-16
+
+Field-found fixes from the neuralOSd-orchestrated estate drill.
+
+- **DTrace events now validate.** The strict `PlasmaEvent` contract accepts
+  `source="dtrace"`, `kind="trace"`, `event_id=0` and `action="observed"`.
+  Before this, every DTrace row was counted as a parse failure: 1,419/22,818
+  events on WS1 and 765/77,950 on WS2.
+- **Persistence chains read the command line.** `description` matchers now
+  also search `cmdline`, so a real 4688 `net user /add` followed by
+  `schtasks` fires `persistence_after_privilege` instead of being invisible.
+  Findings now carry the matched `cmdline` as evidence.
+- **Snapshot and remove-admin survive domain controllers.** The
+  `Administrators` lookup uses `net localgroup Administrators` instead of
+  `Get-LocalGroupMember -Group 'Administrators'`, which fails with “group not
+  found” or Win32 error 1789 on some hosts. The same fix covers
+  `observatory.sketch`.
+- 631 tests collected; full suite passes; ruff clean.
+
 ## 1.15.1 — 2026-11-15
 
 Two field-found follow-ups to the review.

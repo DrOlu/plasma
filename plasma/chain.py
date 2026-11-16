@@ -173,6 +173,11 @@ def _match_step(step: dict, row: dict) -> bool:
     for field in ("process", "user", "description"):
         if field in step:
             value = str(row.get(field) or "")
+            if field == "description":
+                # A process event's narrative is split across description and
+                # cmdline. Match both so a real 4688 `net user /add` row is
+                # not missed just because the command lives in cmdline.
+                value = value + "\n" + str(row.get("cmdline") or "")
             try:
                 if not re.search(step[field], value):
                     return False
@@ -301,6 +306,7 @@ def scan(rows: list[dict], chains: list[dict] | None = None,
                      "user": m.get("user"), "process": m.get("process"),
                      "pid": m.get("pid"), "dest_ip": m.get("dest_ip"),
                      "image": m.get("image"),
+                     "cmdline": str(m.get("cmdline") or "")[:200],
                      "description": str(m.get("description") or "")[:160]}
                     for m in matched][:8],
             })

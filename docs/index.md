@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.15.1</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.15.2</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.15.1</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.15.2</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">605 tests</span>
+<span class="raft-badge">631 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -104,6 +104,23 @@ DESK               status · ask · drift · chains · coverage · fleet ·
 PREVENTION         enforce (containment) · prevent (AppLocker, egress,
                    Defender ASR, LSA protection)
 ```
+
+## What's new in 1.15.2
+
+- **DTrace events validate.** The strict event contract now accepts
+  `source="dtrace"`, `kind="trace"`, `event_id=0` and `action="observed"`.
+  The estate drill had been counting every DTrace row as a parse failure:
+  1,419/22,818 events on WS1 and 765/77,950 on WS2.
+- **Persistence chains read the command line.** `description` matchers now
+  also search `cmdline`, so a real 4688 `net user /add` followed by
+  `schtasks` fires `persistence_after_privilege`. Findings carry the matched
+  command line as evidence.
+- **Snapshot and remove-admin survive domain controllers.** The
+  `Administrators` lookup uses `net localgroup Administrators` instead of
+  `Get-LocalGroupMember -Group 'Administrators'`, which fails with “group not
+  found” or Win32 error 1789 on some hosts. The same fix covers
+  `observatory.sketch`.
+- **631 tests**, full suite green, ruff clean.
 
 ## What's new in 1.15.1
 

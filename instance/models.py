@@ -50,12 +50,12 @@ class PlasmaEvent(BaseModel):
 
     ts: datetime
     host: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$")
-    source: Literal["sentinel", "sysmon", "sealighter", "whids", "plasma", "tap"]
+    source: Literal["sentinel", "sysmon", "sealighter", "whids", "plasma", "tap", "dtrace"]
     kind: Literal[
         "alert", "auth", "dns", "file", "image_load",
-        "network", "process", "registry",
+        "network", "process", "registry", "trace",
     ]
-    event_id: int = Field(ge=1, le=99999)
+    event_id: int = Field(ge=0, le=99999)
     severity: Literal["info", "low", "medium", "high", "critical"]
     user: Optional[str] = Field(default=None, max_length=128)
     process: Optional[str] = Field(default=None, max_length=260)
@@ -77,7 +77,7 @@ class PlasmaEvent(BaseModel):
     )
     alert_id: Optional[str] = Field(default=None, max_length=64)
     score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    action: Optional[Literal["allowed", "blocked", "quarantined", "killed", "logged"]] = None
+    action: Optional[Literal["allowed", "blocked", "quarantined", "killed", "logged", "observed"]] = None
     description: Optional[str] = Field(default=None, max_length=2048)
 
     @field_validator("ts", mode="before")
