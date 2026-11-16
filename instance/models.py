@@ -80,6 +80,7 @@ class PlasmaEvent(BaseModel):
     action: Optional[Literal["allowed", "blocked", "quarantined", "killed", "logged", "observed"]] = None
     suppressed: Optional[str] = Field(default=None, max_length=512)
     storm: Optional[bool] = None
+    storm_count: Optional[int] = Field(default=None, ge=0)
     description: Optional[str] = Field(default=None, max_length=2048)
 
     @field_validator("ts", mode="before")

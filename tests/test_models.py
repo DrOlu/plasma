@@ -113,3 +113,8 @@ def test_long_cmdline_and_storm_field_parse():
     ev = PlasmaEvent(**base(cmdline="x" * 20000, storm=True))
     assert len(ev.cmdline) == 20000
     assert ev.storm is True
+
+
+def test_storm_count_parses():
+    ev = PlasmaEvent(**base(storm=True, storm_count=2097))
+    assert ev.storm_count == 2097

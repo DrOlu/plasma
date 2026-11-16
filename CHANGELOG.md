@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.15.5 — 2026-11-17
+
+Last contract field from the 1.15.4 estate audit.
+
+- **WHIDS `storm_count` alerts validate.** The strict contract carries the
+  integer `storm_count` WHIDS writes on storm alerts. WS1 now parses
+  24,874/24,874 events; WS2 89,603/89,603.
+- 635 tests collected; full suite passes; ruff clean.
+
 ## 1.15.4 — 2026-11-17
 
 Final contract edges from the 1.15.3 estate audit.
