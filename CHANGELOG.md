@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.15.6 — 2026-11-17
+
+Final WHIDS storm field.
+
+- **WHIDS `storm_first_ts` alerts validate.** The strict contract carries the
+  timestamp WHIDS writes on storm alerts. WS1 parses 24,965/24,965 events;
+  WS2 90,724/90,724.
+- 636 tests collected; full suite passes; ruff clean.
+
 ## 1.15.5 — 2026-11-17
 
 Last contract field from the 1.15.4 estate audit.

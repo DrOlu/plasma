@@ -118,3 +118,9 @@ def test_long_cmdline_and_storm_field_parse():
 def test_storm_count_parses():
     ev = PlasmaEvent(**base(storm=True, storm_count=2097))
     assert ev.storm_count == 2097
+
+
+def test_storm_first_ts_parses():
+    ev = PlasmaEvent(**base(storm=True, storm_count=3,
+                            storm_first_ts="2026-11-14T07:30:38.5643681Z"))
+    assert ev.storm_first_ts.startswith("2026-11-14")

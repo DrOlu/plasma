@@ -81,6 +81,7 @@ class PlasmaEvent(BaseModel):
     suppressed: Optional[str] = Field(default=None, max_length=512)
     storm: Optional[bool] = None
     storm_count: Optional[int] = Field(default=None, ge=0)
+    storm_first_ts: Optional[str] = Field(default=None, max_length=64)
     description: Optional[str] = Field(default=None, max_length=2048)
 
     @field_validator("ts", mode="before")
