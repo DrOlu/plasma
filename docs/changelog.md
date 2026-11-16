@@ -4,6 +4,16 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.15.4 — 2026-11-17
+
+Final contract edges from the 1.15.3 estate audit.
+
+- **Long command lines validate.** Encoded PowerShell can exceed 8 KiB;
+  `cmdline` now allows 32 KiB.
+- **WHIDS `storm` alerts validate.** The strict contract carries the boolean
+  `storm` field WHIDS writes on storm alerts.
+- 634 tests collected; full suite passes; ruff clean.
+
 ## 1.15.3 — 2026-11-17
 
 Deeper contract audit from the same estate drill.

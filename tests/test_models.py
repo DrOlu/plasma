@@ -106,3 +106,10 @@ def test_dest_ip_accepts_workstation_and_ipv6_zone():
     """4776 puts the calling machine in dest_ip; IPv6 may carry a zone id."""
     assert PlasmaEvent(**base(dest_ip="WS2")).dest_ip == "WS2"
     assert PlasmaEvent(**base(dest_ip="fe80::1%8")).dest_ip == "fe80::1%8"
+
+
+def test_long_cmdline_and_storm_field_parse():
+    """Encoded PowerShell can exceed 8 KiB; WHIDS storm alerts carry a bool."""
+    ev = PlasmaEvent(**base(cmdline="x" * 20000, storm=True))
+    assert len(ev.cmdline) == 20000
+    assert ev.storm is True
