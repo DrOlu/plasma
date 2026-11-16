@@ -4,6 +4,17 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.15.3 — 2026-11-17
+
+Deeper contract audit from the same estate drill.
+
+- **WHIDS `suppressed` alerts validate.** The strict `PlasmaEvent` contract
+  now carries the `suppressed` reason WHIDS writes on suppressed alerts.
+- **`dest_ip` accepts workstation names and IPv6 zone IDs.** 4776 NTLM
+  events put the calling machine in `dest_ip`; IPv6 may carry `%zone`.
+  A 10,000-event sample from each host now validates with zero failures.
+- 633 tests collected; full suite passes; ruff clean.
+
 ## 1.15.2 — 2026-11-16
 
 Field-found fixes from the neuralOSd-orchestrated estate drill.

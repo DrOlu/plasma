@@ -90,3 +90,19 @@ def test_dtrace_trace_event_parses():
     assert ev.kind == "trace"
     assert ev.event_id == 0
     assert ev.action == "observed"
+
+
+def test_whids_suppressed_field_parses():
+    """WHIDS alerts carry a `suppressed` reason; the strict contract must
+    accept it or every suppressed alert is a parse failure."""
+    ev = PlasmaEvent(**base(
+        source="whids", kind="alert", event_id=13,
+        suppressed="expected installer/service writer (svchost.exe)",
+    ))
+    assert ev.suppressed.startswith("expected installer")
+
+
+def test_dest_ip_accepts_workstation_and_ipv6_zone():
+    """4776 puts the calling machine in dest_ip; IPv6 may carry a zone id."""
+    assert PlasmaEvent(**base(dest_ip="WS2")).dest_ip == "WS2"
+    assert PlasmaEvent(**base(dest_ip="fe80::1%8")).dest_ip == "fe80::1%8"

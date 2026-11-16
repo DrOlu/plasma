@@ -65,7 +65,7 @@ class PlasmaEvent(BaseModel):
     image: Optional[str] = Field(default=None, max_length=4096)
     cmdline: Optional[str] = Field(default=None, max_length=8192)
     dest_ip: Optional[str] = Field(
-        default=None, pattern=r"^[0-9A-Fa-f:.]{2,45}$"
+        default=None, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:%-]{1,63}$"
     )
     dest_port: Optional[int] = Field(default=None, ge=0, le=65535)
     dns_query: Optional[str] = Field(default=None, max_length=253)
@@ -78,6 +78,7 @@ class PlasmaEvent(BaseModel):
     alert_id: Optional[str] = Field(default=None, max_length=64)
     score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     action: Optional[Literal["allowed", "blocked", "quarantined", "killed", "logged", "observed"]] = None
+    suppressed: Optional[str] = Field(default=None, max_length=512)
     description: Optional[str] = Field(default=None, max_length=2048)
 
     @field_validator("ts", mode="before")

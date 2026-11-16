@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.15.2</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.15.3</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.15.2</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.15.3</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">631 tests</span>
+<span class="raft-badge">633 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -104,6 +104,15 @@ DESK               status · ask · drift · chains · coverage · fleet ·
 PREVENTION         enforce (containment) · prevent (AppLocker, egress,
                    Defender ASR, LSA protection)
 ```
+
+## What's new in 1.15.3
+
+- **WHIDS `suppressed` alerts validate.** The strict event contract now
+  carries the `suppressed` reason WHIDS writes on suppressed alerts.
+- **`dest_ip` accepts workstation names and IPv6 zone IDs.** 4776 NTLM
+  events put the calling machine in `dest_ip`; IPv6 may carry `%zone`.
+  A 10,000-event sample from each host now validates with zero failures.
+- **633 tests**, full suite green, ruff clean.
 
 ## What's new in 1.15.2
 
