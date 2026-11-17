@@ -308,12 +308,19 @@ def _ps_canary(canaries):
     names = ", ".join(_ps_literal(c) for c in canaries)
     return _PS_HEAD + f"""
 $canaries = @({names})
-$since = (Get-Date).AddDays(-7)
-$ev = Get-WinEvent -FilterHashtable @{{ LogName='Security'; Id=4624,4625; StartTime=$since }}
 $rows = @()
-foreach ($e in $ev) {{
-    $d = Ed $e
-    if ($canaries -contains $d.TargetUserName) {{
+if ($canaries.Count -gt 0) {{
+    # Server-side XPath: filter by TargetUserName before the event objects
+    # cross the wire. The old loop pulled every 4624/4625 for 7 days and
+    # timed out on a busy DC.
+    $filters = @()
+    foreach ($c in $canaries) {{
+        $filters += "EventData[Data[@Name='TargetUserName']=`"$c`"]"
+    }}
+    $xp = "*[System[(EventID=4624 or EventID=4625) and TimeCreated[timediff(@SystemTime) <= 604800000]] and (" + ($filters -join " or ") + ")]"
+    $ev = Get-WinEvent -LogName Security -FilterXPath $xp -MaxEvents 500 -ErrorAction SilentlyContinue
+    foreach ($e in $ev) {{
+        $d = Ed $e
         $rows += @{{ when=$e.TimeCreated.ToString('o'); id=$e.Id; user=$d.TargetUserName
                     source_ip=$d.IpAddress; logon_type=$d.LogonType }}
     }}

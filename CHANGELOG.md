@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.15.9 — 2026-11-17
+
+Canary collector performance.
+
+- **`observe canary` filters server-side.** The collector pulled every
+  4624/4625 for seven days and timed out at 240 s on a busy DC. It now uses
+  a `FilterXPath` on `TargetUserName`, so only canary logons cross the wire.
+- 639 tests collected; full suite passes; ruff clean.
+
 ## 1.15.8 — 2026-11-17
 
 Operational gaps from the deep drill.
