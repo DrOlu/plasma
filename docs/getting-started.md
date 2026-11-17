@@ -47,7 +47,7 @@ The installer:
 2. decides FULL or MINIMAL from the box's actual state;
 3. installs Sysmon when needed (official package, EULA accepted non-interactively);
 4. provisions WHIDS in **detect-only** mode and registers the service
-   (prevention is separate and off by default);
+   (containment ships armed but narrow; prevention is audit-first);
 5. writes `config.json` (sensors, paths, install mode);
 6. flips `instances\current` to the new version atomically;
 7. reports the whole decision as JSON.
@@ -110,9 +110,12 @@ Exit codes: `0` clean, non-zero when findings exist — ideal for Task
 Scheduler. Configure Telegram/webhook delivery in
 `C:\ProgramData\Plasma\notify.json` (see [Operations](operations.md)).
 
-## Optional: prevention
+## Protection
 
-Blocking is opt-in. Start with observations, then a plan:
+Containment is armed by default but narrow: `snapshot` + `kill_process` at
+score 9+, 2 actions per run, 30-minute cooldown; isolation and every other
+action require approval. Prevention is audit-first and opt-in. Start with
+the posture, then a plan:
 
 ```powershell
 plasma enforce status                 # policy, journal, kill switch

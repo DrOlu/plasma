@@ -27,16 +27,21 @@ tails on the desk.
 
 ### Can it block or kill automatically?
 
-Yes, if you configure it. There are two tiers, both **off by default**:
+Yes. There are two tiers. **Containment is armed by default but narrow;
+prevention is audit-first and opt-in.**
 
 - **Containment** (`plasma enforce`) reacts to findings in seconds:
   injection findings first write a host snapshot, then kill the accessing
-  process; a tripped canary queues host isolation for approval. Policy sets the score floor, allowlist,
-  cooldown, per-run cap and which actions need a human.
+  process at score 9+, with a 2-action per-run cap and a 30-minute
+  cooldown. A tripped canary queues host isolation for approval, as do
+  quarantine, disabling users, removing admins, stopping services,
+  credential rotation, task/Run-key/WMI removal and IP blocking. The
+  installer registers `PlasmaWatch`, which runs the sweep every 5 minutes;
+  `plasma protect disarm` turns automatic containment off.
 - **Enforcement points** (`plasma prevent`) stop behaviour before it runs
   by configuring AppLocker, firewall egress, Defender ASR and LSA
-  protection. Each control is dry-run first, plan-gated, verified and
-  rollbackable by journal id.
+  protection. AppLocker starts in audit; every control is dry-run first,
+  plan-gated, verified and rollbackable by journal id.
 
 Every apply still passes a dry-run + plan gate, and the kill switch blocks
 all containment. Plasma does not ship its own kernel driver.

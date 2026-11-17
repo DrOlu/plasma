@@ -6,13 +6,15 @@ to a marketing page.
 
 ## Guarantees
 
-1. **Read-only by default.** Collectors and probes read. Mutations happen
-   only in two opt-in planes, both dry-run first:
+1. **Read-only collectors; measured mutations.** Collectors and probes
+   read. Mutations happen only in two measured planes:
    - **Containment** (`actuate`, driven by `plasma enforce`) — named,
-     reversible actions behind a plan gate and a policy.
+     reversible actions behind a plan gate and a policy. Automatic
+     containment ships armed but narrow: `snapshot` + `kill_process` at
+     score 9+, with isolation and every other action behind approval.
    - **Enforcement points** (`plasma prevent`) — AppLocker, firewall,
-     Defender ASR and LSA controls, plan-gated on the rendered payload and
-     rollbackable by journal id.
+     Defender ASR and LSA controls, audit-first, plan-gated on the rendered
+     payload and rollbackable by journal id.
 2. **Gate is enforced in code.** Manual applies require `--plan <dry-run
    id>` matching the action, target and payload digest. Automatic
    containment still runs through actuate's dry-run + plan gate, and only

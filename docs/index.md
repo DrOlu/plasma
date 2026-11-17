@@ -107,9 +107,9 @@ ORCHESTRATOR       neuralOSd — plan/apply/undo over the same typed tools
 DESK               status · ask · drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
         │
-        ▼  opt-in, policy-gated, journaled
-PREVENTION         enforce (containment) · prevent (AppLocker, egress,
-                   Defender ASR, LSA protection)
+        ▼  measured, policy-gated, journaled
+PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
+                   prevent (AppLocker, egress, Defender ASR, LSA protection)
 ```
 
 ## What's new in 1.17.1
@@ -580,8 +580,10 @@ Prefer a visual tour? **[Open the one-page overview](https://drolu.github.io/pla
 
 1. **Read-only by default.** Collectors read. Manual actions require
    `--apply --plan <id>` from a seen dry-run.
-2. **Prevention is opt-in.** `enforce` and `prevent` do nothing until you
-   enable them; both are dry-run first, policy-gated and journaled.
+2. **Containment is armed but narrow; prevention is audit-first.**
+   `enforce` is limited to `snapshot` + `kill_process` at score 9+, with
+   isolation and every other action behind approval. `prevent` does
+   nothing until you apply a plan. Both are policy-gated and journaled.
 3. **Deterministic.** Detection is written rules and written chains. The
    model selects probes; it never decides guilt and never runs commands.
 4. **Bounded.** Every collector has a time window, a row cap and a size cap.
