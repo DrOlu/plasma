@@ -30,6 +30,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .lifecycle import whids_state
 from .redact import redact_text
 
 SERVICE_NAME = "Whids"
@@ -868,16 +869,16 @@ def ensure(root=None, wait_seconds: int = 30) -> dict:
     import time
     name = _whids_service_name() or SERVICE_NAME
     actions: list[dict] = []
-    state = _service_state(name)
+    state = whids_state(_service_state(name))
     if state == "Running":
         return {"ok": True, "service": name, "state": state, "actions": actions}
 
-    pending = ("StartPending", "Stopping", "Unknown", "")
+    pending = ("StartPending", "Stopping", "Unknown")
     if state in pending:
         deadline = time.time() + wait_seconds
         while state in pending and time.time() < deadline:
             time.sleep(3)
-            state = _service_state(name)
+            state = whids_state(_service_state(name))
 
     if state != "Running":
         # A pathological dump tree can be the reason startup exceeds the
@@ -894,10 +895,10 @@ def ensure(root=None, wait_seconds: int = 30) -> dict:
         rc, _ = _ps(f"Start-Service -Name '{name}' -ErrorAction SilentlyContinue")
         actions.append({"action": "start", "rc": rc})
         deadline = time.time() + wait_seconds
-        state = _service_state(name)
+        state = whids_state(_service_state(name))
         while state in pending and time.time() < deadline:
             time.sleep(3)
-            state = _service_state(name)
+            state = whids_state(_service_state(name))
         if state != "Running" and state in pending:
             # Stop-Service can return 0 while the process remains wedged
             # (StartPending is NOT_STOPPABLE). The SCM cannot kill it, so
@@ -910,10 +911,10 @@ def ensure(root=None, wait_seconds: int = 30) -> dict:
             rc, _ = _ps(f"Start-Service -Name '{name}' -ErrorAction SilentlyContinue")
             actions.append({"action": "start_retry", "rc": rc})
             deadline = time.time() + wait_seconds
-            state = _service_state(name)
+            state = whids_state(_service_state(name))
             while state in pending and time.time() < deadline:
                 time.sleep(3)
-                state = _service_state(name)
+                state = whids_state(_service_state(name))
 
     result = {"ok": state == "Running", "service": name, "state": state,
               "actions": actions,

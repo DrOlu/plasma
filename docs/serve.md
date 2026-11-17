@@ -33,7 +33,7 @@ curl -s -H "Authorization: Bearer plasmaplasma" \
 | `GET` | `/openapi.json` | no | OpenAPI 3.1 description |
 | `GET` | `/docs` | no | human-readable API docs |
 | `GET` | `/v1/version` | yes | version, Python, platform, read-only flag |
-| `GET` | `/v1/commands` | yes | the full CLI command tree with options |
+| `GET` | `/v1/commands` | yes | the full CLI command tree with options and positionals |
 | `POST` | `/v1/exec` | yes | run one CLI argv |
 
 ## OpenAPI
@@ -50,9 +50,10 @@ curl -s http://HOST:9999/openapi.json | jq '.paths | keys'
 
 `POST /v1/exec` is deliberately generic: the spec describes the argv
 envelope, while the full command surface is discoverable at
-`GET /v1/commands` (128 paths with options, mutating flags and
-long-running markers). A per-command OpenAPI schema would duplicate the
-argparse tree and drift; the command tree is the better contract.
+`GET /v1/commands` (127 commands plus a separate `root` object, each with
+options, positionals, mutating flags and long-running markers). A
+per-command OpenAPI schema would duplicate the argparse tree and drift;
+the command tree is the better contract.
 
 The spec is generated from `plasma/openapi.py` and its `info.version`
 tracks the package version. A unit test asserts that the spec paths and

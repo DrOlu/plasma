@@ -16,6 +16,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from . import agentstate
+from .lifecycle import approval_state
 
 LEDGER_DIR = "ledger"
 LEDGER_FILE = "ledger.jsonl"
@@ -200,7 +201,7 @@ def pending_approvals(root=None, limit: int = 200,
             continue
         # A terminal outcome (invalid/denied/expired) is history, not a
         # pending request. Showing it forever makes the queue look stuck.
-        if row.get("outcome") in ("approval_invalid", "denied", "expired"):
+        if approval_state(row) in ("denied", "expired", "invalid"):
             continue
         if tenant and row.get("tenant") != tenant:
             continue
@@ -216,7 +217,7 @@ def approve(root, seq: int, approver: str, note: str = "",
     target = find(root, seq)
     if target is None:
         raise LedgerError(f"no ledger row {seq}")
-    if target.get("kind") != "action" or target.get("decision") != "approval_required":
+    if approval_state(target) != "pending":
         raise LedgerError(f"row {seq} is not a pending approval")
     return append(root, {
         "kind": "approval",

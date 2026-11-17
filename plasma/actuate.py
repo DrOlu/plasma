@@ -35,6 +35,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import agentstate
+from .lifecycle import plan_state
 
 PROTECTED_SERVICES = {
     "winrm", "termService", "termservice", "sessionenv", "umrdpservice",
@@ -655,7 +656,7 @@ def execute(action, root, target=None, reason=None, apply=False, timeout=60,
             if not dr:
                 return {"error": f"--plan {plan}: no such journal entry",
                         "code": "REFUSED", "action": action}
-            if dr.get("mode") != "dry-run" or dr.get("action") != action:
+            if plan_state(dr) != "proposed" or dr.get("action") != action:
                 return {"error": f"--plan {plan} is not a dry-run of '{action}'",
                         "code": "REFUSED", "action": action}
             if str(dr.get("target") or "") != str(target or ""):
@@ -666,7 +667,7 @@ def execute(action, root, target=None, reason=None, apply=False, timeout=60,
                 return {"error": f"--plan {plan} rendered a different payload than the "
                                  f"current state would (re-run the dry-run)",
                         "code": "REFUSED", "action": action}
-            if any(r.get("mode") == "applied" and r.get("plan") == plan for r in rows):
+            if any(plan_state(r) == "applied" and r.get("plan") == plan for r in rows):
                 return {"error": f"--plan {plan} has already been used",
                         "code": "REFUSED", "action": action}
 
@@ -823,11 +824,11 @@ def undo(root, entry_id, apply=False, plan=None, timeout=60):
         match = next((r for r in rows if r.get("id") == entry_id), None)
         if not match:
             return {"error": f"no journal entry {entry_id}"}
-        if match.get("mode") not in ("applied", "failed"):
+        if plan_state(match) not in ("applied", "failed"):
             return {"error": f"entry {entry_id} is '{match.get('mode')}', nothing to undo"}
         if not match.get("undoable") or not match.get("undo"):
             return {"error": f"entry {entry_id} has no undo (undoable={match.get('undoable')})"}
-        if any(r.get("action") == "undo" and r.get("mode") == "applied"
+        if any(r.get("action") == "undo" and plan_state(r) == "undone"
                and r.get("undoes") == entry_id for r in rows):
             return {"error": f"entry {entry_id} has already been undone"}
 
@@ -838,7 +839,7 @@ def undo(root, entry_id, apply=False, plan=None, timeout=60):
 
         if apply:
             candidates = [r for r in rows
-                          if r.get("action") == "undo" and r.get("mode") == "dry-run"
+                          if r.get("action") == "undo" and plan_state(r) == "proposed"
                           and r.get("undoes") == entry_id]
             if plan is None and len(candidates) == 1:
                 plan = candidates[0]["id"]
@@ -848,7 +849,7 @@ def undo(root, entry_id, apply=False, plan=None, timeout=60):
                 return {"error": f"--apply requires --plan <id> from a prior undo dry-run "
                                  f"({detail})", "code": "REFUSED"}
             dr = next((r for r in rows if r.get("id") == plan), None)
-            if (not dr or dr.get("action") != "undo" or dr.get("mode") != "dry-run"
+            if (not dr or dr.get("action") != "undo" or plan_state(dr) != "proposed"
                     or dr.get("undoes") != entry_id):
                 return {"error": f"--plan {plan} is not a dry-run undo of entry {entry_id}",
                         "code": "REFUSED"}

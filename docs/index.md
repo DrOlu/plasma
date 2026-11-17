@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.16.1</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.16.2</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.16.1</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.16.2</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">674 tests</span>
+<span class="raft-badge">698 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -111,6 +111,24 @@ DESK               status · ask · drift · chains · coverage · fleet ·
 PREVENTION         enforce (containment) · prevent (AppLocker, egress,
                    Defender ASR, LSA protection)
 ```
+
+## What's new in 1.16.2
+
+- **Serve hardening.** Serialized argparse validation, byte-safe API-key
+  comparison, 411 for missing `Content-Length`, socket timeouts, broken-pipe
+  handling, UTF-8 child I/O, `stdin=DEVNULL`, and process-tree kill on
+  timeout.
+- **Audit reliability and redaction.** Serialized audit appends, a 30 s
+  lock timeout, failed-write logging, and redaction of `--prompt` values
+  and credential-shaped argv items.
+- **Command tree completeness.** `/v1/commands` returns a separate `root`
+  and 127 commands, each with `positionals` as well as options. The
+  OpenAPI schemas describe both.
+- **Explicit lifecycles.** `plasma/lifecycle.py` names the serve request,
+  plan, approval, enforcement, prevention, WHIDS, FIM, canary, drift,
+  identity-schedule, capture, fleet, kill-switch, tenant and ring
+  machines, with pure classifiers used by the modules.
+- **698 tests**, full suite green, ruff clean.
 
 ## What's new in 1.16.1
 

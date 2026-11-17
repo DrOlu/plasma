@@ -192,9 +192,24 @@ SPEC: dict = {
                     "help": {"type": "string"},
                 },
             },
+            "Positional": {
+                "type": "object",
+                "required": ["name", "required", "nargs", "choices", "help"],
+                "properties": {
+                    "name": {"type": "string"},
+                    "required": {"type": "boolean"},
+                    "nargs": {"type": ["string", "null"]},
+                    "choices": {
+                        "type": ["array", "null"],
+                        "items": {"type": "string"},
+                    },
+                    "help": {"type": "string"},
+                },
+            },
             "Command": {
                 "type": "object",
-                "required": ["path", "help", "options", "long_running", "mutating"],
+                "required": ["path", "help", "options", "positionals",
+                             "long_running", "mutating"],
                 "properties": {
                     "path": {"type": "array", "items": {"type": "string"}},
                     "help": {"type": "string"},
@@ -202,16 +217,21 @@ SPEC: dict = {
                         "type": "array",
                         "items": {"$ref": "#/components/schemas/Option"},
                     },
+                    "positionals": {
+                        "type": "array",
+                        "items": {"$ref": "#/components/schemas/Positional"},
+                    },
                     "long_running": {"type": "boolean"},
                     "mutating": {"type": "boolean"},
                 },
             },
             "CommandTree": {
                 "type": "object",
-                "required": ["ok", "version", "commands"],
+                "required": ["ok", "version", "root", "commands"],
                 "properties": {
                     "ok": {"type": "boolean"},
                     "version": {"type": "string"},
+                    "root": {"$ref": "#/components/schemas/Command"},
                     "commands": {
                         "type": "array",
                         "items": {"$ref": "#/components/schemas/Command"},

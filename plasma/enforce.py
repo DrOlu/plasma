@@ -32,6 +32,7 @@ import time
 from pathlib import Path
 
 from . import actuate, agentstate, killswitch
+from .lifecycle import enforce_state
 
 DEFAULT_POLICY = {
     "enabled": False,
@@ -231,7 +232,7 @@ def _cooling_down(root, action: str, target, minutes: int) -> bool:
             continue
         if str(row.get("target") or "") != str(target or ""):
             continue
-        if row.get("status") not in ("applied", "pending_approval"):
+        if enforce_state(row) not in ("applied", "pending_approval"):
             continue
         try:
             ts = time.strptime(str(row.get("ts")), "%Y-%m-%dT%H:%M:%SZ")
@@ -411,7 +412,7 @@ def _approved_ids(root) -> set:
 def _pending_exists(root, action, target, digest):
     approved = _approved_ids(root)
     for row in _read_journal(root):
-        if (row.get("status") == "pending_approval"
+        if (enforce_state(row) == "pending_approval"
                 and row.get("id") not in approved
                 and row.get("action") == action
                 and str(row.get("target") or "") == str(target or "")
@@ -425,7 +426,7 @@ def pending(root) -> dict:
     seen = set()
     rows = []
     for row in _read_journal(root):
-        if row.get("status") != "pending_approval":
+        if enforce_state(row) != "pending_approval":
             continue
         if row.get("id") in approved:
             continue
@@ -445,7 +446,7 @@ def approve(root, entry_id: int, apply: bool = False) -> dict:
     row = next((r for r in rows if int(r.get("id") or 0) == int(entry_id)), None)
     if not row:
         return {"error": f"no enforcement entry {entry_id}"}
-    if row.get("status") != "pending_approval":
+    if enforce_state(row) != "pending_approval":
         return {"error": f"entry {entry_id} is {row.get('status')}, not pending"}
     if entry_id in _approved_ids(root):
         return {"error": f"entry {entry_id} has already been approved"}

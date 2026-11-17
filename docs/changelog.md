@@ -4,6 +4,27 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.16.2 — 2026-11-17
+
+Serve hardening, command-tree completeness and explicit lifecycles.
+
+- **Serve concurrency and edge cases.** Argparse validation is serialized;
+  API keys are compared as bytes; a missing `Content-Length` returns 411;
+  the handler has a socket timeout; broken pipes are ignored; child
+  processes get UTF-8 I/O, `stdin=DEVNULL`, and a process-tree kill on
+  timeout.
+- **Audit reliability and redaction.** Audit appends are serialized and
+  use a 30 s lock timeout; failed writes are logged. `--prompt` values and
+  credential-shaped argv items are redacted.
+- **Command tree completeness.** `/v1/commands` returns a separate `root`
+  and 127 commands, each with `positionals` as well as options. The
+  OpenAPI schemas describe both.
+- **Explicit lifecycles.** `plasma/lifecycle.py` names the serve request,
+  plan, approval, enforcement, prevention, WHIDS, FIM, canary, drift,
+  identity-schedule, capture, fleet, kill-switch, tenant and ring
+  machines, with pure classifiers used by the modules.
+- 698 tests collected; full suite passes; ruff clean.
+
 ## 1.16.1 — 2026-11-17
 
 OpenAPI 3.1 for `plasma serve`.

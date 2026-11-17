@@ -30,6 +30,7 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 from . import agentstate
+from .lifecycle import prevent_state
 
 PREFIX = "PlasmaPrevent"
 JOURNAL = "prevent-journal.jsonl"
@@ -70,8 +71,8 @@ def _append_journal(root, entry) -> dict:
     path.parent.mkdir(parents=True, exist_ok=True)
     with agentstate.lock(path.parent / ".prevent-journal.lock", stale=300):
         rows = _read_journal(root)
-        if (entry.get("status") == "applied" and entry.get("plan") is not None
-                and any(r.get("status") == "applied"
+        if (prevent_state(entry) == "applied" and entry.get("plan") is not None
+                and any(prevent_state(r) == "applied"
                         and r.get("plan") == entry["plan"] for r in rows)):
             return {"error": f"plan {entry['plan']} has already been applied",
                     "code": "REFUSED"}
@@ -535,13 +536,13 @@ def _check_plan(root, plan, control, digest, reason) -> dict:
     if not dry:
         return {"error": f"--plan {plan}: no such journal entry",
                 "code": "REFUSED"}
-    if dry.get("status") != "dry-run" or dry.get("control") != control:
+    if prevent_state(dry) != "dry-run" or dry.get("control") != control:
         return {"error": f"--plan {plan} is not a dry-run of '{control}'",
                 "code": "REFUSED"}
     if dry.get("payload_sha256") != digest:
         return {"error": f"--plan {plan} rendered a different payload; "
                          f"re-run the dry-run", "code": "REFUSED"}
-    if any(r.get("status") == "applied" and r.get("plan") == plan for r in rows):
+    if any(prevent_state(r) == "applied" and r.get("plan") == plan for r in rows):
         return {"error": f"--plan {plan} has already been used",
                 "code": "REFUSED"}
     return {}
@@ -566,7 +567,7 @@ def rollback(root, entry_id: int, apply: bool = False) -> dict:
     row = next((r for r in rows if int(r.get("id") or 0) == int(entry_id)), None)
     if not row:
         return {"error": f"no prevention entry {entry_id}"}
-    if row.get("status") != "applied":
+    if prevent_state(row) != "applied":
         return {"error": f"entry {entry_id} is {row.get('status')}, not applied"}
     undo = row.get("undo") or {}
     kind = undo.get("kind")

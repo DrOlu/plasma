@@ -6,7 +6,11 @@ HTTP. Each test is independent; the fixture shuts the server down.
 
 from __future__ import annotations
 
+import http.client
 import json
+import os
+import subprocess
+import sys
 import threading
 import urllib.error
 import urllib.request
@@ -386,3 +390,101 @@ def test_openapi_and_docs_are_unauthenticated(running):
     req = urllib.request.Request(base + "/docs")
     with urllib.request.urlopen(req, timeout=30) as resp:
         assert resp.status == 200
+
+
+# ---------------------------------------------------------------------------
+# command tree completeness
+# ---------------------------------------------------------------------------
+
+def test_commands_have_root_and_127_commands(running):
+    _, key, base = running
+    _, body = _request(base, "/v1/commands", key=key)
+    assert body["root"]["path"] == []
+    assert len(body["commands"]) == 127
+    assert all(row["path"] for row in body["commands"])
+
+
+def test_commands_include_positionals(running):
+    _, key, base = running
+    _, body = _request(base, "/v1/commands", key=key)
+    by_path = {tuple(row["path"]): row for row in body["commands"]}
+    observe = by_path[("observe",)]
+    assert any(p["name"] == "question" for p in observe["positionals"])
+    apply = by_path[("actuate", "apply")]
+    assert any(p["name"] == "action" for p in apply["positionals"])
+    manifest = by_path[("manifest",)]
+    assert any(p["name"] == "action" for p in manifest["positionals"])
+
+
+def test_openapi_command_schema_has_positionals(running):
+    _, _, base = running
+    _, body = _request(base, "/openapi.json")
+    command = body["components"]["schemas"]["Command"]
+    assert "positionals" in command["required"]
+    assert "positionals" in command["properties"]
+    tree = body["components"]["schemas"]["CommandTree"]
+    assert "root" in tree["required"]
+    assert "root" in tree["properties"]
+
+
+# ---------------------------------------------------------------------------
+# edge cases
+# ---------------------------------------------------------------------------
+
+def test_missing_content_length_is_411(running):
+    _, key, base = running
+    host = base.split("//", 1)[1]
+    conn = http.client.HTTPConnection(host, timeout=10)
+    try:
+        conn.putrequest("POST", "/v1/exec")
+        conn.putheader("Authorization", f"Bearer {key}")
+        conn.endheaders()
+        resp = conn.getresponse()
+        body = json.loads(resp.read().decode("utf-8"))
+        assert resp.status == 411
+        assert body["code"] == "length_required"
+    finally:
+        conn.close()
+
+
+def test_non_ascii_api_key(tmp_path):
+    server, key, base = _start(tmp_path, api_key="clé")
+    try:
+        status, body = _request(base, "/v1/version", key=key)
+        assert status == 200 and body["ok"] is True
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_audit_redacts_prompt(tmp_path):
+    server, key, base = _start(tmp_path)
+    try:
+        _request(base, "/v1/exec", method="POST", key=key,
+                 payload={"argv": ["ask", "--prompt", "secret question"]})
+        path = tmp_path / "serve" / "audit.jsonl"
+        rows = [json.loads(line) for line in path.read_text().splitlines()
+                if line.strip()]
+        assert rows
+        argv = rows[-1]["argv"]
+        assert "--prompt" in argv
+        assert "<redacted>" in argv
+        assert "secret question" not in json.dumps(rows)
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_audit_argv_redacts_sensitive_flag():
+    assert serve._audit_argv(["--prompt", "secret", "health"]) == \
+        ["--prompt", "<redacted>", "health"]
+    assert serve._audit_argv(["health", "--root", "C:\\Plasma"]) == \
+        ["health", "--root", "C:\\Plasma"]
+
+
+def test_run_child_timeout_kills_process():
+    with pytest.raises(subprocess.TimeoutExpired):
+        serve._run_child(
+            [sys.executable, "-c", "import time; time.sleep(5)"],
+            os.environ.copy(), 0.2,
+        )

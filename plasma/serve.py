@@ -23,9 +23,12 @@ import hmac
 import io
 import json
 import os
+import signal
+import socket
 import ssl
 import subprocess
 import sys
+import threading
 import time
 from contextlib import redirect_stderr, redirect_stdout
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -33,7 +36,9 @@ from pathlib import Path
 from typing import ClassVar
 
 from . import __version__, agentstate
+from .lifecycle import SERVE_REQUEST, require
 from .openapi import SPEC
+from .redact import redact_text
 
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 9999
@@ -43,6 +48,18 @@ DEFAULT_MAX_BODY = 1 << 20          # 1 MiB request body
 DEFAULT_MAX_OUTPUT = 8 << 20        # 8 MiB stdout/stderr per call
 MAX_ARGV = 64
 MAX_ARG_LEN = 4096
+SOCKET_TIMEOUT = 30
+
+# argparse writes to the process-global stdout/stderr. Validation is
+# serialized so two concurrent requests cannot capture each other's output.
+_VALIDATE_LOCK = threading.Lock()
+# Audit appends are serialized in-process before taking the cross-process
+# file lock; a lost audit row is a security event, not a cosmetic one.
+_AUDIT_LOCK = threading.Lock()
+
+# Values after these flags are redacted in the audit log. The flag itself is
+# kept so the audit still shows what was asked.
+_SENSITIVE_FLAGS = {"--prompt"}
 
 # The routes described by the OpenAPI document. Kept here so a test can
 # assert the spec and the server do not drift apart.
@@ -279,7 +296,7 @@ def _validate_argv(argv: list[str]) -> None:
     parser = build_parser()
     out, err = io.StringIO(), io.StringIO()
     try:
-        with redirect_stdout(out), redirect_stderr(err):
+        with _VALIDATE_LOCK, redirect_stdout(out), redirect_stderr(err):
             parser.parse_args(argv)
     except SystemExit as exc:
         code = exc.code if isinstance(exc.code, int) else 2
@@ -312,41 +329,127 @@ def _cap(text: str, limit: int) -> tuple[str, bool]:
     return text[:limit], True
 
 
-def _audit(root, entry: dict) -> None:
-    """Append one audit row. Best-effort: never fail the request."""
+def _audit_argv(argv: list[str]) -> list[str]:
+    """Redact secret-bearing values before they reach the audit log."""
+    out: list[str] = []
+    redact_next = False
+    for item in argv:
+        if redact_next:
+            out.append("<redacted>")
+            redact_next = False
+            continue
+        if item in _SENSITIVE_FLAGS:
+            out.append(item)
+            redact_next = True
+            continue
+        out.append(redact_text(item))
+    return out
+
+
+def _audit(root, entry: dict) -> bool:
+    """Append one audit row. Returns False when the row could not be written."""
     try:
         directory = agentstate.ensure(root) / "serve"
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / "audit.jsonl"
-        with (agentstate.lock(directory / ".lock", timeout=5, stale=60),
+        with (_AUDIT_LOCK,
+              agentstate.lock(directory / ".lock", timeout=30, stale=60),
               path.open("a", encoding="utf-8") as fh):
             fh.write(json.dumps(entry, sort_keys=True, default=str) + "\n")
             fh.flush()
             os.fsync(fh.fileno())
-    except Exception:  # noqa: BLE001, S110 - audit must not break administration
-        pass
+        return True
+    except Exception:  # noqa: BLE001 - audit must not break administration
+        return False
+
+
+def _kill_tree(proc: subprocess.Popen) -> None:
+    """Kill a child and its descendants after a timeout."""
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+            capture_output=True, check=False,
+        )
+        return
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        try:
+            proc.kill()
+        except OSError:
+            pass
+
+
+def _run_child(cmd: list[str], env: dict, timeout: int) -> tuple[int, str, str]:
+    """Run one CLI invocation with a hard timeout and a tree kill.
+
+    ``subprocess.run(timeout=...)`` kills only the direct child. Plasma
+    commands spawn PowerShell, so a timeout must take the whole tree down.
+    """
+    kwargs: dict = {}
+    if os.name == "nt":
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        kwargs["start_new_session"] = True
+    proc = subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        **kwargs,
+    )
+    try:
+        out, err = proc.communicate(timeout=timeout)
+        return proc.returncode, out or "", err or ""
+    except subprocess.TimeoutExpired:
+        _kill_tree(proc)
+        try:
+            proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                proc.kill()
+            except OSError:
+                pass
+        raise
 
 
 def _command_tree(parser, path: list[str] | None = None,
                   help_text: str = "") -> list[dict]:
-    """Flatten the argparse tree into a list of command paths + options."""
+    """Flatten the argparse tree into command paths, options and positionals."""
     path = path or []
     options = []
+    positionals = []
     for action in parser._actions:  # argparse has no public walk
-        if not action.option_strings:
+        if isinstance(action, argparse._SubParsersAction):
             continue
-        default = action.default
-        if not isinstance(default, (str, int, float, bool, type(None))):
-            default = None
-        options.append({
-            "flags": list(action.option_strings),
-            "dest": action.dest,
+        if action.option_strings:
+            default = action.default
+            if not isinstance(default, (str, int, float, bool, type(None))):
+                default = None
+            options.append({
+                "flags": list(action.option_strings),
+                "dest": action.dest,
+                "required": bool(getattr(action, "required", False)),
+                "default": default,
+                "choices": list(action.choices) if getattr(action, "choices", None) else None,
+                "help": action.help or "",
+            })
+            continue
+        if action.dest in ("help",):
+            continue
+        positionals.append({
+            "name": action.dest,
             "required": bool(getattr(action, "required", False)),
-            "default": default,
+            "nargs": None if action.nargs is None else str(action.nargs),
             "choices": list(action.choices) if getattr(action, "choices", None) else None,
             "help": action.help or "",
         })
-    rows = [{"path": path, "help": help_text, "options": options}]
+    rows = [{"path": path, "help": help_text, "options": options,
+             "positionals": positionals}]
     for action in parser._actions:
         if not isinstance(action, argparse._SubParsersAction):
             continue
@@ -361,6 +464,7 @@ def _command_tree(parser, path: list[str] | None = None,
 class _Handler(BaseHTTPRequestHandler):
     server_version = f"plasma-serve/{__version__}"
     protocol_version = "HTTP/1.1"
+    timeout = SOCKET_TIMEOUT
 
     # Set by make_server().
     cfg: ClassVar[dict] = {}
@@ -380,7 +484,10 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def _error(self, status: int, code: str, message: str) -> None:
         self._send_json(status, {"ok": False, "code": code, "error": message})
@@ -392,7 +499,11 @@ class _Handler(BaseHTTPRequestHandler):
             supplied = header[7:].strip()
         if not supplied:
             supplied = self.headers.get("X-API-Key", "").strip()
-        return bool(supplied) and hmac.compare_digest(supplied, self.cfg["api_key"])
+        if not supplied:
+            return False
+        # compare_digest on str rejects non-ASCII; compare bytes instead.
+        return hmac.compare_digest(supplied.encode("utf-8"),
+                                   self.cfg["api_key"].encode("utf-8"))
 
     def _require_auth(self) -> bool:
         if self._authorized():
@@ -404,13 +515,19 @@ class _Handler(BaseHTTPRequestHandler):
                            "error": "a valid API key is required"}).encode("utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
         return False
 
     def _read_json(self) -> dict:
         length = self.headers.get("Content-Length")
         if length is None:
-            return {}
+            if self.headers.get("Transfer-Encoding", "").lower() == "chunked":
+                raise ServeError(411, "length_required",
+                                 "chunked bodies are not supported; send Content-Length")
+            raise ServeError(411, "length_required", "Content-Length is required")
         try:
             size = int(length)
         except ValueError as exc:
@@ -419,7 +536,13 @@ class _Handler(BaseHTTPRequestHandler):
             raise ServeError(400, "body", "Content-Length is negative")
         if size > self.cfg["max_body"]:
             raise ServeError(413, "body", "request body is too large")
-        raw = self.rfile.read(size)
+        try:
+            raw = self.rfile.read(size)
+        except socket.timeout as exc:
+            raise ServeError(408, "timeout", "request body read timed out") from exc
+        except (ConnectionResetError, BrokenPipeError) as exc:
+            raise ServeError(400, "body",
+                             "client disconnected while sending the body") from exc
         if not raw:
             return {}
         try:
@@ -449,7 +572,10 @@ class _Handler(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
             return
         if not self._require_auth():
             return
@@ -483,11 +609,13 @@ class _Handler(BaseHTTPRequestHandler):
         if path == "/v1/commands":
             from .cli import build_parser
             rows = _command_tree(build_parser())
-            for row in rows:
+            root = rows[0]
+            commands = rows[1:]
+            for row in commands:
                 row["long_running"] = is_long_running(" ".join(row["path"]))
                 row["mutating"] = is_mutating(row["path"], " ".join(row["path"]))
             self._send_json(200, {"ok": True, "version": __version__,
-                                  "commands": rows})
+                                  "root": root, "commands": commands})
             return
         self._error(404, "not_found", f"no route for GET {path}")
 
@@ -527,49 +655,63 @@ class _Handler(BaseHTTPRequestHandler):
     # -- execution --------------------------------------------------------
 
     def _exec(self, argv: list[str]) -> dict:
-        _validate_argv(argv)
+        state = "received"
+
+        def move(target: str) -> None:
+            nonlocal state
+            require(SERVE_REQUEST, state, target)
+            state = target
+
+        try:
+            _validate_argv(argv)
+        except ServeError:
+            move("rejected")
+            raise
+        move("validated")
         path = command_path(argv)
         if is_long_running(path):
+            move("rejected")
             raise ServeError(400, "long_running",
                              f"{path!r} does not return; run it from the CLI")
         if self.cfg["read_only"] and is_mutating(argv, path):
+            move("rejected")
             raise ServeError(403, "read_only",
                              f"{path!r} changes state and this server is read-only")
 
         env = os.environ.copy()
         env.pop("PLASMA_SERVE_API_KEY", None)
         env["PLASMA_SERVE_CHILD"] = "1"
+        # The child's stdout is a pipe, not a console. Force UTF-8 so a
+        # non-ASCII command output is not mangled by the Windows code page.
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["PYTHONUTF8"] = "1"
         started = time.time()
+        move("running")
         try:
-            proc = subprocess.run(
-                _child_command(argv),
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=self.cfg["timeout"],
-                env=env,
-                check=False,
-            )
+            returncode, stdout, stderr = _run_child(
+                _child_command(argv), env, self.cfg["timeout"])
         except subprocess.TimeoutExpired as exc:
+            move("timed_out")
             elapsed = round((time.time() - started) * 1000, 1)
             self._audit(argv, path, None, elapsed, "timeout")
             raise ServeError(504, "timeout",
                              f"command exceeded {self.cfg['timeout']}s") from exc
         except OSError as exc:
+            move("failed")
             elapsed = round((time.time() - started) * 1000, 1)
             self._audit(argv, path, None, elapsed, "spawn_error")
             raise ServeError(500, "spawn", f"cannot start command: {exc}") from exc
 
+        move("completed")
         elapsed = round((time.time() - started) * 1000, 1)
-        stdout, out_cut = _cap(proc.stdout or "", self.cfg["max_output"])
-        stderr, err_cut = _cap(proc.stderr or "", self.cfg["max_output"])
+        stdout, out_cut = _cap(stdout, self.cfg["max_output"])
+        stderr, err_cut = _cap(stderr, self.cfg["max_output"])
         result = _maybe_json(stdout)
-        self._audit(argv, path, proc.returncode, elapsed,
-                    "ok" if proc.returncode == 0 else "exit")
+        self._audit(argv, path, returncode, elapsed,
+                    "ok" if returncode == 0 else "exit")
         return {
-            "ok": proc.returncode == 0,
-            "exit_code": proc.returncode,
+            "ok": returncode == 0,
+            "exit_code": returncode,
             "command": path,
             "argv": argv,
             "stdout": stdout,
@@ -583,17 +725,20 @@ class _Handler(BaseHTTPRequestHandler):
                duration_ms: float, outcome: str) -> None:
         if not self.cfg["audit"]:
             return
-        _audit(self.cfg["root"], {
+        ok = _audit(self.cfg["root"], {
             "ts": agentstate.now_iso(),
             "remote": self.client_address[0] if self.client_address else None,
             "key_id": self.cfg["key_id"],
-            "argv": argv,
+            "argv": _audit_argv(argv),
             "command": path,
             "exit_code": exit_code,
             "duration_ms": duration_ms,
             "outcome": outcome,
             "read_only": self.cfg["read_only"],
         })
+        if not ok and not self.cfg.get("quiet"):
+            sys.stderr.write("plasma serve: audit write failed\n")
+            sys.stderr.flush()
 
 
 def make_server(root=None, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT,
