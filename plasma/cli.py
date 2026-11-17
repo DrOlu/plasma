@@ -1901,6 +1901,23 @@ def cmd_mcp_serve(args) -> int:
     return mcp_server.serve(args.root)
 
 
+def cmd_serve(args) -> int:
+    """HTTP API for the full CLI (alternative to WinRM/SSH)."""
+    from . import serve as serve_mod
+    try:
+        return serve_mod.serve(
+            root=args.root, host=args.host, port=args.port,
+            api_key=args.api_key, api_key_file=args.api_key_file,
+            read_only=args.read_only, tls_cert=args.tls_cert,
+            tls_key=args.tls_key, timeout=args.timeout,
+            max_body=args.max_body, max_output=args.max_output,
+            audit=not args.no_audit, quiet=args.quiet,
+        )
+    except (OSError, ValueError, serve_mod.ServeError) as exc:
+        print(json.dumps({"error": str(exc)}))
+        return 2
+
+
 def cmd_evidence_export(args) -> int:
     try:
         result = evidence.export(args.root, args.framework or None, args.out)
@@ -2541,6 +2558,29 @@ def build_parser() -> argparse.ArgumentParser:
     trem.add_argument("tenant")
     trem.add_argument("--root", default=None)
     trem.set_defaults(func=cmd_control_tenants_remove)
+
+    sv = sub.add_parser("serve", help="HTTP API for the full Plasma CLI (alternative to WinRM/SSH)")
+    sv.add_argument("--host", default="0.0.0.0", help="bind address (default: 0.0.0.0)")
+    sv.add_argument("--port", type=int, default=9999, help="bind port (default: 9999)")
+    sv.add_argument("--api-key", default=None,
+                    help="bearer key (default: plasmaplasma, or PLASMA_SERVE_API_KEY)")
+    sv.add_argument("--api-key-file", default=None,
+                    help="read the bearer key from the first non-empty line")
+    sv.add_argument("--root", default=None, help="Plasma root for the serve audit log")
+    sv.add_argument("--read-only", action="store_true",
+                    help="refuse every command that changes host or Plasma state")
+    sv.add_argument("--tls-cert", default=None, help="PEM certificate for HTTPS")
+    sv.add_argument("--tls-key", default=None, help="PEM private key for HTTPS")
+    sv.add_argument("--timeout", type=int, default=300,
+                    help="per-command timeout in seconds (default: 300)")
+    sv.add_argument("--max-body", type=int, default=1 << 20,
+                    help="maximum request body in bytes (default: 1 MiB)")
+    sv.add_argument("--max-output", type=int, default=8 << 20,
+                    help="maximum stdout/stderr per call in bytes (default: 8 MiB)")
+    sv.add_argument("--no-audit", action="store_true",
+                    help="do not write <root>/serve/audit.jsonl")
+    sv.add_argument("--quiet", action="store_true", help="suppress request logging")
+    sv.set_defaults(func=cmd_serve)
 
     mp = sub.add_parser("mcp", help="MCP stdio server for agent harnesses")
     mps = mp.add_subparsers(dest="mcp_action", required=True)

@@ -50,6 +50,21 @@ plasma eval run
 See [Agent-native operation](https://drolu.github.io/plasma/agent-native/)
 and the [Control plane](https://drolu.github.io/plasma/control-plane/).
 
+### HTTP API
+
+`plasma serve` exposes the same CLI over an authenticated HTTP API, as an
+alternative to WinRM or SSH. `POST /v1/exec` takes an argv list and runs it
+through the real parser; `GET /v1/commands` returns the command tree. The
+default key is `plasmaplasma`; use `--api-key-file` or
+`PLASMA_SERVE_API_KEY` in production. `--read-only` refuses every mutating
+command, and every call is written to `<root>/serve/audit.jsonl`.
+
+```powershell
+plasma serve --port 9999 --api-key-file C:\ProgramData\Plasma\serve.key
+```
+
+See [HTTP API](https://drolu.github.io/plasma/serve/).
+
 ## Code signing
 
 Windows release executables are Authenticode-signed (self-signed project

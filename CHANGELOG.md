@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.16.0 — 2026-11-17
+
+`plasma serve`: the full CLI over an authenticated HTTP API.
+
+- **One endpoint, the whole CLI.** `POST /v1/exec` takes an argv list and
+  runs it through the real parser, so every command, flag and default is
+  available exactly as it is on the command line. `GET /v1/commands`
+  returns the full command tree with options, mutating flags and
+  long-running markers.
+- **API-key auth.** Bearer token or `X-API-Key`; the default is
+  `plasmaplasma` for lab use, and `--api-key-file` or
+  `PLASMA_SERVE_API_KEY` overrides it. Keys are compared in constant time
+  and never written to the audit log.
+- **Read-only mode.** `--read-only` refuses every command that changes host
+  or Plasma state, including any `--apply`.
+- **Bounded execution.** Each call runs in a child process with a hard
+  timeout (default 300 s), a 1 MiB request cap and an 8 MiB output cap.
+- **Audit.** Every call is appended to `<root>/serve/audit.jsonl` with the
+  remote address, key id, argv, exit code and duration.
+- **TLS.** `--tls-cert` and `--tls-key` wrap the listener in HTTPS.
+- Default bind is `0.0.0.0:9999`; the server warns when the default key is
+  used on a non-loopback address.
+- 668 tests collected; full suite passes; ruff clean.
+
 ## 1.15.9 — 2026-11-17
 
 Canary collector performance.

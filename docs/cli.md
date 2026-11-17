@@ -237,6 +237,22 @@ MCP over stdio. Eleven typed tools; mutating tools return a dry-run plan and
 approval reference, never an execution. See
 [Agent-native operation](agent-native.md).
 
+### serve
+
+```text
+plasma serve [--host 0.0.0.0] [--port 9999] [--api-key KEY]
+             [--api-key-file FILE] [--root PATH] [--read-only]
+             [--tls-cert FILE --tls-key FILE] [--timeout SECONDS]
+             [--max-body BYTES] [--max-output BYTES] [--no-audit] [--quiet]
+```
+
+The full CLI over an authenticated HTTP API. `POST /v1/exec` takes an argv
+list and runs it through the real parser; `GET /v1/commands` returns the
+command tree. The default key is `plasmaplasma`; use `--api-key-file` or
+`PLASMA_SERVE_API_KEY` in production. `--read-only` refuses every mutating
+command. Every call is written to `<root>/serve/audit.jsonl`. See
+[HTTP API](serve.md).
+
 ### evidence
 
 ```text
