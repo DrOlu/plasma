@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.15.7 — 2026-11-17
+
+Run-key allowlist fix from the deep drill.
+
+- **`remove_run_key` accepts the canonical registry spelling.** The
+  allowlist regex was case-sensitive and expected `SOFTWARE`; the real key
+  is `Software`, so every `HKCU:\Software\...\Run` target was refused.
+  The regex is now case-insensitive.
+- 637 tests collected; full suite passes; ruff clean.
+
 ## 1.15.6 — 2026-11-17
 
 Final WHIDS storm field.

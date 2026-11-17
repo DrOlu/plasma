@@ -322,7 +322,8 @@ def _build_disable_task(task):
 
 
 _RUN_KEY_RE = re.compile(
-    r"^HK(LM|CU):\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run(Once)?$")
+    r"^HK(LM|CU):\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run(Once)?$",
+    re.IGNORECASE)
 _VALUE_RE = re.compile(r"^[A-Za-z0-9._ -]{1,100}$")
 
 
