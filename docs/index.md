@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.15.7</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.15.8</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.15.7</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.15.8</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">637 tests</span>
+<span class="raft-badge">638 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -104,6 +104,16 @@ DESK               status · ask · drift · chains · coverage · fleet ·
 PREVENTION         enforce (containment) · prevent (AppLocker, egress,
                    Defender ASR, LSA protection)
 ```
+
+## What's new in 1.15.8
+
+- **Observatory collectors get 240 s.** `observe edges` and `observe canary`
+  exceeded the 90 s limit on a busy domain controller.
+- **Fleet pull ships in the frozen exe.** `pywinrm` is now collected by
+  PyInstaller, so `plasma fleet scan` works from the single-file binary.
+- **Terminal approvals leave the queue.** `control approvals list` hides
+  `approval_invalid`, `denied` and `expired` rows; the ledger keeps history.
+- **638 tests**, full suite green, ruff clean.
 
 ## What's new in 1.15.7
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.15.8 — 2026-11-17
+
+Operational gaps from the deep drill.
+
+- **Observatory collectors get 240 s.** `observe edges` and `observe canary`
+  exceeded the 90 s limit on a busy domain controller. The default is now
+  240 s; the dedicated `canary status` and `fim verify` paths are unchanged.
+- **Fleet pull ships in the frozen exe.** `pywinrm` is now a build
+  dependency and is collected by PyInstaller, so `plasma fleet scan` works
+  from the single-file binary, not only from a Python desk install.
+- **Terminal approvals leave the queue.** `control approvals list` no longer
+  shows rows whose outcome is `approval_invalid`, `denied` or `expired`;
+  the audit ledger still keeps the history.
+- 638 tests collected; full suite passes; ruff clean.
+
 ## 1.15.7 — 2026-11-17
 
 Run-key allowlist fix from the deep drill.

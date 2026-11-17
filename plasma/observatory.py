@@ -35,7 +35,7 @@ import subprocess
 
 QUESTION_CAP = 25          # rows per answer, mirroring ROW_CAP digests
 CHAR_CAP = 16384           # answer size cap
-COLLECT_TIMEOUT = 90       # seconds
+COLLECT_TIMEOUT = 240      # seconds; edges/canary on a busy DC exceed 90 s
 
 # Shared PowerShell prologue: strict-ish, named-field event parser, cap.
 _PS_HEAD = r"""

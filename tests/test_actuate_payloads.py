@@ -24,3 +24,13 @@ def test_run_key_path_is_case_insensitive():
     allowlist must accept both or remove_run_key refuses every real key."""
     actuate._v_run_key(r"HKCU:\Software\Microsoft\Windows\CurrentVersion\Run")
     actuate._v_run_key(r"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce")
+
+
+def test_pending_approvals_hides_terminal_outcomes(tmp_path):
+    from plasma import ledger
+    ledger.append(tmp_path, {
+        "kind": "action", "decision": "approval_required",
+        "outcome": "approval_invalid", "tool": "isolate_host",
+        "args_sha256": "x", "seq": 1,
+    })
+    assert ledger.pending_approvals(tmp_path) == []

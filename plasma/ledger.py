@@ -198,6 +198,10 @@ def pending_approvals(root=None, limit: int = 200,
     for row in rows:
         if row.get("kind") != "action" or row.get("decision") != "approval_required":
             continue
+        # A terminal outcome (invalid/denied/expired) is history, not a
+        # pending request. Showing it forever makes the queue look stuck.
+        if row.get("outcome") in ("approval_invalid", "denied", "expired"):
+            continue
         if tenant and row.get("tenant") != tenant:
             continue
         seq = row.get("seq")
