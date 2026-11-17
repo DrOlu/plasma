@@ -1,5 +1,23 @@
 """Payload regressions for actions that touch the Administrators group."""
+import pytest
+
 from plasma import actuate
+
+
+def test_process_guard_payload_does_not_emit_the_cim_object(monkeypatch):
+    """`($p = Get-CimInstance ...)` prints the whole object, so the guard
+    compared table text instead of the process name and allowed LSASS."""
+    seen = {}
+
+    def fake_run(payload, timeout=30):
+        seen["payload"] = payload
+        return {"output": "csrss.exe", "rc": 0}
+
+    monkeypatch.setattr(actuate, "_run", fake_run)
+    with pytest.raises(PermissionError):
+        actuate._g_process("580")
+    assert "($p =" not in seen["payload"]
+    assert "$p = Get-CimInstance" in seen["payload"]
 
 
 def test_snapshot_uses_net_localgroup_not_get_localgroupmember():

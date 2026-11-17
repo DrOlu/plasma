@@ -153,7 +153,10 @@ def _g_service(t):
 
 def _g_process(t):
     # Name-based protection can only run on the host: resolve pid → name.
-    payload = f"($p = Get-CimInstance Win32_Process -Filter 'ProcessId = {int(t)}'); if ($p) {{ $p.Name.ToLower() }} else {{ '' }}"
+    # No parentheses around the assignment: `($p = Get-CimInstance ...)`
+    # emits the whole CIM object (a formatted table), so the guard would
+    # compare table text instead of the process name and let LSASS through.
+    payload = f"$p = Get-CimInstance Win32_Process -Filter 'ProcessId = {int(t)}'; if ($p) {{ $p.Name.ToLower() }} else {{ '' }}"
     result = _run(payload, timeout=30)
     name = (result.get("output") or "").strip().strip("'").lower()
     if not name:

@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.17.1 — 2026-11-17
+
+Critical process-guard fix.
+
+- **Protected process names were not matched.** `_g_process` wrapped the
+  `Get-CimInstance` assignment in parentheses, which makes PowerShell emit
+  the whole CIM object as a formatted table. The guard compared that table
+  text to `PROTECTED_PROCESSES`, so `kill_process` on **LSASS, CSRSS,
+  SERVICES, WINLOGON, WHIDS and Sysmon** minted a dry-run plan instead of
+  refusing. The assignment is now bare, the output is the process name,
+  and the guard refuses as designed.
+- A regression test asserts the guard payload does not emit the CIM
+  object.
+- 716 tests collected; full suite passes; ruff clean.
+
 ## 1.17.0 — 2026-11-17
 
 Measured protection is armed by default.

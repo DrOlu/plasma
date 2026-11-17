@@ -4,6 +4,18 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.17.1 — 2026-11-17
+
+Critical process-guard fix.
+
+- **Protected process names were not matched.** `_g_process` wrapped the
+  `Get-CimInstance` assignment in parentheses, so PowerShell emitted the
+  whole CIM object as a formatted table. The guard compared table text to
+  `PROTECTED_PROCESSES`, and `kill_process` on LSASS, CSRSS, SERVICES,
+  WINLOGON, WHIDS or Sysmon minted a dry-run plan instead of refusing.
+  The assignment is now bare and the guard refuses as designed.
+- 716 tests collected; full suite passes; ruff clean.
+
 ## 1.17.0 — 2026-11-17
 
 Measured protection is armed by default.
