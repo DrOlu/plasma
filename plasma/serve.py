@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import ClassVar
 
 from . import __version__, agentstate
+from .openapi import SPEC
 
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 9999
@@ -42,6 +43,85 @@ DEFAULT_MAX_BODY = 1 << 20          # 1 MiB request body
 DEFAULT_MAX_OUTPUT = 8 << 20        # 8 MiB stdout/stderr per call
 MAX_ARGV = 64
 MAX_ARG_LEN = 4096
+
+# The routes described by the OpenAPI document. Kept here so a test can
+# assert the spec and the server do not drift apart.
+API_ROUTES = ("/healthz", "/v1/version", "/v1/commands", "/v1/exec")
+DOC_ROUTES = ("/openapi.json", "/docs")
+
+_DOCS_HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plasma HTTP API</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         color: #141111; background: #fffaf0; }
+  header { padding: 28px 32px 18px; border-bottom: 2px solid #141111; background: #ffd440; }
+  h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -0.02em; }
+  header p { margin: 0; color: #555552; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 32px 60px; }
+  h2 { margin: 28px 0 8px; font-size: 18px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+         background: #f4f0e6; padding: 1px 4px; border-radius: 3px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 18px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #d8d2c4; vertical-align: top; }
+  th { background: #ffd440; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  details { margin-top: 18px; }
+  summary { cursor: pointer; font-weight: 600; }
+  pre { overflow: auto; background: #141111; color: #f4f0e6; padding: 16px; border-radius: 6px;
+        font-size: 12px; line-height: 1.45; }
+  .note { border-left: 3px solid #0e7490; background: #f4f0e6; padding: 10px 14px; margin: 14px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Plasma HTTP API</h1>
+  <p id="meta">Loading the OpenAPI document…</p>
+</header>
+<main>
+  <div class="note">
+    Send <code>Authorization: Bearer &lt;key&gt;</code> or
+    <code>X-API-Key: &lt;key&gt;</code>. The machine-readable spec is at
+    <a href="/openapi.json"><code>/openapi.json</code></a>.
+  </div>
+  <div id="app"></div>
+</main>
+<script>
+fetch('/openapi.json').then(function (r) { return r.json(); }).then(function (spec) {
+  document.getElementById('meta').textContent =
+    spec.info.title + ' · v' + spec.info.version + ' · OpenAPI ' + spec.openapi;
+  var app = document.getElementById('app');
+  var h2 = document.createElement('h2');
+  h2.textContent = 'Endpoints';
+  app.appendChild(h2);
+  var table = document.createElement('table');
+  table.innerHTML = '<thead><tr><th>Method</th><th>Path</th><th>Summary</th></tr></thead><tbody></tbody>';
+  var tbody = table.querySelector('tbody');
+  Object.keys(spec.paths).forEach(function (path) {
+    Object.keys(spec.paths[path]).forEach(function (method) {
+      var op = spec.paths[path][method];
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td><code>' + method.toUpperCase() + '</code></td>' +
+                     '<td><code>' + path + '</code></td>' +
+                     '<td>' + (op.summary || '') + '</td>';
+      tbody.appendChild(tr);
+    });
+  });
+  app.appendChild(table);
+  var details = document.createElement('details');
+  details.innerHTML = '<summary>Raw OpenAPI document</summary><pre></pre>';
+  details.querySelector('pre').textContent = JSON.stringify(spec, null, 2);
+  app.appendChild(details);
+}).catch(function (err) {
+  document.getElementById('meta').textContent = 'Could not load /openapi.json: ' + err;
+});
+</script>
+</body>
+</html>
+"""
 
 # Commands that never return (or are internal) and must not be run through
 # the HTTP surface. A caller that needs them can use the CLI directly.
@@ -358,6 +438,19 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(200, {"ok": True, "product": "Plasma",
                                   "version": __version__})
             return
+        if path == "/openapi.json":
+            self._send_json(200, SPEC)
+            return
+        if path == "/docs":
+            body = _DOCS_HTML.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if not self._require_auth():
             return
         if path == "/":
@@ -367,6 +460,8 @@ class _Handler(BaseHTTPRequestHandler):
                 "version": __version__,
                 "endpoints": {
                     "GET /healthz": "liveness (no auth)",
+                    "GET /openapi.json": "OpenAPI 3.1 description (no auth)",
+                    "GET /docs": "human-readable API docs (no auth)",
                     "GET /v1/version": "version and runtime",
                     "GET /v1/commands": "the full CLI command tree",
                     "POST /v1/exec": "run one CLI argv",

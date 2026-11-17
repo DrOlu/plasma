@@ -30,9 +30,33 @@ curl -s -H "Authorization: Bearer plasmaplasma" \
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | `GET` | `/healthz` | no | liveness only |
+| `GET` | `/openapi.json` | no | OpenAPI 3.1 description |
+| `GET` | `/docs` | no | human-readable API docs |
 | `GET` | `/v1/version` | yes | version, Python, platform, read-only flag |
 | `GET` | `/v1/commands` | yes | the full CLI command tree with options |
 | `POST` | `/v1/exec` | yes | run one CLI argv |
+
+## OpenAPI
+
+The server publishes an **OpenAPI 3.1** document at `GET /openapi.json`
+(no auth) and a self-contained HTML reference at `GET /docs` (no auth).
+The spec covers the four API routes, both auth schemes (`bearerAuth` and
+`apiKeyAuth`), the request/response envelopes and the error responses.
+
+```bash
+curl -s http://HOST:9999/openapi.json | jq '.info'
+curl -s http://HOST:9999/openapi.json | jq '.paths | keys'
+```
+
+`POST /v1/exec` is deliberately generic: the spec describes the argv
+envelope, while the full command surface is discoverable at
+`GET /v1/commands` (128 paths with options, mutating flags and
+long-running markers). A per-command OpenAPI schema would duplicate the
+argparse tree and drift; the command tree is the better contract.
+
+The spec is generated from `plasma/openapi.py` and its `info.version`
+tracks the package version. A unit test asserts that the spec paths and
+the server routes do not drift apart.
 
 ### `POST /v1/exec`
 

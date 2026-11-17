@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.16.1 — 2026-11-17
+
+OpenAPI 3.1 for `plasma serve`.
+
+- **`GET /openapi.json`** publishes an OpenAPI 3.1 document covering the
+  four API routes, both auth schemes (`bearerAuth`, `apiKeyAuth`), the
+  request/response envelopes and the error responses. No auth required.
+- **`GET /docs`** serves a self-contained HTML reference that renders the
+  spec; no CDN, no external dependency.
+- **`plasma/openapi.py`** is the single source of truth; `info.version`
+  tracks the package version, and a unit test asserts the spec paths and
+  the server routes do not drift apart.
+- `POST /v1/exec` remains generic by design; the full command surface is
+  discoverable at `GET /v1/commands`.
+- 674 tests collected; full suite passes; ruff clean.
+
 ## 1.16.0 — 2026-11-17
 
 `plasma serve`: the full CLI over an authenticated HTTP API.

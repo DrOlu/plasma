@@ -319,3 +319,70 @@ def test_command_path_and_mutation_rules():
     assert serve.is_mutating(["health", "--apply"]) is True
     assert serve.is_long_running("watch loop") is True
     assert serve.is_long_running("watch once") is False
+
+
+# ---------------------------------------------------------------------------
+# OpenAPI and docs
+# ---------------------------------------------------------------------------
+
+def test_openapi_spec_is_served(running):
+    _, _, base = running
+    status, body = _request(base, "/openapi.json")
+    assert status == 200
+    assert body["openapi"].startswith("3.1")
+    assert body["info"]["title"] == "Plasma HTTP API"
+    assert body["info"]["version"] == serve.__version__
+
+
+def test_openapi_covers_every_api_route(running):
+    _, _, base = running
+    _, body = _request(base, "/openapi.json")
+    assert set(body["paths"]) == set(serve.API_ROUTES)
+
+
+def test_openapi_security_schemes(running):
+    _, _, base = running
+    _, body = _request(base, "/openapi.json")
+    schemes = body["components"]["securitySchemes"]
+    assert schemes["bearerAuth"]["type"] == "http"
+    assert schemes["bearerAuth"]["scheme"] == "bearer"
+    assert schemes["apiKeyAuth"]["type"] == "apiKey"
+    assert schemes["apiKeyAuth"]["in"] == "header"
+    assert schemes["apiKeyAuth"]["name"] == "X-API-Key"
+
+
+def test_openapi_exec_request_schema(running):
+    _, _, base = running
+    _, body = _request(base, "/openapi.json")
+    schema = body["components"]["schemas"]["ExecRequest"]
+    assert "oneOf" in schema
+    assert any("argv" in branch.get("properties", {}) for branch in schema["oneOf"])
+    assert any("command" in branch.get("properties", {}) for branch in schema["oneOf"])
+
+
+def test_openapi_exec_result_schema(running):
+    _, _, base = running
+    _, body = _request(base, "/openapi.json")
+    schema = body["components"]["schemas"]["ExecResult"]
+    for key in ("ok", "exit_code", "command", "argv", "stdout", "stderr",
+                "truncated", "duration_ms"):
+        assert key in schema["properties"]
+
+
+def test_docs_page_is_served(running):
+    _, _, base = running
+    req = urllib.request.Request(base + "/docs")
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        assert resp.status == 200
+        assert resp.headers["Content-Type"].startswith("text/html")
+        text = resp.read().decode("utf-8")
+    assert "Plasma HTTP API" in text
+    assert "/openapi.json" in text
+
+
+def test_openapi_and_docs_are_unauthenticated(running):
+    _, _, base = running
+    assert _request(base, "/openapi.json", key=None)[0] == 200
+    req = urllib.request.Request(base + "/docs")
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        assert resp.status == 200
