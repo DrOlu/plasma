@@ -365,6 +365,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <a href="#deploy">Deploy</a>
       <a href="#dtrace">DTrace</a>
       <a href="#cli">CLI</a>
+      <a href="#serve">HTTP API</a>
       <a href="#pdfs">PDFs</a>
       <a href="#security">Security</a>
     </nav>
@@ -444,7 +445,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <div class="stat"><div class="num"><span data-count="13">0</span></div><div class="lbl">reversible actions</div></div>
       <div class="stat"><div class="num"><span data-count="11">0</span></div><div class="lbl">typed agent tools</div></div>
       <div class="stat"><div class="num"><span data-count="2">0</span></div><div class="lbl">prevention tiers</div></div>
-      <div class="stat"><div class="num"><span data-count="605">0</span></div><div class="lbl">tests passing</div></div>
+      <div class="stat"><div class="num"><span data-count="667">0</span></div><div class="lbl">tests passing</div></div>
     </div>
   </div>
 </section>
@@ -1117,6 +1118,66 @@ plasma store rotate --events events.jsonl --max-mb 256</pre>
   </div>
 </section>
 
+<!-- HTTP API -->
+<section class="block alt" id="serve">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">HTTP API</span>
+      <h2>The whole CLI, behind one key.</h2>
+      <p class="lede"><code>plasma serve</code> exposes every command, flag and default over an authenticated HTTP API — an alternative to WinRM or SSH. One argv endpoint, a command tree, read-only mode, TLS, per-call timeouts and an audit log.</p>
+    </div>
+
+    <div class="grid c2 reveal" style="align-items:start">
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i><span class="path">endpoint</span><button class="copy" type="button">Copy</button></div>
+<pre><span class="c"># start the API (default 0.0.0.0:9999)</span>
+plasma serve --port 9999 \
+  --api-key-file C:\ProgramData\Plasma\serve.key
+
+<span class="c"># run any CLI command</span>
+curl -H <span class="b">"Authorization: Bearer &lt;key&gt;"</span> \
+  -H <span class="b">"Content-Type: application/json"</span> \
+  -X POST http://HOST:9999/v1/exec \
+  -d <span class="b">'{"argv":["health"]}'</span>
+
+<span class="c"># discover the command tree</span>
+curl -H <span class="b">"Authorization: Bearer &lt;key&gt;"</span> \
+  http://HOST:9999/v1/commands</pre>
+      </div>
+      <div>
+        <div class="term">
+          <div class="term-bar"><i></i><i></i><i></i><span class="path">routes</span><button class="copy" type="button">Copy</button></div>
+<pre>GET  /healthz        liveness (no auth)
+GET  /v1/version     version + runtime
+GET  /v1/commands    full CLI tree (128 paths)
+POST /v1/exec        run one CLI argv</pre>
+        </div>
+        <div class="note" style="margin-top:12px">
+          <strong>Narrow by design.</strong> The argv is parsed by the real CLI parser before anything runs. <code>--read-only</code> refuses every mutating command, including any <code>--apply</code>. Each call runs in a child process with a hard timeout, a 1 MiB request cap and an 8 MiB output cap. Every call lands in <code>&lt;root&gt;/serve/audit.jsonl</code>; the key is never logged.
+        </div>
+      </div>
+    </div>
+
+    <div class="grid c3 reveal" style="margin-top:16px">
+      <div class="card c-lime">
+        <h3>API-key auth</h3>
+        <p>Bearer or <code>X-API-Key</code>, constant-time compare. The default is <code>plasmaplasma</code> for lab use; production uses <code>--api-key-file</code> or <code>PLASMA_SERVE_API_KEY</code>.</p>
+        <div class="mini">no key in the audit log</div>
+      </div>
+      <div class="card c-orange">
+        <h3>Read-only mode</h3>
+        <p><code>--read-only</code> refuses install, apply, undo, policy changes, kill switch, prevention, fleet writes and every other state change. Reads and dry-runs remain.</p>
+        <div class="mini">observer endpoint</div>
+      </div>
+      <div class="card c-lav">
+        <h3>TLS + audit</h3>
+        <p><code>--tls-cert</code> and <code>--tls-key</code> wrap the listener. Every call is recorded with remote address, key id, argv, exit code and duration.</p>
+        <div class="mini">alternative to WinRM/SSH</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- SECURITY -->
 <section class="block alt" id="security">
   <div class="wrap">
@@ -1139,7 +1200,7 @@ plasma store rotate --events events.jsonl --max-mb 256</pre>
       <div class="card c-lime">
         <h3>Tested on a live estate</h3>
         <p>Two Windows Server hosts: signed updates, 259 Sigma rules, Sysmon FileDelete, canaries, fleet correlation, AppLocker/egress apply-and-rollback drills, MSI install and DTrace runs — plus the field WHIDS dump-tree hang, recovered and permanently bounded.</p>
-        <div class="mini">605 unit tests · 21 skipped</div>
+        <div class="mini">667 unit tests · 21 skipped</div>
       </div>
       <div class="card c-orange">
         <h3>Known limits</h3>
@@ -1209,15 +1270,15 @@ plasma store rotate --events events.jsonl --max-mb 256</pre>
     </div>
     <div class="grid c2 reveal">
       <div class="card c-lime">
-        <div class="cap"><span>Product Guide</span><b>PDF · 15 pages</b></div>
+        <div class="cap"><span>Product Guide</span><b>PDF · 16 pages</b></div>
         <h3>What it is and what it does</h3>
-        <p>Architecture, detection, coverage, prevention, response, neuralOSd orchestration and the honest limits. Version 1.16.0.</p>
+        <p>Architecture, detection, coverage, prevention, response, neuralOSd orchestration, the HTTP API and the honest limits. Version 1.16.0.</p>
         <div class="mini"><a class="btn dark" href="https://drolu.github.io/plasma/Plasma_Product_Guide.pdf">Download the Product Guide</a></div>
       </div>
       <div class="card c-lav">
-        <div class="cap"><span>Operations Guide</span><b>PDF · 16 pages</b></div>
+        <div class="cap"><span>Operations Guide</span><b>PDF · 17 pages</b></div>
         <h3>Install, operate, respond</h3>
-        <p>Install, configuration, daily operations, the prevention runbook, fleet, neuralOSd orchestration, troubleshooting and cheat sheet. Version 1.16.0.</p>
+        <p>Install, configuration, daily operations, the prevention runbook, fleet, neuralOSd orchestration, the HTTP API, troubleshooting and cheat sheet. Version 1.16.0.</p>
         <div class="mini"><a class="btn dark" href="https://drolu.github.io/plasma/Plasma_Operations_Guide.pdf">Download the Operations Guide</a></div>
       </div>
     </div>
