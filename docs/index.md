@@ -12,7 +12,7 @@ The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">668 tests</span>
+<span class="raft-badge">667 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -122,7 +122,7 @@ PREVENTION         enforce (containment) · prevent (AppLocker, egress,
   default key is `plasmaplasma` for lab use; `--api-key-file` or
   `PLASMA_SERVE_API_KEY` overrides it. `--read-only` refuses every mutating
   command. Every call lands in `<root>/serve/audit.jsonl`.
-- **668 tests**, full suite green, ruff clean.
+- **667 tests**, full suite green, ruff clean.
 
 ## What's new in 1.15.9
 

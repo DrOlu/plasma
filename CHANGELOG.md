@@ -22,7 +22,7 @@
 - **TLS.** `--tls-cert` and `--tls-key` wrap the listener in HTTPS.
 - Default bind is `0.0.0.0:9999`; the server warns when the default key is
   used on a non-loopback address.
-- 668 tests collected; full suite passes; ruff clean.
+- 667 tests collected; full suite passes; ruff clean.
 
 ## 1.15.9 — 2026-11-17
 

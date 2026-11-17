@@ -22,7 +22,7 @@ Highlights by release:
   timeout, a 1 MiB request cap and an 8 MiB output cap.
 - **Audit.** Every call is appended to `<root>/serve/audit.jsonl`.
 - **TLS.** `--tls-cert` and `--tls-key` wrap the listener in HTTPS.
-- 668 tests collected; full suite passes; ruff clean.
+- 667 tests collected; full suite passes; ruff clean.
 
 ## 1.15.9 — 2026-11-17
 
