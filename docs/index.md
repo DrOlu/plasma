@@ -26,6 +26,10 @@ The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <h3>A 121M model that refuses</h3>
 <p>Frozen neuralOS instance picks from a closed menu of probes and says <em>unknown</em> when it is &mdash; no cloud round-trip, no hallucinated answer.</p>
 </div></div>
+<div class="raft-card"><div class="swatch cyan">ORCHESTRATION</div><div class="body">
+<h3>neuralOSd in front</h3>
+<p>An optional local orchestrator with 20 typed probes, a refusal gate and a signed envelope. The model proposes; the operator applies. <a href="neuralosd/">Read the guide</a>.</p>
+</div></div>
 <div class="raft-card"><div class="swatch pink">RESPONSE</div><div class="body">
 <h3>Reversible by construction</h3>
 <p>Plan-gated actions with single-use approvals, a hash-chained provenance ledger, a kill switch and undo for every change.</p>
@@ -64,11 +68,11 @@ with Task Scheduler, cron or another agent.
 
 The same material as printable, offline documents:
 
-- [Plasma Product Guide (PDF, 15 pages)](Plasma_Product_Guide.pdf) — architecture,
-  detection, coverage, prevention, response and the honest limits.
+- [Plasma Product Guide (PDF, 16 pages)](Plasma_Product_Guide.pdf) — architecture,
+  detection, coverage, prevention, response, neuralOSd orchestration and the honest limits.
 - [Plasma Operations Guide (PDF, 16 pages)](Plasma_Operations_Guide.pdf) —
   install, configuration, daily operations, prevention runbook, fleet,
-  troubleshooting and cheat sheet.
+  neuralOSd orchestration, troubleshooting and cheat sheet.
 
 Both are built for the current release and published in the site root.
 
@@ -95,6 +99,9 @@ SENSORS            Sysmon · WHIDS gene rules · Security-log identity ·
         │
         ▼  one strict event contract (events.jsonl, on the box)
 ON-DEVICE BRAIN    frozen neuralOS instance — 10 probes, refuse-if-unknown
+        │
+        ▼  optional: local model + refusal gate + 20-probe menu
+ORCHESTRATOR       neuralOSd — plan/apply/undo over the same typed tools
         │
         ▼  pull-based answers over WinRM/SSM, never a standing server
 DESK               status · ask · drift · chains · coverage · fleet ·

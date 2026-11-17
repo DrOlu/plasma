@@ -38,6 +38,7 @@ nav:
       - Concepts: concepts.md
   - Agent:
       - Agent-native operation: agent-native.md
+      - neuralOSd orchestrator: neuralosd.md
       - Control plane: control-plane.md
       - State machines: state-machines.md
   - Detect:
