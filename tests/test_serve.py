@@ -414,6 +414,12 @@ def test_commands_include_positionals(running):
     assert any(p["name"] == "action" for p in apply["positionals"])
     manifest = by_path[("manifest",)]
     assert any(p["name"] == "action" for p in manifest["positionals"])
+    approve = by_path[("control", "approvals", "approve")]
+    assert any(p["name"] == "id" and p["type"] == "int"
+               for p in approve["positionals"])
+    serve_cmd = by_path[("serve",)]
+    assert any(o["dest"] == "port" and o["type"] == "int"
+               for o in serve_cmd["options"])
 
 
 def test_openapi_command_schema_has_positionals(running):

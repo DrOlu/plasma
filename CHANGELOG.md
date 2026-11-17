@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.16.3 — 2026-11-17
+
+Command-tree type metadata.
+
+- **Options and positionals carry their argparse type.** `/v1/commands` now
+  reports `type` (`int`, `str`, or null) for every option and positional,
+  so a generated client can render the right input control. The OpenAPI
+  `Option` and `Positional` schemas require the field.
+- 698 tests collected; full suite passes; ruff clean.
+
 ## 1.16.2 — 2026-11-17
 
 Serve hardening, command-tree completeness and explicit lifecycles.

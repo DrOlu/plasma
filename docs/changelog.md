@@ -4,6 +4,15 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.16.3 — 2026-11-17
+
+Command-tree type metadata.
+
+- **Options and positionals carry their argparse type.** `/v1/commands` now
+  reports `type` (`int`, `str`, or null) for every option and positional.
+  The OpenAPI `Option` and `Positional` schemas require the field.
+- 698 tests collected; full suite passes; ruff clean.
+
 ## 1.16.2 — 2026-11-17
 
 Serve hardening, command-tree completeness and explicit lifecycles.

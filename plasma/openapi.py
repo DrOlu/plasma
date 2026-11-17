@@ -178,12 +178,13 @@ SPEC: dict = {
             },
             "Option": {
                 "type": "object",
-                "required": ["flags", "dest", "required", "default", "choices",
-                             "help"],
+                "required": ["flags", "dest", "required", "type", "default",
+                             "choices", "help"],
                 "properties": {
                     "flags": {"type": "array", "items": {"type": "string"}},
                     "dest": {"type": "string"},
                     "required": {"type": "boolean"},
+                    "type": {"type": ["string", "null"]},
                     "default": {"description": "The argparse default, when scalar"},
                     "choices": {
                         "type": ["array", "null"],
@@ -194,10 +195,12 @@ SPEC: dict = {
             },
             "Positional": {
                 "type": "object",
-                "required": ["name", "required", "nargs", "choices", "help"],
+                "required": ["name", "required", "type", "nargs", "choices",
+                             "help"],
                 "properties": {
                     "name": {"type": "string"},
                     "required": {"type": "boolean"},
+                    "type": {"type": ["string", "null"]},
                     "nargs": {"type": ["string", "null"]},
                     "choices": {
                         "type": ["array", "null"],
