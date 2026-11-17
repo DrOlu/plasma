@@ -35,8 +35,11 @@ from . import actuate, agentstate, killswitch
 from .lifecycle import enforce_state
 
 DEFAULT_POLICY = {
-    "enabled": False,
-    "mode": "dry-run",                       # dry-run | enforce
+    # Measured, armed default: automatic containment is limited to
+    # snapshot + kill_process at score 9+, with a per-run cap and a
+    # cooldown. Every other action requires human approval.
+    "enabled": True,
+    "mode": "enforce",                       # dry-run | enforce
     "min_score": 9,
     # Containment is evidence-first: capture host state (snapshot is a
     # read-only export) before the irreversible action. An operator can
@@ -51,6 +54,10 @@ DEFAULT_POLICY = {
     "max_actions_per_run": 2,
     "deny_techniques": [],
     "allow_techniques": [],
+    # The SYSTEM task that feeds findings to this policy. `disabled` means
+    # the policy is armed but nothing sweeps automatically.
+    "watch_task": "PlasmaWatch",
+    "watch_every_minutes": 5,
 }
 
 RISK = {

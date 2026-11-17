@@ -183,9 +183,25 @@ plasma enforce approve --id ID [--apply]
 ```
 
 Tier 0 prevention: findings become allowlisted, reversible containment.
-Off by default; `--apply` arms a run but the policy still gates each action
-(score floor, allowlist, approval queue, per-run cap, cooldown, kill switch).
-`plasma watch once --enforce` wires it to a sweep.
+Armed by default but narrow: `snapshot` + `kill_process` at score 9+, a
+2-action per-run cap and a 30-minute cooldown; isolation and every other
+action require approval. The policy still gates each action. The installer
+registers `PlasmaWatch`, which runs `plasma watch once --enforce` every
+5 minutes.
+
+### protect
+
+```text
+plasma protect status
+plasma protect protected
+plasma protect arm [--apply-prevention --reason TEXT]
+plasma protect disarm [--reason TEXT]
+```
+
+Inspect or change the measured posture. `arm` writes the measured
+enforcement block; `disarm` sets `enabled: false` and `mode: "dry-run"`.
+`protected` lists the services, processes, accounts and paths the response
+layer refuses to touch.
 
 ### prevent
 

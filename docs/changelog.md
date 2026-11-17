@@ -4,6 +4,28 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.17.0 — 2026-11-17
+
+Measured protection is armed by default.
+
+- **Automatic containment is on, but narrow.** Default policy:
+  `enabled: true`, `mode: "enforce"`, `min_score: 9`,
+  `allowed_actions: ["snapshot", "kill_process"]`, 2 actions per run,
+  30-minute cooldown. Snapshot is written before the kill.
+- **Everything else stays human-approved.** Isolation, quarantine,
+  disabling users, removing admins, stopping services, credential
+  rotation, task/Run-key/WMI removal and IP blocking require approval.
+- **`PlasmaWatch` drives the sweep.** A SYSTEM task runs
+  `watch once --enforce` every 5 minutes. `--no-autoprotect` installs the
+  old dry-run posture and removes the task.
+- **Protected components stay protected in code.** WinRM, RDP, WHIDS,
+  Sysmon, LSASS, BFE, MpsSvc, Administrator, SYSTEM and service accounts
+  are refused. Isolation keeps RDP/WinRM open.
+- **Upgrades migrate the old default; custom blocks are preserved.**
+- **New `plasma protect` commands:** `status`, `arm`, `disarm`,
+  `protected`.
+- 715 tests collected; full suite passes; ruff clean.
+
 ## 1.16.3 — 2026-11-17
 
 Command-tree type metadata.

@@ -46,6 +46,10 @@ PROTECTED_PROCESSES = {
     "winlogon.exe", "csrss.exe", "smss.exe", "services.exe", "lsass.exe",
     "whids.exe", "sysmon64.exe", "sysmon.exe", "wininit.exe",
 }
+PROTECTED_ACCOUNTS = {
+    "administrator", "wdagutilityaccount", "system", "localservice",
+    "networkservice", "defaultaccount",
+}
 QUARANTINE_DIR = r"C:\ProgramData\Plasma\Quarantine"
 JOURNAL_BACKUP_DIR = r"C:\ProgramData\Plasma\Journal"
 
@@ -162,9 +166,7 @@ def _g_process(t):
 
 def _g_user(t):
     current = (os.environ.get("USERNAME") or "").lower()
-    if t.lower() in {"administrator", "wdagutilityaccount", "system",
-                     "localservice", "networkservice", "defaultaccount"} or \
-            (current and t.lower() == current):
+    if t.lower() in PROTECTED_ACCOUNTS or (current and t.lower() == current):
         raise PermissionError(f"'{t}' is on the protected account list — refusing")
 
 

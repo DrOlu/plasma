@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.16.3</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.17.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.16.3</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.17.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">698 tests</span>
+<span class="raft-badge">715 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -111,6 +111,25 @@ DESK               status · ask · drift · chains · coverage · fleet ·
 PREVENTION         enforce (containment) · prevent (AppLocker, egress,
                    Defender ASR, LSA protection)
 ```
+
+## What's new in 1.17.0
+
+- **Measured protection is armed by default.** Automatic containment is
+  limited to `snapshot` + `kill_process` at score 9+, with a 2-action
+  per-run cap and a 30-minute cooldown. The snapshot is written before the
+  kill.
+- **Everything else stays human-approved.** Host isolation, quarantine,
+  disabling users, removing admins, stopping services, credential rotation,
+  task/Run-key/WMI removal and IP blocking require approval.
+- **`PlasmaWatch` drives the sweep.** A SYSTEM task runs
+  `watch once --enforce` every 5 minutes. `--no-autoprotect` installs the
+  old dry-run posture and removes the task.
+- **Protected components stay protected in code.** WinRM, RDP, WHIDS,
+  Sysmon, LSASS, BFE, MpsSvc, Administrator, SYSTEM and service accounts
+  are refused; isolation keeps RDP/WinRM open.
+- **New `plasma protect` commands:** `status`, `arm`, `disarm`,
+  `protected`.
+- **715 tests**, full suite green, ruff clean.
 
 ## What's new in 1.16.3
 

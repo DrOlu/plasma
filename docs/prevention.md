@@ -13,12 +13,39 @@ Plasma generates, applies, verifies and rolls back their policy. That is a
 deliberate trade: policy you can roll back beats a driver you cannot
 crash-test.
 
+## Measured default (1.17.0+)
+
+Containment is **armed by default, but narrow**:
+
+- automatic actions: `snapshot`, then `kill_process`;
+- score floor: **9**;
+- per-run cap: **2**;
+- per-target cooldown: **30 minutes**;
+- everything else — isolation, quarantine, disabling users, removing
+  admins, stopping services, credential rotation, task/Run-key/WMI removal
+  and IP blocking — **requires human approval**;
+- the installer registers `PlasmaWatch`, a SYSTEM task that runs
+  `watch once --enforce` every 5 minutes.
+
+```powershell
+plasma protect status
+plasma protect protected
+plasma protect disarm --reason "change window"
+plasma protect arm
+plasma protect arm --apply-prevention --reason "pilot AppLocker audit"
+```
+
+`--no-autoprotect` installs the old dry-run posture and removes the
+`PlasmaWatch` task. Upgrades replace exactly the pre-1.17 `enabled: false`
+block; a custom operator block is preserved.
+
 ## Tier 0 — policy-gated containment
 
 ```powershell
+plasma protect status
 plasma enforce status
 plasma enforce run                 # dry-run: proposals only
-plasma enforce run --apply         # arm this run (policy still gates each action)
+plasma enforce run --apply         # policy still gates each action
 plasma enforce pending
 plasma enforce approve --id 4      # dry-run of the stored request
 plasma enforce approve --id 4 --apply
@@ -42,9 +69,15 @@ Policy lives in `config.json`:
     "mode": "enforce",
     "min_score": 9,
     "allowed_actions": ["snapshot", "kill_process"],
-    "require_approval": ["isolate_host"],
+    "require_approval": [
+      "isolate_host", "quarantine_file", "disable_user", "remove_admin",
+      "stop_service", "rotate_credential", "delete_task", "disable_task",
+      "remove_run_key", "disable_wmi_sub", "block_ip"
+    ],
     "cooldown_minutes": 30,
-    "max_actions_per_run": 2
+    "max_actions_per_run": 2,
+    "watch_task": "PlasmaWatch",
+    "watch_every_minutes": 5
   }
 }
 ```
@@ -65,7 +98,8 @@ Operators who want forensics ahead of speed can either:
 
 Guardrails are code, not convention:
 
-- **Off by default** and `dry-run` unless the mode is explicitly `enforce`.
+- **Armed by default, narrow** — only `snapshot` + `kill_process` at score
+  9+, with a per-run cap and cooldown.
 - **Allowlist** — a finding cannot select an action outside the policy lists.
 - **Approval gate** — high/critical actions queue as pending; nothing runs
   until a human approves.
@@ -75,8 +109,10 @@ Guardrails are code, not convention:
   reasons, plan id and verification.
 
 Every apply still goes through actuate: dry-run first, plan id required,
-undo recipe recorded. Run it from cron or Task Scheduler with
-`plasma watch once --enforce`.
+undo recipe recorded. The installer registers `PlasmaWatch`, which runs
+`plasma watch once --enforce` every 5 minutes as SYSTEM. Run it manually
+with `plasma watch once --enforce`, or remove the task with
+`--no-autoprotect` and use `plasma protect disarm`.
 
 ## Tier 1 — Windows enforcement points
 

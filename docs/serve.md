@@ -50,7 +50,7 @@ curl -s http://HOST:9999/openapi.json | jq '.paths | keys'
 
 `POST /v1/exec` is deliberately generic: the spec describes the argv
 envelope, while the full command surface is discoverable at
-`GET /v1/commands` (127 commands plus a separate `root` object, each with
+`GET /v1/commands` (132 commands plus a separate `root` object, each with
 options, positionals, argparse types, mutating flags and long-running
 markers). A per-command OpenAPI schema would duplicate the argparse tree
 and drift; the command tree is the better contract.

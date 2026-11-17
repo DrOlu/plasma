@@ -5,13 +5,13 @@
 **Documentation:** https://drolu.github.io/plasma/
 **One-page visual overview:** https://drolu.github.io/plasma/onepager.html
 
-Plasma packages three detection/agent layers plus an opt-in prevention plane into one installable product:
+Plasma packages three detection/agent layers plus a measured prevention plane into one installable product:
 
 ```
 WHIDS agent             detection (gene rules) + artifact collection + response
 neuralOS engine         on-device 121M tool-calling model (selection only)
 frozen instance         Pydantic contract + probe menu + bridge + graph layer
-prevention (opt-in)     enforce: policy-gated containment
+protection (measured)   enforce: snapshot + kill at score 9+, approval for the rest
                         prevent: AppLocker · egress · ASR · LSA protection
 ```
 
@@ -21,14 +21,16 @@ Operators can ask plain-English questions about what happened: *"why did
 WHIDS report PID 4832?"*, *"which processes made outbound connections?"*,
 *"any persistence on WS2?"*
 
-**Detects always. Contains only when armed. Blocks only through Microsoft's
-own enforcement points.**
+**Detects always. Contains narrowly by default. Blocks only through
+Microsoft's own enforcement points.**
 
 The shipped WHIDS sensor config is detect-only (`report`): it reports, it
-does not kill. Prevention is a separate, opt-in layer — `plasma enforce`
-for policy-gated containment and `plasma prevent` for AppLocker, firewall,
-Defender ASR and LSA controls. The model is **never** in the action path;
-containment runs through written policy, an approval queue and a journal.
+does not kill. Containment is a separate, measured layer — `plasma enforce`
+ships armed but limited to snapshot + kill at score 9+, with isolation and
+every other action behind approval. `plasma prevent` configures AppLocker,
+firewall, Defender ASR and LSA controls, audit-first and rollbackable. The
+model is **never** in the action path; containment runs through written
+policy, an approval queue and a journal.
 
 ## Agent-native operation
 
@@ -192,27 +194,33 @@ blind spots named. A third provenance axis derives `live` / `partial` /
 `dormant` from the shipped Sysmon config, so a rule whose event IDs are not
 enabled cannot inflate the weighted number.
 
-## Prevention (opt-in)
+## Protection (measured)
 
-Two tiers, both dry-run first and off by default.
+Containment is armed by default but narrow; prevention is audit-first.
 
 **Containment** — findings become allowlisted, reversible actions:
 
 ```powershell
+plasma protect status                    # armed? what is protected?
+plasma protect protected
+plasma protect disarm --reason "change window"
+plasma protect arm
 plasma enforce status
 plasma enforce run                       # proposals only
 plasma enforce run --apply               # policy still gates each action
-plasma watch once --enforce              # sweep + policy in one cron entry
+plasma watch once --enforce              # the PlasmaWatch task does this every 5 min
 plasma enforce pending                   # isolation etc. wait for a human
 plasma enforce approve --id 4 --apply
 ```
 
-Injection findings write one host snapshot and then kill the accessing
-process; a tripped canary queues host isolation for approval. The snapshot
-is host state, not process memory — remove it from `allowed_actions` for
-speed, or move `kill_process` into `require_approval` for forensics first. Score floor, action allowlist, per-run cap,
-per-target cooldown, approval queue and kill switch are all enforced in
-code, and every apply still passes actuate's dry-run + plan gate.
+The default policy allows only `snapshot` + `kill_process`, at score 9+,
+2 actions per run, 30-minute cooldown. Injection findings write one host
+snapshot and then kill the accessing process; a tripped canary queues host
+isolation for approval. The snapshot is host state, not process memory —
+remove it from `allowed_actions` for speed, or move `kill_process` into
+`require_approval` for forensics first. WinRM, RDP, WHIDS, Sysmon, LSASS
+and Administrator are refused in code. Every apply still passes actuate's
+dry-run + plan gate.
 
 **Enforcement points** — stop behaviour before it runs:
 

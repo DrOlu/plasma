@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary, trace, sigma, fim, enforce, prevent
-from . import agentstate, statemachine, policy as agent_policy, ledger, killswitch, tenants, rings, evidence, assurance, evals, mcp as mcp_server
+from . import agentstate, statemachine, policy as agent_policy, ledger, killswitch, tenants, rings, evidence, assurance, evals, mcp as mcp_server, protect
 from . import update as updater
 from .bundle import build_bundle
 from .manifest import create_manifest, verify_manifest
@@ -474,6 +474,42 @@ def write_sysmon_config(tools_dir: Path) -> Path:
 
 
 WATCHDOG_TASK = "PlasmaWhidsWatchdog"
+WATCH_TASK = "PlasmaWatch"
+
+
+def _register_watch(bin_exe: Path, root: Path,
+                    every_minutes: int = 5) -> dict:
+    """Register the SYSTEM task that runs the measured enforcement sweep.
+
+    The policy is armed by default, but nothing acts unless a sweep feeds
+    findings to `enforce.run`. This task is that sweep: it runs
+    `watch once --enforce` every few minutes, so automatic containment is
+    live out of the box while the policy still gates every action.
+    """
+    minutes = max(1, min(int(every_minutes), 60))
+    exe_q = str(bin_exe).replace("'", "''")
+    root_q = str(root).replace("'", "''")
+    # `watch once` returns 2 when it finds something. Task Scheduler would
+    # call that a failure, so wrap it: run, discard output, exit 0. The
+    # decision is already in the enforce journal.
+    inner = (f"& '{exe_q}' watch once --root '{root_q}' --enforce "
+             f"*> $null; exit 0")
+    argument = ("-NoProfile -ExecutionPolicy Bypass -Command "
+                f"\"{inner}\"").replace("'", "''")
+    script = (
+        f"$a = New-ScheduledTaskAction -Execute 'powershell.exe' "
+        f"-Argument '{argument}'; "
+        f"$t = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) "
+        f"-RepetitionInterval (New-TimeSpan -Minutes {minutes}) "
+        f"-RepetitionDuration (New-TimeSpan -Days 3650); "
+        f"$p = New-ScheduledTaskPrincipal -UserId 'SYSTEM' "
+        f"-LogonType ServiceAccount -RunLevel Highest; "
+        f"Register-ScheduledTask -TaskName '{WATCH_TASK}' -Action $a "
+        f"-Trigger $t -Principal $p -Force | Out-Null"
+    )
+    rc, out = whids._ps(script, timeout=120)
+    return {"ok": rc == 0, "task": WATCH_TASK, "every_minutes": minutes,
+            "detail": out[:200]}
 
 
 def _register_whids_watchdog(bin_exe: Path, root: Path) -> dict:
@@ -790,6 +826,14 @@ def cmd_install(args) -> int:
             f"copy {Path(sys.executable).name} to {root / 'bin'}",
             f"write {config_path}",
             f"point {current} -> {target}",
+            ("automatic protection: snapshot + kill_process at score 9+, "
+             "approval for isolation and all other actions"
+             if not getattr(args, "no_autoprotect", False)
+             else "automatic protection disabled (dry-run only)"),
+            ("register the PlasmaWatch SYSTEM task (watch once --enforce "
+             "every 5 minutes)"
+             if not getattr(args, "no_autoprotect", False)
+             else "remove the PlasmaWatch task"),
         ] + (["install Sysmon from Sysinternals (EULA accepted via -accepteula)"]
              if decision.get("sysmon") == "installed at install time (EULA accepted via -accepteula)" else [])
           + ([f"install or refresh WHIDS config/rules from embedded payload "
@@ -823,15 +867,13 @@ def cmd_install(args) -> int:
         "events_path": str(events_path),
         "retention_days": 7,
         "response": {"mode": "advisory", "require_human_approval": True},
-        # Prevention is opt-in: the policy block ships disabled and in
-        # dry-run. Operationally-chosen values survive a reinstall below.
-        "enforcement": {
-            "enabled": False, "mode": "dry-run", "min_score": 9,
-            "allowed_actions": ["kill_process"],
-            "require_approval": ["isolate_host"],
-            "cooldown_minutes": 30, "max_actions_per_run": 2,
-        },
-        "prevention": {"applocker": {"mode": "audit"}, "egress": {"applied": False}},
+        # Measured protection: armed by default, but only snapshot + kill
+        # at score 9+, with a per-run cap and cooldown. Every other action
+        # requires approval. --no-autoprotect installs the old off posture.
+        "enforcement": (dict(protect.LEGACY_ENFORCEMENT)
+                        if getattr(args, "no_autoprotect", False)
+                        else dict(protect.MEASURED_ENFORCEMENT)),
+        "prevention": dict(protect.DEFAULT_PREVENTION),
         "degraded": degraded,
         "sensors": {
             "whids": {"required": False, "min_version": "1.7.0",
@@ -855,9 +897,15 @@ def cmd_install(args) -> int:
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         previous = {}
     if isinstance(previous, dict):
-        for key in ("enforcement", "prevention"):
-            if isinstance(previous.get(key), dict):
-                config[key] = previous[key]
+        if getattr(args, "no_autoprotect", False):
+            config["enforcement"] = dict(protect.LEGACY_ENFORCEMENT)
+        else:
+            # Replace exactly the old "off by default" block; preserve a
+            # custom operator block.
+            config["enforcement"] = protect.migrate_enforcement(
+                previous.get("enforcement"))
+        if isinstance(previous.get("prevention"), dict):
+            config["prevention"] = previous["prevention"]
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
 
@@ -1031,6 +1079,24 @@ def cmd_install(args) -> int:
         "scheduled" if ident["ok"] else "on-demand")
     if not ident["ok"]:
         config["sensors"]["identity"]["schedule_error"] = ident.get("detail")
+    config_path.write_text(json.dumps(config, indent=2) + "\n",
+                           encoding="utf-8")
+
+    # 3a-ter. Measured enforcement sweep. The policy is armed by default;
+    # this SYSTEM task feeds findings to it every few minutes. With
+    # --no-autoprotect the task is removed and the policy stays dry-run.
+    if not getattr(args, "no_autoprotect", False):
+        watch_task = _register_watch(bindir / me.name, root)
+        config["enforcement"]["watch_task"] = (
+            watch_task["task"] if watch_task["ok"] else "failed")
+        config["enforcement"]["watch_every_minutes"] = \
+            watch_task["every_minutes"]
+        if not watch_task["ok"]:
+            config["enforcement"]["watch_error"] = watch_task.get("detail")
+    else:
+        whids._ps(f"Unregister-ScheduledTask -TaskName '{WATCH_TASK}' "
+                  "-Confirm:$false -ErrorAction SilentlyContinue", timeout=60)
+        config["enforcement"]["watch_task"] = "disabled"
     config_path.write_text(json.dumps(config, indent=2) + "\n",
                            encoding="utf-8")
 
@@ -1735,6 +1801,28 @@ def cmd_enforce_approve(args) -> int:
     return 0 if "error" not in result else 2
 
 
+def cmd_protect_status(args) -> int:
+    _emit(protect.status(args.root))
+    return 0
+
+
+def cmd_protect_arm(args) -> int:
+    result = protect.arm(args.root, apply_prevention=args.apply_prevention,
+                         reason=args.reason)
+    _emit(result)
+    return 0 if result.get("ok") else 1
+
+
+def cmd_protect_disarm(args) -> int:
+    _emit(protect.disarm(args.root, reason=args.reason))
+    return 0
+
+
+def cmd_protect_protected(args) -> int:
+    _emit(protect.protected())
+    return 0
+
+
 def cmd_fleet_pull(args) -> int:
     try:
         result = fleet.pull(args.root, args.inventory, args.case,
@@ -2070,6 +2158,8 @@ def build_parser() -> argparse.ArgumentParser:
     ins.add_argument("--require-whids", action="store_true",
                      help="fail closed when WHIDS/Sysmon are not feasible (old strict behavior)")
     ins.add_argument("--force", action="store_true")
+    ins.add_argument("--no-autoprotect", action="store_true",
+                     help="install with automatic containment off (dry-run only)")
     ins.set_defaults(func=cmd_install)
 
     sn = sub.add_parser("whids", help="WHIDS integration: pull alerts, push IOC gene rules")
@@ -2404,6 +2494,25 @@ def build_parser() -> argparse.ArgumentParser:
     ena.add_argument("--id", type=int, required=True)
     ena.add_argument("--apply", action="store_true", help="execute; without it only the plan is shown")
     ena.set_defaults(func=cmd_enforce_approve)
+
+    pt = sub.add_parser("protect", help="measured protection posture: status, arm, disarm")
+    pts = pt.add_subparsers(dest="protect_action", required=True)
+    ptsx = pts.add_parser("status", help="show containment, prevention and protected components")
+    ptsx.add_argument("--root", default=None)
+    ptsx.set_defaults(func=cmd_protect_status)
+    pta = pts.add_parser("arm", help="write the measured containment policy")
+    pta.add_argument("--root", default=None)
+    pta.add_argument("--apply-prevention", action="store_true",
+                     help="also apply AppLocker in audit mode (requires --reason)")
+    pta.add_argument("--reason", default=None)
+    pta.set_defaults(func=cmd_protect_arm)
+    ptd = pts.add_parser("disarm", help="turn automatic containment off (dry-run only)")
+    ptd.add_argument("--root", default=None)
+    ptd.add_argument("--reason", default=None)
+    ptd.set_defaults(func=cmd_protect_disarm)
+    ptp = pts.add_parser("protected", help="list protected services, processes, accounts and paths")
+    ptp.set_defaults(func=cmd_protect_protected)
+
     idp = sub.add_parser("identity", help="identity plane: logon events into the store (Event Log API)")
     idps = idp.add_subparsers(dest="identity_action", required=True)
     idpp = idps.add_parser("pull", help="pull recent identity events into the events store")

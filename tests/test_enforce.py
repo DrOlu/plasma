@@ -33,9 +33,12 @@ def policy(**over):
     return base
 
 
-def test_default_policy_is_off_and_dry_run():
-    assert enforce.DEFAULT_POLICY["enabled"] is False
-    assert enforce.DEFAULT_POLICY["mode"] == "dry-run"
+def test_default_policy_is_measured_and_armed():
+    assert enforce.DEFAULT_POLICY["enabled"] is True
+    assert enforce.DEFAULT_POLICY["mode"] == "enforce"
+    assert enforce.DEFAULT_POLICY["min_score"] == 9
+    assert enforce.DEFAULT_POLICY["allowed_actions"] == ["snapshot", "kill_process"]
+    assert "isolate_host" in enforce.DEFAULT_POLICY["require_approval"]
 
 
 def test_injection_proposes_kill_and_is_auto_eligible():
@@ -78,6 +81,8 @@ def test_run_with_policy_off_journals_dry_run(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(enforce.actuate, "execute",
                         lambda *a, **k: calls.append(k) or {"id": 1})
+    (tmp_path / "config.json").write_text(json.dumps({
+        "enforcement": {"enabled": False, "mode": "dry-run"}}))
     out = enforce.run(tmp_path, findings=[injection_finding()])
     assert out["applied"] == 0 and out["dry_run"] == 1
     assert calls == []

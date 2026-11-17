@@ -65,14 +65,24 @@ investigate / act now**. `watch-state.json` records each run;
 ## Enforcement and prevention
 
 ```powershell
+plasma protect status                  # armed? containment + prevention + protected
+plasma protect protected               # what the response layer refuses to touch
+plasma protect disarm --reason "change window"
+plasma protect arm
 plasma enforce status                  # policy, journal counts, kill switch
 plasma enforce run                     # dry-run proposals
-plasma enforce run --apply             # arm this run; policy still gates
+plasma enforce run --apply             # policy still gates every action
 plasma enforce pending
 plasma enforce approve --id 4 --apply
 plasma prevent status                  # read-only posture
 plasma prevent rollback --id 7 --apply # undo an applied prevention control
 ```
+
+Containment ships armed but narrow: `snapshot` + `kill_process` at score
+9+, 2 actions per run, 30-minute cooldown. Isolation and every other action
+require approval. The installer registers `PlasmaWatch`, which runs
+`watch once --enforce` every 5 minutes; `--no-autoprotect` removes it and
+installs the old dry-run posture.
 
 `enforce-journal.jsonl` records every decision (including refusals and
 cooldowns); `prevent-journal.jsonl` records every control change with its

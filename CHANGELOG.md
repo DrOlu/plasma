@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.17.0 — 2026-11-17
+
+Measured protection is armed by default.
+
+- **Automatic containment is on, but narrow.** The default enforcement
+  policy is `enabled: true`, `mode: "enforce"`, `min_score: 9`,
+  `allowed_actions: ["snapshot", "kill_process"]`, a 2-action per-run cap
+  and a 30-minute cooldown. The snapshot is written before the kill.
+- **Everything else stays human-approved.** `isolate_host`,
+  `quarantine_file`, `disable_user`, `remove_admin`, `stop_service`,
+  `rotate_credential`, task/Run-key/WMI removal and `block_ip` are in
+  `require_approval`.
+- **A SYSTEM task drives the sweep.** The installer registers
+  `PlasmaWatch`, which runs `watch once --enforce` every 5 minutes, so
+  automatic containment is live out of the box. `--no-autoprotect` installs
+  the old dry-run posture and removes the task.
+- **Protected components stay protected in code.** WinRM, RDP, WHIDS,
+  Sysmon, LSASS, BFE, MpsSvc, Administrator, SYSTEM and service accounts
+  are refused by the response layer. Isolation keeps RDP/WinRM open.
+  AppLocker keeps the Administrators path rule.
+- **Upgrades migrate the old default.** Exactly the pre-1.17
+  `enabled: false` block is replaced with the measured policy; a custom
+  operator block is preserved.
+- **New `plasma protect` control surface.** `status`, `arm`, `disarm` and
+  `protected` make the posture inspectable and reversible.
+- 715 tests collected; full suite passes; ruff clean.
+
 ## 1.16.3 — 2026-11-17
 
 Command-tree type metadata.
