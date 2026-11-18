@@ -4,6 +4,21 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.18.2 — 2026-11-18
+
+Self-update rotation reliability on Windows.
+
+- **The tasks holding the binary are quiesced around the swap.**
+  `PlasmaServe`, `PlasmaWatch`, `PlasmaWhidsWatchdog` and
+  `PlasmaIdentityPull` stop before rotation and restart afterwards; a
+  serve-launched update skips `PlasmaServe` so it cannot kill itself.
+- **Retries and stale-backup recovery.** A locked image is retried five
+  times, a stale `.old` backup is preserved under a unique name, a
+  read-only attribute is cleared first, and a failed swap restores the
+  previous binary. `PlasmaServe` restarts after the update, so `/healthz`
+  reports the new version.
+- 737 tests collected; full suite passes; ruff error-level checks clean.
+
 ## 1.18.1 — 2026-11-18
 
 Self-update install robustness.

@@ -18,6 +18,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import urllib.parse
 import urllib.request
@@ -174,16 +175,54 @@ def rotate_bin(new_exe, bin_exe) -> dict:
     # Recover an interrupted rotation: a missing bin with a .old present
     # means the previous run died between the two renames.
     if not bin_exe.exists() and old.exists():
-        os.replace(old, bin_exe)
+        try:
+            os.replace(old, bin_exe)
+        except OSError:
+            pass
     try:
         with open(tmp, "wb") as fh:
             fh.write(new_exe.read_bytes())
             fh.flush()
             os.fsync(fh.fileno())
         if bin_exe.exists():
-            os.replace(bin_exe, old)   # rename-while-running works
+            backup = old
+            if backup.exists():
+                # A previous update left a backup behind. Reuse it only if
+                # it can be replaced; otherwise keep the older copy under a
+                # unique name rather than failing the whole rotation.
+                try:
+                    backup.unlink()
+                except OSError:
+                    backup = bin_exe.with_name(
+                        bin_exe.name + f".old.{os.getpid()}")
+            if os.name == "nt":
+                # A release asset can arrive read-only. Clear that attribute
+                # so the rename itself is allowed.
+                try:
+                    os.chmod(bin_exe, stat.S_IWRITE)
+                except OSError:
+                    pass
+            try:
+                os.replace(bin_exe, backup)   # rename-while-running works
+            except OSError:
+                # Some EDR/AV filters hold the image briefly. Retry once
+                # after clearing the read-only bit on both ends.
+                if os.name == "nt":
+                    try:
+                        os.chmod(backup, stat.S_IWRITE)
+                    except OSError:
+                        pass
+                os.replace(bin_exe, backup)
+            old = backup
         os.replace(tmp, bin_exe)
     except OSError as exc:
+        # If the current binary was already moved aside, put it back: never
+        # leave the host without a launchable plasma binary.
+        try:
+            if not bin_exe.exists() and old.exists():
+                os.replace(old, bin_exe)
+        except OSError:
+            pass
         return {"ok": False, "error": f"bin rotation failed: {exc}",
                 "bin": str(bin_exe), "previous": str(old),
                 "recovery": "re-run update apply or plasma rollback"}

@@ -169,29 +169,77 @@ def _state(root, target: str, detail=None) -> None:
         pass
 
 
-def _restart_serve() -> dict:
+TASKS = ("PlasmaServe", "PlasmaWatch", "PlasmaWhidsWatchdog",
+         "PlasmaIdentityPull")
+
+
+def _task_running(task: str) -> bool:
     if os.name != "nt":
-        return {"ok": False, "reason": "not windows"}
+        return False
     query = subprocess.run(
-        ["schtasks.exe", "/query", "/tn", "PlasmaServe"],
+        ["schtasks.exe", "/query", "/tn", task, "/fo", "LIST"],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
         check=False,
     )
     if query.returncode != 0:
-        return {"ok": True, "reason": "no PlasmaServe task"}
-    end = subprocess.run(
-        ["schtasks.exe", "/end", "/tn", "PlasmaServe"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
-        check=False,
-    )
-    time.sleep(2)
-    run = subprocess.run(
-        ["schtasks.exe", "/run", "/tn", "PlasmaServe"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
-        check=False,
-    )
-    return {"ok": run.returncode == 0, "end": end.returncode,
-            "run": run.returncode}
+        return False
+    for line in query.stdout.splitlines():
+        key, _, value = line.partition(":")
+        if key.strip().lower() == "status":
+            return value.strip().lower() == "running"
+    return False
+
+
+def _stop_tasks(restart_serve: bool = True, skip_serve: bool = False) -> dict:
+    """Stop the tasks that hold the binary open during rotation.
+
+    ``skip_serve`` is set when this update was launched *by* ``plasma serve``:
+    ending the serve task would kill the process tree that is doing the
+    update. Renaming a running exe is still legal, so rotation can proceed.
+    """
+    if os.name != "nt":
+        return {}
+    stopped = {}
+    for task in TASKS:
+        if task == "PlasmaServe" and (not restart_serve or skip_serve):
+            continue
+        if not _task_running(task):
+            continue
+        end = subprocess.run(
+            ["schtasks.exe", "/end", "/tn", task],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            check=False,
+        )
+        stopped[task] = end.returncode == 0
+    if stopped:
+        time.sleep(3)
+    return stopped
+
+
+def _start_tasks(stopped: dict) -> dict:
+    if os.name != "nt":
+        return {}
+    started = {}
+    for task, was_stopped in stopped.items():
+        if not was_stopped:
+            continue
+        run = subprocess.run(
+            ["schtasks.exe", "/run", "/tn", task],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            check=False,
+        )
+        started[task] = run.returncode == 0
+    return started
+
+
+def _rotate_with_retry(staged, target, attempts: int = 5) -> dict:
+    result = {"ok": False, "error": "not attempted"}
+    for attempt in range(attempts):
+        result = updater.rotate_bin(staged, target)
+        if result.get("ok"):
+            return result
+        time.sleep(1)
+    return result
 
 
 def _notify(root, cfg, title: str, body: str) -> dict | None:
@@ -344,21 +392,30 @@ def _apply(root, cfg, host, repo, rel, token, allow_unsigned,
                 "detail": detail}
     _state(root, "installed", rel["tag"])
 
+    # Windows will not let us replace a versioned binary that a scheduled
+    # task has open. Stop the tasks that hold it, rotate, then restart them.
+    # PlasmaUpdate itself is not stopped: it is the process running this code.
+    serve_child = os.environ.get("PLASMA_SERVE_CHILD") == "1"
+    stopped = _stop_tasks(bool(cfg.get("restart_serve", True)),
+                          skip_serve=serve_child)
     current = root / "bin" / Path(sys.executable).name
-    rotation = updater.rotate_bin(staged, current)
+    rotation = _rotate_with_retry(staged, current)
     canonical = root / "bin" / "plasma.exe"
     canonical_rotation = None
     if canonical != current:
-        canonical_rotation = updater.rotate_bin(staged, canonical)
+        canonical_rotation = _rotate_with_retry(staged, canonical)
+    started = _start_tasks(stopped)
     if not rotation.get("ok"):
         _journal(root, {"host": host, "status": "failed",
-                        "stage": "rotate", "detail": rotation.get("error")})
+                        "stage": "rotate", "detail": rotation.get("error"),
+                        "stopped": stopped, "started": started})
         _state(root, "failed", "bin rotation failed")
         return {"ok": False, "status": "failed", "stage": "rotate",
-                "error": rotation.get("error")}
+                "error": rotation.get("error"),
+                "stopped": stopped, "started": started}
     _state(root, "rotated", rel["tag"])
 
-    serve = _restart_serve() if cfg.get("restart_serve") else None
+    serve = {"stopped": stopped, "started": started}
     notification = _notify(
         root, cfg, "Plasma auto-update",
         f"{host}: {__version__} -> {rel['tag']}")

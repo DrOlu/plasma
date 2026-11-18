@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.18.2 — 2026-11-18
+
+Self-update rotation reliability on Windows.
+
+- **Rotation now quiesces the tasks that hold the binary.** `PlasmaServe`,
+  `PlasmaWatch`, `PlasmaWhidsWatchdog` and `PlasmaIdentityPull` are stopped
+  before the rename and restarted afterwards, so an in-use image cannot
+  turn a valid update into `WinError 5`. `PlasmaUpdate` is never stopped —
+  it is the process doing the update — and a serve-launched update skips
+  `PlasmaServe` so it cannot kill its own process tree.
+- **Retries and stale-backup recovery.** A locked image is retried five
+  times. A leftover `.old` backup that cannot be replaced is preserved
+  under a unique name instead of failing the swap, a read-only attribute is
+  cleared before the rename, and a failed second rename restores the
+  previous binary so the host is never left without a launchable exe.
+- **`PlasmaServe` now restarts after an update**, so `/healthz` reports the
+  new version rather than the pre-update process.
+- 737 tests collected; full suite passes; ruff error-level checks clean.
+
 ## 1.18.1 — 2026-11-18
 
 Self-update install robustness.

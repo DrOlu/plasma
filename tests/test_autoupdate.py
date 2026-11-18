@@ -134,7 +134,8 @@ def test_auto_applies_signed_release(tmp_path, monkeypatch):
                                          "status": "Valid"})
     monkeypatch.setattr(autoupdate.updater, "rotate_bin",
                         lambda *a, **k: {"ok": True, "bin": str(a[1])})
-    monkeypatch.setattr(autoupdate, "_restart_serve", lambda: {"ok": True})
+    monkeypatch.setattr(autoupdate, "_stop_tasks", lambda *a, **k: {})
+    monkeypatch.setattr(autoupdate, "_start_tasks", lambda *a, **k: {})
     monkeypatch.setattr(autoupdate.notify, "notify_all",
                         lambda *a, **k: {"configured": 0, "sent": 0})
 
@@ -149,6 +150,7 @@ def test_auto_applies_signed_release(tmp_path, monkeypatch):
     assert result["status"] == "updated"
     assert result["to"] == "v9.9.9"
     assert result["sha256"] == "abc"
+    assert result["serve_restart"] == {"stopped": {}, "started": {}}
     assert (tmp_path / "update-state.json").exists()
     assert (tmp_path / "update-journal.jsonl").exists()
     journal = [json.loads(line) for line in
@@ -186,3 +188,56 @@ def test_install_parser_has_no_autoupdate():
     assert parser.parse_args(["install", "--dry-run"]).no_autoupdate is False
     assert parser.parse_args(
         ["install", "--dry-run", "--no-autoupdate"]).no_autoupdate is True
+
+
+# ---------------------------------------------------------------------------
+# rotation: retry, task quiescing and stale-backup recovery
+# ---------------------------------------------------------------------------
+
+def test_rotate_with_retry_retries_then_succeeds(monkeypatch):
+    calls = []
+
+    def fake(staged, target):
+        calls.append(target)
+        return {"ok": len(calls) >= 3, "bin": str(target)}
+
+    monkeypatch.setattr(autoupdate.updater, "rotate_bin", fake)
+    monkeypatch.setattr(autoupdate.time, "sleep", lambda *_: None)
+    result = autoupdate._rotate_with_retry("staged", "target")
+    assert result["ok"] is True
+    assert len(calls) == 3
+
+
+def test_rotate_with_retry_gives_up(monkeypatch):
+    calls = []
+    monkeypatch.setattr(autoupdate.updater, "rotate_bin",
+                        lambda *a, **k: calls.append(a) or {"ok": False})
+    monkeypatch.setattr(autoupdate.time, "sleep", lambda *_: None)
+    result = autoupdate._rotate_with_retry("staged", "target", attempts=2)
+    assert result["ok"] is False
+    assert len(calls) == 2
+
+
+def test_stop_tasks_is_noop_off_windows():
+    assert autoupdate._stop_tasks() == {}
+    assert autoupdate._start_tasks({"PlasmaWatch": True}) == {}
+
+
+def test_stop_tasks_skips_serve_for_serve_child(monkeypatch):
+    class _Ok:
+        returncode = 0
+        stdout = "Status: Running\n"
+        stderr = ""
+
+    calls = []
+    monkeypatch.setattr(autoupdate.os, "name", "nt")
+    monkeypatch.setattr(autoupdate.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(autoupdate.subprocess, "run",
+                        lambda cmd, **k: calls.append(cmd) or _Ok())
+
+    stopped = autoupdate._stop_tasks(restart_serve=True, skip_serve=True)
+    ended = [c[3] for c in calls if "/end" in c]
+    assert "PlasmaServe" not in ended
+    assert "PlasmaWatch" in ended
+    assert "PlasmaServe" not in stopped
+    assert stopped["PlasmaWatch"] is True

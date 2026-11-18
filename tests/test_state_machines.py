@@ -218,6 +218,46 @@ def test_rotate_bin_recovers_missing_bin(tmp_path):
     assert bin_exe.read_text() == "new"
 
 
+def test_rotate_bin_survives_stale_backup(tmp_path):
+    """A locked/stale .old must not fail the rotation.
+
+    Windows refuses to replace an in-use or otherwise unremovable backup;
+    the rotator must keep the older copy under a unique name instead.
+    """
+    bin_exe = tmp_path / "plasma.exe"
+    bin_exe.write_text("old")
+    (tmp_path / "plasma.exe.old").mkdir()
+    new = tmp_path / "staged.exe"
+    new.write_text("new")
+    result = update.rotate_bin(new, bin_exe)
+    assert result["ok"] is True
+    assert bin_exe.read_text() == "new"
+    assert (tmp_path / "plasma.exe.old").is_dir()
+    backups = list(tmp_path.glob("plasma.exe.old.*"))
+    assert backups and backups[0].read_text() == "old"
+
+
+def test_rotate_bin_restores_bin_when_swap_fails(tmp_path, monkeypatch):
+    bin_exe = tmp_path / "plasma.exe"
+    bin_exe.write_text("old")
+    new = tmp_path / "staged.exe"
+    new.write_text("new")
+    real_replace = update.os.replace
+    calls = {"n": 0}
+
+    def flaky(src, dst):
+        calls["n"] += 1
+        if calls["n"] == 2:      # bin -> .old succeeded; tmp -> bin fails
+            raise OSError("locked by another process")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(update.os, "replace", flaky)
+    result = update.rotate_bin(new, bin_exe)
+    assert result["ok"] is False
+    assert "locked" in result["error"]
+    assert bin_exe.read_text() == "old"
+
+
 def test_canary_deploy_dedupes_and_writes_valid_manifest(tmp_path):
     first = canary.deploy(tmp_path, extra_dirs=[tmp_path / "shared"])
     second = canary.deploy(tmp_path, extra_dirs=[tmp_path / "shared"])
