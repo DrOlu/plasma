@@ -224,9 +224,15 @@ Defender; LSA takes effect after a reboot.
 ```text
 plasma update check [--repo OWNER/NAME] [--token-env VAR]
 plasma update apply [--bin PATH] [--root PATH] [--allow-unsigned]
+plasma update auto [--root PATH] [--ring canary|broad|rollback]
+                   [--check-only] [--force] [--allow-unsigned] [--no-notify]
 ```
 
-Anonymous against the public repo; signature-pinned.
+Anonymous against the public repo; signature-pinned. `update auto` is the
+measured self-update path: it respects the deployment ring, the 02:00–05:00
+maintenance window, the 24-hour canary hold, the kill switch and one-at-a-
+time locking. The installer registers `PlasmaUpdate` to run it daily;
+`--no-autoupdate` disables it.
 
 ### control (agent trust layer)
 

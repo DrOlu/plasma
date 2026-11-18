@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.17.1</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.18.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.17.1</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.18.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">716 tests</span>
+<span class="raft-badge">731 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -111,6 +111,21 @@ DESK               status · ask · drift · chains · coverage · fleet ·
 PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    prevent (AppLocker, egress, Defender ASR, LSA protection)
 ```
+
+## What's new in 1.18.0
+
+- **Measured self-update.** `plasma update auto` checks the latest release
+  and applies it through the existing SHA256 + Authenticode + install +
+  rotate path. Signed releases only.
+- **`PlasmaUpdate` daily SYSTEM task** with a random minute inside the
+  02:00–05:00 maintenance window. `--no-autoupdate` disables it.
+- **Ring-aware:** `broad` waits 24 hours; `canary` updates immediately;
+  `rollback` never auto-updates. The kill switch pauses updates.
+- **Previous binary kept.** `plasma rollback` still restores it; the
+  canonical `plasma.exe` is rotated and `PlasmaServe` is restarted after a
+  successful update.
+- **`update-journal.jsonl` and `update-state.json`** record every attempt.
+- **731 tests**, full suite green, ruff clean.
 
 ## What's new in 1.17.1
 

@@ -24,6 +24,60 @@ What `apply` does, in order:
 
 `--allow-unsigned` exists for development only.
 
+## Automatic updates
+
+The installer registers **`PlasmaUpdate`**, a daily SYSTEM task with a
+random minute inside the 02:00–05:00 local maintenance window. It runs:
+
+```powershell
+plasma update auto --root C:\ProgramData\Plasma
+```
+
+What the automatic path does:
+
+1. skips if automatic updates are disabled, the kill switch is engaged, the
+   host is outside its ring, or it is outside the maintenance window;
+2. fetches the latest release and compares versions;
+3. on `broad`, waits for the **canary hold** (24 hours after publication);
+   on `canary`, updates immediately; on `rollback`, never auto-updates;
+4. downloads, verifies SHA-256, and verifies the pinned Authenticode signer;
+5. runs the same `install --force` path, rotates the running binary **and**
+   the canonical `plasma.exe`, and restarts `PlasmaServe` if it exists;
+6. writes `update-journal.jsonl` and `update-state.json`;
+7. keeps the previous binary beside the current one, so `plasma rollback`
+   still works.
+
+```powershell
+plasma update auto --check-only   # exit 2 when an update is available
+plasma update auto                # apply if due
+plasma update auto --force        # reinstall even if the version matches
+plasma update auto --ring canary  # override the configured ring
+```
+
+Configuration lives in `config.json`:
+
+```json
+{
+  "update": {
+    "auto": true,
+    "repo": "DrOlu/plasma",
+    "ring": "broad",
+    "every_hours": 24,
+    "window_start_hour": 2,
+    "window_end_hour": 5,
+    "canary_hold_hours": 24,
+    "allow_unsigned": false,
+    "restart_serve": true,
+    "notify": true,
+    "task": "PlasmaUpdate"
+  }
+}
+```
+
+`--no-autoupdate` on install removes the task and disables the feature. The
+kill switch pauses updates without disabling the task; the next run after
+the switch is released picks up the release.
+
 ## The two trust anchors
 
 | Anchor | What it protects against |

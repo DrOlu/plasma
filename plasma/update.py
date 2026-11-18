@@ -106,7 +106,8 @@ def latest_release(repo: str, token: str, tag: str | None = None) -> dict:
         url = f"https://api.github.com/repos/{repo}/releases/latest"
     data = json.loads(_gh(url, token).decode("utf-8"))
     assets = {a["name"]: a["url"] for a in data.get("assets", [])}
-    return {"tag": data.get("tag_name", ""), "assets": assets}
+    return {"tag": data.get("tag_name", ""), "assets": assets,
+            "published_at": data.get("published_at")}
 
 
 def parse_version(tag: str) -> tuple:

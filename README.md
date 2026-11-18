@@ -289,22 +289,30 @@ Verdicts: clean / investigate / act now. Credentials arrive via env vars
 pip install 'plasma-edr[desk]'   # adds pywinrm for the winrm transport
 ```
 
-## Operations: health, watch, notify, self-update (v0.11.0)
+## Operations: health, watch, notify, self-update
 
 ```bash
 plasma health                                   # is the stack alive? (json verdict)
 plasma watch once                               # sweep: health + drift + canary + alerts
 plasma notify show | plasma notify test         # alert channels (telegram/webhook)
+plasma update auto --check-only                 # exit 2 when an update is available
+plasma update auto                              # measured signed self-update
 plasma update check                             # compare against latest release
 plasma update apply                             # download, verify sha, install, rotate bin
 ```
 
 Alert channels live in `<root>/notify.json` (telegram needs `token_env` —
 secrets never live in config files). `watch once` is cron/Task-Scheduler
-friendly: quiet when clean, notifies on findings. `update apply` verifies
-the SHA256SUMS before installing and rotates the running binary
-(rename-while-running), so nodes upgrade themselves with a token in the
-environment.
+friendly: quiet when clean, notifies on findings.
+
+The installer registers `PlasmaUpdate`, a daily SYSTEM task with a random
+minute inside the 02:00–05:00 maintenance window. It applies **signed**
+releases only, through the same SHA256 + Authenticode + install + rotate
+path as `update apply`. `broad` hosts wait 24 hours after publication;
+`canary` hosts update first; `rollback` hosts never auto-update. The kill
+switch pauses updates, the previous binary is kept for `plasma rollback`,
+and `--no-autoupdate` disables the task. `update-journal.jsonl` and
+`update-state.json` record every attempt.
 
 ## Sensor policy
 

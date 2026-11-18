@@ -89,6 +89,30 @@ cooldowns); `prevent-journal.jsonl` records every control change with its
 undo recipe. Prevention backups live in `prevent-backups/`. Neither file is
 rotated automatically — they are audit records.
 
+## Updates
+
+```powershell
+plasma update auto --check-only   # exit 2 when an update is available
+plasma update auto                # apply if due
+plasma update auto --force        # reinstall even if the version matches
+plasma update auto --ring canary  # override the configured ring
+plasma update check
+plasma update apply
+plasma rollback
+```
+
+The installer registers `PlasmaUpdate`, a daily SYSTEM task with a random
+minute inside the 02:00–05:00 maintenance window. It applies **signed**
+releases only, through the same SHA256 + Authenticode + install + rotate
+path as `update apply`. `broad` hosts wait 24 hours after publication;
+`canary` hosts update first; `rollback` hosts never auto-update. The kill
+switch pauses updates. The previous binary is kept, so `plasma rollback`
+still restores it. `update-journal.jsonl` and `update-state.json` record
+every attempt.
+
+`--no-autoupdate` on install removes the task and disables automatic
+updates. See [Updates and signing](update-signing.md).
+
 ## Store hygiene
 
 ```powershell

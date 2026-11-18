@@ -20,6 +20,7 @@ from pathlib import Path
 
 from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary, trace, sigma, fim, enforce, prevent
 from . import agentstate, statemachine, policy as agent_policy, ledger, killswitch, tenants, rings, evidence, assurance, evals, mcp as mcp_server, protect
+from . import autoupdate
 from . import update as updater
 from .bundle import build_bundle
 from .manifest import create_manifest, verify_manifest
@@ -475,6 +476,39 @@ def write_sysmon_config(tools_dir: Path) -> Path:
 
 WATCHDOG_TASK = "PlasmaWhidsWatchdog"
 WATCH_TASK = "PlasmaWatch"
+UPDATE_TASK = "PlasmaUpdate"
+
+
+def _register_update(bin_exe: Path, root: Path) -> dict:
+    """Register the daily SYSTEM task that runs the measured self-update.
+
+    A random minute inside the maintenance window staggers the fleet: every
+    host does not wake up at 03:00. The command itself re-checks the window,
+    ring, signature and kill switch.
+    """
+    exe_q = str(bin_exe).replace("'", "''")
+    root_q = str(root).replace("'", "''")
+    log_q = str(root / "logs" / "update.log").replace("'", "''")
+    inner = (f"& '{exe_q}' update auto --root '{root_q}' "
+             f"*> '{log_q}'; exit 0")
+    argument = ("-NoProfile -ExecutionPolicy Bypass -Command "
+                f"\"{inner}\"").replace("'", "''")
+    script = (
+        f"$logDir = Split-Path '{log_q}' -Parent; "
+        f"New-Item -ItemType Directory -Force -Path $logDir | Out-Null; "
+        f"$offset = Get-Random -Minimum 0 -Maximum 60; "
+        f"$at = (Get-Date).Date.AddHours(3).AddMinutes($offset); "
+        f"if ($at -lt (Get-Date)) {{ $at = $at.AddDays(1) }}; "
+        f"$a = New-ScheduledTaskAction -Execute 'powershell.exe' "
+        f"-Argument '{argument}'; "
+        f"$t = New-ScheduledTaskTrigger -Daily -At $at; "
+        f"$p = New-ScheduledTaskPrincipal -UserId 'SYSTEM' "
+        f"-LogonType ServiceAccount -RunLevel Highest; "
+        f"Register-ScheduledTask -TaskName '{UPDATE_TASK}' -Action $a "
+        f"-Trigger $t -Principal $p -Force | Out-Null"
+    )
+    rc, out = whids._ps(script, timeout=120)
+    return {"ok": rc == 0, "task": UPDATE_TASK, "detail": out[:200]}
 
 
 def _register_watch(bin_exe: Path, root: Path,
@@ -834,6 +868,9 @@ def cmd_install(args) -> int:
              "every 5 minutes)"
              if not getattr(args, "no_autoprotect", False)
              else "remove the PlasmaWatch task"),
+            ("register the PlasmaUpdate SYSTEM task (daily signed self-update)"
+             if not getattr(args, "no_autoupdate", False)
+             else "remove the PlasmaUpdate task"),
         ] + (["install Sysmon from Sysinternals (EULA accepted via -accepteula)"]
              if decision.get("sysmon") == "installed at install time (EULA accepted via -accepteula)" else [])
           + ([f"install or refresh WHIDS config/rules from embedded payload "
@@ -857,6 +894,10 @@ def cmd_install(args) -> int:
     bindir.mkdir(parents=True, exist_ok=True)
     me = Path(sys.executable)
     shutil.copy2(me, bindir / me.name)
+    # Scheduled tasks must point at a stable name, not the transient
+    # `plasma-update-staged.exe` the updater re-enters during an install.
+    task_exe = bindir / ("plasma.exe" if me.name.startswith("plasma-update")
+                         else me.name)
 
     # 2. Config — sensor state reflects the ACTUAL decision, not hopes.
     config = {
@@ -874,6 +915,10 @@ def cmd_install(args) -> int:
                         if getattr(args, "no_autoprotect", False)
                         else dict(protect.MEASURED_ENFORCEMENT)),
         "prevention": dict(protect.DEFAULT_PREVENTION),
+        "update": (dict(autoupdate.DEFAULT_UPDATE)
+                   if not getattr(args, "no_autoupdate", False)
+                   else {**autoupdate.DEFAULT_UPDATE, "auto": False,
+                         "task": "disabled"}),
         "degraded": degraded,
         "sensors": {
             "whids": {"required": False, "min_version": "1.7.0",
@@ -906,6 +951,11 @@ def cmd_install(args) -> int:
                 previous.get("enforcement"))
         if isinstance(previous.get("prevention"), dict):
             config["prevention"] = previous["prevention"]
+        if isinstance(previous.get("update"), dict):
+            config["update"] = previous["update"]
+        if getattr(args, "no_autoupdate", False):
+            config["update"]["auto"] = False
+            config["update"]["task"] = "disabled"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
 
@@ -1061,7 +1111,7 @@ def cmd_install(args) -> int:
     # 3a. Watchdog: SCM failure actions restart a crashed WHIDS, but not a
     # hung StartPending. A SYSTEM task runs `whids ensure` every two minutes.
     if whids_planned:
-        wd = _register_whids_watchdog(bindir / me.name, root)
+        wd = _register_whids_watchdog(task_exe, root)
         config["sensors"]["whids"]["watchdog"] = (
             wd["task"] if wd["ok"] else "failed")
         if not wd["ok"]:
@@ -1072,7 +1122,7 @@ def cmd_install(args) -> int:
     # 3a-bis. Standing authentication pull. Watch-only HIDS misses brute
     # force between operator sweeps; a SYSTEM task keeps 4624/4625 flowing.
     ident = identity.schedule(root, every_minutes=15,
-                              exe=str(bindir / me.name))
+                              exe=str(task_exe))
     config["sensors"]["identity"]["schedule"] = (
         ident["task"] if ident["ok"] else "failed")
     config["sensors"]["identity"]["mode"] = (
@@ -1086,7 +1136,7 @@ def cmd_install(args) -> int:
     # this SYSTEM task feeds findings to it every few minutes. With
     # --no-autoprotect the task is removed and the policy stays dry-run.
     if not getattr(args, "no_autoprotect", False):
-        watch_task = _register_watch(bindir / me.name, root)
+        watch_task = _register_watch(task_exe, root)
         config["enforcement"]["watch_task"] = (
             watch_task["task"] if watch_task["ok"] else "failed")
         config["enforcement"]["watch_every_minutes"] = \
@@ -1097,6 +1147,23 @@ def cmd_install(args) -> int:
         whids._ps(f"Unregister-ScheduledTask -TaskName '{WATCH_TASK}' "
                   "-Confirm:$false -ErrorAction SilentlyContinue", timeout=60)
         config["enforcement"]["watch_task"] = "disabled"
+    config_path.write_text(json.dumps(config, indent=2) + "\n",
+                           encoding="utf-8")
+
+    # 3a-quater. Measured self-update. A daily SYSTEM task checks the latest
+    # signed release, respects the ring/window/canary hold, and keeps the
+    # previous binary. --no-autoupdate removes the task and disables it.
+    if not getattr(args, "no_autoupdate", False) \
+            and config.get("update", {}).get("auto", True):
+        upd = _register_update(task_exe, root)
+        config["update"]["task"] = (
+            upd["task"] if upd["ok"] else "failed")
+        if not upd["ok"]:
+            config["update"]["task_error"] = upd.get("detail")
+    else:
+        whids._ps(f"Unregister-ScheduledTask -TaskName '{UPDATE_TASK}' "
+                  "-Confirm:$false -ErrorAction SilentlyContinue", timeout=60)
+        config["update"]["task"] = "disabled"
     config_path.write_text(json.dumps(config, indent=2) + "\n",
                            encoding="utf-8")
 
@@ -1697,6 +1764,22 @@ def cmd_update_apply(args) -> int:
     return 0
 
 
+def cmd_update_auto(args) -> int:
+    result = autoupdate.auto(
+        args.root, repo=args.repo, ring=args.ring,
+        check_only=args.check_only, force=args.force,
+        allow_unsigned=True if args.allow_unsigned else None,
+        notify_enabled=False if args.no_notify else None,
+        token=os.environ.get(args.token_env, ""),
+    )
+    _emit(result)
+    if result.get("status") == "failed":
+        return 1
+    if args.check_only and result.get("update_available"):
+        return 2
+    return 0
+
+
 def cmd_identity_schedule(args) -> int:
     result = identity.schedule(args.root, every_minutes=args.every, exe=args.exe)
     print(json.dumps(result, indent=2, default=str))
@@ -2160,6 +2243,8 @@ def build_parser() -> argparse.ArgumentParser:
     ins.add_argument("--force", action="store_true")
     ins.add_argument("--no-autoprotect", action="store_true",
                      help="install with automatic containment off (dry-run only)")
+    ins.add_argument("--no-autoupdate", action="store_true",
+                     help="do not register the daily PlasmaUpdate task")
     ins.set_defaults(func=cmd_install)
 
     sn = sub.add_parser("whids", help="WHIDS integration: pull alerts, push IOC gene rules")
@@ -2584,6 +2669,20 @@ def build_parser() -> argparse.ArgumentParser:
     upa.add_argument("--tag", default=None,
                      help="pin a specific release tag instead of latest")
     upa.set_defaults(func=cmd_update_apply)
+    upauto = ups.add_parser("auto", help="measured self-update: check and apply the latest signed release")
+    upauto.add_argument("--repo", default="DrOlu/plasma")
+    upauto.add_argument("--token-env", default="PLASMA_GITHUB_TOKEN")
+    upauto.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    upauto.add_argument("--ring", default=None,
+                        help="canary | broad | rollback (default: config)")
+    upauto.add_argument("--check-only", action="store_true",
+                        help="report availability; do not install")
+    upauto.add_argument("--force", action="store_true",
+                        help="apply even if the version is the same (reinstall)")
+    upauto.add_argument("--allow-unsigned", action="store_true",
+                        help="development only: allow an unsigned staged exe")
+    upauto.add_argument("--no-notify", action="store_true")
+    upauto.set_defaults(func=cmd_update_auto)
 
     ctl = sub.add_parser("control", help="agent control plane: policy, approvals, audit, kill switch, tenants")
     ctls = ctl.add_subparsers(dest="control_action", required=True)

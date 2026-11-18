@@ -4,6 +4,23 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.18.0 — 2026-11-18
+
+Measured self-update.
+
+- **`plasma update auto`** checks the latest release and applies it through
+  the existing SHA256 + Authenticode + install + rotate path. Signed
+  releases only.
+- **`PlasmaUpdate` daily SYSTEM task** with a random minute inside the
+  02:00–05:00 maintenance window. `--no-autoupdate` disables it.
+- **Ring-aware:** `broad` waits 24 hours; `canary` updates immediately;
+  `rollback` never auto-updates.
+- **Kill-switch aware; one update at a time; previous binary kept.**
+- **Canonical `plasma.exe` rotated** and `PlasmaServe` restarted after a
+  successful update.
+- **`update-journal.jsonl` and `update-state.json`** record every attempt.
+- 731 tests collected; full suite passes; ruff clean.
+
 ## 1.17.1 — 2026-11-17
 
 Critical process-guard fix.

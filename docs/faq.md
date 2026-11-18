@@ -60,8 +60,21 @@ else works from local data.
 
 ### Does it phone home?
 
-No. There is no Plasma cloud service. Update checks are explicit commands
-against GitHub releases.
+No. There is no Plasma cloud service. The only outbound update traffic is
+the release check against GitHub: `PlasmaUpdate` once a day by default, or
+an explicit `plasma update check` / `plasma update auto`. Nothing else is
+sent.
+
+### Does Plasma self-update?
+
+Yes, by default. The installer registers `PlasmaUpdate`, a daily SYSTEM
+task with a random minute inside the 02:00–05:00 maintenance window. It
+applies **signed** releases only, through the same SHA256 + Authenticode +
+install + rotate path as `plasma update apply`. `broad` hosts wait 24 hours
+after publication; `canary` hosts update first; `rollback` hosts never
+auto-update. The kill switch pauses updates, and the previous binary is
+kept for `plasma rollback`. `--no-autoupdate` disables it; `plasma update
+auto --check-only` reports availability without installing.
 
 ### How many hosts can a desk manage?
 

@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.18.0 — 2026-11-18
+
+Measured self-update.
+
+- **`plasma update auto`** checks the latest release and applies it through
+  the existing download → SHA256 → Authenticode → install → rotate path.
+  Signed releases only; `--allow-unsigned` remains a development escape.
+- **The installer registers `PlasmaUpdate`**, a daily SYSTEM task with a
+  random minute inside the 02:00–05:00 local maintenance window, so the
+  fleet does not wake at the same moment. `--no-autoupdate` removes the
+  task and disables the feature.
+- **Ring-aware and canary-held.** `broad` hosts wait 24 hours after a
+  release; `canary` hosts update immediately; `rollback` hosts never
+  auto-update. No ring file means `broad` is the default.
+- **Kill-switch aware.** An engaged kill switch pauses automatic updates.
+  A cross-process lock allows one update at a time.
+- **Previous binary kept.** `plasma rollback` still restores the prior
+  binary. The canonical `plasma.exe` is rotated too, so the serve/watch
+  tasks pick up the new build, and `PlasmaServe` is restarted after a
+  successful update.
+- **Journal and state.** `update-journal.jsonl` records every attempt;
+  `update-state.json` records the last check, result and version. Optional
+  notification uses the existing channels.
+- Scheduled tasks now point at the stable `plasma.exe`, not the transient
+  `plasma-update-staged.exe` used during an update.
+- 731 tests collected; full suite passes; ruff clean.
+
 ## 1.17.1 — 2026-11-17
 
 Critical process-guard fix.
