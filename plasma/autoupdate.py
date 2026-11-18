@@ -190,6 +190,32 @@ def _task_running(task: str) -> bool:
     return False
 
 
+def _kill_lingering_serve() -> list[int]:
+    """Kill serve processes that outlive their scheduled-task parent.
+
+    A PyInstaller one-file executable re-execs itself as a child. Ending the
+    task kills the bootloader but can leave that child holding the port and
+    the old image, so a restart would bind-fail and the API would keep
+    reporting the previous version.
+    """
+    if os.name != "nt":
+        return []
+    script = (
+        f"$me = {os.getpid()}; "
+        "Get-CimInstance Win32_Process -Filter \"Name LIKE 'plasma%'\" | "
+        "Where-Object { $_.ProcessId -ne $me -and "
+        "$_.CommandLine -match '(^|\\s)serve(\\s|$)' } | "
+        "ForEach-Object { Stop-Process -Id $_.ProcessId -Force "
+        "-ErrorAction SilentlyContinue; $_.ProcessId }"
+    )
+    run = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        check=False,
+    )
+    return [int(tok) for tok in run.stdout.split() if tok.strip().isdigit()]
+
+
 def _stop_tasks(restart_serve: bool = True, skip_serve: bool = False) -> dict:
     """Stop the tasks that hold the binary open during rotation.
 
@@ -211,6 +237,10 @@ def _stop_tasks(restart_serve: bool = True, skip_serve: bool = False) -> dict:
             check=False,
         )
         stopped[task] = end.returncode == 0
+    if not skip_serve:
+        killed = _kill_lingering_serve()
+        if killed:
+            stopped["_killed_serve"] = killed
     if stopped:
         time.sleep(3)
     return stopped
@@ -221,7 +251,7 @@ def _start_tasks(stopped: dict) -> dict:
         return {}
     started = {}
     for task, was_stopped in stopped.items():
-        if not was_stopped:
+        if task.startswith("_") or not was_stopped:
             continue
         run = subprocess.run(
             ["schtasks.exe", "/run", "/tn", task],
@@ -281,13 +311,14 @@ def check(root=None, repo: str | None = None, tag: str | None = None,
     rel = updater.latest_release(repo, token or os.environ.get(
         "PLASMA_GITHUB_TOKEN", ""), tag=tag)
     newer = updater.is_newer(__version__, rel["tag"])
+    host = socket.gethostname() or "localhost"
     return {
         "ok": True,
         "current": __version__,
         "latest": rel["tag"],
         "update_available": newer,
         "published_at": rel.get("published_at"),
-        "ring": cfg["ring"],
+        "ring": rings.host_ring(root, host) or cfg["ring"],
         "auto": cfg["auto"],
     }
 
@@ -302,7 +333,9 @@ def auto(root=None, repo: str | None = None, ring: str | None = None,
     cfg = config(root)
     host = socket.gethostname() or "localhost"
     repo = repo or cfg["repo"]
-    ring = ring or cfg["ring"]
+    # An explicit host assignment is the local, human-set fact. Only fall
+    # back to the configured default when the host is not in any ring.
+    ring = ring or rings.host_ring(root, host) or cfg["ring"]
     allow_unsigned = (cfg["allow_unsigned"] if allow_unsigned is None
                       else bool(allow_unsigned))
     notify_enabled = (cfg["notify"] if notify_enabled is None

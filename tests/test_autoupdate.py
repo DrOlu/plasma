@@ -110,6 +110,26 @@ def test_auto_skips_canary_hold(tmp_path, monkeypatch):
     assert "canary hold" in result["reason"]
 
 
+def test_auto_uses_explicit_host_ring(tmp_path, monkeypatch):
+    """A host assigned to canary must not be skipped by the broad default."""
+    _config(tmp_path, window_start_hour=0, window_end_hour=0,
+            canary_hold_hours=0, ring="broad")
+    rings.assign(tmp_path, "HOST1", "canary")
+    monkeypatch.setattr(autoupdate.socket, "gethostname", lambda: "HOST1")
+    monkeypatch.setattr(autoupdate.updater, "latest_release",
+                        lambda *a, **k: _release())
+    result = autoupdate.auto(tmp_path, check_only=True)
+    assert result["status"] == "update_available"
+    assert result["ring"] == "canary"
+
+
+def test_host_ring_reports_assignment(tmp_path):
+    assert rings.host_ring(tmp_path, "HOST1") is None
+    rings.assign(tmp_path, "HOST1", "canary")
+    assert rings.host_ring(tmp_path, "HOST1") == "canary"
+    assert rings.host_ring(tmp_path, "host1") == "canary"
+
+
 def test_auto_skips_ring(tmp_path, monkeypatch):
     _config(tmp_path, window_start_hour=0, window_end_hour=0,
             canary_hold_hours=0, ring="broad")
@@ -233,6 +253,31 @@ def test_rotate_running_restarts_tasks_even_on_failure(monkeypatch):
     assert events == ["stop", "rotate", "rotate", "start"]
     assert out["rotation"]["ok"] is False
     assert out["started"] == {"PlasmaWatch": True}
+
+
+def test_kill_lingering_serve_returns_pids(monkeypatch):
+    class _Out:
+        stdout = "123\n456\n"
+
+    monkeypatch.setattr(autoupdate.os, "name", "nt")
+    monkeypatch.setattr(autoupdate.subprocess, "run",
+                        lambda *a, **k: _Out())
+    assert autoupdate._kill_lingering_serve() == [123, 456]
+
+
+def test_start_tasks_ignores_kill_metadata(monkeypatch):
+    calls = []
+
+    class _Ok:
+        returncode = 0
+
+    monkeypatch.setattr(autoupdate.os, "name", "nt")
+    monkeypatch.setattr(autoupdate.subprocess, "run",
+                        lambda cmd, **k: calls.append(cmd) or _Ok())
+    started = autoupdate._start_tasks(
+        {"_killed_serve": [1, 2], "PlasmaWatch": True})
+    assert started == {"PlasmaWatch": True}
+    assert all("_killed_serve" not in c for c in calls)
 
 
 def test_stop_tasks_is_noop_off_windows():

@@ -103,6 +103,19 @@ def _promote(root, ring: str) -> dict:
     return status(root)
 
 
+def host_ring(root, host: str) -> str | None:
+    """Return the ring this host is explicitly assigned to, if any."""
+    wanted = str(host or "").strip().lower()
+    if not wanted:
+        return None
+    data = _load(root)
+    for name, hosts in data["rings"].items():
+        members = {str(h).strip().lower() for h in hosts}
+        if wanted in members or "*" in members:
+            return name
+    return None
+
+
 def allows(root, host: str, ring: str | None = None) -> bool:
     data = _load(root)
     target = ring or data["current"]

@@ -4,6 +4,21 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.18.4 — 2026-11-18
+
+Ring selection and serve restart fixes found on the live estate.
+
+- **An explicit host ring now wins.** A host assigned to `canary` was still
+  compared against the configured default (`broad`) and skipped by the
+  `PlasmaUpdate` task. `update auto` now derives the ring from the host's
+  assignment, falling back to `config.json` only when the host is unassigned.
+- **Restarting `PlasmaServe` actually restarts the API.** PyInstaller's
+  one-file bootloader re-execs itself as a child; `schtasks /end` killed the
+  parent but left the child holding port 9999, so `/healthz` kept reporting
+  the old version. The updater now stops lingering `serve` processes before
+  rotation so the restarted task binds and serves the new binary.
+- 742 tests collected; full suite passes; ruff error-level checks clean.
+
 ## 1.18.3 — 2026-11-18
 
 Manual `update apply` shares the hardened rotation path.

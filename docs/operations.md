@@ -106,11 +106,13 @@ minute inside the 02:00–05:00 maintenance window. It applies **signed**
 releases only, through the same SHA256 + Authenticode + install + rotate
 path as `update apply`. `broad` hosts wait 24 hours after publication;
 `canary` hosts update first; `rollback` hosts never auto-update. The kill
-switch pauses updates. Around the swap Plasma stops the tasks that hold the
+switch pauses updates. A host's explicit ring assignment wins over the
+configured default. Around the swap Plasma stops the tasks that hold the
 binary (`PlasmaServe`, `PlasmaWatch`, `PlasmaWhidsWatchdog`,
-`PlasmaIdentityPull`), retries a locked image, preserves a stale `.old`
-backup, restores the previous binary if the swap fails, and restarts the
-tasks afterwards — so `PlasmaServe` serves the new version. A
+`PlasmaIdentityPull`), kills any lingering `serve` child that would keep
+the old image on port 9999, retries a locked image, preserves a stale
+`.old` backup, restores the previous binary if the swap fails, and restarts
+the tasks afterwards — so `PlasmaServe` serves the new version. A
 serve-launched update skips `PlasmaServe` to avoid killing its own process
 tree. The previous binary is kept, so `plasma rollback` still restores it.
 `update-journal.jsonl` and `update-state.json` record every attempt.
