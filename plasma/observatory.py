@@ -30,8 +30,35 @@ never as exceptions — a blind witness is itself a finding.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
+
+from .redact import redact_text
+
+_CANARY_RE = re.compile(r"^[A-Za-z0-9_.@$-]{1,64}$")
+
+
+def _safe_canaries(canaries):
+    values = [str(c) for c in (canaries or ["plasma-canary"])]
+    if any(not _CANARY_RE.match(c) for c in values):
+        raise ValueError("canary names may contain only letters, digits, . _ @ $ -")
+    return values
+
+
+def _redact_answer(value):
+    if isinstance(value, dict):
+        out = {}
+        for key, item in value.items():
+            if isinstance(item, str) and key.lower() in (
+                    "cmd", "cmdline", "command_line", "snippet"):
+                out[key] = redact_text(item)
+            else:
+                out[key] = _redact_answer(item)
+        return out
+    if isinstance(value, list):
+        return [_redact_answer(v) for v in value]
+    return value
 
 QUESTION_CAP = 25          # rows per answer, mirroring ROW_CAP digests
 CHAR_CAP = 16384           # answer size cap
@@ -305,6 +332,7 @@ $ans | ConvertTo-Json -Depth 6 -Compress
 
 
 def _ps_canary(canaries):
+    canaries = _safe_canaries(canaries)
     names = ", ".join(_ps_literal(c) for c in canaries)
     return _PS_HEAD + f"""
 $canaries = @({names})
@@ -382,9 +410,12 @@ def run_question(name, canaries=(), timeout=COLLECT_TIMEOUT):
         return {"error": "powershell not available on this host",
                 "question": name, "host_support": False}
     try:
-        proc = subprocess.run(
-            [exe, "-NoProfile", "-NonInteractive", "-Command", QUESTIONS[name](canaries)],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
+        payload = QUESTIONS[name](canaries)
+    except ValueError as exc:
+        return {"error": str(exc), "question": name}
+    try:
+        proc = subprocess.run([exe, "-NoProfile", "-NonInteractive", "-Command", payload],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, check=False)
     except subprocess.TimeoutExpired:
         return {"error": "collector timeout", "question": name, "timeout": timeout}
     text = (proc.stdout or "").strip()
@@ -396,6 +427,7 @@ def run_question(name, canaries=(), timeout=COLLECT_TIMEOUT):
     except (json.JSONDecodeError, IndexError):
         return {"error": "collector did not emit JSON", "question": name,
                 "raw_tail": _clip(text, 800)}
+    answer = _redact_answer(answer)
     answer["question"] = name
     return answer
 

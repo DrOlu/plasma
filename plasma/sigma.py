@@ -42,7 +42,7 @@ CATEGORIES = {
     "registry_set": ([12, 13, 14], CHANNEL_SYSMON),
 }
 
-_T_RE = re.compile(r"attack\.(t\d{4}(?:\.\d{3})?)", re.I)
+_T_RE = re.compile(r"attack\.(t\d{4}(?:\.\d{3})?)", re.IGNORECASE)
 
 
 class SigmaError(ValueError):
@@ -68,6 +68,8 @@ def _yaml():
 def _regex(value, modifier: str) -> str:
     text = str(value)
     if modifier == "re":
+        if "'" in text or "\n" in text or "\r" in text:
+            raise SigmaError("Sigma |re value cannot contain quotes or newlines")
         return f"(?i:{text})"
     escaped = re.escape(text)
     if modifier == "contains":

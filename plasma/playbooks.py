@@ -39,6 +39,7 @@ def actions() -> dict:
 def _journal(root, entry):
     # ids are assigned at journal time: the step dry-runs appended before the
     # playbook entry consume ids first (an early id would collide with them)
+    entry.setdefault("ts", actuate._now())
     if "id" in entry:
         return actuate._journal_append(root, entry)
     saved = actuate._append_entry(root, entry)
@@ -63,8 +64,9 @@ def execute(root, name: str, target=None, reason=None, apply: bool = False,
         return {"error": f"playbook '{name}' requires a target"}
 
     if apply:
-        from . import killswitch
         import socket
+
+        from . import killswitch
         if killswitch.blocked(root, host=socket.gethostname(), risk="medium"):
             return {"error": "kill switch is engaged for this host — "
                              "playbook execution is blocked (dry-runs remain available)",
@@ -81,6 +83,10 @@ def execute(root, name: str, target=None, reason=None, apply: bool = False,
         if str(dr.get("target") or "") != str(target or ""):
             return {"error": f"--plan {plan} targeted '{dr.get('target')}', not '{target}'",
                     "code": "REFUSED"}
+        if not actuate._plan_fresh(dr.get("ts")):
+            return {"error": f"--plan {plan} is older than "
+                             f"{actuate.PLAN_TTL_SECONDS // 60} minutes; "
+                             "re-run the playbook dry-run", "code": "REFUSED"}
         if any(r.get("mode") == "applied" and r.get("plan") == plan
                and str(r.get("action", "")).startswith("playbook:") for r in rows):
             return {"error": f"--plan {plan} has already been used", "code": "REFUSED"}
@@ -158,6 +164,14 @@ def undo(root, entry_id: int, apply: bool = False, plan: int | None = None,
     Dry-run first. Applying requires a prior playbook undo dry-run
     (``--plan``); the same playbook cannot be undone twice.
     """
+    if apply:
+        import socket
+
+        from . import killswitch
+        if killswitch.blocked(root, host=socket.gethostname(), risk="medium"):
+            return {"error": "kill switch is engaged for this host — "
+                             "playbook undo is blocked (dry-runs remain available)",
+                    "code": "KILLSWITCH"}
     rows = actuate.journal_read(root)
     match = next((r for r in rows if r.get("id") == entry_id), None)
     if not match:
@@ -188,6 +202,10 @@ def undo(root, entry_id: int, apply: bool = False, plan: int | None = None,
                 or dr.get("undoes") != entry_id):
             return {"error": f"--plan {plan} is not a dry-run undo of playbook {entry_id}",
                     "code": "REFUSED"}
+        if not actuate._plan_fresh(dr.get("ts")):
+            return {"error": f"--plan {plan} is older than "
+                             f"{actuate.PLAN_TTL_SECONDS // 60} minutes; "
+                             "re-run the undo dry-run", "code": "REFUSED"}
         planned_steps = dr.get("steps") or []
 
     reversals = []

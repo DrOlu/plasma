@@ -1,8 +1,6 @@
 """Tier 0 containment: proposals, policy gates, approvals, cooldowns."""
 import json
 
-import pytest
-
 from plasma import enforce
 
 
@@ -117,7 +115,7 @@ def test_armed_run_applies_through_dry_run_plan(tmp_path, monkeypatch):
 
 def test_per_run_cap_and_cooldown(tmp_path, monkeypatch):
     def fake(action, root, target=None, reason=None, apply=False, plan=None):
-        return {"id": 1} if not apply else {"id": 1}
+        return {"id": 1}
 
     monkeypatch.setattr(enforce.actuate, "execute", fake)
     (tmp_path / "config.json").write_text(json.dumps(
@@ -170,7 +168,7 @@ def test_capture_runs_once_for_multiple_kills(tmp_path, monkeypatch):
 
     def fake(action, root, target=None, reason=None, apply=False, plan=None):
         calls.append((action, apply))
-        return {"id": 1} if not apply else {"id": 1}
+        return {"id": 1}
 
     monkeypatch.setattr(enforce.actuate, "execute", fake)
     (tmp_path / "config.json").write_text(json.dumps(
@@ -185,15 +183,16 @@ def test_capture_failure_does_not_block_containment(tmp_path, monkeypatch):
     def fake(action, root, target=None, reason=None, apply=False, plan=None):
         if action == "snapshot" and apply:
             return {"error": "snapshot failed"}
-        return {"id": 1} if not apply else {"id": 1}
+        return {"id": 1}
 
     monkeypatch.setattr(enforce.actuate, "execute", fake)
     (tmp_path / "config.json").write_text(json.dumps(
         {"enforcement": {"enabled": True, "mode": "enforce"}}))
     out = enforce.run(tmp_path, findings=[injection_finding()])
     assert out["capture"]["status"] == "failed"
-    assert out["applied"] == 1
-    assert out["results"][0]["capture"] == "failed"
+    assert out["applied"] == 0
+    assert out["pending"] == 1
+    assert out["results"][0]["status"] == "pending_approval"
 
 
 def test_capture_is_skipped_when_not_allowlisted(tmp_path, monkeypatch):
@@ -205,7 +204,8 @@ def test_capture_is_skipped_when_not_allowlisted(tmp_path, monkeypatch):
                          "allowed_actions": ["kill_process"]}}))
     out = enforce.run(tmp_path, findings=[injection_finding()])
     assert out["capture"]["status"] == "skipped"
-    assert calls == ["kill_process", "kill_process"]
+    assert out["pending"] == 1
+    assert calls == []
 
 
 def test_credential_access_and_token_theft_reach_containment():
@@ -217,7 +217,7 @@ def test_credential_access_and_token_theft_reach_containment():
 
 def test_run_surfaces_capture_success_at_run_level(tmp_path, monkeypatch):
     def fake(action, root, target=None, reason=None, apply=False, plan=None):
-        return {"id": 1} if not apply else {"id": 1}
+        return {"id": 1}
 
     monkeypatch.setattr(enforce.actuate, "execute", fake)
     (tmp_path / "config.json").write_text(json.dumps(

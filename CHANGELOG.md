@@ -1,5 +1,117 @@
 # Changelog
 
+## 1.19.1 — 2026-11-18
+
+Holistic security and correctness review.
+
+### HTTP API
+
+- **Canonical command path from the parsed namespace.** The read-only,
+  long-running and mutating gates no longer trust a text scan of argv.
+  A leading `--` is rejected, and `manifest --dir D create` is correctly
+  classified as a write.
+- **Read-only coverage completed.** `update auto` (without
+  `--check-only`), `protect arm/disarm`, `sigma convert` (without
+  `--dry-run`) and `deep persistence --json-out` are now mutations.
+- **Default key is loopback-only.** The default bind is `127.0.0.1`; a
+  non-loopback bind refuses the known `plasmaplasma` key unless
+  `--allow-insecure-default-key` is explicit.
+- **TLS handshake moved to the connection thread.** A client that connects
+  and sends nothing can no longer freeze the accept loop.
+- **Request-smuggling defenses.** Responses close the connection, and
+  duplicate `Content-Length` or any `Transfer-Encoding` is rejected.
+- **Output is read incrementally** under `--max-output`; a runaway command
+  can no longer exhaust memory before truncation.
+- **Audit redaction covers `--prompt=VALUE` and abbreviations.** Mutating
+  calls that cannot write an audit row now refuse to run.
+- **`PLASMA_ROOT` is propagated to child commands**, so the API and the
+  commands it runs agree on the state root.
+- **OpenAPI** now documents `408`/`411`, and the root command row carries
+  `mutating`/`long_running`.
+
+### Response and prevention
+
+- **Kill switch covers undo and prevention.** `actuate undo`, playbook undo,
+  every prevention apply and prevention rollback now refuse while engaged,
+  with a re-check under the plan lock.
+- **Approval queue cannot bypass policy.** Ineligible findings are `denied`,
+  not queued. Approval re-checks enabled/mode, score, deny/allow techniques
+  and cooldown, and is atomically claimed before execution.
+- **Protected paths are canonicalized.** Trailing dots/spaces, 8.3 names,
+  reparse points and final-path aliases are refused.
+- **Protected processes/tasks/accounts expanded.** System, Defender,
+  svchost, Plasma tasks and Microsoft tasks are protected; built-in account
+  SIDs and the last-enabled-admin check are enforced on Windows.
+- **Plans are identity- and time-bound.** PID plans bind creation time and
+  image name; plans expire after 60 minutes.
+- **Evidence capture gates automatic kills.** If the snapshot fails, a kill
+  becomes a human approval instead of destroying memory evidence.
+- **`remove_admin`/`disable_user`/`stop_service`/`disable_task` are
+  no-op-aware**, and no-op actions no longer get an undo that would change
+  unrelated state.
+- **Prevention plans are claimed atomically; rollback is plan-gated.**
+  AppLocker rollback refuses to clear all rules without a backup, ASR
+  rollback validates and quotes every recipe, and LSA captures the prior
+  value.
+- **Credential rotation uses a CSPRNG.**
+
+### Collection and data
+
+- **Tap events redact script blocks and command lines.**
+- **Identity collector reports failure instead of “0 events”.**
+- **WHIDS and watch skip malformed rows** without aborting the pull/sweep;
+  watch offsets still advance.
+- **WHIDS dedupe includes content**, so distinct registry/file/network
+  writes in the same second survive.
+- **Trace scripts reject comment-hidden `system()` and `copyout`, and no
+  longer load from the current directory.** MSI downloads use unique files
+  and a re-hash; provisioning fails when `bcdedit` fails.
+- **Deep persistence extracts the executable from command-line paths.**
+- **Store rewrite/compact are BOM-safe and refuse to follow a planted
+  output path.** Append collectors repair a torn final line.
+- **Canary paths are absolute and symlink-aware.**
+- **Fleet inventory rejects string booleans and inline secrets; WinRM pull
+  fails on remote error instead of reporting an empty host.**
+- **Health survives unreadable config; coverage survives malformed
+  criticality; Sigma `|re` rejects quote/newline injection; notify refuses
+  redirects and non-HTTPS webhooks; FIM has a hard size bound; observatory
+  redacts command lines and validates canary names.**
+
+### Install and update
+
+- **`install --dry-run` no longer creates the root, rewrites ACLs, downloads
+  Sysmon or starts services.** Self-update preserves operator
+  `events_path`, retention and response settings.
+- **Sysmon is Authenticode-verified as Microsoft-signed before execution.**
+- **Update signature status must be valid**; `HashMismatch` is refused even
+  with the pinned certificate.
+- **Ring logic fixed:** broad means “unassigned hosts”, `promote` affects
+  the default, and the canary hold uses the effective ring. Unknown
+  `published_at` fails closed for broad.
+- **Canonical rotation failure fails the update** and restores the running
+  binary. Rollback picks the newest usable backup and never leaves the host
+  without `plasma.exe`.
+- **Manual apply shares the self-update lock.** String booleans are parsed
+  safely; task state is locale-independent; pre-release tags order correctly.
+- **Install staging is a sibling swap**, so a failed copy does not leave a
+  partial version and `--force` does not keep stale files.
+- **`packaging/install.ps1` works on Windows PowerShell 5.1**, and junction
+  paths are quote-escaped.
+- **Update failures emit JSON** and use the documented exit codes.
+
+### Agent trust
+
+- **Policy types are validated** (string deny becomes a list, malformed
+  approval maps fall back safe, malformed rate limits default to 30).
+- **Tenant lookup is case-insensitive and fails closed on a corrupt
+  registry**, with locked read-modify-write.
+- **Ledger head checkpoint detects suffix truncation**; denied approvals are
+  terminal; approvals are atomic and single-use.
+- **MCP only honors client `_meta.host` when explicitly trusted**, and an
+  ordinary call cannot burn another tenant's approval.
+
+785 tests collected; full suite and `-W error` pass; `ruff check` clean.
+
 ## 1.19.0 — 2026-11-18
 
 Agent-oriented help for every command.

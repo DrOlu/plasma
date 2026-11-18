@@ -62,8 +62,9 @@ def _sha256(path: Path) -> str:
 def deploy(root, extra_dirs=None, names=None) -> dict:
     """Create canary files and record their hashes. Existing canaries are
     left untouched (their current hash is recorded, not overwritten)."""
-    from . import killswitch
     import socket
+
+    from . import killswitch
     if killswitch.blocked(root, host=socket.gethostname(), risk="medium"):
         return {"error": "kill switch is engaged for this host — canary "
                          "deployment is blocked", "code": "KILLSWITCH"}
@@ -85,7 +86,7 @@ def deploy(root, extra_dirs=None, names=None) -> dict:
             if key in entries:
                 continue
             entries[key] = {
-                "path": str(path),
+                "path": str(path.resolve()),
                 "sha256": _sha256(path),
                 "size": path.stat().st_size,
             }
@@ -121,6 +122,9 @@ def verify(root) -> dict:
     for entry in manifest.get("canaries", []):
         path = Path(entry.get("path", ""))
         checked += 1
+        if path.is_symlink():
+            tripped.append({"path": str(path), "reason": "symlink"})
+            continue
         if not path.exists():
             tripped.append({"path": str(path), "reason": "missing"})
             continue

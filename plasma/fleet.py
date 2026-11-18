@@ -1,3 +1,4 @@
+# ruff: noqa: ISC004
 """Plasma fleet: one desk, many computers — cross-host correlation.
 
 Desk-side only. Endpoints need nothing new: their normalized events.jsonl
@@ -75,13 +76,18 @@ def load_inventory(path) -> list[dict]:
             # NTLM over plain HTTP is relay-prone. Require HTTPS unless the
             # operator explicitly accepts the risk for a controlled lab.
             if not endpoint.lower().startswith("https://") and \
-                    not e.get("allow_insecure_winrm"):
+                    e.get("allow_insecure_winrm") is not True:
                 raise ValueError(
                     f"{name}: winrm endpoint must be https:// (or set "
                     f"allow_insecure_winrm: true for a controlled lab)")
-            if e.get("password"):
-                raise ValueError(
-                    f"{name}: inline passwords are forbidden — use password_env")
+            for field in e:
+                low = str(field).lower()
+                if any(word in low for word in
+                       ("password", "passwd", "secret", "token")) \
+                        and not low.endswith(("_env", "_env_name")):
+                    raise ValueError(
+                        f"{name}: inline secret field {field!r} is forbidden — "
+                        "use password_env")
             if not e.get("password_env"):
                 raise ValueError(f"{name}: winrm transport needs password_env")
     return entries
@@ -169,10 +175,23 @@ def _pull_winrm(entry, out_file: Path, cap) -> dict:
             f"[Convert]::ToBase64String($buf) }} finally {{ $fs.Close() }}")
         try:
             res = sess.run_ps(read_tail)
-            token = max(res.std_out.decode(errors="replace").split(), key=len)
-            raw = base64.b64decode(token).decode("utf-8", "replace")
+            if res.status_code != 0:
+                raise RuntimeError(
+                    (res.std_err.decode(errors="replace")
+                     or f"remote exit {res.status_code}")[:200])
+            raw = None
+            for token in res.std_out.decode(errors="replace").split():
+                try:
+                    candidate = base64.b64decode(token, validate=True)
+                    candidate.decode("utf-8")
+                except (ValueError, UnicodeDecodeError):
+                    continue
+                raw = candidate.decode("utf-8", "replace")
+                break
+            if raw is None:
+                raise RuntimeError("remote returned no base64 event data")
             rows = _rows_from_text(raw, cap)
-        except Exception:  # locked file / no bytes API — fall back to line mode
+        except Exception:  # noqa: BLE001 — locked file / no bytes API — fall back to line mode
             via = "tail-text"
             res = sess.run_ps(f"Get-Content -LiteralPath '{quoted}' -Tail "
                               + str(int(cap * 4)))

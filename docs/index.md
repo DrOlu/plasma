@@ -1,12 +1,12 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.19.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.19.1</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.19.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.19.1</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
@@ -112,6 +112,29 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    prevent (AppLocker, egress, Defender ASR, LSA protection)
 ```
 
+## What's new in 1.19.1
+
+- **HTTP boundary hardened.** Parsed command paths replace text scanning,
+  read-only covers every mutating command, the default key is loopback-only,
+  TLS handshakes run in worker threads, request desync is blocked, output is
+  read under a hard byte cap, and mutations fail closed when auditing fails.
+- **Response and prevention hardened.** Kill switch covers undo and
+  prevention, approvals re-check policy and are atomic, protected
+  paths/processes/tasks are canonicalized, plans are identity- and
+  time-bound, capture failure gates automatic kills, and prevention
+  rollback is plan-gated and verified.
+- **Collection and data hardened.** Tap/observatory redaction, identity
+  failure reporting, malformed WHIDS/watch rows skipped, content-aware
+  dedupe, trace/MSI validation, deep persistence parsing, BOM-safe stores,
+  canary/fleet/health/Sigma/notify/FIM fixes.
+- **Install/update hardened.** Dry-run is read-only, operator config is
+  preserved, Sysmon and updates require valid signatures, ring/hold/promote
+  logic is fixed, rotation/rollback/locking is robust, prerelease ordering
+  is correct.
+- **Agent trust hardened.** Policy type validation, fail-closed tenants,
+  ledger truncation detection, terminal denials and single-use approvals.
+- **785 tests**, full suite and `-W error` pass, `ruff check` clean.
+
 ## What's new in 1.19.0
 
 - **Every command has a detailed help page.** `plasma <command> --help`
@@ -126,7 +149,6 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
 - **The HTTP API carries the same metadata.** `/v1/commands` rows include
   summary, description, examples and safety; `help --json` is runnable
   through `/v1/exec`.
-- **755 tests**, full suite green, ruff error-level checks clean.
 
 ## What's new in 1.18.0
 
@@ -212,7 +234,8 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
   default is available exactly as it is on the command line. `GET
   /v1/commands` returns the full command tree.
 - **API-key auth, read-only mode, TLS, audit and hard timeouts.** The
-  default key is `plasmaplasma` for lab use; `--api-key-file` or
+  default bind is loopback and non-loopback binds refuse the default key;
+`--api-key-file` or
   `PLASMA_SERVE_API_KEY` overrides it. `--read-only` refuses every mutating
   command. Every call lands in `<root>/serve/audit.jsonl`.
 - **667 tests**, full suite green, ruff clean.

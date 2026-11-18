@@ -3,7 +3,17 @@ import json
 
 import pytest
 
-from plasma import actuate, enforce, mcp, policy, prevent, rings, statemachine, tools, update
+from plasma import (
+    actuate,
+    enforce,
+    mcp,
+    policy,
+    prevent,
+    rings,
+    statemachine,
+    tools,
+    update,
+)
 
 
 def test_failed_payload_is_not_journaled_as_applied(tmp_path, monkeypatch):
@@ -99,7 +109,7 @@ def test_prevent_refuses_to_apply_the_same_plan_twice(tmp_path):
 def test_enforce_approval_rechecks_policy(tmp_path):
     (tmp_path / "config.json").write_text(json.dumps(
         {"enforcement": {"enabled": True, "mode": "enforce"}}))
-    out = enforce.run(tmp_path, findings=[{
+    enforce.run(tmp_path, findings=[{
         "type": "canary_tripped", "score": 10, "detail": "x",
         "path": "C:\\Decoys\\x", "reason": "modified"}])
     entry = enforce.pending(tmp_path)["pending"][0]
@@ -235,6 +245,7 @@ def test_lock_is_released_and_reacquirable(tmp_path):
 def test_stale_lock_is_reclaimed(tmp_path):
     import os
     import time
+
     from plasma import agentstate
     lock = tmp_path / "x.lock"
     lock.write_text("dead:0")

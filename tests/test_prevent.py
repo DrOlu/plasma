@@ -96,7 +96,9 @@ def test_egress_apply_through_plan(tmp_path, fake_ps):
     done = prevent.egress(tmp_path, ["1.2.3.4:443"], apply=True, plan=dry["id"],
                           reason="test")
     assert done["status"] == "applied"
-    roll = prevent.rollback(tmp_path, done["id"], apply=True)
+    preview = prevent.rollback(tmp_path, done["id"])
+    roll = prevent.rollback(tmp_path, done["id"], apply=True,
+                            plan=preview["plan"], reason="test")
     assert roll["rolled_back"] is True
 
 
@@ -116,7 +118,9 @@ def test_asr_apply_and_rollback(tmp_path, fake_ps):
                        plan=dry["id"], reason="test")
     assert done["status"] == "applied"
     assert done["undo"]["previous"][GUID] == "Disabled"
-    roll = prevent.rollback(tmp_path, done["id"], apply=True)
+    preview = prevent.rollback(tmp_path, done["id"])
+    roll = prevent.rollback(tmp_path, done["id"], apply=True,
+                            plan=preview["plan"], reason="test")
     assert roll["rolled_back"] is True
 
 
@@ -151,8 +155,9 @@ def test_applocker_verification_uses_local_policy_not_effective():
     assert "Get-AppLockerPolicy -Effective" not in prevent._APPLOCKER_APPLY_PS
 
 
-def test_applocker_rollback_clears_with_an_empty_policy():
-    assert "<AppLockerPolicy Version=\"1\" />" in prevent._APPLOCKER_ROLLBACK_PS
+def test_applocker_rollback_refuses_without_a_backup():
+    assert "refusing to clear all local rules" in prevent._APPLOCKER_ROLLBACK_PS
+    assert "<AppLockerPolicy Version=\"1\" />" not in prevent._APPLOCKER_ROLLBACK_PS
 
 
 def test_status_ignores_null_asr_entries(monkeypatch):

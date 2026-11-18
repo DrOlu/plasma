@@ -2,13 +2,21 @@
 
 import json
 import zipfile
-from pathlib import Path
 
 import pytest
 
-from plasma import (assurance, evidence, evals, killswitch, ledger, mcp,
-                    policy, rings, tenants, tools)
-
+from plasma import (
+    assurance,
+    evals,
+    evidence,
+    killswitch,
+    ledger,
+    mcp,
+    policy,
+    rings,
+    tenants,
+    tools,
+)
 
 # ---------------------------------------------------------------------------
 # capability contract

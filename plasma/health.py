@@ -25,7 +25,7 @@ def _ps(script: str, timeout: int = 60) -> str:
     exe = "powershell.exe"
     try:
         proc = subprocess.run([exe, "-NoProfile", "-NonInteractive", "-Command", script],
-                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, check=False)
         return (proc.stdout or "").strip()
     except (OSError, subprocess.TimeoutExpired):
         return ""
@@ -62,21 +62,31 @@ def checks(root) -> list[dict]:
         try:
             # utf-8-sig: PowerShell-written configs may carry a BOM
             config = json.loads(cfg_path.read_text(encoding="utf-8-sig"))
-        except json.JSONDecodeError:
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             results.append({"check": "config", "ok": False,
-                            "detail": "config.json unparsable"})
-    sensors = config.get("sensors", {})
+                            "detail": "config.json unreadable or unparsable"})
+            config = {}
+    if not isinstance(config, dict):
+        results.append({"check": "config", "ok": False,
+                        "detail": "config.json is not an object"})
+        config = {}
+    sensors = config.get("sensors")
+    if not isinstance(sensors, dict):
+        sensors = {}
     degraded_mode = bool(config.get("degraded"))
 
     # store writable
-    ev = Path(config.get("events_path", root / "data" / "events.jsonl"))
+    configured_events = config.get("events_path")
+    if not isinstance(configured_events, str) or not configured_events.strip():
+        configured_events = str(root / "data" / "events.jsonl")
+    ev = Path(configured_events)
     try:
         ev.parent.mkdir(parents=True, exist_ok=True)
         probe = ev.with_suffix(".health-probe")
         probe.write_text("", encoding="utf-8")
         probe.unlink()
         results.append({"check": "events_store", "ok": True, "detail": str(ev)})
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         results.append({"check": "events_store", "ok": False, "detail": str(exc)[:120]})
 
     # Windows-only sensor checks: a desk on macOS/Linux manages fleets

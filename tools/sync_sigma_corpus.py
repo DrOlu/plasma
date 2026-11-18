@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from plasma import sigma  # noqa: E402
+from plasma import sigma
 
 ALLOWED_IDS = {1, 3, 6, 7, 10, 11, 12, 13, 14, 17, 18}
 

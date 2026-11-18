@@ -4,8 +4,8 @@ The decision function is pure; the network probe takes an injected prober,
 so no Windows host or real internet is needed.
 """
 
-from plasma.cli import internet_available, whids_install_decision as decide
-
+from plasma.cli import internet_available
+from plasma.cli import whids_install_decision as decide
 
 # ---------------------------------------------------------------------------
 # decision matrix

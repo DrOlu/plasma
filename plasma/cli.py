@@ -1,3 +1,4 @@
+# ruff: noqa: ISC004
 """Plasma command line.
 
     plasma manifest create --dir BUNDLE --version X
@@ -18,10 +19,44 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary, trace, sigma, fim, enforce, prevent
-from . import agentstate, statemachine, policy as agent_policy, ledger, killswitch, tenants, rings, evidence, assurance, evals, mcp as mcp_server, protect
-from . import autoupdate
+from . import (
+    __version__,
+    actuate,
+    agentstate,
+    assurance,
+    autoupdate,
+    canary,
+    chain,
+    coverage,
+    deep,
+    drift,
+    enforce,
+    evals,
+    evidence,
+    fim,
+    fleet,
+    health,
+    identity,
+    killswitch,
+    ledger,
+    notify,
+    observatory,
+    playbooks,
+    prevent,
+    protect,
+    rings,
+    sigma,
+    statemachine,
+    store,
+    tap,
+    tenants,
+    trace,
+    watch,
+    whids,
+)
 from . import help as helpmod
+from . import mcp as mcp_server
+from . import policy as agent_policy
 from . import update as updater
 from .bundle import build_bundle
 from .manifest import create_manifest, verify_manifest
@@ -251,7 +286,7 @@ def _run_bridge(bundle: str | None, tool: str, args: dict, events: str | None) -
     env = os.environ.copy()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, env=env)
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, env=env, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"error": f"bridge execution failed: {exc}"}
     if proc.returncode != 0 and not proc.stdout.strip():
@@ -312,7 +347,7 @@ def cmd_ask(args) -> int:
     if args.system:
         cmd += ["--system", args.system]
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+        proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         print(json.dumps({"error": f"engine failed: {exc}"}, indent=2))
         return 2
@@ -369,7 +404,7 @@ def cmd_status(args) -> int:
         env = os.environ.copy()
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, env=env)
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, env=env, check=False)
             coverage = json.loads(proc.stdout) if proc.stdout.strip() else None
         except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
             coverage = None
@@ -385,12 +420,11 @@ def cmd_status(args) -> int:
 
 def _service_present(pattern: str) -> bool:
     try:
-        proc = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-Command",
+        proc = subprocess.run(["powershell.exe", "-NoProfile", "-Command",
              "Get-Service | Where-Object { $_.Name -like '" + pattern + "' -or "
              "$_.DisplayName -like '" + pattern + "' } | Select-Object -First 1 "
              "-ExpandProperty Name"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20, check=False
         )
         return bool(proc.stdout.strip())
     except (OSError, subprocess.TimeoutExpired):
@@ -480,7 +514,7 @@ WATCH_TASK = "PlasmaWatch"
 UPDATE_TASK = "PlasmaUpdate"
 
 
-def _register_update(bin_exe: Path, root: Path) -> dict:
+def _register_update(bin_exe: Path, root: Path, start_hour: int = 3) -> dict:
     """Register the daily SYSTEM task that runs the measured self-update.
 
     A random minute inside the maintenance window staggers the fleet: every
@@ -498,7 +532,7 @@ def _register_update(bin_exe: Path, root: Path) -> dict:
         f"$logDir = Split-Path '{log_q}' -Parent; "
         f"New-Item -ItemType Directory -Force -Path $logDir | Out-Null; "
         f"$offset = Get-Random -Minimum 0 -Maximum 60; "
-        f"$at = (Get-Date).Date.AddHours(3).AddMinutes($offset); "
+        f"$at = (Get-Date).Date.AddHours({int(start_hour) % 24}).AddMinutes($offset); "
         f"if ($at -lt (Get-Date)) {{ $at = $at.AddDays(1) }}; "
         f"$a = New-ScheduledTaskAction -Execute 'powershell.exe' "
         f"-Argument '{argument}'; "
@@ -587,7 +621,7 @@ def _apply_sysmon_config(tools_dir: Path) -> dict:
     try:
         proc = subprocess.run([str(exe), "-c", str(cfg)],
                               capture_output=True, text=True, encoding="utf-8",
-                              errors="replace", timeout=120)
+                              errors="replace", timeout=120, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "config": str(cfg), "reason": str(exc)[:200]}
     return {"ok": proc.returncode == 0, "config": str(cfg),
@@ -665,61 +699,108 @@ def _trace_status() -> str:
 def _service_state_name(name: str) -> str:
     """Current service state as a plain string ('' when absent)."""
     try:
-        proc = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+        proc = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
              f"(Get-Service -Name '{name}' -ErrorAction SilentlyContinue).Status"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30, check=False)
         return (proc.stdout or "").strip()
     except (OSError, subprocess.TimeoutExpired):
         return ""
 
 
+def _verify_microsoft_signature(path: Path) -> dict:
+    """Require a valid Authenticode signature from Microsoft."""
+    quoted = str(path).replace("'", "''")
+    try:
+        proc = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+             f"$s = Get-AuthenticodeSignature -LiteralPath '{quoted}'; "
+             "if ($s.SignerCertificate) { $s.Status + '|' + $s.SignerCertificate.Subject } "
+             "else { 'NOSIG|' }"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=90, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"ok": False, "error": f"signature check failed: {exc}"}
+    line = ((proc.stdout or "").strip().splitlines() or [""])[-1]
+    status, _, subject = line.partition("|")
+    if status.strip() != "Valid":
+        return {"ok": False, "error": f"signature status is {status.strip() or 'unknown'}"}
+    if "microsoft" not in subject.lower():
+        return {"ok": False, "error": "Sysmon is not signed by Microsoft"}
+    return {"ok": True, "subject": subject.strip()[:200]}
+
+
 def _try_install_sysmon(tools_dir: Path) -> tuple[bool, str]:
-    """Download + install Sysmon with the baseline config. Windows only.
-    Returns (ok, detail). EULA is accepted via -accepteula on behalf of the
-    installing operator."""
+    """Download, verify and install Sysmon with the baseline config.
+
+    The download is written to an exclusive temporary file, verified as a
+    Microsoft-signed executable, then moved into place and executed. A
+    compromised mirror or proxy therefore cannot get SYSTEM execution.
+    """
     import io
+    import tempfile
     import time
     import urllib.request
     import zipfile
 
     target_exe = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "Sysmon64.exe"
+    tools_dir.mkdir(parents=True, exist_ok=True)
     last_err = ""
     for url in SYSMON_URLS:
+        staged = None
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "plasma-installer"})
-            data = urllib.request.urlopen(req, timeout=120).read()
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                data = resp.read()
             if url.endswith(".zip"):
                 zf = zipfile.ZipFile(io.BytesIO(data))
                 member = next(n for n in zf.namelist() if n.endswith("Sysmon64.exe"))
                 exe_bytes = zf.read(member)
             else:
                 exe_bytes = data
-            target_exe.write_bytes(exe_bytes)
-            tools_dir.mkdir(parents=True, exist_ok=True)
+            fd, staged_name = tempfile.mkstemp(
+                prefix="sysmon-", suffix=".exe", dir=str(tools_dir))
+            staged = Path(staged_name)
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(exe_bytes)
+                fh.flush()
+                os.fsync(fh.fileno())
+            signature = _verify_microsoft_signature(staged)
+            if not signature.get("ok"):
+                return False, f"Sysmon signature refused: {signature.get('error')}"
+            os.replace(staged, target_exe)
+            staged = None
             cfg = tools_dir / "sysmon-baseline.xml"
             cfg.write_text(SYSMON_BASELINE_CONFIG, encoding="ascii")
-            subprocess.run(
+            proc = subprocess.run(
                 [str(target_exe), "-accepteula", "-i", str(cfg)],
-                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300,
-            )
+                capture_output=True, text=True, encoding="utf-8",
+                errors="replace", timeout=300, check=False)
+            if proc.returncode != 0:
+                return False, (f"Sysmon installer exited {proc.returncode}: "
+                               f"{(proc.stderr or proc.stdout or '')[:200]}")
             for _ in range(15):
                 if _service_present("Sysmon*"):
-                    return True, "Sysmon installed (EULA accepted via -accepteula)"
+                    return True, "Sysmon installed (Microsoft signature verified)"
                 time.sleep(2)
             return False, "Sysmon service did not appear within 30s"
         except Exception as exc:  # noqa: BLE001 — download failures are data
             last_err = f"{url}: {str(exc)[:160]}"
             continue
+        finally:
+            if staged is not None:
+                try:
+                    staged.unlink()
+                except OSError:
+                    pass
     return False, f"Sysmon download failed: {last_err}"
 
 
 def _is_junction(path: Path) -> bool:
+    quoted = str(path).replace("'", "''")
     try:
-        proc = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-Command",
-             f"(Get-Item -LiteralPath '{path}' -Force).LinkType"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15,
+        proc = subprocess.run(["powershell.exe", "-NoProfile", "-Command",
+             f"(Get-Item -LiteralPath '{quoted}' -Force).LinkType"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15, check=False
         )
         return proc.stdout.strip().lower() in ("junction", "symboliclink")
     except (OSError, subprocess.TimeoutExpired):
@@ -742,9 +823,8 @@ def _harden_root_acl(root) -> dict:
     results = []
     try:
         for cmd in commands:
-            proc = subprocess.run(
-                cmd, capture_output=True, text=True, encoding="utf-8",
-                errors="replace", timeout=300)
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                errors="replace", timeout=300, check=False)
             results.append({"rc": proc.returncode,
                             "detail": ((proc.stderr or proc.stdout or "")[:200]
                                        or None)})
@@ -795,7 +875,6 @@ def cmd_install(args) -> int:
 
     default_root = Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Plasma"
     root = Path(args.root) if args.root else default_root
-    root_acl = _harden_root_acl(root)
     target = root / "instances" / f"plasma-{version}"
     current = root / "current"
     config_path = root / "config.json"
@@ -818,6 +897,12 @@ def cmd_install(args) -> int:
             decision = whids_install_decision(
                 sysmon_present, whids_present, whids_gz.exists(),
                 args.skip_whids, internet_ok=False)
+        elif args.dry_run:
+            # Dry-run must not download or execute Sysmon. Keep the planned
+            # decision so the operator sees what a real install would do.
+            decision = whids_install_decision(
+                sysmon_present, whids_present, whids_gz.exists(),
+                args.skip_whids)
         else:
             ok, detail = _try_install_sysmon(root / "tools")
             # re-decide with the ORIGINAL sysmon_present so the repair path
@@ -882,15 +967,42 @@ def cmd_install(args) -> int:
         print(json.dumps(plan, indent=2))
         return 0
 
-    # 1. Stage the version.
+    # Dry-run returns above this line: a plan must not create the root,
+    # rewrite ACLs, download Sysmon, or start any service.
+    root_acl = _harden_root_acl(root)
+
+    # 1. Stage the version into a sibling, then swap. A failed copy never
+    # leaves a half-populated target, and --force replaces stale files rather
+    # than merging them.
     if target.exists() and not args.force:
         print(json.dumps({"ok": False, "error": f"target exists: {target} (use --force)"}, indent=2))
         return 4
-    target.mkdir(parents=True, exist_ok=True)
+    staging = target.with_name(target.name + f".staging-{os.getpid()}")
+    backup = target.with_name(target.name + f".old-{os.getpid()}")
+    for stale in (staging, backup):
+        if stale.exists():
+            shutil.rmtree(stale, ignore_errors=True)
+    staging.mkdir(parents=True, exist_ok=True)
     for sub in ("instance", "engines", "sensors"):
         src = embedded / sub
         if src.is_dir():
-            shutil.copytree(src, target / sub, dirs_exist_ok=True)
+            shutil.copytree(src, staging / sub, dirs_exist_ok=True)
+    moved_old = False
+    try:
+        if target.exists():
+            os.replace(target, backup)
+            moved_old = True
+        os.replace(staging, target)
+        if moved_old:
+            shutil.rmtree(backup, ignore_errors=True)
+    except OSError as exc:
+        if moved_old and not target.exists() and backup.exists():
+            os.replace(backup, target)
+        shutil.rmtree(staging, ignore_errors=True)
+        print(json.dumps({"ok": False, "stage": "instance",
+                          "error": f"could not stage the instance: {exc}"},
+                         indent=2))
+        return 4
     bindir = root / "bin"
     bindir.mkdir(parents=True, exist_ok=True)
     me = Path(sys.executable)
@@ -965,6 +1077,17 @@ def cmd_install(args) -> int:
         if getattr(args, "no_autoupdate", False):
             config["update"]["auto"] = False
             config["update"]["task"] = "disabled"
+        # A routine --force upgrade must not reset operator data paths or
+        # retention. Only an explicit --events changes the store.
+        if args.events is None:
+            old_events = previous.get("events_path")
+            if isinstance(old_events, str) and old_events.strip():
+                config["events_path"] = old_events
+        old_retention = previous.get("retention_days")
+        if isinstance(old_retention, int) and 1 <= old_retention <= 3650:
+            config["retention_days"] = old_retention
+        if isinstance(previous.get("response"), dict):
+            config["response"] = previous["response"]
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
 
@@ -997,11 +1120,10 @@ def cmd_install(args) -> int:
             pass
         else:
             if _service_present("Whids*"):
-                subprocess.run(
-                    ["powershell.exe", "-NoProfile", "-Command",
+                subprocess.run(["powershell.exe", "-NoProfile", "-Command",
                      "Stop-Service -Name 'Whids' -Force -ErrorAction SilentlyContinue"],
                     capture_output=True, text=True, encoding="utf-8",
-                    errors="replace", timeout=60,
+                    errors="replace", timeout=60, check=False
                 )
                 deadline = __import__("time").time() + 30
                 while (_service_state_name("Whids") == "Running"
@@ -1034,12 +1156,11 @@ def cmd_install(args) -> int:
         bin_path = f'"{exe}" -c "{install_dir}\\config.toml"'
         if not _service_present("Whids*"):
             try:
-                setup_proc = subprocess.run(
-                    ["powershell.exe", "-NoProfile", "-Command",
+                setup_proc = subprocess.run(["powershell.exe", "-NoProfile", "-Command",
                      f"New-Service -Name Whids -BinaryPathName '{bin_path}' "
                      f"-DisplayName 'WHIDS (Plasma sensor)' -StartupType Automatic | Out-Null; "
                      f"sc.exe failure Whids reset= 9999 actions= restart/5000 | Out-Null"],
-                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
+                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, check=False
                 )
             except (OSError, subprocess.TimeoutExpired) as exc:
                 print(json.dumps({"ok": False, "stage": "whids_install", "error": str(exc)[:300]}, indent=2))
@@ -1063,10 +1184,9 @@ def cmd_install(args) -> int:
             whids_state = "Running"
         else:
             try:
-                subprocess.run(
-                    ["powershell.exe", "-NoProfile", "-Command",
+                subprocess.run(["powershell.exe", "-NoProfile", "-Command",
                      "Start-Service -Name 'Whids' -ErrorAction Stop"],
-                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
+                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, check=False
                 )
             except (OSError, subprocess.TimeoutExpired):
                 pass
@@ -1083,11 +1203,10 @@ def cmd_install(args) -> int:
                 whids_state = _service_state_name("Whids")
             if whids_state != "Running" and prev_config.exists():
                 shutil.copy2(prev_config, install_dir / "config.toml")
-                subprocess.run(
-                    ["powershell.exe", "-NoProfile", "-Command",
+                subprocess.run(["powershell.exe", "-NoProfile", "-Command",
                      "Start-Service -Name 'Whids' -ErrorAction SilentlyContinue"],
                     capture_output=True, text=True, encoding="utf-8",
-                    errors="replace", timeout=60,
+                    errors="replace", timeout=60, check=False
                 )
                 deadline = __import__("time").time() + 30
                 whids_state = _service_state_name("Whids")
@@ -1101,10 +1220,9 @@ def cmd_install(args) -> int:
                     config_path.write_text(json.dumps(config, indent=2) + "\n",
                                            encoding="utf-8")
         if whids_state != "Running":
-            subprocess.run(
-                ["powershell.exe", "-NoProfile", "-Command",
+            subprocess.run(["powershell.exe", "-NoProfile", "-Command",
                  "Stop-Service -Name 'Whids' -Force -ErrorAction SilentlyContinue"],
-                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, check=False
             )
             whids_hung = True
             degradation_reason = (f"WHIDS start timeout ({wait_s}s, state "
@@ -1164,7 +1282,7 @@ def cmd_install(args) -> int:
     # previous binary. --no-autoupdate removes the task and disables it.
     if not getattr(args, "no_autoupdate", False) \
             and config.get("update", {}).get("auto", True):
-        upd = _register_update(task_exe, root)
+        upd = _register_update(task_exe, root, config["update"].get("window_start_hour", 3))
         config["update"]["task"] = (
             upd["task"] if upd["ok"] else "failed")
         if not upd["ok"]:
@@ -1199,19 +1317,20 @@ def cmd_install(args) -> int:
             return 4
         # PS5.1's Remove-Item hangs non-interactively on reparse points;
         # a junction is removed with its own single-purpose verb instead.
-        subprocess.run(
-            ["cmd.exe", "/c", "rmdir", str(current)],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20,
+        subprocess.run(["cmd.exe", "/c", "rmdir", str(current)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20, check=False
         )
         if current.exists() or _is_junction(current):
             print(json.dumps({"ok": False, "stage": "current",
                               "error": f"could not replace link {current} "
                                        "(remove it manually and re-run)"}, indent=2))
             return 4
+    current_q = str(current).replace("'", "''")
+    target_q = str(target).replace("'", "''")
     try:
         subprocess.run(
             ["powershell.exe", "-NoProfile", "-Command",
-             f"New-Item -ItemType Junction -Path '{current}' -Target '{target}' | Out-Null"],
+             f"New-Item -ItemType Junction -Path '{current_q}' -Target '{target_q}' | Out-Null"],
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
             check=True,
         )
@@ -1696,22 +1815,29 @@ def cmd_notify_show(args) -> int:
 def cmd_update_check(args) -> int:
     # public repo: anonymous works; a token is optional (private forks)
     token = os.environ.get(args.token_env, "")
-    rel = updater.latest_release(args.repo, token)
+    try:
+        rel = updater.latest_release(args.repo, token)
+    except Exception as exc:  # noqa: BLE001 - update failures are data
+        print(json.dumps({"ok": False, "stage": "fetch",
+                          "error": f"{type(exc).__name__}: {exc}"[:300]},
+                         indent=2))
+        return 1
     newer = updater.is_newer(__version__, rel["tag"])
     state = statemachine.load(Path(args.root), statemachine.UPDATE_MACHINE)["state"]
     print(json.dumps({"current": __version__, "latest": rel["tag"],
-                      "update_available": newer, "state": state},
-                     indent=2))
+                      "update_available": newer,
+                      "published_at": rel.get("published_at"),
+                      "state": state}, indent=2))
     return 2 if newer else 0   # scriptable: 0 = up to date, 2 = update available
 
 
-def cmd_update_apply(args) -> int:
+def _update_apply_locked(args) -> int:
     # public repo: anonymous works; a token is optional (private forks)
     token = os.environ.get(args.token_env, "")
     root = Path(args.root)
     if getattr(args, "ring", None):
-        host = _platform.node()
-        if not rings.allows(root, host, args.ring):
+        host = autoupdate.socket.gethostname() or "localhost"
+        if not autoupdate.ring_ok(root, host, args.ring):
             print(json.dumps({
                 "ok": False,
                 "error": f"host {host!r} is not in ring {args.ring!r}",
@@ -1727,12 +1853,19 @@ def cmd_update_apply(args) -> int:
     try:
         if statemachine.load(root, statemachine.UPDATE_MACHINE)["state"] != "idle":
             statemachine.reset(root, statemachine.UPDATE_MACHINE, "new update run")
-    except Exception:  # noqa: BLE001 — state is observability, not a gate
+    except Exception:  # noqa: BLE001, S110 — state is observability, not a gate
         pass
 
     staged = root / "tools" / "plasma-update-staged.exe"
-    res = updater.download_and_verify(args.repo, getattr(args, "tag", "") or "",
-                                      token, staged)
+    try:
+        res = updater.download_and_verify(args.repo, getattr(args, "tag", "") or "",
+                                          token, staged)
+    except Exception as exc:  # noqa: BLE001 - network failures are data
+        _state("failed", "download failed")
+        print(json.dumps({"ok": False, "stage": "download",
+                          "error": f"{type(exc).__name__}: {exc}"[:300]},
+                         indent=2))
+        return 1
     print(json.dumps({"stage": "download", **{k: v for k, v in res.items() if k != 'ok'}}, indent=2, default=str))
     if not res["ok"]:
         _state("failed", "download failed")
@@ -1754,9 +1887,18 @@ def cmd_update_apply(args) -> int:
     # forward the root: a node installed at a custom root must not have its
     # new version configured under the default location (split-brain install)
     _state("installing")
-    inst = subprocess.run([str(staged), "install", "--force", "--root", str(root)],
-                          capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900)
-    print(inst.stdout[-800:] if inst.stdout else "")
+    try:
+        inst = subprocess.run(
+            [str(staged), "install", "--force", "--root", str(root)],
+            capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=900, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        _state("failed", "install failed to run")
+        print(json.dumps({"ok": False, "stage": "install",
+                          "error": str(exc)[:300]}, indent=2))
+        return 3
+    if inst.stdout:
+        print(inst.stdout[-800:], file=sys.stderr)
     if inst.returncode != 0:
         _state("failed", f"install rc={inst.returncode}")
         print(inst.stderr[-400:], file=sys.stderr)
@@ -1773,9 +1915,28 @@ def cmd_update_apply(args) -> int:
     if not rot.get("ok"):
         _state("failed", "bin rotation failed")
         return 4
+    if rotated["canonical"] and not rotated["canonical"].get("ok"):
+        _state("failed", "canonical bin rotation failed")
+        print(json.dumps({"ok": False, "stage": "rotate_canonical",
+                          "error": rotated["canonical"].get("error")},
+                         indent=2))
+        return 4
     _state("rotated", f"tag={res.get('tag')}")
     print(json.dumps({"ok": True, "updated_to": res.get("tag")}, indent=2))
     return 0
+
+
+def cmd_update_apply(args) -> int:
+    """Manual apply shares the self-update lock with the daily task."""
+    root = Path(args.root)
+    try:
+        with agentstate.lock(root / "update-auto.lock", timeout=5, stale=3600):
+            return _update_apply_locked(args)
+    except TimeoutError:
+        print(json.dumps({"ok": False, "status": "skipped",
+                          "reason": "another update is already running"},
+                         indent=2))
+        return 2
 
 
 def cmd_update_auto(args) -> int:
@@ -1787,8 +1948,11 @@ def cmd_update_auto(args) -> int:
         token=os.environ.get(args.token_env, ""),
     )
     _emit(result)
-    if result.get("status") == "failed":
-        return 1
+    status = result.get("status")
+    if status in ("refused", "signature"):
+        return 2
+    if status == "failed":
+        return 3
     if args.check_only and result.get("update_available"):
         return 2
     return 0
@@ -1856,7 +2020,8 @@ def cmd_prevent_lsa(args) -> int:
 
 
 def cmd_prevent_rollback(args) -> int:
-    result = prevent.rollback(args.root, args.id, apply=args.apply)
+    result = prevent.rollback(args.root, args.id, apply=args.apply,
+                              plan=args.plan, reason=args.reason)
     print(json.dumps(result, indent=2, default=str))
     return 0 if "error" not in result else 2
 
@@ -2097,6 +2262,7 @@ def cmd_serve(args) -> int:
             tls_key=args.tls_key, timeout=args.timeout,
             max_body=args.max_body, max_output=args.max_output,
             audit=not args.no_audit, quiet=args.quiet,
+            allow_insecure_default_key=args.allow_insecure_default_key,
         )
     except (OSError, ValueError, serve_mod.ServeError) as exc:
         print(json.dumps({"error": str(exc)}))
@@ -2603,6 +2769,10 @@ def build_parser() -> argparse.ArgumentParser:
     pvb.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     pvb.add_argument("--id", type=int, required=True)
     pvb.add_argument("--apply", action="store_true")
+    pvb.add_argument("--plan", type=int, default=None,
+                     help="id of the prior rollback dry-run")
+    pvb.add_argument("--reason", default=None,
+                     help="mandatory when --apply is used")
     pvb.set_defaults(func=cmd_prevent_rollback)
     enf = sub.add_parser("enforce", help="policy-gated automatic containment from watch findings")
     enfs = enf.add_subparsers(dest="enforce_action", required=True)
@@ -2815,7 +2985,7 @@ def build_parser() -> argparse.ArgumentParser:
     trem.set_defaults(func=cmd_control_tenants_remove)
 
     sv = sub.add_parser("serve", help="HTTP API for the full Plasma CLI (alternative to WinRM/SSH)")
-    sv.add_argument("--host", default="0.0.0.0", help="bind address (default: 0.0.0.0)")
+    sv.add_argument("--host", default="127.0.0.1", help="bind address (default: 127.0.0.1)")
     sv.add_argument("--port", type=int, default=9999, help="bind port (default: 9999)")
     sv.add_argument("--api-key", default=None,
                     help="bearer key (default: plasmaplasma, or PLASMA_SERVE_API_KEY)")
@@ -2835,6 +3005,8 @@ def build_parser() -> argparse.ArgumentParser:
     sv.add_argument("--no-audit", action="store_true",
                     help="do not write <root>/serve/audit.jsonl")
     sv.add_argument("--quiet", action="store_true", help="suppress request logging")
+    sv.add_argument("--allow-insecure-default-key", action="store_true",
+                    help="allow the known default key on a non-loopback bind")
     sv.set_defaults(func=cmd_serve)
 
     mp = sub.add_parser("mcp", help="MCP stdio server for agent harnesses")

@@ -15,7 +15,7 @@ and `--read-only` refuses every command that changes state.
 plasma serve --port 9999 --api-key-file C:\ProgramData\Plasma\serve.key
 ```
 
-The default bind is `0.0.0.0:9999`. The default key is `plasmaplasma` for
+The default bind is `127.0.0.1:9999`. The default key is `plasmaplasma` for
 lab use; production should use `--api-key-file` or
 `PLASMA_SERVE_API_KEY`.
 

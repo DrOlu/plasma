@@ -25,7 +25,7 @@ def test_snapshot_uses_net_localgroup_not_get_localgroupmember():
     assert "net.exe localgroup Administrators" in payload
     assert "Get-LocalGroupMember -Group 'Administrators'" not in payload
     assert undo is None
-    assert "Test-Path" in guard
+    assert "Get-ChildItem" in guard and "snapshot-" in guard
 
 
 def test_remove_admin_uses_net_localgroup():

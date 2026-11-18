@@ -133,7 +133,7 @@ def test_host_ring_reports_assignment(tmp_path):
 def test_auto_skips_ring(tmp_path, monkeypatch):
     _config(tmp_path, window_start_hour=0, window_end_hour=0,
             canary_hold_hours=0, ring="broad")
-    rings.assign(tmp_path, "OTHER", "canary")
+    rings.assign(tmp_path, "OTHER", "broad")
     monkeypatch.setattr(autoupdate.socket, "gethostname", lambda: "HOST1")
     result = autoupdate.auto(tmp_path)
     assert result["status"] == "skipped"

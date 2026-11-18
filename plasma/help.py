@@ -1,3 +1,4 @@
+# ruff: noqa: ISC004
 """Comprehensive, agent-oriented help for the Plasma CLI.
 
 The argparse tree is the source of truth for *syntax*.  This module adds the
@@ -60,8 +61,6 @@ ENVIRONMENT = [
      "meaning": "Comma-separated Authenticode thumbprints allowed for updates."},
     {"name": "PLASMA_TG_TOKEN", "used_by": "notify",
      "meaning": "Telegram bot token named by notify.json token_env."},
-    {"name": "PLASMA_HOME", "used_by": "install",
-     "meaning": "Alternative default install root on non-Windows hosts."},
 ]
 
 GROUPS = [
@@ -305,9 +304,10 @@ Routes:
   GET  /v1/commands    the command tree as JSON
   POST /v1/exec        {"argv": ["health"]} - runs the real parser
 
-Authentication is a bearer key. The default key is plasmaplasma; use
---api-key-file or PLASMA_SERVE_API_KEY in production. --read-only refuses
-mutating commands. Every call is appended to <root>/serve/audit.jsonl
+Authentication is a bearer key. The default bind is 127.0.0.1:9999. A
+non-loopback bind refuses the known default key (plasmaplasma) unless
+--allow-insecure-default-key is passed; use --api-key-file or
+PLASMA_SERVE_API_KEY. --read-only refuses mutating commands. Every call is appended to <root>/serve/audit.jsonl
 unless --no-audit is set.
 
 Use TLS (--tls-cert/--tls-key) whenever the listener is not on loopback.""",
@@ -625,7 +625,7 @@ unattended infinite capture.
 `--max-matches` and `--for` are the safety limits. Exit 3 means the ETW
 session could not start.""",
     [
-        ("30-second default window", "plasma tap run --for 30s"),
+        ("Short explicit window", "plasma tap run --for 30s"),
         ("Specific providers and store", "plasma tap run --providers Microsoft-Windows-Sysmon,Microsoft-Windows-Security-Auditing --for 60s --events events.jsonl"),
         ("Keep raw matches", "plasma tap run --for 30s --out-dir .\\tap-out --max-matches 5000"),
     ],
@@ -729,10 +729,11 @@ Selections become field matches, the condition is preserved where possible,
 and unsupported constructs are reported as skipped rather than silently
 mistranslated.
 
-Dry-run is the default; writing produces a gene file plus a summary of
-converted and skipped rules.""",
+Writing is the default; --dry-run previews the conversion and writes
+nothing. A write produces a gene file plus a summary of converted and
+skipped rules.""",
     [
-        ("Preview conversion", "plasma sigma convert --in .\\sigma\\ --dry-run"),
+        ("Preview conversion (writes nothing)", "plasma sigma convert --in .\\sigma\\ --dry-run"),
         ("Write the gene file", "plasma sigma convert --in .\\sigma\\ --out .\\sensors\\whids\\plasma-sigma.gen"),
     ],
     safety=LOCAL_WRITE,
@@ -747,7 +748,8 @@ _add("sigma convert", _c(
     "convert Sigma rules into WHIDS gene rules",
     """Read a Sigma file or directory, translate supported selections and
 conditions into the gene schema, and report skipped rules with reasons.
-Dry-run is the default; writing produces the gene file and a summary.""",
+Writing is the default; `--dry-run` previews and writes nothing. A write
+produces the gene file and a summary of converted and skipped rules.""",
     [
         ("Preview", "plasma sigma convert --in .\\sigma\\ --dry-run"),
         ("Write the gene file", "plasma sigma convert --in .\\sigma\\ --out .\\sensors\\whids\\plasma-sigma.gen"),
@@ -1159,7 +1161,7 @@ Targets vary by action: PID, user, IP, path, service, task or host. The
 command validates the target before minting the plan.""",
     [
         ("Plan a process kill", "plasma actuate apply kill_process --target 4242 --reason \"confirmed beacon\""),
-        ("Apply the plan", "plasma actuate apply kill_process --target 4242 --reason \"confirmed beacon\" --apply --plan 7f3a"),
+        ("Apply the plan", "plasma actuate apply kill_process --target 4242 --reason \"confirmed beacon\" --apply --plan 42"),
         ("Plan host isolation", "plasma actuate apply isolate_host --target WS1 --reason \"confirmed lateral movement\""),
         ("Snapshot before a change", "plasma actuate apply snapshot --target C:\\Users\\bob\\Documents --reason \"preserve evidence\""),
     ],
@@ -1535,9 +1537,9 @@ _add("fleet pull", _c(
 selected transport, and copy a bounded event tail into the case directory.
 The pull is capped by host and records per-host success/failure.
 
-Inventory format: {\"hosts\":[{\"name\":\"WS1\",\"transport\":\"file\",\"events_path\":\"...\"}]}. "
-    "For winrm include endpoint and password_env; HTTPS is required unless "
-    "the entry explicitly accepts the lab risk.""",
+Inventory format: {"hosts":[{"name":"WS1","transport":"file","events_path":"..."}]}.
+For winrm include endpoint and password_env; HTTPS is required unless the
+entry explicitly accepts the lab risk.""",
     [
         ("File transport", "plasma fleet pull --inventory fleet.json --case case-01"),
         ("Bound the pull", "plasma fleet pull --inventory fleet.json --case case-01 --cap 5000 --window 3600"),
@@ -2046,7 +2048,9 @@ even when the version matches (useful for repair).""",
 _add("ring", _c(
     "deployment rings for staged updates",
     """Canary hosts take a release first; broad hosts wait for the hold;
-rollback hosts never auto-update. Membership is a local, human-set fact.
+rollback hosts never auto-update (rollback is a policy state, not a
+membership list; use `plasma rollback` to restore a binary). Membership is
+a local, human-set fact.
 `assign` binds a host, `promote` changes the default ring, `status` shows
 the map.""",
     [
@@ -2248,6 +2252,8 @@ def install(parser: argparse.ArgumentParser) -> None:
 
 def find_parser(parser: argparse.ArgumentParser,
                 words: list[str] | tuple[str, ...]):
+    if words and (_spec(tuple(words)) or {}).get("hidden"):
+        return None
     current = parser
     for word in words:
         match = None
@@ -2283,7 +2289,7 @@ def _action_dict(action: argparse.Action) -> dict:
             and action.default is not argparse.SUPPRESS:
         try:
             row["default"] = str(action.default)
-        except Exception:  # noqa: BLE001 - introspection is best effort
+        except Exception:  # noqa: BLE001, S110 - introspection is best effort
             pass
     if action.type is not None and callable(action.type):
         row["type"] = getattr(action.type, "__name__", str(action.type))
@@ -2338,7 +2344,7 @@ def catalog(parser: argparse.ArgumentParser) -> dict:
     """Return the complete help catalog as a JSON-serializable object."""
     rows = []
     for path, node in _walk(parser):
-        if not path:
+        if not path or (_spec(path) or {}).get("hidden"):
             continue
         rows.append(_node_dict(path, node))
     rows.sort(key=lambda row: (row["group"] or "zz", row["command"]))

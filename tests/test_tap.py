@@ -9,8 +9,8 @@ import json
 from pathlib import Path
 
 import pytest
-
 from models import PlasmaEvent
+
 from plasma import tap
 
 ROOT = Path(__file__).resolve().parent.parent

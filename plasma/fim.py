@@ -56,7 +56,7 @@ def _expand(paths) -> tuple[list[Path], int]:
     skipped = 0
     for pattern in paths:
         p = Path(pattern)
-        candidates = [p] if p.is_file() else sorted(p.parent.glob(p.name))
+        candidates = [p] if p.is_file() else p.parent.glob(p.name)
         for cand in candidates:
             if not cand.is_file():
                 continue
@@ -129,6 +129,11 @@ def verify(root) -> dict:
                              "detail": "critical file removed"})
             continue
         try:
+            if path.stat().st_size > MAX_FILE_BYTES:
+                findings.append({"type": "fim_oversize", "path": key,
+                                 "score": SCORES["modified"],
+                                 "detail": "critical file exceeds the size bound"})
+                continue
             digest = _sha256(path)
         except OSError:
             findings.append({"type": "fim_unreadable", "path": key,

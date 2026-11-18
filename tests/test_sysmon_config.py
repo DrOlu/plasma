@@ -1,6 +1,7 @@
 """The shipped Sysmon baseline config must log the events the rules need."""
 import subprocess
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 from plasma.cli import SYSMON_BASELINE_CONFIG
 
@@ -81,7 +82,7 @@ def test_apply_sysmon_config_invokes_config_reload(tmp_path, monkeypatch):
     assert seen["cmd"][1] == "-c"
     cfg = seen["cmd"][2]
     assert cfg.endswith("plasma-sysmon-baseline.xml")
-    assert "<FileDelete" in open(cfg, encoding="utf-8").read()
+    assert "<FileDelete" in Path(cfg).read_text(encoding="utf-8")
 
 
 def test_apply_sysmon_config_missing_binary(tmp_path, monkeypatch):

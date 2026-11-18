@@ -1,3 +1,4 @@
+# ruff: noqa: ISC004
 """Plasma trace: DTrace as the on-demand kernel microscope.
 
 DTrace (Microsoft, v2.0 MSI or built-in from Windows Server 2025) is the
@@ -71,9 +72,7 @@ def _scripts_dir(root: str | Path | None = None) -> Path:
     if meipass:
         candidates.append(Path(meipass) / "embedded" / "sensors" / "dtrace")
     candidates += [Path(__file__).resolve().parent.parent / "sensors" / "dtrace",
-                   Path(__file__).resolve().parent / "sensors" / "dtrace",
-                   Path.cwd() / "sensors" / "dtrace",
-                   Path.cwd() / "embedded" / "sensors" / "dtrace"]
+                   Path(__file__).resolve().parent / "sensors" / "dtrace"]
     for cand in candidates:
         if cand.is_dir():
             return cand
@@ -91,12 +90,17 @@ def parse_metadata(text: str) -> dict:
 
 def validate_script(text: str, name: str = "") -> dict:
     """Refuse destructive D and require the strict row marker."""
+    # D comments are whitespace; strip them before matching so
+    # `system/*x*/('calc')` cannot hide the call.
+    stripped = re.sub(r"/\*.*?\*/", " ", text, flags=re.DOTALL)
+    stripped = re.sub(r"//[^\n]*", " ", stripped)
     # Whitespace between the function name and "(" is legal D; match it.
-    if re.search(r"\b(system|exec|raise|panic|abort)\s*\(", text):
+    if re.search(r"\b(system|exec|raise|panic|abort|copyout|copyoutstr)\s*\(",
+                 stripped):
         raise ScriptError(f"{name}: forbidden destructive construct "
-                              "(system/exec/raise/panic/abort)")
+                              "(system/exec/raise/panic/abort/copyout)")
     for token in FORBIDDEN:
-        if token in text:
+        if token in stripped:
             raise ScriptError(f"{name}: forbidden construct {token!r}")
     if MARKER not in text:
         raise ScriptError(f"{name}: script must emit rows prefixed {MARKER!r}")
@@ -159,10 +163,9 @@ def _run_ps(script: str, timeout: int = 60) -> str:
     if not exe:
         return ""
     try:
-        proc = subprocess.run(
-            [exe, "-NoProfile", "-NonInteractive", "-Command", script],
+        proc = subprocess.run([exe, "-NoProfile", "-NonInteractive", "-Command", script],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=timeout)
+            timeout=timeout, check=False)
         return (proc.stdout or "").strip()
     except (OSError, subprocess.TimeoutExpired):
         return ""
@@ -189,11 +192,7 @@ def check() -> dict:
     lowered = state.lower()
     if re.search(r"dtrace\s+(yes|on)\b", lowered):
         result["enabled"] = True
-    elif re.search(r"dtrace\s+(no|off)\b", lowered):
-        result["enabled"] = False
-        result["hint"] = ("DTrace is installed but not enabled: run "
-                          "`plasma trace provision` and restart.")
-    elif state:
+    elif re.search(r"dtrace\s+(no|off)\b", lowered) or state:
         result["enabled"] = False
         result["hint"] = ("DTrace is installed but not enabled: run "
                           "`plasma trace provision` and restart.")
@@ -215,13 +214,23 @@ def selftest(root: str | Path | None = None) -> dict:
     for info in load_scripts(root):
         proc = subprocess.run([path, "-e", "-s", info["file"]],
                               capture_output=True, text=True, encoding="utf-8",
-                              errors="replace", timeout=120)
+                              errors="replace", timeout=120, check=False)
         results.append({
             "script": info["name"],
             "ok": proc.returncode == 0,
             "stderr": (proc.stderr or "").strip()[:300],
         })
     return {"ok": all(r["ok"] for r in results), "scripts": results}
+
+
+def _redact_tree(value):
+    if isinstance(value, str):
+        return redact_text(value)
+    if isinstance(value, dict):
+        return {k: _redact_tree(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_redact_tree(v) for v in value]
+    return value
 
 
 def parse_output(text: str, max_rows: int = DEFAULT_MAX_ROWS) -> list[dict]:
@@ -318,15 +327,18 @@ def run(script_name: str, events_path, seconds: int = 10,
     out_path = Path(out) if out else None
     if out_path:
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text("".join(json.dumps(r, sort_keys=True) + "\n"
-                                    for r in rows), encoding="utf-8")
+        out_path.write_text(
+            "".join(json.dumps(_redact_tree(r), sort_keys=True) + "\n"
+                    for r in rows), encoding="utf-8")
 
     from pathlib import Path as _P
     store = _P(events_path)
     store.parent.mkdir(parents=True, exist_ok=True)
+    from . import agentstate
+    agentstate.ensure_trailing_newline(store)
     existing = set()
     if store.exists():
-        for ln in store.read_text(encoding="utf-8", errors="replace").splitlines():
+        for ln in store.read_text(encoding="utf-8-sig", errors="replace").splitlines():
             if ln.strip():
                 try:
                     existing.add(hashlib.sha256(
@@ -363,13 +375,12 @@ def _verify_msi(path) -> dict:
         return {"ok": False, "error": "cannot verify MSI: no powershell"}
     quoted = str(path).replace("'", "''")
     try:
-        proc = subprocess.run(
-            [ps, "-NoProfile", "-NonInteractive", "-Command",
+        proc = subprocess.run([ps, "-NoProfile", "-NonInteractive", "-Command",
              f"$s=Get-AuthenticodeSignature -LiteralPath '{quoted}'; "
              f"if($s.SignerCertificate){{$s.Status + '|' + $s.SignerCertificate.Subject}}"
              f"else{{'NOSIG|'+$s.Status}}"],
             capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=90)
+            errors="replace", timeout=90, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "error": f"MSI signature check failed: {exc}"[:200]}
     line = (proc.stdout or "").strip().splitlines()
@@ -380,27 +391,51 @@ def _verify_msi(path) -> dict:
     if status.strip() != "Valid" or "microsoft" not in subject.lower():
         return {"ok": False, "error": "MSI is not validly signed by Microsoft",
                 "status": status.strip(), "subject": subject[:200]}
-    return {"ok": True, "status": status.strip(), "subject": subject[:200]}
+    import hashlib
+    try:
+        digest = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    except OSError as exc:
+        return {"ok": False, "error": f"cannot hash MSI: {exc}"}
+    return {"ok": True, "status": status.strip(), "subject": subject[:200],
+            "sha256": digest}
 
 
 def _install_msi(dest_dir) -> dict:
     """Download, verify, then silently install the official DTrace 2.0 MSI."""
+    import hashlib
+    import tempfile
     import urllib.request
-    dest = Path(dest_dir) / "DTrace.amd64.msi"
-    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest_dir = Path(dest_dir)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix="dtrace-", suffix=".msi",
+                                dir=str(dest_dir))
+    dest = Path(name)
     try:
-        urllib.request.urlretrieve(MSI_URL, dest)
+        with os.fdopen(fd, "wb") as fh:
+            with urllib.request.urlopen(MSI_URL, timeout=120) as resp:
+                shutil.copyfileobj(resp, fh)
+            fh.flush()
+            os.fsync(fh.fileno())
     except Exception as exc:  # noqa: BLE001 — network failure is data
+        try:
+            dest.unlink()
+        except OSError:
+            pass
         return {"ok": False, "error": f"download failed: {exc}"[:200]}
     sig = _verify_msi(dest)
     if not sig.get("ok"):
         return {"ok": False, "error": "refusing to install an unverified MSI",
                 "signature": sig, "msi": str(dest)}
+    # Re-hash immediately before the privileged open. The unique file name
+    # plus O_EXCL creation removes the predictable-path swap window.
+    digest = hashlib.sha256(dest.read_bytes()).hexdigest()
+    if digest != sig.get("sha256"):
+        return {"ok": False, "error": "MSI changed after signature verification",
+                "msi": str(dest)}
     try:
-        proc = subprocess.run(
-            ["msiexec", "/i", str(dest), "/qn", "/norestart"],
+        proc = subprocess.run(["msiexec", "/i", str(dest), "/qn", "/norestart"],
             capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=900)
+            errors="replace", timeout=900, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "error": str(exc)[:200], "msi": str(dest)}
     # 3010 = success, restart required
@@ -424,11 +459,10 @@ def provision() -> dict:
     if not state["available"]:
         winget = shutil.which("winget")
         if winget:
-            proc = subprocess.run(
-                [winget, "install", "--id", WINGET_ID, "--exact", "--silent",
+            proc = subprocess.run([winget, "install", "--id", WINGET_ID, "--exact", "--silent",
                  "--accept-package-agreements", "--accept-source-agreements"],
                 capture_output=True, text=True, encoding="utf-8",
-                errors="replace", timeout=900)
+                errors="replace", timeout=900, check=False)
             actions.append({"action": "winget install Microsoft.DTrace",
                             "rc": proc.returncode,
                             "detail": (proc.stdout or "")[:400]})
@@ -447,8 +481,19 @@ def provision() -> dict:
     if state.get("enabled"):
         return {"ok": True, "already": "installed; already enabled",
                 "actions": actions, "version": state.get("version")}
-    enable = _run_ps("bcdedit /set dtrace on", timeout=60)
-    actions.append({"action": "bcdedit /set dtrace on", "detail": enable[:200]})
+    try:
+        enable = subprocess.run(["bcdedit", "/set", "dtrace", "on"],
+            capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=60, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"ok": False, "error": f"bcdedit failed: {exc}"[:200],
+                "actions": actions}
+    detail = ((enable.stdout or "") + (enable.stderr or "")).strip()[:200]
+    actions.append({"action": "bcdedit /set dtrace on",
+                    "rc": enable.returncode, "detail": detail})
+    if enable.returncode != 0:
+        return {"ok": False, "error": "could not enable DTrace (bcdedit failed)",
+                "actions": actions}
     return {"ok": True, "reboot_required": True, "actions": actions,
             "version": state.get("version"),
             "next": "reboot, then run: plasma trace check && plasma trace selftest"}

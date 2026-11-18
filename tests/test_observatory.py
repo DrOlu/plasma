@@ -10,8 +10,7 @@ import json
 
 import pytest
 
-from plasma import observatory, actuate, drift
-
+from plasma import actuate, drift, observatory
 
 # ---------------------------------------------------------------------------
 # observatory: payload hygiene

@@ -2,7 +2,7 @@ import platform
 
 import pytest
 
-import plasma.cli as cli
+from plasma import cli
 
 
 def test_embedded_instance_dir(monkeypatch, tmp_path):

@@ -1,6 +1,4 @@
-import json
 
-import pytest
 
 
 def test_coverage_is_total(bridge):

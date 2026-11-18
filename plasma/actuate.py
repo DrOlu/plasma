@@ -45,6 +45,9 @@ PROTECTED_SERVICES = {
 PROTECTED_PROCESSES = {
     "winlogon.exe", "csrss.exe", "smss.exe", "services.exe", "lsass.exe",
     "whids.exe", "sysmon64.exe", "sysmon.exe", "wininit.exe",
+    "system", "registry", "dwm.exe", "svchost.exe",
+    "msmpeng.exe", "nissrv.exe", "sense.exe", "sensendr.exe",
+    "securityhealthservice.exe", "sgrmbroker.exe",
 }
 PROTECTED_ACCOUNTS = {
     "administrator", "wdagutilityaccount", "system", "localservice",
@@ -52,6 +55,7 @@ PROTECTED_ACCOUNTS = {
 }
 QUARANTINE_DIR = r"C:\ProgramData\Plasma\Quarantine"
 JOURNAL_BACKUP_DIR = r"C:\ProgramData\Plasma\Journal"
+PLAN_TTL_SECONDS = 3600
 
 _IS_LOCAL_USER = re.compile(r"^[A-Za-z0-9._$-]{1,64}$")
 _IS_SERVICE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
@@ -66,6 +70,18 @@ def _ps_literal(value: str) -> str:
 
 def _now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _plan_fresh(ts) -> bool:
+    """A plan is a reviewed decision, not a permanent capability."""
+    try:
+        stamp = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=timezone.utc)
+        age = (datetime.now(timezone.utc) - stamp).total_seconds()
+        return 0 <= age <= PLAN_TTL_SECONDS
+    except (TypeError, ValueError):
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -105,6 +121,13 @@ def _v_pid(t):
 def _v_path(t):
     if not re.match(r"^[A-Za-z]:\\.+[^\\]$", t) or ".." in t:
         raise ValueError(f"not an absolute local path: {t}")
+    if t.startswith(("\\\\", "\\??\\")):
+        raise ValueError(f"UNC/device paths are not accepted: {t}")
+    if re.search(r"~\d", t):
+        raise ValueError(f"8.3 short paths are not accepted: {t}")
+    parts = t.replace("/", "\\").split("\\")[1:]
+    if any(part.endswith((" ", ".")) for part in parts if part):
+        raise ValueError(f"path components with trailing spaces/dots are not accepted: {t}")
 
 
 # Files whose removal would break the endpoint or its own defences. These
@@ -122,11 +145,32 @@ PROTECTED_PATH_PREFIXES = (
 
 
 def _g_path(t):
-    low = str(t).lower().replace("/", "\\")
+    # Resolve the final path and refuse reparse points. A junction in a
+    # user-writable directory can otherwise point into System32 while the
+    # literal string still looks benign.
+    quoted = str(t).replace("'", "''")
+    result = _run(
+        f"$p = Get-Item -LiteralPath '{quoted}' -Force -ErrorAction Stop; "
+        "if (($p.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) "
+        "{ throw 'reparse point' }; $p.FullName",
+        timeout=30)
+    if result.get("error") or result.get("rc") not in (0, None):
+        if os.name != "nt":
+            # Unit tests and desk-side checks have no PowerShell; keep the
+            # literal check so protected prefixes are still refused.
+            raw = str(t)
+        else:
+            raise ValueError(f"cannot resolve path before quarantine: "
+                             f"{result.get('stderr') or result.get('error') or t}")
+    else:
+        raw = str(result.get("output") or "").strip().strip('"')
+        if not raw:
+            raise ValueError(f"cannot resolve path before quarantine: {t}")
+    low = raw.lower().replace("/", "\\")
     for prefix in PROTECTED_PATH_PREFIXES:
         if low == prefix or low.startswith(prefix + "\\"):
             raise PermissionError(
-                f"'{t}' is a protected path — refusing to quarantine it")
+                f"'{t}' resolves to a protected path — refusing to quarantine it")
     return True
 
 
@@ -141,9 +185,22 @@ def _file_sha256(path) -> str | None:
         return None
 
 
+PROTECTED_TASKS = {
+    "plasmawatch", "plasmaupdate", "plasmawhids watchdog",
+    "plasmaidentitypull", "plasmaserve",
+}
+
+
 def _v_task(t):
     if not _IS_TASK.match(t):
         raise ValueError(f"not a task name: {t}")
+
+
+def _g_task(t):
+    low = str(t).lower()
+    if low in PROTECTED_TASKS or low.startswith("plasma") \
+            or "\\microsoft\\windows\\" in low:
+        raise PermissionError(f"'{t}' is a protected task — refusing")
 
 
 def _g_service(t):
@@ -171,6 +228,39 @@ def _g_user(t):
     current = (os.environ.get("USERNAME") or "").lower()
     if t.lower() in PROTECTED_ACCOUNTS or (current and t.lower() == current):
         raise PermissionError(f"'{t}' is on the protected account list — refusing")
+    # Name matching is not enough: the built-in Administrator can be renamed.
+    # Resolve the SID and protect well-known accounts and RID 500.
+    if os.name == "nt":
+        quoted = str(t).replace("'", "''")
+        result = _run(
+            f"$u = Get-LocalUser -Name '{quoted}' -ErrorAction Stop; $u.SID.Value",
+            timeout=20)
+        if not result.get("error") and result.get("rc") in (0, None):
+            sid = str(result.get("output") or "").strip()
+            if sid in ("S-1-5-18", "S-1-5-19", "S-1-5-20") or sid.endswith("-500"):
+                raise PermissionError(f"'{t}' resolves to a protected built-in account — refusing")
+
+
+def _g_admin_change(t):
+    """Refuse removing/disabling the last enabled local administrator."""
+    _g_user(t)
+    if os.name != "nt":
+        return
+    quoted = str(t).replace("'", "''")
+    result = _run(
+        _admin_members_ps() +
+        "$enabled = @();"
+        "foreach ($n in $admins) { "
+        "$u = Get-LocalUser -Name $n -ErrorAction SilentlyContinue; "
+        "if ($u -and $u.Enabled) { $enabled += $n } };"
+        f"if ($admins -contains '{quoted}' -and @($enabled).Count -le 1) "
+        "{ 'LAST_ADMIN' } else { @($enabled).Count }",
+        timeout=30)
+    if "LAST_ADMIN" in str(result.get("output") or ""):
+        raise PermissionError(
+            f"'{t}' is the last enabled local administrator — refusing")
+    if result.get("error") or result.get("rc") not in (0, None):
+        raise ValueError(f"cannot verify administrator membership for '{t}'")
 
 
 def _fw_rule(name):
@@ -249,25 +339,47 @@ def _admin_members_ps():
 
 
 def _build_disable_user(user):
-    payload = f"Disable-LocalUser -Name {_ps_literal(user)}; (Get-LocalUser -Name {_ps_literal(user)}).Enabled"
+    payload = (
+        f"$u = Get-LocalUser -Name {_ps_literal(user)} -ErrorAction Stop;"
+        f"if ($u.Enabled) {{ Disable-LocalUser -Name {_ps_literal(user)}; 'DISABLED' }} "
+        f"else {{ 'ALREADY_DISABLED' }}")
     undo = f"Enable-LocalUser -Name {_ps_literal(user)}; (Get-LocalUser -Name {_ps_literal(user)}).Enabled"
     return payload, undo, f"(Get-LocalUser -Name {_ps_literal(user)}).Enabled"
 
 
 def _build_remove_admin(user):
-    payload = (f"& net.exe localgroup Administrators {_ps_literal(user)} /delete;"
-               + _admin_members_ps() + "$admins | ConvertTo-Json -Compress")
+    payload = (
+        _admin_members_ps()
+        + f"if ($admins -contains {_ps_literal(user)}) {{ "
+        f"& net.exe localgroup Administrators {_ps_literal(user)} /delete; "
+        "if ($LASTEXITCODE -ne 0) { throw \"net exited $LASTEXITCODE\" }; "
+        "'REMOVED' } else { 'ABSENT' }")
     undo = (f"& net.exe localgroup Administrators {_ps_literal(user)} /add;"
+            "if ($LASTEXITCODE -ne 0) { throw \"net exited $LASTEXITCODE\" };"
             + _admin_members_ps() + "$admins | ConvertTo-Json -Compress")
     return payload, undo, _admin_members_ps() + f"$admins -contains {_ps_literal(user)}"
 
 
 def _build_kill_process(pid):
-    # Capture identity before killing so the journal can guide a restart.
+    # Bind the plan to the process identity, not just the PID. Windows
+    # reuses PIDs; a plan for a benign process must not kill its successor.
+    info = _run(
+        f"$p = Get-CimInstance Win32_Process -Filter 'ProcessId = {int(pid)}'; "
+        "if ($p) { $p.CreationDate.ToUniversalTime().ToString('o') + '|' + $p.Name }",
+        timeout=30)
+    raw = str(info.get("output") or "").strip()
+    if info.get("error") or "|" not in raw:
+        raise ValueError(f"pid {pid} does not exist (or its identity is unreadable)")
+    created, _, name = raw.partition("|")
+    created_q = created.replace("'", "''")
+    name_q = name.replace("'", "''")
     payload = (
         f"$p = Get-CimInstance Win32_Process -Filter 'ProcessId = {int(pid)}';"
-        f"if ($p) {{ $p | Select-Object ProcessId,Name,CommandLine | ConvertTo-Json -Compress;"
-        f"Stop-Process -Id {int(pid)} -Force; 'killed' }} else {{ 'no such pid' }}"
+        f"if (-not $p) {{ throw 'pid is gone since the plan' }};"
+        f"if ($p.CreationDate.ToUniversalTime().ToString('o') -ne '{created_q}' "
+        f"-or $p.Name -ne '{name_q}') {{ throw 'pid was reused since the plan' }};"
+        f"$p | Select-Object ProcessId,Name,CommandLine | ConvertTo-Json -Compress;"
+        f"Stop-Process -Id {int(pid)} -Force; 'killed'"
     )
     return payload, None, f"(Get-Process -Id {int(pid)} -ErrorAction SilentlyContinue) -eq $null"
 
@@ -307,7 +419,10 @@ def _build_quarantine(path):
 
 
 def _build_stop_service(name):
-    payload = f"Stop-Service -Name {_ps_literal(name)} -Force; (Get-Service -Name {_ps_literal(name)}).Status"
+    payload = (
+        f"$s = Get-Service -Name {_ps_literal(name)} -ErrorAction Stop;"
+        f"if ($s.Status -ne 'Stopped') {{ Stop-Service -Name {_ps_literal(name)} -Force; 'STOPPED' }} "
+        f"else {{ 'ALREADY_STOPPED' }}")
     undo = f"Start-Service -Name {_ps_literal(name)}; (Get-Service -Name {_ps_literal(name)}).Status"
     return payload, undo, f"(Get-Service -Name {_ps_literal(name)}).Status"
 
@@ -318,9 +433,10 @@ def _build_disable_task(task):
     backup = JOURNAL_BACKUP_DIR + "\\" + re.sub(r"[^A-Za-z0-9_.-]", "_", task) + ".xml"
     payload = (
         f"New-Item -ItemType Directory -Force -Path {_ps_literal(JOURNAL_BACKUP_DIR)} | Out-Null;"
+        f"$t = Get-ScheduledTask -TaskName {_ps_literal(task)} -ErrorAction Stop;"
         f"Export-ScheduledTask -TaskName {_ps_literal(task)} | Set-Content -Path {_ps_literal(backup)} -Encoding UTF8;"
-        f"Disable-ScheduledTask -TaskName {_ps_literal(task)} | Out-Null;"
-        f"(Get-ScheduledTask -TaskName {_ps_literal(task)}).State"
+        f"if ($t.State -ne 'Disabled') {{ Disable-ScheduledTask -TaskName {_ps_literal(task)} | Out-Null; 'DISABLED' }} "
+        f"else {{ 'ALREADY_DISABLED' }}"
     )
     undo = (f"Enable-ScheduledTask -TaskName {_ps_literal(task)} | Out-Null;"
             f"(Get-ScheduledTask -TaskName {_ps_literal(task)}).State")
@@ -397,7 +513,7 @@ def _build_disable_wmi_sub():
         "$file = '" + JOURNAL_BACKUP_DIR + "\\' + 'bindings-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.json';"
         "ConvertTo-Json -InputObject @($defs) -Compress | Set-Content -Path $file -Encoding UTF8;"
         "$file;"
-        "$binds | Remove-CimInstance -ErrorAction SilentlyContinue;"
+        "$binds | Remove-CimInstance -ErrorAction Stop;"
         "'bindings removed'"
     )
     return payload, {"kind": "wmi_bindings"}, (
@@ -408,7 +524,9 @@ def _build_disable_wmi_sub():
 def _build_rotate_credential(user):
     # New password is printed exactly once; the journal never contains it.
     payload = (
-        f"$pw = -join ((48..57) + (65..90) + (97..122) + (35,36,37,38,42,43,45,64) | Get-Random -Count 24 | ForEach-Object {{ [char]$_ }});"
+        "$bytes = New-Object byte[] 24;"
+        "[Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes);"
+        "$pw = [Convert]::ToBase64String($bytes).TrimEnd('=') + '!';"
         f"Set-LocalUser -Name {_ps_literal(user)} -Password (ConvertTo-SecureString $pw -AsPlainText -Force);"
         f"'NEW PASSWORD (shown once): ' + $pw"
     )
@@ -431,7 +549,10 @@ def _build_snapshot():
         "$out | ConvertTo-Json -Depth 4 -Compress | Set-Content -Path $file -Encoding UTF8;"
         "$file"
     )
-    return payload, None, "Test-Path '" + JOURNAL_BACKUP_DIR + "'"
+    return payload, None, (
+        "(Get-ChildItem -LiteralPath '" + JOURNAL_BACKUP_DIR +
+        "' -Filter 'snapshot-*.json' -ErrorAction SilentlyContinue | "
+        "Sort-Object LastWriteTime -Descending | Select-Object -First 1) -ne $null")
 
 
 ACTIONS = {
@@ -447,12 +568,12 @@ ACTIONS = {
     },
     "disable_user": {
         "description": "Disable a local account (protected list enforced)",
-        "target_kind": "user", "validate": _v_user, "guard": _g_user,
+        "target_kind": "user", "validate": _v_user, "guard": _g_admin_change,
         "build": _build_disable_user, "undoable": True,
     },
     "remove_admin": {
         "description": "Remove a local account from Administrators",
-        "target_kind": "user", "validate": _v_user, "guard": _g_user,
+        "target_kind": "user", "validate": _v_user, "guard": _g_admin_change,
         "build": _build_remove_admin, "undoable": True,
     },
     "kill_process": {
@@ -472,12 +593,12 @@ ACTIONS = {
     },
     "delete_task": {
         "description": "Unregister a scheduled task (XML backed up for undo)",
-        "target_kind": "task", "validate": _v_task, "guard": None,
+        "target_kind": "task", "validate": _v_task, "guard": _g_task,
         "build": _build_delete_task, "undoable": True,
     },
     "disable_task": {
         "description": "Disable a scheduled task (definition backed up; enable to undo)",
-        "target_kind": "task", "validate": _v_task, "guard": None,
+        "target_kind": "task", "validate": _v_task, "guard": _g_task,
         "build": _build_disable_task, "undoable": True,
     },
     "remove_run_key": {
@@ -574,6 +695,11 @@ def _append_entry(root, entry):
 # Runner (same posture as observatory: endpoint failures are data)
 # ---------------------------------------------------------------------------
 
+def _killswitch_blocked(root, risk="medium") -> bool:
+    from . import killswitch
+    return killswitch.blocked(root, host=socket.gethostname(), risk=risk)
+
+
 def _run(payload, timeout=60):
     exe = shutil.which("powershell.exe") or shutil.which("pwsh")
     if not exe:
@@ -583,9 +709,8 @@ def _run(payload, timeout=60):
     # action cannot be journaled as applied.
     payload = "$ErrorActionPreference='Stop'; " + payload
     try:
-        proc = subprocess.run(
-            [exe, "-NoProfile", "-NonInteractive", "-Command", payload],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
+        proc = subprocess.run([exe, "-NoProfile", "-NonInteractive", "-Command", payload],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout, check=False)
     except subprocess.TimeoutExpired:
         return {"error": "execution timeout", "timeout": timeout}
     out = (proc.stdout or "").strip()
@@ -632,8 +757,7 @@ def execute(action, root, target=None, reason=None, apply=False, timeout=60,
     if apply:
         # The kill switch blocks execution, not planning: a human may still
         # dry-run while containment is paused.
-        from . import killswitch
-        if killswitch.blocked(root, host=socket.gethostname(), risk="medium"):
+        if _killswitch_blocked(root):
             return {"error": "kill switch is engaged for this host — "
                              "response actions are blocked (reads and dry-runs "
                              "remain available)", "code": "KILLSWITCH",
@@ -664,6 +788,10 @@ def execute(action, root, target=None, reason=None, apply=False, timeout=60,
             if plan_state(dr) != "proposed" or dr.get("action") != action:
                 return {"error": f"--plan {plan} is not a dry-run of '{action}'",
                         "code": "REFUSED", "action": action}
+            if not _plan_fresh(dr.get("ts")):
+                return {"error": f"--plan {plan} is older than "
+                                 f"{PLAN_TTL_SECONDS // 60} minutes; re-run the dry-run",
+                        "code": "REFUSED", "action": action}
             if str(dr.get("target") or "") != str(target or ""):
                 return {"error": f"--plan {plan} targeted '{dr.get('target')}', "
                                  f"not '{target}'", "code": "REFUSED",
@@ -682,19 +810,40 @@ def execute(action, root, target=None, reason=None, apply=False, timeout=60,
             _journal_append(root, entry)
             return entry
 
+        # Re-check under the lock: the switch may have been engaged while we
+        # waited behind another apply.
+        if _killswitch_blocked(root):
+            return {"error": "kill switch is engaged for this host — "
+                             "response actions are blocked", "code": "KILLSWITCH",
+                    "action": action}
+
         result = _run(payload, timeout=timeout)
         ok = (not result.get("error")
               and result.get("rc") in (0, None))
+        entry["result"] = result
+        entry["verification"] = _run(verify, timeout=30) if verify else None
+        ver = entry.get("verification")
+        if ok and isinstance(ver, dict) and (
+                ver.get("error") or ver.get("rc") not in (0, None)):
+            ok = False
+            entry["failure"] = (
+                "verification failed: "
+                + str(ver.get("stderr") or ver.get("error") or ver.get("rc")))[:500]
         entry["ok"] = ok
         entry["mode"] = "applied" if ok else "failed"
-        if not ok:
+        if not ok and "failure" not in entry:
             # "error" is reserved for refusals; a payload that ran and
             # failed is a failure, not a refusal (playbooks branch on it).
             entry["failure"] = (result.get("stderr")
                                 or result.get("error")
                                 or f"payload exited {result.get('rc')}")[:500]
-        entry["result"] = result
-        entry["verification"] = _run(verify, timeout=30) if verify else None
+        output_text = str(result.get("output") or "")
+        if any(marker in output_text for marker in
+               ("ALREADY_", "ABSENT")):
+            # The action was a no-op; undoing it would change state that the
+            # operator did not ask us to change.
+            entry["noop"] = True
+            undo = None
         if undo:
             entry["undo"] = undo if isinstance(undo, dict) else {"payload": undo}
             # sidecar-captured undo data (WMI bindings, run-key values) — the
@@ -824,6 +973,10 @@ def undo(root, entry_id, apply=False, plan=None, timeout=60):
     When exactly one undo dry-run exists it may be selected implicitly;
     more than one is ambiguous and requires an explicit plan id.
     """
+    if apply and _killswitch_blocked(root):
+        return {"error": "kill switch is engaged for this host — undo is "
+                         "blocked (reads and dry-runs remain available)",
+                "code": "KILLSWITCH", "action": "undo"}
     with _journal_lock(root):
         rows = journal_read(root)
         match = next((r for r in rows if r.get("id") == entry_id), None)
@@ -858,6 +1011,10 @@ def undo(root, entry_id, apply=False, plan=None, timeout=60):
                     or dr.get("undoes") != entry_id):
                 return {"error": f"--plan {plan} is not a dry-run undo of entry {entry_id}",
                         "code": "REFUSED"}
+            if not _plan_fresh(dr.get("ts")):
+                return {"error": f"--plan {plan} is older than "
+                                 f"{PLAN_TTL_SECONDS // 60} minutes; re-run the undo dry-run",
+                        "code": "REFUSED"}
             if dr.get("payload_sha256") != payload_sha:
                 return {"error": f"--plan {plan} rendered a different undo payload "
                                  f"than the current state would (re-run the dry-run)",
@@ -877,6 +1034,10 @@ def undo(root, entry_id, apply=False, plan=None, timeout=60):
             _journal_append(root, entry)
             return entry
 
+        if _killswitch_blocked(root):
+            return {"error": "kill switch is engaged for this host — undo is "
+                             "blocked", "code": "KILLSWITCH",
+                    "action": "undo"}
         result = _run(payload, timeout=timeout)
         entry["result"] = result
         entry["ok"] = (not result.get("error")

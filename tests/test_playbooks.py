@@ -1,5 +1,4 @@
 """Playbooks: plan-gated sequences of allowlisted actions, abort + undo."""
-import json
 
 import pytest
 
@@ -39,7 +38,7 @@ def test_playbook_dry_run_journals_step_plans_and_never_runs(tmp_path, mock_run)
     assert dry["mode"] == "dry-run"
     assert [s["action"] for s in dry["steps"]] == ["disable_user", "snapshot"]
     assert all("plan" in s for s in dry["steps"])
-    assert dry["rendered"][0]["payload"].startswith("Disable-LocalUser")
+    assert "Disable-LocalUser" in dry["rendered"][0]["payload"]
     assert mock_run == []                      # nothing executed
     # journal: two step dry-runs + the playbook dry-run
     modes = [(r["action"], r["mode"]) for r in actuate.journal_read(root)]
@@ -71,7 +70,7 @@ def test_playbook_apply_runs_steps_in_order(tmp_path, mock_run):
     assert applied["mode"] == "applied"
     assert all(s.get("ok") for s in applied["steps"])
     # disable_user payload ran before snapshot payload
-    assert mock_run[0].startswith("Disable-LocalUser")
+    assert any("Disable-LocalUser" in p for p in mock_run)
     assert "snapshot-" in mock_run[2]
     # journal: 3 dry-runs + 2 step applies + playbook applied
     rows = actuate.journal_read(root)

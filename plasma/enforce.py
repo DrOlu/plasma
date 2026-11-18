@@ -219,11 +219,17 @@ def proposals(findings: list[dict], policy: dict) -> list[dict]:
         blocked = any(r.startswith(("score ", "technique ")) or
                       r.endswith("not allowlisted") or "denied by policy" in r
                       for r in reasons)
+        if blocked or (not allowed and not needs_approval):
+            mode = "denied"
+        elif needs_approval:
+            mode = "pending_approval"
+        else:
+            mode = "auto"
         out.append({
             "type": ftype, "score": score, "technique": technique or None,
             "action": action, "target": target, "risk": risk,
-            "mode": "pending_approval" if (needs_approval or not allowed) else "auto",
-            "eligible": not blocked and not needs_approval and allowed,
+            "mode": mode,
+            "eligible": mode == "auto",
             "reasons": reasons or ["policy allows automatic containment"],
             "detail": str(finding.get("detail") or "")[:200],
         })
@@ -239,7 +245,7 @@ def _cooling_down(root, action: str, target, minutes: int) -> bool:
             continue
         if str(row.get("target") or "") != str(target or ""):
             continue
-        if enforce_state(row) not in ("applied", "pending_approval"):
+        if enforce_state(row) != "applied":
             continue
         try:
             ts = time.strptime(str(row.get("ts")), "%Y-%m-%dT%H:%M:%SZ")
@@ -330,6 +336,15 @@ def run(root, findings: list[dict] | None = None, apply: bool | None = None,
                     if p["eligible"] and p["action"] == "kill_process"]
         if triggers:
             capture, capture_ok = _capture(root, triggers[0], policy)
+            if not capture_ok:
+                # Evidence-first is a hard gate for automatic kills. A human
+                # can still approve the kill after seeing the capture failure.
+                for item in proposed:
+                    if item["action"] == "kill_process" and item["mode"] == "auto":
+                        item["mode"] = "pending_approval"
+                        item["eligible"] = False
+                        item["reasons"].append(
+                            "evidence capture failed; human approval required")
 
     results = []
     actions_taken = 0
@@ -342,7 +357,10 @@ def run(root, findings: list[dict] | None = None, apply: bool | None = None,
             entry["status"] = "dry-run"
             entry["reason"] = ("enforcement disabled" if not policy["enabled"]
                                else "policy mode is dry-run")
-        elif item["mode"] == "pending_approval" or not item["eligible"]:
+        elif item["mode"] == "denied":
+            entry["status"] = "denied"
+            entry["reason"] = "; ".join(item.get("reasons") or ["policy denied"])
+        elif item["mode"] == "pending_approval":
             existing = _pending_exists(root, item["action"], item["target"],
                                        entry["finding_digest"])
             if existing is not None:
@@ -446,22 +464,60 @@ def pending(root) -> dict:
     return {"count": len(rows), "pending": rows}
 
 
-def approve(root, entry_id: int, apply: bool = False) -> dict:
-    """Execute one pending request through actuate's dry-run + plan gate."""
-    root = Path(root)
-    rows = _read_journal(root)
-    row = next((r for r in rows if int(r.get("id") or 0) == int(entry_id)), None)
-    if not row:
-        return {"error": f"no enforcement entry {entry_id}"}
-    if enforce_state(row) != "pending_approval":
-        return {"error": f"entry {entry_id} is {row.get('status')}, not pending"}
-    if entry_id in _approved_ids(root):
-        return {"error": f"entry {entry_id} has already been approved"}
-    policy = load_policy(root)
+def _approval_policy_error(policy: dict, row: dict) -> str | None:
+    """Re-check every policy gate at approval time, not just at proposal time."""
+    if not policy["enabled"] or policy["mode"] != "enforce":
+        return "enforcement is disabled or in dry-run mode"
     action = row.get("action")
     if action not in policy["allowed_actions"] and \
             action not in policy["require_approval"]:
-        return {"error": f"action {action} is no longer allowlisted by policy"}
+        return f"action {action} is no longer allowlisted by policy"
+    try:
+        score = int(row.get("score") or 0)
+    except (TypeError, ValueError):
+        score = 0
+    if score < policy["min_score"]:
+        return f"score {score} is below the current minimum {policy['min_score']}"
+    technique = str(row.get("technique") or "").upper()
+    if technique and technique in policy["deny_techniques"]:
+        return f"technique {technique} is denied by policy"
+    if policy["allow_techniques"] and technique and \
+            technique not in policy["allow_techniques"]:
+        return f"technique {technique} is not in the allow list"
+    if _cooling_down(Path(row.get("_root") or "."), action,
+                     row.get("target"), policy["cooldown_minutes"]):
+        return f"cooldown ({policy['cooldown_minutes']} min) is still active"
+    return None
+
+
+def approve(root, entry_id: int, apply: bool = False) -> dict:
+    """Execute one pending request through actuate's dry-run + plan gate."""
+    root = Path(root)
+    with agentstate.lock(root / ".enforce-approve.lock", timeout=15, stale=300):
+        rows = _read_journal(root)
+        row = next((r for r in rows if int(r.get("id") or 0) == int(entry_id)), None)
+        if not row:
+            return {"error": f"no enforcement entry {entry_id}"}
+        if enforce_state(row) != "pending_approval":
+            return {"error": f"entry {entry_id} is {row.get('status')}, not pending"}
+        if entry_id in _approved_ids(root):
+            return {"error": f"entry {entry_id} has already been approved"}
+        policy = load_policy(root)
+        row["_root"] = str(root)
+        error = _approval_policy_error(policy, row)
+        if error:
+            return {"error": error}
+        if apply:
+            # Claim the approval before executing. A second concurrent
+            # approver sees the claim and refuses; the claim is single-use
+            # even if the action later fails.
+            _append_journal(root, {
+                "status": "approval_claimed", "approved_from": entry_id,
+                "action": row.get("action"), "target": row.get("target"),
+                "risk": row.get("risk"), "type": row.get("type"),
+                "score": row.get("score"), "technique": row.get("technique"),
+                "reasons": ["approval claimed by operator"],
+            })
     reason = f"enforce approval #{entry_id}: {row.get('type')} score={row.get('score')}"
     dry = actuate.execute(row["action"], root=root, target=row.get("target"),
                           reason=reason, apply=False)

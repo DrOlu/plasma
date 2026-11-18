@@ -7,7 +7,6 @@ import pytest
 
 from plasma import actuate, health, notify, watch
 
-
 # ---------------------------------------------------------------------------
 # actuate: disable_task + remove_run_key
 # ---------------------------------------------------------------------------
@@ -35,7 +34,7 @@ def test_remove_run_key_target_validation():
 
 
 def test_remove_run_key_payload_captures_sidecar():
-    payload, undo, verify = actuate._build_remove_run_key(
+    payload, undo, _verify = actuate._build_remove_run_key(
         r"HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run", "Backdoor")
     assert "GetValue('Backdoor')" in payload
     assert "Remove-ItemProperty" in payload
@@ -87,7 +86,6 @@ def test_throttle_suppresses_repeat_key_within_window(tmp_path):
         "min_score": 1}))
     sent = []
     import plasma.notify as n
-    monkey_mod = n
     orig_post = n._post
     n._post = lambda url, payload, timeout=15: sent.append(payload) or {"ok": True}
     try:

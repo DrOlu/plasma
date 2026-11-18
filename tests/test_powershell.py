@@ -3,7 +3,6 @@ import shutil
 import subprocess
 
 import pytest
-
 from conftest import INSTANCE, SAMPLES
 
 pytestmark = pytest.mark.skipif(shutil.which("pwsh") is None, reason="pwsh not installed")
@@ -17,7 +16,7 @@ def ps(tool=None, args=None, events=None, coverage=False):
         cmd += ["-Tool", tool, "-ArgsJson", json.dumps(args or {})]
     if events:
         cmd += ["-EventsPath", str(events)]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False)
     assert proc.returncode == 0, proc.stderr
     return json.loads(proc.stdout)
 

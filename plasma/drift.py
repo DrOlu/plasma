@@ -129,7 +129,7 @@ def _score_canary(base, now):
 
 
 def _score_flowstats(base, now):
-    added, removed = _set_diff("remote_peers", base, now,
+    added, _removed = _set_diff("remote_peers", base, now,
                                getter=lambda p: p.get("remote") if isinstance(p, dict) else str(p))
     drift = []
     if added:

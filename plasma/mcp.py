@@ -18,7 +18,16 @@ from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import __version__, agentstate, health, killswitch, ledger, policy, tenants, tools
+from . import (
+    __version__,
+    agentstate,
+    health,
+    killswitch,
+    ledger,
+    policy,
+    tenants,
+    tools,
+)
 
 PROTOCOL_VERSION = "2024-11-05"
 MAX_REQUEST_BYTES = 1 << 20
@@ -216,7 +225,7 @@ def _context(params: dict) -> dict:
         "prompt_sha256": prompt_sha,
         "tenant": tenant,
         "scopes": scopes,
-        "host": meta.get("host"),
+        "host": meta.get("host") if trust_meta else None,
     }
 
 
@@ -296,21 +305,23 @@ def handle(request: dict, root=None) -> dict | None:
     decision = policy.evaluate(name, args, context=context, policy=active_policy,
                                recent_actions=recent, killswitch_blocked=blocked)
 
-    approval_id = params.get("approval_id")
-    if approval_id is not None:
+    requested_approval = params.get("approval_id")
+    if requested_approval is not None:
         try:
-            approval_id = int(approval_id)
+            requested_approval = int(requested_approval)
         except (TypeError, ValueError):
             return {"jsonrpc": "2.0", "id": req_id, "result": _text_result({
                 "ok": False, "code": "APPROVAL_INVALID",
                 "error": "approval_id must be an integer"}, error=True)}
-    if decision["approval_required"] and approval_id is not None:
+    used_approval = None
+    if decision["approval_required"] and requested_approval is not None:
         args_sha = agentstate.sha256_obj({"tool": name, "args": args})
         approval = ledger.consume_approval(
-            root, int(approval_id), name, args_sha,
+            root, int(requested_approval), name, args_sha,
             tenant=context.get("tenant", "default"),
             agent=context.get("agent"))
         if approval:
+            used_approval = requested_approval
             decision = dict(decision, allowed=True, approval_required=False,
                             code="allow",
                             reasons=decision["reasons"]
@@ -365,7 +376,7 @@ def handle(request: dict, root=None) -> dict | None:
     outcome = "dry_run" if spec.dry_run_only else "ok"
     row = ledger.record(root, tool=name, args=args, decision=decision,
                         context=context, outcome=outcome,
-                        approval_id=int(approval_id) if approval_id else None)
+                        approval_id=used_approval)
     result = dict(result, audit_id=row["seq"])
     return {"jsonrpc": "2.0", "id": req_id, "result": _text_result(result)}
 

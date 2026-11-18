@@ -4,6 +4,29 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.19.1 — 2026-11-18
+
+Holistic security and correctness review.
+
+- **HTTP boundary:** canonical parsed command paths, complete read-only
+  coverage, loopback-only default key, TLS handshake in the worker thread,
+  request-smuggling defenses, incremental output caps, audit redaction and
+  fail-closed auditing for mutations.
+- **Response/prevention:** kill switch covers undo and prevention, approval
+  queue re-checks policy and is atomic, protected paths/processes/tasks are
+  hardened, plans are identity- and time-bound, capture failure gates
+  automatic kills, prevention rollback is plan-gated and verified.
+- **Collection/data:** tap/observatory/drift redaction, identity failure
+  reporting, malformed WHIDS/watch rows skipped, content-aware dedupe,
+  trace validation/MSI hardening, deep persistence parsing, BOM-safe store,
+  canary/fleet/health/Sigma/notify/FIM fixes.
+- **Install/update:** dry-run is read-only, operator config is preserved,
+  Sysmon and updates require valid signatures, ring/hold/promote logic
+  fixed, rotation/rollback/locking hardened, prerelease ordering fixed.
+- **Agent trust:** policy type validation, fail-closed tenants, ledger
+  truncation checkpoint, terminal denials and single-use approvals.
+- 785 tests collected; full suite and `-W error` pass; `ruff check` clean.
+
 ## 1.19.0 — 2026-11-18
 
 Agent-oriented help for every command.

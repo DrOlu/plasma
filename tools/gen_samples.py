@@ -264,8 +264,7 @@ def main():
     rows = build()
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     with open(a.out, "w", encoding="utf-8") as fh:
-        for r in rows:
-            fh.write(json.dumps(r, separators=(",", ":")) + "\n")
+        fh.writelines(json.dumps(r, separators=(",", ":")) + "\n" for r in rows)
     print(f"wrote {len(rows)} events -> {os.path.abspath(a.out)}")
 
 

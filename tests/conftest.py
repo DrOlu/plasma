@@ -41,7 +41,7 @@ def run_ps_bridge(tool, args=None, events=None):
            "-Tool", tool, "-ArgsJson", json.dumps(args or {})]
     if events:
         cmd += ["-EventsPath", str(events)]
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False)
 
 
 def engine_paths():

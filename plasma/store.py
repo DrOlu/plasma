@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import time
 from pathlib import Path
 
@@ -70,29 +71,39 @@ def redact_secrets(events_path, out_path=None) -> dict:
         return {"error": f"no store at {src}"}
     dst = Path(out_path) if out_path else src.with_suffix(src.suffix + ".redacted")
     rows = changed = torn = 0
-    with src.open(encoding="utf-8", errors="replace") as fh, \
-            dst.open("w", encoding="utf-8") as out:
-        for line in fh:
-            stripped = line.strip()
-            if not stripped:
-                continue
-            if not stripped.startswith("{"):
-                torn += 1
-                out.write(line)
-                continue
-            try:
-                row = json.loads(stripped)
-            except json.JSONDecodeError:
-                torn += 1
-                out.write(line)
-                continue
-            clean = redact_event(row)
-            if clean != row:
-                changed += 1
-            rows += 1
-            out.write(json.dumps(clean, sort_keys=True) + "\n")
-    if out_path is None:
-        os.replace(dst, src)
+    fd, temp_name = tempfile.mkstemp(prefix=".plasma-redact-",
+                                     dir=str(src.parent))
+    try:
+        with src.open(encoding="utf-8-sig", errors="replace") as fh, \
+                os.fdopen(fd, "w", encoding="utf-8") as out:
+            for line in fh:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                if not stripped.startswith("{"):
+                    torn += 1
+                    out.write(line)
+                    continue
+                try:
+                    row = json.loads(stripped)
+                except json.JSONDecodeError:
+                    torn += 1
+                    out.write(line)
+                    continue
+                clean = redact_event(row)
+                if clean != row:
+                    changed += 1
+                rows += 1
+                out.write(json.dumps(clean, sort_keys=True) + "\n")
+        if out_path is not None and dst.exists():
+            return {"error": f"refusing to overwrite existing file: {dst}"}
+        os.replace(temp_name, dst if out_path is not None else src)
+    finally:
+        try:
+            if os.path.exists(temp_name):
+                os.unlink(temp_name)
+        except OSError:
+            pass
     return {"rows": rows, "redacted_rows": changed,
             "torn_or_noise_preserved": torn,
             "out": str(src if out_path is None else dst)}
@@ -113,34 +124,44 @@ def compact(events_path, out_path=None) -> dict:
     kept_lines = 0
     dropped = 0
     torn = 0
-    with src.open(encoding="utf-8", errors="replace") as fh, \
-            dst.open("w", encoding="utf-8") as out:
-        for line in fh:
-            stripped = line.strip()
-            if not stripped:
-                continue
-            if not stripped.startswith("{"):
-                torn += 1
-                out.write(line)
-                kept_lines += 1
-                continue
-            try:
-                canonical = json.dumps(json.loads(stripped),
-                                       sort_keys=True, ensure_ascii=False)
-            except json.JSONDecodeError:
-                torn += 1
-                out.write(line)
-                kept_lines += 1
-                continue
-            if canonical in seen:
-                dropped += 1
-                continue
-            seen.add(canonical)
-            out.write(stripped + "\n")
-            kept_lines += 1
     before = src.stat().st_size
-    if out_path is None:
-        os.replace(dst, src)
+    fd, temp_name = tempfile.mkstemp(prefix=".plasma-compact-",
+                                     dir=str(src.parent))
+    try:
+        with src.open(encoding="utf-8-sig", errors="replace") as fh, \
+                os.fdopen(fd, "w", encoding="utf-8") as out:
+            for line in fh:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                if not stripped.startswith("{"):
+                    torn += 1
+                    out.write(line)
+                    kept_lines += 1
+                    continue
+                try:
+                    canonical = json.dumps(json.loads(stripped),
+                                           sort_keys=True, ensure_ascii=False)
+                except json.JSONDecodeError:
+                    torn += 1
+                    out.write(line)
+                    kept_lines += 1
+                    continue
+                if canonical in seen:
+                    dropped += 1
+                    continue
+                seen.add(canonical)
+                out.write(stripped + "\n")
+                kept_lines += 1
+        if out_path is not None and dst.exists():
+            return {"error": f"refusing to overwrite existing file: {dst}"}
+        os.replace(temp_name, dst if out_path is not None else src)
+    finally:
+        try:
+            if os.path.exists(temp_name):
+                os.unlink(temp_name)
+        except OSError:
+            pass
     result = {"kept": kept_lines, "dropped_duplicates": dropped,
               "torn_or_noise_preserved": torn}
     if out_path is None:

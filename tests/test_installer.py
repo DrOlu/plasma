@@ -22,7 +22,7 @@ def bundle(tmp_path):
 def run_install(bundle, root, *extra):
     cmd = ["pwsh", "-NoProfile", "-File", str(bundle / "packaging" / "install.ps1"),
            "-Bundle", str(bundle), "-InstallRoot", str(root), "-DryRun", "-SkipSensorCheck", *extra]
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False)
 
 
 def test_dry_run_writes_nothing(bundle, tmp_path):
@@ -57,7 +57,7 @@ def test_dry_run_plans_bundled_whids(tmp_path):
     assert proc.returncode == 0, proc.stderr + proc.stdout
     plan = json.loads(proc.stdout)
     assert plan["dry_run"] is True
-    whids = [s for s in plan["sensors"] if s["sensor"] == "whids"][0]
+    whids = next(s for s in plan["sensors"] if s["sensor"] == "whids")
     assert whids["will_install"] is True
     assert any("install WHIDS from embedded bundle payload" in a for a in plan["actions"])
     assert not (tmp_path / "root" / "instances").exists()

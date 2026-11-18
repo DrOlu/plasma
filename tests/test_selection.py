@@ -3,7 +3,6 @@ import json
 import subprocess
 
 import pytest
-
 from conftest import ROOT, engine_paths
 
 GOLDEN = [
@@ -39,11 +38,10 @@ def engine():
 
 def pick(engine, prompt):
     eng, model = engine
-    proc = subprocess.run(
-        [str(eng), "--model", str(model),
+    proc = subprocess.run([str(eng), "--model", str(model),
          "--tools", str(ROOT / "instance" / "needle_menu.json"),
          "--prompt", prompt],
-        capture_output=True, text=True, timeout=120,
+        capture_output=True, text=True, timeout=120, check=False
     )
     assert proc.returncode == 0, proc.stderr
     data = json.loads(proc.stdout)

@@ -1,3 +1,4 @@
+# ruff: noqa: ISC004
 """Machine-generated compliance evidence.
 
 Autonomy raises the burden of proof, so this module turns the estate's

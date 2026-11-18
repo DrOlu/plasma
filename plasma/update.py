@@ -1,3 +1,4 @@
+# ruff: noqa: ISC004
 """Plasma update: self-update from GitHub releases.
 
 `plasma update check` — compare current version against the latest release.
@@ -59,13 +60,12 @@ def verify_authenticode(exe_path, expected=None) -> dict:
         return {"ok": False, "error": "cannot verify signature: no powershell on this host"}
     quoted = str(path).replace("'", "''")
     try:
-        proc = subprocess.run(
-            [ps, "-NoProfile", "-NonInteractive", "-Command",
+        proc = subprocess.run([ps, "-NoProfile", "-NonInteractive", "-Command",
              f"$s = Get-AuthenticodeSignature -LiteralPath '{quoted}'; "
              f"if ($s.SignerCertificate) {{ $s.SignerCertificate.Thumbprint + '|' + $s.Status }} "
              f"else {{ 'NOSIG|' + $s.Status }}"],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=90)
+            timeout=90, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "error": f"signature check failed to run: {exc}"}
     out = (proc.stdout or "").strip().splitlines()
@@ -76,6 +76,12 @@ def verify_authenticode(exe_path, expected=None) -> dict:
     thumb = thumb_raw.strip().upper().replace(":", "").replace(" ", "")
     if thumb == "NOSIG" or not thumb:
         return {"ok": False, "error": "downloaded exe is unsigned", "status": status}
+    if status not in ("Valid", "UnknownError", "NotTrusted"):
+        # The pin is the primary trust anchor, but a HashMismatch means the
+        # signature blob does not match the file: the certificate is not
+        # evidence that this payload is authentic.
+        return {"ok": False, "error": f"signature status is {status}",
+                "signer": thumb, "status": status}
     if thumb not in want:
         return {"ok": False, "error": "signer thumbprint mismatch",
                 "signer": thumb, "expected": sorted(want), "status": status}
@@ -112,10 +118,9 @@ def latest_release(repo: str, token: str, tag: str | None = None) -> dict:
 
 
 def parse_version(tag: str) -> tuple:
-    """'v1.2.3' -> (1, 2, 3). Pre-release suffixes (-rc1, -beta2) are ignored
-    so a published v1.0.0 never reads as older than 'v1.0.0-rc2'."""
+    """'v1.2.3' -> (1, 2, 3). Pre-release suffixes are ignored for display."""
     parts = []
-    for piece in tag.lstrip("v").split("."):
+    for piece in str(tag).strip().lower().lstrip("v").split("."):
         digits = re.match(r"\d+", piece)
         parts.append(int(digits.group(0)) if digits else 0)
     while len(parts) < 3:
@@ -123,8 +128,25 @@ def parse_version(tag: str) -> tuple:
     return tuple(parts[:3])
 
 
+def _version_key(tag: str) -> tuple:
+    """Ordering key: final releases sort after their pre-releases."""
+    text = str(tag or "").strip().lower()
+    text = text.removeprefix("v")
+    core, _sep, pre = text.partition("-")
+    numbers = []
+    for piece in core.split("."):
+        match = re.match(r"\d+", piece)
+        numbers.append(int(match.group(0)) if match else 0)
+    while len(numbers) < 4:
+        numbers.append(0)
+    if not pre:
+        return (tuple(numbers[:4]), 1, ())
+    return (tuple(numbers[:4]), 0,
+            tuple(int(n) for n in re.findall(r"\d+", pre)[:4]))
+
+
 def is_newer(current: str, latest: str) -> bool:
-    return parse_version(latest) > parse_version(current)
+    return _version_key(latest) > _version_key(current)
 
 
 def download_and_verify(repo: str, tag: str, token: str, dest) -> dict:

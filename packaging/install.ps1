@@ -31,6 +31,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$IsWindowsHost = if ($PSVersionTable.PSEdition -eq 'Core') { $IsWindows } else { $env:OS -eq 'Windows_NT' }
 function Out-Plan($obj) { $obj | ConvertTo-Json -Depth 8 }
 
 $bundlePath = (Resolve-Path -LiteralPath $Bundle).Path
@@ -82,13 +83,13 @@ foreach ($name in @('whids', 'sysmon', 'sealighter')) {
     $req = $sensors.$name
     if ($null -eq $req) { continue }
     $presentSensor = $false
-    if ($IsWindows) {
+    if ($IsWindowsHost) {
         $pattern = if ($name -eq 'whids') { 'Whids*' } elseif ($name -eq 'sysmon') { 'Sysmon*' } else { 'Sealighter*' }
         $svc = Get-Service -ErrorAction SilentlyContinue | Where-Object { $_.Name -like $pattern -or $_.DisplayName -like $pattern } | Select-Object -First 1
         $presentSensor = ($null -ne $svc)
     }
 
-    if ($name -eq 'whids' -and -not $presentSensor -and $IsWindows -and -not $SkipWhidsInstall) {
+    if ($name -eq 'whids' -and -not $presentSensor -and $IsWindowsHost -and -not $SkipWhidsInstall) {
         $payloadDir = Join-Path $bundlePath 'sensors/whids'
         $exe = Join-Path $payloadDir 'whids.exe'
         if (Test-Path -LiteralPath $exe) {
@@ -191,7 +192,7 @@ $config = @{
 }
 $config | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $configPath -Encoding UTF8
 
-if ($IsWindows) {
+if ($IsWindowsHost) {
     if (Test-Path -LiteralPath $current) {
         $item = Get-Item -LiteralPath $current -Force
         if ($item.LinkType -eq 'Junction' -or $item.LinkType -eq 'SymbolicLink') {

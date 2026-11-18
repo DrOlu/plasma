@@ -83,12 +83,7 @@ def test_compact_to_explicit_out_keeps_original(tmp_path):
 
 def test_stats_counts_kinds_and_span(tmp_path):
     f = tmp_path / "events.jsonl"
-    f.write_text("\n".join([
-        '{"ts": "2026-11-05T09:00:00Z", "kind": "process"}',
-        '{"ts": "2026-11-05T10:00:00Z", "kind": "auth"}',
-        '{"ts": "2026-11-05T10:30:00Z", "kind": "auth"}',
-        "noise",
-    ]) + "\n")
+    f.write_text('{"ts": "2026-11-05T09:00:00Z", "kind": "process"}\n{"ts": "2026-11-05T10:00:00Z", "kind": "auth"}\n{"ts": "2026-11-05T10:30:00Z", "kind": "auth"}\nnoise' + "\n")
     s = store.stats(f)
     assert s["rows"] == 3
     assert s["kinds"] == {"process": 1, "auth": 2}

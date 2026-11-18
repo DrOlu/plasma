@@ -204,17 +204,24 @@ def _new_high_alerts(root, alerts_dir: Path) -> list[dict]:
         for line in blob[:cut + 1].splitlines():
             try:
                 record = json.loads(line.decode("utf-8", "replace"))
-            except (json.JSONDecodeError, UnicodeError):
+                event = whids.normalize_alert(record)
+            except (json.JSONDecodeError, UnicodeError, TypeError,
+                    ValueError, KeyError):
+                # One malformed alert must not abort the sweep or prevent
+                # the offset from advancing. Otherwise the same line is
+                # re-read forever and detection goes dark.
                 continue
-            event = whids.normalize_alert(record)
             if not event:
                 continue
-            criticality = float(event.get("score") or 0) * 10.0
+            try:
+                criticality = float(event.get("score") or 0) * 10.0
+            except (TypeError, ValueError):
+                continue
             if criticality < HIGH_CRITICALITY:
                 continue
             out.append({
                 "type": "whids_high_criticality",
-                "score": int(round(criticality)),
+                "score": round(criticality),
                 "detail": (f"{event.get('description') or 'WHIDS detection'}"
                            f" on {event.get('process') or 'unknown process'}"
                            f" ({event.get('technique') or 'no technique'})")[:200],

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -28,7 +29,7 @@ def load_config(root) -> dict:
         return {"channels": [], "min_score": 7}
     blob = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(blob.get("channels", []), list):
-        raise ValueError("notify config: 'channels' must be a list")
+        raise TypeError("notify config: 'channels' must be a list")
     for ch in blob["channels"]:
         if ch.get("type") == "telegram" and "token_env" not in ch:
             raise ValueError("telegram channel needs token_env (secrets never live in config)")
@@ -44,11 +45,21 @@ def load_config(root) -> dict:
     return blob
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise urllib.error.HTTPError(
+            req.full_url, code, "redirects are not allowed for alerts",
+            headers, fp)
+
+
 def _post(url: str, payload: dict, timeout: int = 15) -> dict:
+    if not str(url).lower().startswith("https://"):
+        return {"ok": False, "error": "refusing a non-HTTPS notification URL"}
     req = urllib.request.Request(
         url, data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"}, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    opener = urllib.request.build_opener(_NoRedirect)
+    with opener.open(req, timeout=timeout) as resp:
         return {"ok": 200 <= resp.status < 300, "status": resp.status}
 
 

@@ -1,12 +1,20 @@
 """Regression tests for the implicit state machines formalised in 1.7.2."""
 
 import json
-from pathlib import Path
 
 import pytest
 
-from plasma import (actuate, canary, ledger, mcp, playbooks, policy,
-                    statemachine, tenants, update)
+from plasma import (
+    actuate,
+    canary,
+    ledger,
+    mcp,
+    playbooks,
+    policy,
+    statemachine,
+    tenants,
+    update,
+)
 
 
 def _run_ok(payload, timeout=60):
@@ -186,8 +194,8 @@ def test_tenant_host_ownership_is_exclusive(tmp_path):
     tenants.add(tmp_path, "beta", "Beta", ["WS1"])
     acme = next(t for t in tenants.list_tenants(tmp_path) if t["id"] == "acme")
     beta = next(t for t in tenants.list_tenants(tmp_path) if t["id"] == "beta")
-    assert "WS1" not in acme["hosts"] and acme["hosts"] == ["WS2"]
-    assert beta["hosts"] == ["WS1"]
+    assert "ws1" not in acme["hosts"] and acme["hosts"] == ["ws2"]
+    assert beta["hosts"] == ["ws1"]
     assert tenants.resolve(tmp_path, "WS1") == "beta"
     assert tenants.allows(tmp_path, "acme", "WS1") is False
 

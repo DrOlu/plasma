@@ -23,7 +23,7 @@ def test_build_bundle(tmp_path):
 
 
 def test_bundle_zip(tmp_path):
-    result = build_bundle(tmp_path / "dist", "0.5.0")
+    build_bundle(tmp_path / "dist", "0.5.0")
     zpath = tmp_path / "dist" / "plasma-0.5.0.zip"
     assert zpath.exists()
     with zipfile.ZipFile(zpath) as zf:

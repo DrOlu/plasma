@@ -1,5 +1,4 @@
 """Critical-file integrity: baseline, modify/remove/add, missing manifest."""
-from pathlib import Path
 
 from plasma import fim
 

@@ -13,8 +13,6 @@ import json
 import re
 from pathlib import Path
 
-import pytest
-
 REPO = Path(__file__).resolve().parent.parent
 BASELINE = REPO / "sensors" / "plasma-baseline.gen"
 TAP_RULES = REPO / "sensors" / "plasma-tap-rules.json"

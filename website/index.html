@@ -343,7 +343,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <a class="skip" href="#main">Skip to content</a>
 
 <div class="announce">
-  <b>v1.19.0 is out</b> &nbsp;·&nbsp; agent help catalog &nbsp;·&nbsp;
+  <b>v1.19.1 is out</b> &nbsp;·&nbsp; security hardening &nbsp;·&nbsp;
   <a href="https://drolu.github.io/plasma/changelog/">read the changelog</a>
 </div>
 
@@ -351,7 +351,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
   <div class="wrap header-inner">
     <a class="brand" href="#top" aria-label="Plasma home">
       <span class="brand-mark" aria-hidden="true">P</span>
-      <span>Plasma</span><em>v1.19.0</em>
+      <span>Plasma</span><em>v1.19.1</em>
     </a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
       <a href="#architecture">Architecture</a>
@@ -383,7 +383,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <section class="hero">
   <div class="wrap hero-grid">
     <div class="reveal">
-      <span class="pill"><i></i> Windows EDR · on-device · v1.19.0</span>
+      <span class="pill"><i></i> Windows EDR · on-device · v1.19.1</span>
       <h1>No log lake.<br>No cloud.<br><span class="hl">No blind trust.</span></h1>
       <p class="sub">
         <strong>Detects always. Contains only when armed. Blocks only through Microsoft's own
@@ -633,7 +633,7 @@ plasma control audit verify</pre>
         <div class="cap"><span>Event parse</span><b>100%</b></div>
         <h3>Contract clean</h3>
         <p>DTrace, WHIDS storm rows and long command lines now validate. Both estate hosts parse every event in the store.</p>
-        <div class="tags"><span>WS1 + WS2</span><span>1.19.0</span></div>
+        <div class="tags"><span>WS1 + WS2</span><span>1.19.1</span></div>
       </article>
     </div>
 
@@ -1135,7 +1135,7 @@ plasma store rotate --events events.jsonl --max-mb 256</pre>
     <div class="grid c2 reveal" style="align-items:start">
       <div class="term">
         <div class="term-bar"><i></i><i></i><i></i><span class="path">endpoint</span><button class="copy" type="button">Copy</button></div>
-<pre><span class="c"># start the API (default 0.0.0.0:9999)</span>
+<pre><span class="c"># start the API (default 127.0.0.1:9999)</span>
 plasma serve --port 9999 \
   --api-key-file C:\ProgramData\Plasma\serve.key
 
@@ -1166,7 +1166,7 @@ POST /v1/exec        run one CLI argv</pre>
     <div class="grid c3 reveal" style="margin-top:16px">
       <div class="card c-lime">
         <h3>API-key auth</h3>
-        <p>Bearer or <code>X-API-Key</code>, constant-time compare. The default is <code>plasmaplasma</code> for lab use; production uses <code>--api-key-file</code> or <code>PLASMA_SERVE_API_KEY</code>.</p>
+        <p>Bearer or <code>X-API-Key</code>, constant-time compare. The default bind is loopback; a non-loopback bind refuses the known default key. Production uses <code>--api-key-file</code> or <code>PLASMA_SERVE_API_KEY</code>.</p>
         <div class="mini">no key in the audit log</div>
       </div>
       <div class="card c-orange">
@@ -1281,13 +1281,13 @@ POST /v1/exec        run one CLI argv</pre>
       <div class="card c-lime">
         <div class="cap"><span>Product Guide</span><b>PDF · 16 pages</b></div>
         <h3>What it is and what it does</h3>
-        <p>Architecture, detection, coverage, prevention, response, neuralOSd orchestration, the HTTP API and the honest limits. Version 1.19.0.</p>
+        <p>Architecture, detection, coverage, prevention, response, neuralOSd orchestration, the HTTP API and the honest limits. Version 1.19.1.</p>
         <div class="mini"><a class="btn dark" href="https://drolu.github.io/plasma/Plasma_Product_Guide.pdf">Download the Product Guide</a></div>
       </div>
       <div class="card c-lav">
         <div class="cap"><span>Operations Guide</span><b>PDF · 17 pages</b></div>
         <h3>Install, operate, respond</h3>
-        <p>Install, configuration, daily operations, the prevention runbook, fleet, neuralOSd orchestration, the HTTP API, troubleshooting and cheat sheet. Version 1.19.0.</p>
+        <p>Install, configuration, daily operations, the prevention runbook, fleet, neuralOSd orchestration, the HTTP API, troubleshooting and cheat sheet. Version 1.19.1.</p>
         <div class="mini"><a class="btn dark" href="https://drolu.github.io/plasma/Plasma_Operations_Guide.pdf">Download the Operations Guide</a></div>
       </div>
     </div>
@@ -1302,7 +1302,7 @@ POST /v1/exec        run one CLI argv</pre>
       <p>Install the signed release, point the harness at the MCP server, and let the policy engine decide what the model is allowed to do.</p>
     </div>
     <div class="cta-actions">
-      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.19.0</a>
+      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.19.1</a>
       <a class="btn pink" href="https://drolu.github.io/plasma/getting-started/">Read the docs</a>
     </div>
   </div>

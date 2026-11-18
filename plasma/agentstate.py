@@ -15,6 +15,9 @@ from typing import Any
 def base(root=None) -> Path:
     if root:
         return Path(root)
+    env = (os.environ.get("PLASMA_ROOT") or "").strip()
+    if env:
+        return Path(env)
     if os.name == "nt":
         return Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Plasma"
     return Path.home() / ".plasma"
@@ -24,6 +27,17 @@ def ensure(root=None) -> Path:
     path = base(root)
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def ensure_trailing_newline(path) -> None:
+    """A torn last line would concatenate the next event into invalid JSON."""
+    path = Path(path)
+    if not path.exists() or path.stat().st_size == 0:
+        return
+    with path.open("r+b") as fh:
+        fh.seek(-1, 2)
+        if fh.read(1) != b"\n":
+            fh.write(b"\n")
 
 
 def canonical(obj: Any) -> str:

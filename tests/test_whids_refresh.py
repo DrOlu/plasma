@@ -5,8 +5,8 @@ was on disk — WS1 had Whids' default 6.7 KB config and crash-looped every
 five seconds, WS2 had a pre-1.4 Plasma config with `channels = ["all"]`.
 """
 
-from plasma.cli import _same_bytes, _whids_files_to_stage
 from plasma import whids
+from plasma.cli import _same_bytes, _whids_files_to_stage
 
 
 def make_bundle(tmp_path):

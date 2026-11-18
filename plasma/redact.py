@@ -16,9 +16,14 @@ _NAMED_SECRET = re.compile(
     r"(?i)((?:-|/)(?:password|passwd|pwd)\s+)(?:\"[^\"]*\"|'[^']*'|\S+)")
 _SECURE_STRING = re.compile(
     r"(?i)(ConvertTo-SecureString\s+)([\"'])(.*?)\2")
+_QUOTED_SECRET = re.compile(
+    r"(?i)(\b(?:password|passwd|pwd|token|secret|api[_-]?key)\b\s*[:=]\s*)"
+    r"([\"'])(.*?)\2")
 _KEY_VALUE = re.compile(
     r"(?i)(\b(?:password|passwd|pwd|token|secret|api[_-]?key)\b\s*[:=]\s*)"
-    r"([\"']?)([^\s\"';,]+)")
+    r"([^\s\"';,]+)")
+_MYSQL_PASSWORD = re.compile(
+    r"(?i)(\b(?:mysql|mysqldump|mariadb)\b[^\n]*?\s-p)([^\s]+)")
 _BEARER = re.compile(r"(?i)(\bBearer\s+)[A-Za-z0-9._~+/=-]{8,}")
 
 
@@ -29,7 +34,9 @@ def redact_text(value: str) -> str:
     text = _NET_USER.sub(r"\1<redacted>", text)
     text = _NAMED_SECRET.sub(r"\1<redacted>", text)
     text = _SECURE_STRING.sub(r"\1\2<redacted>\2", text)
-    text = _KEY_VALUE.sub(lambda m: m.group(1) + m.group(2) + "<redacted>", text)
+    text = _QUOTED_SECRET.sub(lambda m: m.group(1) + m.group(2) + "<redacted>" + m.group(2), text)
+    text = _KEY_VALUE.sub(lambda m: m.group(1) + "<redacted>", text)
+    text = _MYSQL_PASSWORD.sub(r"\1<redacted>", text)
     text = _BEARER.sub(r"\1<redacted>", text)
     return text
 

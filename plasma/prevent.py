@@ -1,3 +1,4 @@
+# ruff: noqa: ISC004
 """Plasma prevent: Tier 1 prevention through Windows enforcement points.
 
 Plasma does not ship a kernel driver. Real, inline prevention is delivered by
@@ -29,7 +30,7 @@ import uuid
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-from . import agentstate
+from . import agentstate, killswitch
 from .lifecycle import prevent_state
 
 PREFIX = "PlasmaPrevent"
@@ -46,6 +47,15 @@ _ASR_ACTIONS = {"Enabled": "Enabled", "Audit": "AuditMode",
 
 def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _blocked(root) -> dict | None:
+    import socket
+    if killswitch.blocked(root, host=socket.gethostname(), risk="high"):
+        return {"error": "kill switch is engaged for this host — prevention "
+                         "changes are blocked (dry-runs remain available)",
+                "code": "KILLSWITCH"}
+    return None
 
 
 def journal_path(root) -> Path:
@@ -88,11 +98,10 @@ def _ps(script: str, timeout: int = 120) -> tuple[int, str]:
     if not exe:
         return 1, "powershell not available"
     try:
-        proc = subprocess.run(
-            [exe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+        proc = subprocess.run([exe, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
              "-Command", script],
             capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=timeout)
+            errors="replace", timeout=timeout, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return 1, str(exc)[:200]
     return proc.returncode, ((proc.stdout or "") + (proc.stderr or "")).strip()
@@ -240,11 +249,8 @@ if($backup -and (Test-Path $backup)){
     exit 0
   }
 }
-# No prior policy: apply an empty policy, which clears the local rule set.
-$empty = Join-Path $env:TEMP 'plasma-empty-applocker.xml'
-[IO.File]::WriteAllText($empty, '<AppLockerPolicy Version="1" />')
-Set-AppLockerPolicy -XmlPolicy $empty -ErrorAction Stop | Out-Null
-[pscustomobject]@{restored=$false; cleared=$true} | ConvertTo-Json -Compress
+# No prior policy: never clear all rules silently. Refuse the rollback.
+throw 'no AppLocker backup policy; refusing to clear all local rules'
 """
 
 
@@ -268,7 +274,10 @@ def applocker(root, mode="audit", allow_paths=None, apply=False, plan=None,
             "undo": {"kind": "applocker", "backup_dir": str(backup)},
             "preview": xml[:4000],
         })
-    entry = _check_plan(root, plan, "applocker", digest, reason)
+    blocked = _blocked(root)
+    if blocked:
+        return blocked
+    entry = _claim_plan(root, plan, "applocker", digest, reason)
     if "error" in entry:
         return entry
     backup.mkdir(parents=True, exist_ok=True)
@@ -311,9 +320,8 @@ def validate_allow(entries) -> list[dict]:
         octets = host.split("/", 1)[0].split(".")
         if any(int(o) > 255 for o in octets):
             raise ValueError(f"invalid IPv4 address: {raw!r}")
-        if port:
-            if not port.isdigit() or not 1 <= int(port) <= 65535:
-                raise ValueError(f"invalid port: {raw!r}")
+        if port and (not port.isdigit() or not 1 <= int(port) <= 65535):
+            raise ValueError(f"invalid port: {raw!r}")
         out.append({"remote": host, "port": int(port) if port else None})
     return out
 
@@ -377,7 +385,10 @@ def egress(root, allow, apply=False, plan=None, reason=None) -> dict:
             "reason": reason, "allow": list(allow or []), "warnings": warnings,
             "undo": {"kind": "egress"}, "preview": payload[:4000],
         })
-    entry = _check_plan(root, plan, "egress", digest, reason)
+    blocked = _blocked(root)
+    if blocked:
+        return blocked
+    entry = _claim_plan(root, plan, "egress", digest, reason)
     if "error" in entry:
         return entry
     rc, out = _ps(payload, timeout=180)
@@ -459,7 +470,10 @@ def asr(ids, action="Audit", apply=False, plan=None, reason=None, root=".") -> d
             "payload_sha256": digest, "status": "dry-run", "reason": reason,
             "undo": {"kind": "asr", "ids": rules}, "preview": payload[:4000],
         })
-    entry = _check_plan(root, plan, "asr", digest, reason)
+    blocked = _blocked(root)
+    if blocked:
+        return blocked
+    entry = _claim_plan(root, plan, "asr", digest, reason)
     if "error" in entry:
         return entry
     previous = _asr_previous(rules)
@@ -493,11 +507,13 @@ def lsa(apply=False, plan=None, reason=None, root=".", enable=True) -> dict:
     payload = (
         "$ErrorActionPreference='Stop'\n"
         "$p='HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa'\n"
+        "$prev=(Get-ItemProperty -Path $p -Name RunAsPPL "
+        "-ErrorAction SilentlyContinue).RunAsPPL\n"
         f"New-ItemProperty -Path $p -Name RunAsPPL -Value {value} "
         "-PropertyType DWord -Force | Out-Null\n"
         "$v=(Get-ItemProperty $p).RunAsPPL\n"
-        "[pscustomobject]@{applied=$true; RunAsPPL=$v; reboot_required=$true} "
-        "| ConvertTo-Json -Compress")
+        "[pscustomobject]@{applied=$true; RunAsPPL=$v; previous=$prev; "
+        "reboot_required=$true} | ConvertTo-Json -Compress")
     digest = hashlib.sha256(payload.encode()).hexdigest()
     if not apply:
         return _append_journal(root, {
@@ -505,7 +521,10 @@ def lsa(apply=False, plan=None, reason=None, root=".", enable=True) -> dict:
             "payload_sha256": digest, "status": "dry-run", "reason": reason,
             "undo": {"kind": "lsa"}, "preview": payload[:2000],
         })
-    entry = _check_plan(root, plan, "lsa", digest, reason)
+    blocked = _blocked(root)
+    if blocked:
+        return blocked
+    entry = _claim_plan(root, plan, "lsa", digest, reason)
     if "error" in entry:
         return entry
     rc, out = _ps(payload, timeout=60)
@@ -516,7 +535,8 @@ def lsa(apply=False, plan=None, reason=None, root=".", enable=True) -> dict:
     return _append_journal(root, {
         "control": "lsa", "enable": bool(enable), "payload_sha256": digest,
         "status": "applied", "reason": reason, "plan": plan,
-        "verification": result, "undo": {"kind": "lsa"},
+        "verification": result,
+        "undo": {"kind": "lsa", "previous": result.get("previous")},
     })
 
 
@@ -542,9 +562,24 @@ def _check_plan(root, plan, control, digest, reason) -> dict:
     if dry.get("payload_sha256") != digest:
         return {"error": f"--plan {plan} rendered a different payload; "
                          f"re-run the dry-run", "code": "REFUSED"}
-    if any(prevent_state(r) == "applied" and r.get("plan") == plan for r in rows):
+    if any(r.get("plan") == plan
+           and r.get("status") in ("claimed", "applied") for r in rows):
         return {"error": f"--plan {plan} has already been used",
                 "code": "REFUSED"}
+    return {}
+
+
+def _claim_plan(root, plan, control, digest, reason) -> dict:
+    """Atomically validate and claim a prevention plan before execution."""
+    lock = journal_path(root).parent / ".prevent-plan.lock"
+    with agentstate.lock(lock, timeout=15, stale=300):
+        error = _check_plan(root, plan, control, digest, reason)
+        if "error" in error:
+            return error
+        _append_journal(root, {
+            "control": control, "status": "claimed", "plan": plan,
+            "payload_sha256": digest, "reason": reason, "ts": _now(),
+        })
     return {}
 
 
@@ -561,8 +596,19 @@ def _parse_json_tail(rc: int, out: str):
     return None, out[:400]
 
 
-def rollback(root, entry_id: int, apply: bool = False) -> dict:
+def rollback(root, entry_id: int, apply: bool = False, plan=None,
+             reason=None) -> dict:
     root = Path(root)
+    if apply:
+        blocked = _blocked(root)
+        if blocked:
+            return blocked
+        if not reason or not str(reason).strip():
+            return {"error": "a --reason is mandatory for rollback apply",
+                    "code": "REFUSED"}
+        if plan is None:
+            return {"error": "--apply requires --plan <id> from a prior "
+                             "rollback dry-run", "code": "REFUSED"}
     rows = _read_journal(root)
     row = next((r for r in rows if int(r.get("id") or 0) == int(entry_id)), None)
     if not row:
@@ -583,28 +629,62 @@ def rollback(root, entry_id: int, apply: bool = False) -> dict:
             "[pscustomobject]@{removed=$true} | ConvertTo-Json -Compress")
     elif kind == "asr":
         previous = undo.get("previous") or {}
-        payload_lines = []
+        if not previous:
+            return {"error": f"entry {entry_id} has no captured ASR state; "
+                             "refusing a no-op rollback"}
+        payload_lines = ["$ErrorActionPreference='Stop'"]
         for rule, action in previous.items():
+            rule_text = str(rule)
+            action_text = str(action)
+            if not _GUID.match(rule_text) or action_text not in set(_ASR_ACTIONS.values()):
+                return {"error": f"entry {entry_id} has an invalid ASR restore recipe"}
             payload_lines.append(
-                f"Add-MpPreference -AttackSurfaceReductionRules_Ids '{rule}' "
-                f"-AttackSurfaceReductionRules_Actions {action} "
-                "-ErrorAction SilentlyContinue")
-        script = ("$ErrorActionPreference='Continue'\n"
-                  + "\n".join(payload_lines) +
+                f"Add-MpPreference -AttackSurfaceReductionRules_Ids {_q(rule_text)} "
+                f"-AttackSurfaceReductionRules_Actions {action_text}")
+        script = ("\n".join(payload_lines) +
                   "\n[pscustomobject]@{restored=$true} | ConvertTo-Json -Compress")
     elif kind == "lsa":
-        script = (
-            "$ErrorActionPreference='Stop'\n"
-            "$p='HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa'\n"
-            "Remove-ItemProperty -Path $p -Name RunAsPPL -Force "
-            "-ErrorAction SilentlyContinue\n"
-            "[pscustomobject]@{restored=$true; reboot_required=$true} "
-            "| ConvertTo-Json -Compress")
+        previous = undo.get("previous")
+        if previous is None:
+            script = (
+                "$ErrorActionPreference='Stop'\n"
+                "$p='HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa'\n"
+                "Remove-ItemProperty -Path $p -Name RunAsPPL -Force "
+                "-ErrorAction Stop\n"
+                "[pscustomobject]@{restored=$true; reboot_required=$true} "
+                "| ConvertTo-Json -Compress")
+        else:
+            try:
+                prior = int(previous)
+            except (TypeError, ValueError):
+                return {"error": f"entry {entry_id} has an invalid LSA restore value"}
+            script = (
+                "$ErrorActionPreference='Stop'\n"
+                "$p='HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Lsa'\n"
+                f"New-ItemProperty -Path $p -Name RunAsPPL -Value {prior} "
+                "-PropertyType DWord -Force | Out-Null\n"
+                "[pscustomobject]@{restored=$true; reboot_required=$true} "
+                "| ConvertTo-Json -Compress")
     else:
         return {"error": f"entry {entry_id} has no rollback recipe"}
+    digest = hashlib.sha256(script.encode()).hexdigest()
     if not apply:
+        row = _append_journal(root, {
+            "control": kind, "status": "dry-run", "rollback_of": entry_id,
+            "payload_sha256": digest, "reason": reason,
+            "script_preview": script[:2000],
+        })
         return {"entry": entry_id, "control": kind, "dry_run": True,
-                "script_preview": script[:2000]}
+                "plan": row.get("id"), "script_preview": script[:2000]}
+    dry = next((r for r in rows if int(r.get("id") or 0) == int(plan)), None)
+    if (not dry or dry.get("status") != "dry-run"
+            or dry.get("rollback_of") != entry_id
+            or dry.get("control") != kind):
+        return {"error": f"--plan {plan} is not a dry-run rollback of entry "
+                         f"{entry_id}", "code": "REFUSED"}
+    if dry.get("payload_sha256") != digest:
+        return {"error": f"--plan {plan} rendered a different rollback payload; "
+                         "re-run the dry-run", "code": "REFUSED"}
     rc, out = _ps(script, timeout=180)
     result, err = _parse_json_tail(rc, out)
     if result is None:

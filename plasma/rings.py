@@ -122,19 +122,45 @@ def allows(root, host: str, ring: str | None = None) -> bool:
     if target not in data["rings"]:
         return False
     wanted = str(host or "").strip().lower()
-    return (wanted in {str(h).lower() for h in data["rings"][target]}
-            or "*" in data["rings"][target])
+    members = {str(h).strip().lower() for h in data["rings"][target]}
+    if wanted in members or "*" in members:
+        return True
+    if target == "broad" and not members:
+        # A fresh fleet assigns only canary pilots. "Broad" means every
+        # host that is not explicitly in another ring.
+        for name, hosts in data["rings"].items():
+            if name == "broad":
+                continue
+            other = {str(h).strip().lower() for h in hosts}
+            if wanted in other or "*" in other:
+                return False
+        return True
+    return False
 
 
 def rollback(bin_exe) -> dict:
-    """Swap the canonical bin copy back to the previous release."""
+    """Swap the canonical bin copy back to the newest usable backup."""
     bin_exe = Path(bin_exe)
-    previous = bin_exe.with_name(bin_exe.name + ".old")
-    if not previous.exists():
+    candidates = [bin_exe.with_name(bin_exe.name + ".old")]
+    candidates += list(bin_exe.parent.glob(bin_exe.name + ".old.*"))
+    usable = [p for p in candidates if p.is_file()]
+    if not usable:
         return {"ok": False, "error": "no previous binary beside the current one",
-                "expected": str(previous)}
-    if bin_exe.exists():
-        current = bin_exe.with_name(bin_exe.name + ".failed")
-        os.replace(bin_exe, current)
-    os.replace(previous, bin_exe)
+                "expected": str(candidates[0])}
+    previous = max(usable, key=lambda p: p.stat().st_mtime)
+    failed = bin_exe.with_name(bin_exe.name + ".failed")
+    try:
+        if failed.exists():
+            failed.unlink()
+        if bin_exe.exists():
+            os.replace(bin_exe, failed)
+        try:
+            os.replace(previous, bin_exe)
+        except OSError:
+            if not bin_exe.exists() and failed.exists():
+                os.replace(failed, bin_exe)
+            raise
+    except OSError as exc:
+        return {"ok": False, "error": f"rollback failed: {exc}",
+                "bin": str(bin_exe), "restored_from": str(previous)}
     return {"ok": True, "bin": str(bin_exe), "restored_from": str(previous)}

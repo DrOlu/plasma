@@ -31,6 +31,7 @@ import sys
 import threading
 import time
 from contextlib import redirect_stderr, redirect_stdout
+from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import ClassVar
@@ -41,7 +42,7 @@ from .lifecycle import SERVE_REQUEST, require
 from .openapi import SPEC
 from .redact import redact_text
 
-DEFAULT_HOST = "0.0.0.0"
+DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 9999
 DEFAULT_API_KEY = "plasmaplasma"
 DEFAULT_TIMEOUT = 300
@@ -57,10 +58,13 @@ _VALIDATE_LOCK = threading.Lock()
 # Audit appends are serialized in-process before taking the cross-process
 # file lock; a lost audit row is a security event, not a cosmetic one.
 _AUDIT_LOCK = threading.Lock()
+# Keep handler logging off the process-global sys.stderr so validation
+# redirects cannot capture another request's log line.
+_LOG_STREAM = sys.stderr
 
 # Values after these flags are redacted in the audit log. The flag itself is
 # kept so the audit still shows what was asked.
-_SENSITIVE_FLAGS = {"--prompt"}
+_SENSITIVE_FLAGS = ("--prompt", "--system", "--api-key")
 
 # The routes described by the OpenAPI document. Kept here so a test can
 # assert the spec and the server do not drift apart.
@@ -175,6 +179,11 @@ MUTATING = (
     "control tenants add",
     "control tenants remove",
     "update apply",
+    "update auto",
+    "protect arm",
+    "protect disarm",
+    "sigma convert",
+    "deep persistence",
     "rollback",
     "ring assign",
     "ring promote",
@@ -222,9 +231,12 @@ class ServeError(Exception):
 def resolve_api_key(api_key: str | None = None,
                     api_key_file: str | None = None) -> str:
     """Resolve the bearer key: explicit, env, file, then the lab default."""
-    if api_key:
-        return api_key
-    env = os.environ.get("PLASMA_SERVE_API_KEY")
+    if api_key is not None:
+        text = str(api_key).strip()
+        if not text:
+            raise ServeError(2, "api_key", "an explicitly supplied API key is empty")
+        return text
+    env = (os.environ.get("PLASMA_SERVE_API_KEY") or "").strip()
     if env:
         return env
     if api_key_file:
@@ -247,7 +259,7 @@ def key_id(key: str) -> str:
 
 
 def command_path(argv: list[str]) -> str:
-    """The leading non-flag tokens, e.g. ['control','policy','set']."""
+    """Legacy best-effort path. Prefer ``_parsed_path`` after parsing."""
     parts: list[str] = []
     for token in argv:
         if token.startswith("-"):
@@ -258,11 +270,61 @@ def command_path(argv: list[str]) -> str:
     return " ".join(parts)
 
 
-def is_mutating(argv: list[str], path: str | None = None) -> bool:
-    """True when the command changes host or Plasma state."""
+@lru_cache(maxsize=1)
+def _func_paths() -> dict:
+    """Map each command handler back to its canonical parser path."""
+    from .cli import build_parser
+
+    parser = build_parser()
+    paths: dict = {}
+
+    def walk(node, path=()):
+        func = getattr(node, "_defaults", {}).get("func")
+        if func is not None and path:
+            paths.setdefault(func, " ".join(path))
+        for action in node._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                for name, child in action.choices.items():
+                    walk(child, path + (name,))
+
+    walk(parser)
+    return paths
+
+
+def _parsed_path(args) -> str:
+    func = getattr(args, "func", None)
+    return _func_paths().get(func, "") if func is not None else ""
+
+
+def _argv_value(argv: list[str], name: str) -> str | None:
+    for index, token in enumerate(argv):
+        if token == name and index + 1 < len(argv):
+            return argv[index + 1]
+        if token.startswith(name + "="):
+            return token.split("=", 1)[1]
+    return None
+
+
+def is_mutating(argv: list[str], path: str | None = None,
+                parsed=None) -> bool:
+    """True when the command changes host or Plasma state.
+
+    The path must come from the parsed namespace (``_parsed_path``), not
+    string scanning: options may precede the command name and a leading
+    ``--`` is still a valid argv.
+    """
     path = path if path is not None else command_path(argv)
-    if "--apply" in argv:
+    if "--apply" in argv or "--apply-prevention" in argv:
         return True
+    # Read-only previews of commands that otherwise write.
+    if path == "update auto" and "--check-only" in argv:
+        return False
+    if path == "sigma convert" and "--dry-run" in argv:
+        return False
+    if path == "deep persistence" and not _argv_value(argv, "--json-out"):
+        return False
+    if path == "manifest" and parsed is not None:
+        return getattr(parsed, "action", "") == "create"
     for prefix in MUTATING:
         if path == prefix or path.startswith(prefix + " "):
             return True
@@ -276,16 +338,21 @@ def is_long_running(path: str) -> bool:
     return False
 
 
-def _validate_argv(argv: list[str]) -> None:
+def _validate_argv(argv: list[str]):
     """Parse the argv with the real CLI parser before running it.
 
-    This catches unknown commands and missing arguments early, and keeps the
-    HTTP surface honest: it accepts exactly what the CLI accepts.
+    Returns the parsed namespace so the caller can derive the canonical
+    command path. This catches unknown commands and missing arguments early,
+    and keeps the HTTP surface honest: it accepts exactly what the CLI
+    accepts.
     """
     if not isinstance(argv, list) or not argv:
         raise ServeError(400, "argv", "argv must be a non-empty list of strings")
     if len(argv) > MAX_ARGV:
         raise ServeError(400, "argv", f"argv has more than {MAX_ARGV} items")
+    if argv[0] == "--":
+        raise ServeError(400, "argv",
+                         "a leading '--' is not accepted by the HTTP API")
     for item in argv:
         if not isinstance(item, str):
             raise ServeError(400, "argv", "every argv item must be a string")
@@ -298,11 +365,11 @@ def _validate_argv(argv: list[str]) -> None:
     out, err = io.StringIO(), io.StringIO()
     try:
         with _VALIDATE_LOCK, redirect_stdout(out), redirect_stderr(err):
-            parser.parse_args(argv)
+            return parser.parse_args(argv)
     except SystemExit as exc:
         code = exc.code if isinstance(exc.code, int) else 2
         if code == 0:
-            return  # --help / --version
+            return None  # --help / --version
         message = err.getvalue().strip() or out.getvalue().strip() or "invalid arguments"
         raise ServeError(400, "argv", message) from exc
 
@@ -330,6 +397,12 @@ def _cap(text: str, limit: int) -> tuple[str, bool]:
     return text[:limit], True
 
 
+def _is_sensitive_flag(token: str) -> bool:
+    name = token.split("=", 1)[0]
+    return any(name == flag or (len(name) >= 5 and flag.startswith(name))
+               for flag in _SENSITIVE_FLAGS)
+
+
 def _audit_argv(argv: list[str]) -> list[str]:
     """Redact secret-bearing values before they reach the audit log."""
     out: list[str] = []
@@ -339,9 +412,12 @@ def _audit_argv(argv: list[str]) -> list[str]:
             out.append("<redacted>")
             redact_next = False
             continue
-        if item in _SENSITIVE_FLAGS:
-            out.append(item)
-            redact_next = True
+        if _is_sensitive_flag(item):
+            if "=" in item:
+                out.append(item.split("=", 1)[0] + "=<redacted>")
+            else:
+                out.append(item)
+                redact_next = True
             continue
         out.append(redact_text(item))
     return out
@@ -381,11 +457,36 @@ def _kill_tree(proc: subprocess.Popen) -> None:
             pass
 
 
-def _run_child(cmd: list[str], env: dict, timeout: int) -> tuple[int, str, str]:
-    """Run one CLI invocation with a hard timeout and a tree kill.
+def _read_limited(stream, limit: int) -> tuple[str, bool]:
+    """Read a pipe with a hard byte budget; discard anything beyond it."""
+    chunks: list[str] = []
+    used = 0
+    truncated = False
+    while True:
+        chunk = stream.read(65536)
+        if not chunk:
+            break
+        size = len(chunk.encode("utf-8", "replace"))
+        if used + size <= limit:
+            chunks.append(chunk)
+            used += size
+        else:
+            keep = max(0, limit - used)
+            if keep:
+                chunks.append(chunk[:keep])
+            used = limit
+            truncated = True
+    return "".join(chunks), truncated
+
+
+def _run_child(cmd: list[str], env: dict, timeout: int,
+               max_output: int) -> tuple[int, str, str, bool]:
+    """Run one CLI invocation with a hard timeout, tree kill and byte cap.
 
     ``subprocess.run(timeout=...)`` kills only the direct child. Plasma
     commands spawn PowerShell, so a timeout must take the whole tree down.
+    Output is read incrementally so a runaway command cannot exhaust the
+    server's memory before the cap is applied.
     """
     kwargs: dict = {}
     if os.name == "nt":
@@ -403,19 +504,40 @@ def _run_child(cmd: list[str], env: dict, timeout: int) -> tuple[int, str, str]:
         env=env,
         **kwargs,
     )
+    result: dict = {}
+
+    def collect(name, pipe):
+        result[name] = _read_limited(pipe, max_output)
+
+    out_thread = threading.Thread(target=collect, args=("out", proc.stdout),
+                                  daemon=True)
+    err_thread = threading.Thread(target=collect, args=("err", proc.stderr),
+                                  daemon=True)
+    out_thread.start()
+    err_thread.start()
     try:
-        out, err = proc.communicate(timeout=timeout)
-        return proc.returncode, out or "", err or ""
+        proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         _kill_tree(proc)
         try:
-            proc.communicate(timeout=5)
+            proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             try:
                 proc.kill()
             except OSError:
                 pass
         raise
+    finally:
+        out_thread.join(timeout=5)
+        err_thread.join(timeout=5)
+        for stream in (proc.stdout, proc.stderr):
+            try:
+                stream.close()
+            except (AttributeError, OSError):
+                pass
+    out, out_cut = result.get("out", ("", False))
+    err, err_cut = result.get("err", ("", False))
+    return proc.returncode, out, err, out_cut or err_cut
 
 
 def _command_tree(parser, path: list[str] | None = None,
@@ -479,6 +601,32 @@ def _command_tree(parser, path: list[str] | None = None,
     return rows
 
 
+class _BoundedServer(ThreadingHTTPServer):
+    """Cap concurrent handlers so unauthenticated slow clients cannot grow
+    the thread pool without bound. The queue is deliberately small."""
+
+    daemon_threads = True
+    request_queue_size = 64
+
+    def __init__(self, *args, max_connections: int = 64, **kwargs):
+        self._slots = threading.BoundedSemaphore(max(1, int(max_connections)))
+        super().__init__(*args, **kwargs)
+
+    def process_request(self, request, client_address):
+        self._slots.acquire()
+        try:
+            super().process_request(request, client_address)
+        except Exception:
+            self._slots.release()
+            raise
+
+    def shutdown_request(self, request):
+        try:
+            super().shutdown_request(request)
+        finally:
+            self._slots.release()
+
+
 class _Handler(BaseHTTPRequestHandler):
     server_version = f"plasma-serve/{__version__}"
     protocol_version = "HTTP/1.1"
@@ -489,16 +637,29 @@ class _Handler(BaseHTTPRequestHandler):
 
     # -- plumbing ---------------------------------------------------------
 
+    def setup(self):
+        # TLS handshakes must run in the connection thread, not the accept
+        # loop. A client that connects and sends nothing would otherwise
+        # freeze every subsequent request.
+        if isinstance(self.request, ssl.SSLSocket):
+            self.request.settimeout(SOCKET_TIMEOUT)
+            self.request.do_handshake()
+        super().setup()
+
     def log_message(self, fmt, *args):
         if not self.cfg.get("quiet"):
-            sys.stderr.write(f"{self.address_string()} {fmt % args}\n")
-            sys.stderr.flush()
+            _LOG_STREAM.write(f"{self.address_string()} {fmt % args}\n")
+            _LOG_STREAM.flush()
 
     def _send_json(self, status: int, payload: dict) -> None:
         body = json.dumps(payload, default=str).encode("utf-8")
+        # One response per connection. This closes the request-smuggling
+        # window when an error path cannot consume the request body.
+        self.close_connection = True
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Connection", "close")
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
@@ -540,11 +701,16 @@ class _Handler(BaseHTTPRequestHandler):
         return False
 
     def _read_json(self) -> dict:
-        length = self.headers.get("Content-Length")
+        lengths = self.headers.get_all("Content-Length") or []
+        transfer = (self.headers.get("Transfer-Encoding") or "").strip().lower()
+        if transfer:
+            raise ServeError(400, "body",
+                             "Transfer-Encoding is not supported; send Content-Length")
+        if len(lengths) > 1:
+            raise ServeError(400, "body",
+                             "multiple Content-Length headers are not allowed")
+        length = lengths[0] if lengths else None
         if length is None:
-            if self.headers.get("Transfer-Encoding", "").lower() == "chunked":
-                raise ServeError(411, "length_required",
-                                 "chunked bodies are not supported; send Content-Length")
             raise ServeError(411, "length_required", "Content-Length is required")
         try:
             size = int(length)
@@ -628,6 +794,8 @@ class _Handler(BaseHTTPRequestHandler):
             from .cli import build_parser
             rows = _command_tree(build_parser())
             root = rows[0]
+            root["long_running"] = False
+            root["mutating"] = False
             commands = rows[1:]
             for row in commands:
                 row["long_running"] = is_long_running(" ".join(row["path"]))
@@ -681,24 +849,33 @@ class _Handler(BaseHTTPRequestHandler):
             state = target
 
         try:
-            _validate_argv(argv)
+            parsed = _validate_argv(argv)
         except ServeError:
             move("rejected")
             raise
         move("validated")
-        path = command_path(argv)
+        path = _parsed_path(parsed) if parsed is not None else command_path(argv)
         if is_long_running(path):
             move("rejected")
             raise ServeError(400, "long_running",
                              f"{path!r} does not return; run it from the CLI")
-        if self.cfg["read_only"] and is_mutating(argv, path):
+        mutating = is_mutating(argv, path, parsed)
+        if self.cfg["read_only"] and mutating:
             move("rejected")
             raise ServeError(403, "read_only",
                              f"{path!r} changes state and this server is read-only")
+        # A mutation that cannot be audited must not run.
+        if mutating and self.cfg["audit"] and not self._audit(
+                argv, path, None, 0.0, "started"):
+            move("failed")
+            raise ServeError(500, "audit",
+                             "cannot write the audit row; refusing to mutate")
 
         env = os.environ.copy()
         env.pop("PLASMA_SERVE_API_KEY", None)
         env["PLASMA_SERVE_CHILD"] = "1"
+        if self.cfg.get("root"):
+            env["PLASMA_ROOT"] = str(self.cfg["root"])
         # The child's stdout is a pipe, not a console. Force UTF-8 so a
         # non-ASCII command output is not mangled by the Windows code page.
         env["PYTHONIOENCODING"] = "utf-8"
@@ -706,8 +883,9 @@ class _Handler(BaseHTTPRequestHandler):
         started = time.time()
         move("running")
         try:
-            returncode, stdout, stderr = _run_child(
-                _child_command(argv), env, self.cfg["timeout"])
+            returncode, stdout, stderr, child_cut = _run_child(
+                _child_command(argv), env, self.cfg["timeout"],
+                self.cfg["max_output"])
         except subprocess.TimeoutExpired as exc:
             move("timed_out")
             elapsed = round((time.time() - started) * 1000, 1)
@@ -735,7 +913,7 @@ class _Handler(BaseHTTPRequestHandler):
             "stdout": stdout,
             "stderr": stderr,
             "result": result,
-            "truncated": out_cut or err_cut,
+            "truncated": child_cut or out_cut or err_cut,
             "duration_ms": elapsed,
         }
 
@@ -765,11 +943,19 @@ def make_server(root=None, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT,
                 tls_key: str | None = None, timeout: int = DEFAULT_TIMEOUT,
                 max_body: int = DEFAULT_MAX_BODY,
                 max_output: int = DEFAULT_MAX_OUTPUT,
-                audit: bool = True, quiet: bool = False):
+                audit: bool = True, quiet: bool = False,
+                allow_insecure_default_key: bool = False):
     """Build (but do not start) the HTTP server. Returns (server, key)."""
     if (tls_cert is None) != (tls_key is None):
         raise ServeError(2, "tls", "TLS needs both --tls-cert and --tls-key")
     key = resolve_api_key(api_key, api_key_file)
+    if key == DEFAULT_API_KEY and not allow_insecure_default_key \
+            and host not in ("127.0.0.1", "localhost", "::1"):
+        raise ServeError(
+            2, "insecure_key",
+            "refusing to expose the default API key on a non-loopback "
+            "address; use --api-key-file, PLASMA_SERVE_API_KEY, or "
+            "--allow-insecure-default-key for a controlled lab")
     cfg = {
         "root": root,
         "api_key": key,
@@ -786,12 +972,14 @@ def make_server(root=None, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT,
         pass
 
     Handler.cfg = cfg
-    server = ThreadingHTTPServer((host, int(port)), Handler)
-    server.daemon_threads = True
+    server = _BoundedServer((host, int(port)), Handler)
     if tls_cert and tls_key:
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.load_cert_chain(certfile=tls_cert, keyfile=tls_key)
-        server.socket = context.wrap_socket(server.socket, server_side=True)
+        # do_handshake_on_connect=False: _Handler.setup() performs the
+        # handshake in the per-connection thread under a timeout.
+        server.socket = context.wrap_socket(
+            server.socket, server_side=True, do_handshake_on_connect=False)
     return server, key
 
 
@@ -800,13 +988,15 @@ def serve(root=None, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT,
           read_only: bool = False, tls_cert: str | None = None,
           tls_key: str | None = None, timeout: int = DEFAULT_TIMEOUT,
           max_body: int = DEFAULT_MAX_BODY, max_output: int = DEFAULT_MAX_OUTPUT,
-          audit: bool = True, quiet: bool = False) -> int:
+          audit: bool = True, quiet: bool = False,
+          allow_insecure_default_key: bool = False) -> int:
     """Run the HTTP API until interrupted."""
     server, key = make_server(
         root=root, host=host, port=port, api_key=api_key,
         api_key_file=api_key_file, read_only=read_only, tls_cert=tls_cert,
         tls_key=tls_key, timeout=timeout, max_body=max_body,
         max_output=max_output, audit=audit, quiet=quiet,
+        allow_insecure_default_key=allow_insecure_default_key,
     )
     bound_host, bound_port = server.server_address[:2]
     scheme = "https" if tls_cert else "http"
@@ -824,10 +1014,25 @@ def serve(root=None, host: str = DEFAULT_HOST, port: int = DEFAULT_PORT,
               "non-loopback address. Set --api-key-file or "
               "PLASMA_SERVE_API_KEY before exposing this port.",
               file=sys.stderr, flush=True)
+    previous_term = None
+
+    def _terminate(_signum, _frame):
+        # shutdown() must run outside the serve_forever thread.
+        threading.Thread(target=server.shutdown, daemon=True).start()
+
+    try:
+        previous_term = signal.signal(signal.SIGTERM, _terminate)
+    except (ValueError, OSError):
+        previous_term = None
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        if previous_term is not None:
+            try:
+                signal.signal(signal.SIGTERM, previous_term)
+            except (ValueError, OSError):
+                pass
         server.server_close()
     return 0

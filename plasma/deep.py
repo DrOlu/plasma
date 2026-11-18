@@ -13,6 +13,7 @@ C:\\Windows — a heuristic, surfaced as data, never as an automatic action.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 
@@ -79,11 +80,10 @@ def _run_ps(cap: int = 200) -> dict:
     if not exe:
         return {"error": "powershell not available on this host"}
     try:
-        proc = subprocess.run(
-            [exe, "-NoProfile", "-NonInteractive", "-Command",
+        proc = subprocess.run([exe, "-NoProfile", "-NonInteractive", "-Command",
              _PS_TEMPLATE.format(cap=int(cap))],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=180)
+            timeout=180, check=False)
     except subprocess.TimeoutExpired:
         return {"error": "persistence probe timeout"}
     text = (proc.stdout or "").strip()
@@ -103,7 +103,18 @@ def normalize(payload: dict, windows_dir: str = _WINDOWS.lower()) -> dict:
     out = []
     for r in rows:
         path = str(r.get("path") or "").strip()
-        key = path.lower().strip('"')
+        binary = path
+        if binary.startswith('"') and '"' in binary[1:]:
+            binary = binary[1:binary.find('"', 1)]
+        else:
+            match = re.match(
+                r"^(.+?\.(?:exe|dll|scr|com|ps1|bat|cmd|vbs|js|hta|msi))"
+                r"(?=\s|$)", path, re.IGNORECASE)
+            if match:
+                binary = match.group(1)
+            else:
+                binary = re.split(r"\s+[-/]", path, maxsplit=1)[0]
+        key = binary.lower().strip('"')
         sig = sigs.get(key) or {}
         signed = sig.get("signed")
         in_windows = key.startswith(windows_dir)

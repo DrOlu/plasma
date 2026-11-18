@@ -102,7 +102,7 @@ def main(argv=None) -> int:
 
     proc = subprocess.run([args.wix, "build", str(wxs_path), "-o", str(out)],
                           capture_output=True, text=True, encoding="utf-8",
-                          errors="replace", timeout=600)
+                          errors="replace", timeout=600, check=False)
     if proc.returncode != 0:
         sys.stderr.write((proc.stdout or "")[-1500:] + "\n" + (proc.stderr or "")[-1500:])
         return proc.returncode or 1

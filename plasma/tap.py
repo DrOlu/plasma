@@ -1,3 +1,4 @@
+# ruff: noqa: ISC004
 """Plasma ETW tap control plane (Python side of plasma-tap.exe).
 
 The C++ tap (tap/plasma-tap.cpp, krabsetw) streams gap providers, scores
@@ -22,6 +23,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from .redact import redact_text
+
 TAP_PROVIDER_ALIASES = {
     "powershell": "Microsoft-Windows-PowerShell",
     "wmi": "Microsoft-Windows-WMI-Activity",
@@ -44,7 +47,7 @@ def load_rules(path) -> list[dict]:
     blob = json.loads(Path(path).read_text(encoding="utf-8"))
     rules = blob.get("rules")
     if not isinstance(rules, list):
-        raise ValueError("rules file has no 'rules' array")
+        raise TypeError("rules file has no 'rules' array")
     seen = set()
     for r in rules:
         name = r.get("name", "")
@@ -94,9 +97,8 @@ def parse_duration(text: str) -> int:
 
 def selftest(tap_exe, rules_txt: Path) -> dict:
     try:
-        proc = subprocess.run(
-            [str(tap_exe), "--rules", str(rules_txt), "--selftest"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        proc = subprocess.run([str(tap_exe), "--rules", str(rules_txt), "--selftest"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "error": f"tap selftest failed to run: {exc}"}
     try:
@@ -112,14 +114,13 @@ def run(tap_exe, providers, seconds: int, out_path, rules_txt: Path,
         max_matches: int = 500) -> dict:
     """Run the tap for a bounded window. Never raises for tap-side failures."""
     try:
-        proc = subprocess.run(
-            [str(tap_exe),
+        proc = subprocess.run([str(tap_exe),
              "--rules", str(rules_txt),
              "--out", str(out_path),
              "--providers", ",".join(providers),
              "--for", str(int(seconds)),
              "--max-matches", str(int(max_matches))],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=seconds + 30)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=seconds + 30, check=False)
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": "tap exceeded its window + grace period"}
     except OSError as exc:
@@ -153,13 +154,18 @@ def normalize_match(row: dict, host: str = "localhost") -> dict:
     event_id = row.get("event_id") or 0
     alert_id = _clip("tap:" + str(row.get("rule", "unknown")), 64)
     cmdline = props.get("ScriptBlockText") or props.get("CommandLine")
+    if cmdline is not None:
+        cmdline = redact_text(str(cmdline))
     technique = row.get("technique")
     if not technique or not _TECHNIQUE.match(technique):
         technique = None
+    snippet = row.get("snippet")
+    if snippet is not None:
+        snippet = redact_text(str(snippet))
     description_parts = [
         f"tap match {row.get('rule')} on {row.get('provider')}"
         f"/{row.get('event_name') or event_id} ({row.get('field')})",
-        _clip(row.get("snippet"), 300),
+        _clip(snippet, 300),
     ]
     # ASCII-only joiner: event JSONL travels through Windows pipes (WinRM,
     # console codepages) where smart punctuation gets mangled into quote
@@ -182,7 +188,9 @@ def normalize_match(row: dict, host: str = "localhost") -> dict:
         "user": _clip(props.get("TargetUserName") or props.get("SubjectUserName"), 128),
         "cmdline": _clip(cmdline, 8192),
         "dns_query": _clip(props.get("QueryName"), 253),
-        "file_path": _clip(props.get("Path") or props.get("FileName"), 4096),
+        "file_path": _clip(redact_text(props.get("Path") or props.get("FileName"))
+                            if (props.get("Path") or props.get("FileName")) else None,
+                            4096),
     }
     return {k: v for k, v in event.items() if v is not None}
 
@@ -203,7 +211,7 @@ def collect(matches_path, events_path, host: str = "localhost") -> dict:
 
     existing = set()
     if events.exists():
-        for ln in events.read_text(encoding="utf-8").splitlines():
+        for ln in events.read_text(encoding="utf-8-sig", errors="replace").splitlines():
             if not ln.strip():
                 continue
             try:
@@ -214,8 +222,10 @@ def collect(matches_path, events_path, host: str = "localhost") -> dict:
 
     written = already = skipped = 0
     events.parent.mkdir(parents=True, exist_ok=True)
+    from . import agentstate
+    agentstate.ensure_trailing_newline(events)
     with events.open("a", encoding="utf-8") as out:
-        for ln in matches.read_text(encoding="utf-8").splitlines():
+        for ln in matches.read_text(encoding="utf-8-sig", errors="replace").splitlines():
             if not ln.strip():
                 continue
             try:

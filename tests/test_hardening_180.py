@@ -13,9 +13,24 @@ from pathlib import Path
 
 import pytest
 
-from plasma import (actuate, agentstate, canary, chain, deep, fleet, health,
-                    identity, killswitch, ledger, mcp, playbooks, policy,
-                    store, watch, whids, tenants)
+from plasma import (
+    actuate,
+    agentstate,
+    canary,
+    chain,
+    deep,
+    health,
+    identity,
+    killswitch,
+    ledger,
+    mcp,
+    playbooks,
+    policy,
+    store,
+    tenants,
+    watch,
+    whids,
+)
 
 
 def _ok_run(payload, timeout=60):
@@ -90,7 +105,7 @@ def test_isolation_verifies_management_allows_before_booking_blocks():
 
 
 def test_wmi_capture_and_undo_use_names_not_serialized_cim_objects():
-    payload, capture, _ = actuate._build_disable_wmi_sub()
+    payload, _capture, _ = actuate._build_disable_wmi_sub()
     assert "filter_name=$_.Filter.Name" in payload
     assert "consumer_class=$_.Consumer.CimClass.CimClassName" in payload
 
@@ -123,7 +138,8 @@ def test_playbook_refuses_a_truncated_step_plan(tmp_path, monkeypatch):
     # Simulate a crash that journaled only the first step of the playbook.
     damaged = {"id": dry["id"] + 1000, "action": "playbook:contain-user",
                "target": "bob", "reason": "x", "mode": "dry-run",
-               "steps": dry["steps"][:1]}
+               "steps": dry["steps"][:1],
+                   "ts": actuate._now()}
     actuate._journal_append(tmp_path, damaged)
     res = playbooks.execute(tmp_path, "contain-user", target="bob", reason="x",
                             apply=True, plan=damaged["id"])
@@ -369,6 +385,7 @@ def test_mcp_local_mutation_uses_local_host_for_killswitch(tmp_path, monkeypatch
 
 def test_cli_actuate_apply_refusal_is_exit_two(tmp_path, capsys):
     from argparse import Namespace
+
     from plasma import cli
     args = Namespace(action="quarantine_file", root=tmp_path,
                      target=r"C:\Windows\System32\cmd.exe", reason="x",
@@ -722,7 +739,6 @@ def test_gene_rule_rejects_rule_injection_in_dns():
 
 
 def test_mcp_read_events_is_tenant_scoped(tmp_path, monkeypatch):
-    import socket
     data = tmp_path / "data"
     data.mkdir()
     (data / "events.jsonl").write_text(

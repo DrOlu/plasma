@@ -503,5 +503,5 @@ def test_run_child_timeout_kills_process():
     with pytest.raises(subprocess.TimeoutExpired):
         serve._run_child(
             [sys.executable, "-c", "import time; time.sleep(5)"],
-            os.environ.copy(), 0.2,
+            os.environ.copy(), 0.2, 1024,
         )

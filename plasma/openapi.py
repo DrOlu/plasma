@@ -131,6 +131,8 @@ SPEC: dict = {
                     "403": {"$ref": "#/components/responses/Forbidden"},
                     "404": {"$ref": "#/components/responses/NotFound"},
                     "405": {"$ref": "#/components/responses/MethodNotAllowed"},
+                    "408": {"$ref": "#/components/responses/RequestTimeout"},
+                    "411": {"$ref": "#/components/responses/LengthRequired"},
                     "413": {"$ref": "#/components/responses/PayloadTooLarge"},
                     "500": {"$ref": "#/components/responses/InternalError"},
                     "504": {"$ref": "#/components/responses/Timeout"},
@@ -341,6 +343,22 @@ SPEC: dict = {
             },
             "MethodNotAllowed": {
                 "description": "Only GET and POST are supported",
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/Error"}
+                    }
+                },
+            },
+            "RequestTimeout": {
+                "description": "The request body was not received in time",
+                "content": {
+                    "application/json": {
+                        "schema": {"$ref": "#/components/schemas/Error"}
+                    }
+                },
+            },
+            "LengthRequired": {
+                "description": "A Content-Length header is required",
                 "content": {
                     "application/json": {
                         "schema": {"$ref": "#/components/schemas/Error"}

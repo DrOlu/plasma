@@ -29,8 +29,9 @@ import hashlib
 import json
 import shutil
 import subprocess
-import sys
 from pathlib import Path
+
+from . import agentstate
 
 TASK_NAME = "PlasmaIdentityPull"
 DEFAULT_IDS = (4624, 4625, 4688, 4768, 4769, 4770, 4771, 4776)
@@ -50,9 +51,15 @@ SCORE_BY_ID = {4624: 0.2, 4625: 0.5, 4688: 0.2, 4768: 0.2, 4769: 0.2,
 KIND_BY_ID = {PROCESS_ID: "process"}
 
 _PS_TEMPLATE = r"""
-$ErrorActionPreference = 'SilentlyContinue'
+$ErrorActionPreference = 'Stop'
 $since = (Get-Date).AddMinutes(-{since_minutes})
-$ev = Get-WinEvent -FilterHashtable @{{ LogName='Security'; Id={ids}; StartTime=$since }} -MaxEvents {max_events} -ErrorAction SilentlyContinue
+try {{
+  $ev = Get-WinEvent -FilterHashtable @{{ LogName='Security'; Id={ids}; StartTime=$since }} -MaxEvents {max_events} -ErrorAction Stop
+}} catch {{
+  [pscustomobject]@{{ events = @(); error = $_.Exception.Message }} |
+    ConvertTo-Json -Depth 4 -Compress
+  exit 0
+}}
 $rows = @()
 foreach ($e in $ev) {{
   $x = [xml]$e.ToXml(); $d = @{{}}
@@ -74,7 +81,8 @@ foreach ($e in $ev) {{
     package = $d['PackageName']
   }}
 }}
-$rows | ConvertTo-Json -Depth 4 -Compress
+[pscustomobject]@{{ events = @($rows); error = $null }} |
+  ConvertTo-Json -Depth 4 -Compress
 """
 
 
@@ -114,18 +122,35 @@ def _run_ps(since_minutes: int, ids=DEFAULT_IDS,
         max_events=int(max_events))
     try:
         proc = subprocess.run([exe, "-NoProfile", "-NonInteractive", "-Command", payload],
-                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, check=False)
     except subprocess.TimeoutExpired:
         return {"error": "identity collector timeout"}
     text = (proc.stdout or "").strip()
     if not text:
-        return {"events": []}
+        detail = (proc.stderr or "").strip()[-500:]
+        return {"error": "identity collector produced no output"
+                         + (f": {detail}" if detail else ""),
+                "rc": proc.returncode}
     try:
-        rows = json.loads(text.splitlines()[-1])
+        payload = json.loads(text.splitlines()[-1])
     except json.JSONDecodeError:
-        return {"error": "identity collector did not emit JSON"}
-    if isinstance(rows, dict):      # single row
-        rows = [rows]
+        return {"error": "identity collector did not emit JSON",
+                "rc": proc.returncode}
+    if isinstance(payload, dict) and "events" in payload:
+        if payload.get("error"):
+            return {"error": str(payload["error"])[:500],
+                    "rc": proc.returncode}
+        rows = payload.get("events") or []
+    elif isinstance(payload, dict):      # single row (older collector)
+        rows = [payload]
+    elif isinstance(payload, list):
+        rows = payload
+    else:
+        return {"error": "identity collector returned an unexpected shape",
+                "rc": proc.returncode}
+    if proc.returncode not in (0, None):
+        return {"error": f"identity collector exited {proc.returncode}",
+                "rc": proc.returncode}
     return {"events": rows}
 
 
@@ -304,7 +329,7 @@ def pull(events_path, host: str, since_minutes: int = 15,
 
     existing = set()
     if events.exists():
-        for ln in events.read_text(encoding="utf-8", errors="replace").splitlines():
+        for ln in events.read_text(encoding="utf-8-sig", errors="replace").splitlines():
             if ln.strip():
                 try:
                     existing.add(hashlib.sha256(
@@ -316,6 +341,7 @@ def pull(events_path, host: str, since_minutes: int = 15,
     written = 0
     by_id: dict[str, int] = {}
     events.parent.mkdir(parents=True, exist_ok=True)
+    agentstate.ensure_trailing_newline(events)
     with events.open("a", encoding="utf-8") as out:
         for row in rows:
             try:
@@ -344,10 +370,9 @@ def _ps_task(script: str, timeout: int = 120) -> tuple[int, str]:
     if not exe:
         return 1, "powershell not available"
     try:
-        proc = subprocess.run(
-            [exe, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
+        proc = subprocess.run([exe, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script],
             capture_output=True, text=True, encoding="utf-8",
-            errors="replace", timeout=timeout)
+            errors="replace", timeout=timeout, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return 1, str(exc)[:200]
     return proc.returncode, ((proc.stdout or "") + (proc.stderr or "")).strip()
@@ -374,7 +399,14 @@ def schedule(root, every_minutes: int = 15, exe=None) -> dict:
     """
     minutes = max(1, min(int(every_minutes), 1440))
     root = Path(root)
-    exe = exe or _canonical_exe(root) or sys.executable
+    exe = exe or _canonical_exe(root)
+    if not exe:
+        return {"ok": False, "task": TASK_NAME,
+                "error": "no Plasma executable under <root>/bin; "
+                         "pass --exe with the installed plasma.exe"}
+    if not str(exe).lower().endswith(".exe"):
+        return {"ok": False, "task": TASK_NAME,
+                "error": f"task executable is not a Windows .exe: {exe}"}
     events = root / "data" / "events.jsonl"
     argument = f'identity pull --events "{events}" --since {minutes}'
     script = (

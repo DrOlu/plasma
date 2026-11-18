@@ -1,13 +1,15 @@
 import json
 import shutil
+from pathlib import Path
 
 from models import PlasmaEvent
+
 from plasma import whids
 
 
 def load_fixture():
     return [json.loads(ln) for ln in
-            open("tests/fixtures/whids_alerts.jsonl", encoding="utf-8").read().splitlines()
+            Path("tests/fixtures/whids_alerts.jsonl").read_text(encoding="utf-8").splitlines()
             if ln.strip()]
 
 
@@ -51,7 +53,7 @@ def test_non_alert_ignored():
 
 def test_pull_dedupe(tmp_path):
     out = tmp_path / "plasma" / "events.jsonl"
-    whids_seed = seed(tmp_path / "whids")
+    seed(tmp_path / "whids")
     first = whids.pull(tmp_path / "whids", out, host="WS1")
     assert first["alerts"] == 4
     assert first["written"] == 4
@@ -70,7 +72,7 @@ def test_pull_missing_logs(tmp_path):
 
 def test_extract_indicators_filters():
     rows = [json.loads(ln) for ln in
-            open("tests/fixtures/whids_alerts.jsonl", encoding="utf-8").read().splitlines() if ln.strip()]
+            Path("tests/fixtures/whids_alerts.jsonl").read_text(encoding="utf-8").splitlines() if ln.strip()]
     events = [whids.normalize_alert(row) for row in rows]
     iocs = whids.extract_indicators([e for e in events if e], min_confidence=8)
     indicators = {i["indicator"] for i in iocs}
@@ -84,7 +86,7 @@ def test_extract_indicators_filters():
 def test_normalize_v170_live_alert():
     """Real WHIDS v1.7.0 alert (Event.GeneInfo, no Detection wrapper)."""
     rows = [json.loads(ln) for ln in
-            open("tests/fixtures/whids_alerts_v170_live.jsonl", encoding="utf-8").read().splitlines()
+            Path("tests/fixtures/whids_alerts_v170_live.jsonl").read_text(encoding="utf-8").splitlines()
             if ln.strip()]
     event = whids.normalize_alert(rows[0], host="WS2")
     assert event is not None
@@ -99,7 +101,7 @@ def test_normalize_v170_live_alert():
 
 def test_detect_only_posture():
     """WHIDS ships neutered: no kill/blacklist/dump actions anywhere."""
-    lines = [ln for ln in open("sensors/whids.toml", encoding="utf-8")
+    lines = [ln for ln in Path("sensors/whids.toml").read_text(encoding="utf-8").splitlines()
              if ln.strip() and not ln.strip().startswith("#")]
     toml = "\n".join(lines)
     for forbidden in ("kill", "blacklist", "memdump", "filedump", "regdump"):

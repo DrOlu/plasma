@@ -7,7 +7,8 @@ typed tools? Run them in CI and before enabling a higher autonomy tier.
 
 from __future__ import annotations
 
-from . import policy as policy_mod, tools
+from . import policy as policy_mod
+from . import tools
 
 
 def _scenario(name, tool, args, context, policy, expect, recent=0,

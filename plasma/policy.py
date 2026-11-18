@@ -33,22 +33,53 @@ def policy_path(root=None) -> Path:
     return agentstate.base(root) / POLICY_FILE
 
 
-def load(root=None) -> dict:
-    data = agentstate.read_json(policy_path(root), {}) or {}
+def _str_list(value) -> list[str]:
+    if isinstance(value, str):
+        return [value] if value.strip() else []
+    if isinstance(value, (list, tuple, set)):
+        return [str(v) for v in value if str(v).strip()]
+    return []
+
+
+def _normalize(policy: dict) -> dict:
     merged = copy.deepcopy(DEFAULT_POLICY)
-    if isinstance(data, dict):
-        for key, value in data.items():
-            merged[key] = value
+    if isinstance(policy, dict):
+        merged.update(policy)
     if merged.get("autonomy") not in AUTONOMY:
         merged["autonomy"] = "supervised"
+    merged["allow"] = _str_list(merged.get("allow"))
+    merged["deny"] = _str_list(merged.get("deny"))
+    approvals = merged.get("require_approval")
+    if isinstance(approvals, dict):
+        merged["require_approval"] = {
+            str(k): bool(v) for k, v in approvals.items()
+        }
+    else:
+        merged["require_approval"] = {"high": True, "critical": True}
+    merged["allow_critical"] = bool(merged.get("allow_critical", False))
+    try:
+        merged["max_actions_per_minute"] = max(
+            1, int(merged.get("max_actions_per_minute", 30)))
+    except (TypeError, ValueError):
+        merged["max_actions_per_minute"] = 30
+    try:
+        merged["max_hosts_per_action"] = max(
+            1, int(merged.get("max_hosts_per_action", 1)))
+    except (TypeError, ValueError):
+        merged["max_hosts_per_action"] = 1
     return merged
 
 
+def load(root=None) -> dict:
+    data = agentstate.read_json(policy_path(root), {}) or {}
+    return _normalize(data if isinstance(data, dict) else {})
+
+
 def save(root, policy: dict) -> dict:
-    merged = copy.deepcopy(DEFAULT_POLICY)
-    merged.update(policy or {})
-    if merged.get("autonomy") not in AUTONOMY:
+    requested = (policy or {}).get("autonomy")
+    if requested is not None and requested not in AUTONOMY:
         raise ValueError("autonomy must be assist, supervised or autonomous")
+    merged = _normalize(policy or {})
     with agentstate.lock(policy_path(root).with_suffix(".lock"), stale=300):
         agentstate.write_json(policy_path(root), merged)
     return merged
@@ -113,13 +144,13 @@ def evaluate(tool_name: str, args: dict | None, context: dict | None = None,
         reasons.append(f"blast radius {len(hosts)} exceeds limit {cap}")
         return _decision(False, False, "denied", spec, policy, reasons)
 
-    limit = _int(policy.get("max_actions_per_minute"), 0)
+    if risk == "read":
+        return _decision(True, False, "allow", spec, policy, ["read-only tool"])
+
+    limit = _int(policy.get("max_actions_per_minute"), 30)
     if limit and recent_actions >= limit:
         reasons.append(f"rate limit reached ({limit}/min)")
         return _decision(False, False, "denied", spec, policy, reasons)
-
-    if risk == "read":
-        return _decision(True, False, "allow", spec, policy, ["read-only tool"])
 
     allow = set(policy.get("allow") or [])
     autonomy = policy.get("autonomy", "supervised")

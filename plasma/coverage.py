@@ -235,8 +235,11 @@ def collect_rule_techniques(sensors_dir=None) -> dict:
                 if label == "sigma":
                     # Converted SigmaHQ rules carry the upstream level as
                     # criticality; weight them by that, not by name.
-                    criticality = int((obj.get("Meta") or {}).get(
-                        "Criticality", 6) or 6)
+                    try:
+                        criticality = int((obj.get("Meta") or {}).get(
+                            "Criticality", 6) or 6)
+                    except (TypeError, ValueError):
+                        criticality = 6
                     fidelity = ("high" if criticality >= 8 else
                                 "medium" if criticality >= 6 else "low")
                 else:

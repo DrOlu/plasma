@@ -1,3 +1,4 @@
+# ruff: noqa: ISC004
 """Two-way WHIDS integration (replaces the Sentinel adapter).
 
 PULL   WHIDS alerts -> normalized Plasma events
@@ -30,6 +31,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import agentstate
 from .lifecycle import whids_state
 from .redact import redact_text
 
@@ -205,20 +207,20 @@ def _benign_context(rule_name: str, event_data: dict) -> str | None:
                    "officeclicktorun.exe", "infdefaultinstall.exe"}
         if image in writers and image not in lolbins:
             return f"expected installer/service writer ({image})"
-    if "scheduled task create" in rule:
-        if parent in {"msiexec.exe", "trustedinstaller.exe", "svchost.exe",
-                      "setup.exe", "update.exe"}:
-            return f"task created by expected installer parent ({parent})"
+    if "scheduled task create" in rule and parent in {
+            "msiexec.exe", "trustedinstaller.exe", "svchost.exe",
+            "setup.exe", "update.exe"}:
+        return f"task created by expected installer parent ({parent})"
     if "file delete by lolbin" in rule:
         target = str(_get_flat(event_data, "TargetFilename") or "")
         name = _base_name(target).lower()
         if image == "powershell.exe" and name.startswith("__psscriptpolicytest_"):
             return "PowerShell policy-test scratch file"
-    if "encoded cmd" in rule:
-        if parent in {"svchost.exe", "taskeng.exe", "taskhostw.exe"} and (
-                user in ("system", "nt authority\\system")
-                or user.endswith("\\system")):
-            return f"SYSTEM-encoded command from {parent}"
+    if "encoded cmd" in rule and parent in {
+            "svchost.exe", "taskeng.exe", "taskhostw.exe"} and (
+            user in ("system", "nt authority\\system")
+            or user.endswith("\\system")):
+        return f"SYSTEM-encoded command from {parent}"
     return None
 
 
@@ -241,7 +243,10 @@ def normalize_alert(alert: dict, host: str | None = None):
         signature = [signature]
     rule_name = str(signature[0]) if signature else "WHIDS detection"
 
-    criticality = float(_dig(detection, "Criticality", default=0) or 0)
+    try:
+        criticality = float(_dig(detection, "Criticality", default=0) or 0)
+    except (TypeError, ValueError):
+        criticality = 0.0
     actions = _dig(detection, "Actions", default=[]) or []
     attack = _dig(detection, "ATTACK", default=[]) or []
     technique = None
@@ -278,7 +283,7 @@ def normalize_alert(alert: dict, host: str | None = None):
         "host": str(_dig(alert, "Computer", "Hostname", default=host or socket_hostname())),
         "source": "whids",
         "kind": "alert",
-        "event_id": int(_dig(alert, "EventID", default=0) or 0),
+        "event_id": _safe_int(_dig(alert, "EventID", default=0)),
         "severity": _severity(criticality),
         "user": user,
         "process": _base_name(image),
@@ -347,8 +352,22 @@ def _get_flat(obj: dict, *names):
 # PULL
 # ---------------------------------------------------------------------------
 
+def _safe_int(value, default=0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _alert_key(event: dict) -> tuple:
-    return (event.get("alert_id"), str(event.get("ts")), event.get("pid"), event.get("process"))
+    # Content is part of the identity. Two registry writes by the same
+    # process in the same second are distinct alerts, not duplicates.
+    return (
+        event.get("alert_id"), str(event.get("ts")), event.get("pid"),
+        event.get("process"), event.get("file_path"), event.get("registry_path"),
+        event.get("dest_ip"), event.get("dns_query"), event.get("cmdline"),
+        event.get("file_hash"),
+    )
 
 
 def alert_files(root: str | Path | None = None) -> list[Path]:
@@ -445,7 +464,11 @@ def pull(root: str | Path | None = None, out: str | Path | None = None,
                 except json.JSONDecodeError:
                     skipped += 1
                     continue
-                event = normalize_alert(record, host=host)
+                try:
+                    event = normalize_alert(record, host=host)
+                except (TypeError, ValueError, KeyError):
+                    skipped += 1
+                    continue
                 if event is None:
                     skipped += 1
                     continue
@@ -454,7 +477,7 @@ def pull(root: str | Path | None = None, out: str | Path | None = None,
     existing_keys = set()
     existing_storms = []
     if target.exists():
-        with open(target, "r", encoding="utf-8", errors="replace") as fh:
+        with open(target, "r", encoding="utf-8-sig", errors="replace") as fh:
             for line in fh:
                 try:
                     prior = json.loads(line)
@@ -483,10 +506,17 @@ def pull(root: str | Path | None = None, out: str | Path | None = None,
                 return True
         return False
 
-    fresh = [e for e in events
-             if _alert_key(e) not in existing_keys and not _covered(e)]
+    fresh = []
+    seen_keys = set(existing_keys)
+    for event in events:
+        key = _alert_key(event)
+        if key in seen_keys or _covered(event):
+            continue
+        seen_keys.add(key)
+        fresh.append(event)
     fresh, storm_groups = coalesce_storms(fresh)
     target.parent.mkdir(parents=True, exist_ok=True)
+    agentstate.ensure_trailing_newline(target)
     with open(target, "a", encoding="utf-8") as fh:
         for event in fresh:
             fh.write(json.dumps(event, separators=(",", ":"), default=str) + "\n")
@@ -543,7 +573,7 @@ def _row_score(row: dict) -> int:
     """Plasma score (0-1) or severity -> WHIDS criticality (0-10)."""
     if row.get("score") is not None:
         try:
-            return max(0, min(10, int(round(float(row["score"]) * 10))))
+            return max(0, min(10, round(float(row["score"]) * 10)))
         except (TypeError, ValueError):
             pass
     return {"critical": 9, "high": 8, "medium": 6}.get(row.get("severity"), 4)
@@ -698,11 +728,10 @@ def _journal_path(events_path: Path) -> Path:
 
 def _whids_service_name() -> str | None:
     try:
-        proc = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-Command",
+        proc = subprocess.run(["powershell.exe", "-NoProfile", "-Command",
              "Get-Service | Where-Object { $_.Name -like 'Whids*' } | "
              "Select-Object -First 1 -ExpandProperty Name"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20, check=False
         )
         return proc.stdout.strip() or None
     except (OSError, subprocess.TimeoutExpired):
@@ -713,10 +742,9 @@ def _service_state(name: str | None = None) -> str:
     """Current SCM state as a plain string ('' when the service is absent)."""
     name = name or _whids_service_name() or SERVICE_NAME
     try:
-        proc = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+        proc = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
              f"(Get-Service -Name '{name}' -ErrorAction SilentlyContinue).Status"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30, check=False)
         return (proc.stdout or "").strip()
     except (OSError, subprocess.TimeoutExpired):
         return ""
@@ -724,10 +752,9 @@ def _service_state(name: str | None = None) -> str:
 
 def _ps(script: str, timeout: int = 60) -> tuple[int, str]:
     try:
-        proc = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+        proc = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=timeout)
+            timeout=timeout, check=False)
         return proc.returncode, (proc.stdout or "").strip()
     except (OSError, subprocess.TimeoutExpired) as exc:
         return 1, str(exc)[:200]
@@ -780,7 +807,7 @@ def prune_dumps(install_dir=None, max_mb: int = 512, keep_days: int = 7,
             dest = archive_root / f"{label}-{int(time.time())}"
             __import__("shutil").move(str(directory), str(dest))
             moved.append({"from": str(directory), "to": str(dest)})
-        except Exception:
+        except Exception:  # noqa: BLE001
             return
 
     # Legacy trees from older configs always live inside the install dir.
@@ -1000,10 +1027,9 @@ def diagnose(root: str | Path | None = None) -> dict:
             "$out | ConvertTo-Json -Depth 4 -Compress"
         )
         try:
-            proc = subprocess.run(
-                ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+            proc = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
                 capture_output=True, text=True, encoding="utf-8", errors="replace",
-                timeout=60)
+                timeout=60, check=False)
             text = (proc.stdout or "").strip()
             parsed = json.loads(text[text.find("{"):]) if "{" in text else {}
             info["service_state"] = parsed.get("state")
@@ -1125,10 +1151,9 @@ def push(events_path: str | Path | None = None, root: str | Path | None = None,
     if restart_service:
         if service:
             try:
-                proc = subprocess.run(
-                    ["powershell.exe", "-NoProfile", "-Command",
+                proc = subprocess.run(["powershell.exe", "-NoProfile", "-Command",
                      f"Restart-Service -Name '{service}' -Force"],
-                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120,
+                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, check=False
                 )
                 service_restarted = proc.returncode == 0
                 if not service_restarted:

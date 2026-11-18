@@ -76,7 +76,9 @@ HTTP API.
 `plasma serve` exposes the same CLI over an authenticated HTTP API, as an
 alternative to WinRM or SSH. `POST /v1/exec` takes an argv list and runs it
 through the real parser; `GET /v1/commands` returns the command tree. The
-default key is `plasmaplasma`; use `--api-key-file` or
+default bind is loopback. A non-loopback bind refuses the known default key
+`plasmaplasma` unless `--allow-insecure-default-key` is set; use
+`--api-key-file` or
 `PLASMA_SERVE_API_KEY` in production. `--read-only` refuses every mutating
 command, and every call is written to `<root>/serve/audit.jsonl`.
 

@@ -256,13 +256,13 @@ def _match_from(steps, events, start, gap, t_prev=None, bound_user=None,
         t = _ts(row)
         if t_prev is not None and (t - t_prev).total_seconds() > gap:
             break          # sorted input: every later candidate is later still
-        if step.get("min_count"):
-            # count prior matches for THIS candidate's user, not every user
-            # who happened to fail inside the window
-            if _count_back(events, i, step, gap,
-                           user_filter=_user_key(row) if enforce_bound else None) \
-                    < step["min_count"]:
-                continue
+        # count prior matches for THIS candidate's user, not every user
+        # who happened to fail inside the window
+        if step.get("min_count") and _count_back(
+                events, i, step, gap,
+                user_filter=_user_key(row) if enforce_bound else None
+        ) < step["min_count"]:
+            continue
         user = bound_user if bound_user is not None else _user_key(row)
         process = bound_process if bound_process is not None else _proc_key(row)
         rest = _match_from(steps[1:], events, i + 1, gap, t_prev=t,

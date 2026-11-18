@@ -8,7 +8,17 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import __version__, agentstate, coverage, health, killswitch, ledger, policy, rings, tenants
+from . import (
+    __version__,
+    agentstate,
+    coverage,
+    health,
+    killswitch,
+    ledger,
+    policy,
+    rings,
+    tenants,
+)
 
 THIRD_PARTY = [
     {"name": "WHIDS", "version": "1.7.0", "license": "AGPL-3.0",

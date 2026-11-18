@@ -1,3 +1,4 @@
+# ruff: noqa: ISC004
 """Measured self-update.
 
 The installer registers a daily ``PlasmaUpdate`` task. It checks the latest
@@ -48,6 +49,16 @@ STATE_FILE = "update-state.json"
 JOURNAL_FILE = "update-journal.jsonl"
 
 
+def _bool(value, default=False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() not in ("", "0", "false", "no", "off")
+    if value is None:
+        return default
+    return bool(value)
+
+
 def config(root=None) -> dict:
     cfg = dict(DEFAULT_UPDATE)
     data = agentstate.read_json(agentstate.base(root) / "config.json", {}) or {}
@@ -56,10 +67,10 @@ def config(root=None) -> dict:
         for key, value in block.items():
             if key in DEFAULT_UPDATE and value is not None:
                 cfg[key] = value
-    cfg["auto"] = bool(cfg["auto"])
-    cfg["allow_unsigned"] = bool(cfg["allow_unsigned"])
-    cfg["restart_serve"] = bool(cfg["restart_serve"])
-    cfg["notify"] = bool(cfg["notify"])
+    cfg["auto"] = _bool(cfg["auto"], True)
+    cfg["allow_unsigned"] = _bool(cfg["allow_unsigned"], False)
+    cfg["restart_serve"] = _bool(cfg["restart_serve"], True)
+    cfg["notify"] = _bool(cfg["notify"], True)
     try:
         cfg["every_hours"] = max(1, int(cfg["every_hours"]))
     except (TypeError, ValueError):
@@ -133,15 +144,15 @@ def in_window(cfg: dict, now: datetime | None = None) -> bool:
 
 
 def canary_hold_ok(release: dict, cfg: dict,
-                   now: datetime | None = None) -> bool:
-    if cfg.get("ring") != "broad":
+                   now: datetime | None = None, ring: str | None = None) -> bool:
+    if (ring or cfg.get("ring")) != "broad":
         return True
     hold = int(cfg.get("canary_hold_hours", 0))
     if hold <= 0:
         return True
     published = _parse_iso(release.get("published_at"))
     if published is None:
-        return True
+        return False
     now = now or datetime.now(timezone.utc)
     return (now - published).total_seconds() >= hold * 3600
 
@@ -150,11 +161,6 @@ def ring_ok(root, host: str, ring: str | None = None) -> bool:
     ring = ring or config(root)["ring"]
     if ring == "rollback":
         return False
-    state = rings.status(root)
-    # No rings configured: broad is the default for every host.
-    if ring == "broad" and not state["rings"].get("canary") \
-            and not state["rings"].get("broad"):
-        return True
     return rings.allows(root, host, ring)
 
 
@@ -177,18 +183,20 @@ TASKS = ("PlasmaServe", "PlasmaWatch", "PlasmaWhidsWatchdog",
 def _task_running(task: str) -> bool:
     if os.name != "nt":
         return False
+    # Get-ScheduledTask returns a locale-independent State enum; parsing
+    # `schtasks /fo LIST` breaks on non-English Windows.
+    quoted = str(task).replace("'", "''")
     query = subprocess.run(
-        ["schtasks.exe", "/query", "/tn", task, "/fo", "LIST"],
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+         f"$t = Get-ScheduledTask -TaskName '{quoted}' "
+         "-ErrorAction SilentlyContinue; if ($t) { $t.State }"],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
         check=False,
     )
-    if query.returncode != 0:
-        return False
-    for line in query.stdout.splitlines():
-        key, _, value = line.partition(":")
-        if key.strip().lower() == "status":
-            return value.strip().lower() == "running"
-    return False
+    output = query.stdout.strip().lower()
+    return query.returncode == 0 and (
+        output == "running" or "status:        running" in output
+        or output.endswith(": running"))
 
 
 def _keep_ancestors(pid: int) -> str:
@@ -331,7 +339,7 @@ def _stop_tasks(restart_serve: bool = True, skip_serve: bool = False) -> dict:
             check=False,
         )
         stopped[task] = end.returncode == 0
-    if not skip_serve:
+    if not skip_serve and restart_serve:
         killed = _kill_lingering_serve()
         if killed:
             stopped["_killed_serve"] = killed
@@ -412,7 +420,8 @@ def check(root=None, repo: str | None = None, tag: str | None = None,
         "latest": rel["tag"],
         "update_available": newer,
         "published_at": rel.get("published_at"),
-        "ring": rings.host_ring(root, host) or cfg["ring"],
+        "ring": (rings.host_ring(root, host)
+                 or rings.status(root).get("current") or cfg["ring"]),
         "auto": cfg["auto"],
     }
 
@@ -429,7 +438,8 @@ def auto(root=None, repo: str | None = None, ring: str | None = None,
     repo = repo or cfg["repo"]
     # An explicit host assignment is the local, human-set fact. Only fall
     # back to the configured default when the host is not in any ring.
-    ring = ring or rings.host_ring(root, host) or cfg["ring"]
+    ring = (ring or rings.host_ring(root, host)
+            or rings.status(root).get("current") or cfg["ring"])
     allow_unsigned = (cfg["allow_unsigned"] if allow_unsigned is None
                       else bool(allow_unsigned))
     notify_enabled = (cfg["notify"] if notify_enabled is None
@@ -472,7 +482,7 @@ def auto(root=None, repo: str | None = None, ring: str | None = None,
         })
         return {**base, "ok": True, "status": "up_to_date"}
 
-    if ring == "broad" and not force and not canary_hold_ok(rel, cfg):
+    if ring == "broad" and not force and not canary_hold_ok(rel, cfg, ring=ring):
         return {**base, "ok": True, "status": "skipped",
                 "reason": (f"canary hold: release is newer than "
                            f"{cfg['canary_hold_hours']}h")}
@@ -488,20 +498,33 @@ def auto(root=None, repo: str | None = None, ring: str | None = None,
 
     lock = root / "update-auto.lock"
     try:
-        with agentstate.lock(lock, timeout=5, stale=3600):
-            result = _apply(root, cfg, host, repo, rel, token,
-                            allow_unsigned, notify_enabled)
-            _save_state(root, {
-                "last_check": agentstate.now_iso(),
-                "last_result": result.get("status"),
-                "current": __version__,
-                "latest": rel["tag"],
-                "detail": result.get("reason") or result.get("error"),
-            })
-            return {**base, **result}
+        lock_ctx = agentstate.lock(lock, timeout=5, stale=3600)
+        lock_ctx.__enter__()
     except TimeoutError:
         return {**base, "ok": True, "status": "skipped",
                 "reason": "another update is already running"}
+    try:
+        try:
+            result = _apply(root, cfg, host, repo, rel, token,
+                            allow_unsigned, notify_enabled)
+        except TimeoutError as exc:
+            # Network timeouts are TimeoutError on Python 3.10+. Do not
+            # misreport them as lock contention.
+            result = {"ok": False, "status": "failed", "stage": "network",
+                      "error": f"update network timeout: {exc}"}
+        except Exception as exc:  # noqa: BLE001 - failures are data
+            result = {"ok": False, "status": "failed", "stage": "update",
+                      "error": f"{type(exc).__name__}: {exc}"[:300]}
+        _save_state(root, {
+            "last_check": agentstate.now_iso(),
+            "last_result": result.get("status"),
+            "current": __version__,
+            "latest": rel["tag"],
+            "detail": result.get("reason") or result.get("error"),
+        })
+        return {**base, **result}
+    finally:
+        lock_ctx.__exit__(None, None, None)
 
 
 def _apply(root, cfg, host, repo, rel, token, allow_unsigned,
@@ -559,6 +582,23 @@ def _apply(root, cfg, host, repo, rel, token, allow_unsigned,
         _state(root, "failed", "bin rotation failed")
         return {"ok": False, "status": "failed", "stage": "rotate",
                 "error": rotation.get("error"),
+                "stopped": stopped, "started": started}
+    if canonical_rotation is not None and not canonical_rotation.get("ok"):
+        # A mixed update is worse than a failed one: restore the running
+        # binary from its .old copy so the release is all-or-nothing.
+        backup = Path(rotation.get("previous") or "")
+        try:
+            if backup.is_file():
+                os.replace(backup, current)
+        except OSError:
+            pass
+        _journal(root, {"host": host, "status": "failed",
+                        "stage": "rotate_canonical",
+                        "detail": canonical_rotation.get("error"),
+                        "stopped": stopped, "started": started})
+        _state(root, "failed", "canonical bin rotation failed")
+        return {"ok": False, "status": "failed", "stage": "rotate_canonical",
+                "error": canonical_rotation.get("error"),
                 "stopped": stopped, "started": started}
     _state(root, "rotated", rel["tag"])
 

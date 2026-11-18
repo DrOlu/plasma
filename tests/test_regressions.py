@@ -4,13 +4,22 @@ Each test pins a defect found in the pre-release audit (bugs / FP / FN).
 Names reference the module; the docstring carries the failure scenario.
 """
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
-from plasma import actuate, fleet, health, identity, notify, observatory, \
-    tap, update, watch, whids
+from plasma import (
+    actuate,
+    fleet,
+    health,
+    identity,
+    notify,
+    observatory,
+    tap,
+    update,
+    watch,
+    whids,
+)
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -247,7 +256,7 @@ def test_tap_load_rules_rejects_pipe_in_name(tmp_path):
 
 def test_actuate_wmi_payload_writes_sidecar_not_stdout_blob():
     """Undo data must not depend on stdout length (4000-char truncation)."""
-    payload, undo, verify = actuate._build_disable_wmi_sub()
+    payload, undo, _verify = actuate._build_disable_wmi_sub()
     assert "Set-Content -Path $file" in payload
     assert "ConvertTo-Json -InputObject" in payload, \
         "@() must survive ConvertTo-Json for single bindings"

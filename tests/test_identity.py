@@ -2,11 +2,10 @@
 dedupe, machine-account filtering, CLI wiring."""
 
 import json
-from pathlib import Path
 
 import pytest
-
 from models import PlasmaEvent
+
 from plasma import identity
 
 
@@ -186,8 +185,10 @@ def test_schedule_registers_a_system_task(tmp_path, monkeypatch):
 
 def test_schedule_clamps_interval(tmp_path, monkeypatch):
     monkeypatch.setattr(identity, "_ps_task", lambda script, timeout=120: (0, "ok"))
-    assert identity.schedule(tmp_path, every_minutes=0)["every_minutes"] == 1
-    assert identity.schedule(tmp_path, every_minutes=99999)["every_minutes"] == 1440
+    assert identity.schedule(tmp_path, every_minutes=0,
+                            exe=r"C:\plasma.exe")["every_minutes"] == 1
+    assert identity.schedule(tmp_path, every_minutes=99999,
+                            exe=r"C:\plasma.exe")["every_minutes"] == 1440
 
 
 def test_unschedule_reports_task_name(monkeypatch):

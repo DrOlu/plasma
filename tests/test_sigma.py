@@ -135,7 +135,7 @@ import plasma.cli as cli
 raise SystemExit(cli.main(["coverage"]))
 """
     proc = subprocess.run([sys.executable, "-c", code], cwd=repo,
-                          capture_output=True, text=True, timeout=120)
+                          capture_output=True, text=True, timeout=120, check=False)
     assert proc.returncode == 0, proc.stderr[-2000:]
     assert "coverage_pct" in proc.stdout
 

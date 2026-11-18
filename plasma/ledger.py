@@ -31,6 +31,10 @@ def ledger_path(root=None) -> Path:
     return agentstate.base(root) / LEDGER_DIR / LEDGER_FILE
 
 
+def head_path(root=None) -> Path:
+    return agentstate.base(root) / LEDGER_DIR / "head.json"
+
+
 @contextmanager
 def _lock(root=None):
     directory = agentstate.ensure(root) / LEDGER_DIR
@@ -98,6 +102,12 @@ def _append_locked(root, entry: dict, tenant: str) -> dict:
         fh.write(json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n")
         fh.flush()
         os.fsync(fh.fileno())
+    # A small head checkpoint makes suffix truncation visible. It is not a
+    # secret-keyed anchor (an attacker with write access can forge both),
+    # but it turns accidental or naive truncation into a verification error.
+    agentstate.write_json(head_path(root), {
+        "seq": row.get("seq"), "hash": row.get("hash"),
+    })
     return row
 
 
@@ -146,6 +156,17 @@ def verify(root=None) -> dict:
             return {"ok": False, "rows": len(rows), "broken": index,
                     "reason": "row hash mismatch"}
         prev = row["hash"]
+    head_file = head_path(root)
+    if head_file.exists() and rows:
+        try:
+            head = json.loads(head_file.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError):
+            return {"ok": False, "rows": len(rows), "broken": len(rows),
+                    "reason": "ledger head is unreadable"}
+        if int(head.get("seq") or 0) != len(rows) or \
+                head.get("hash") != rows[-1].get("hash"):
+            return {"ok": False, "rows": len(rows), "broken": len(rows),
+                    "reason": "ledger is truncated or the head is stale"}
     return {"ok": True, "rows": len(rows), "broken": None, "reason": None}
 
 
@@ -195,6 +216,8 @@ def pending_approvals(root=None, limit: int = 200,
                 if r.get("kind") == "approval_use"}
     consumed |= {r.get("approval_id") for r in rows
                  if r.get("kind") == "action" and r.get("approval_id") is not None}
+    denied = {r.get("approval_for") for r in rows
+              if r.get("kind") == "approval" and r.get("approved") is False}
     out = []
     for row in rows:
         if row.get("kind") != "action" or row.get("decision") != "approval_required":
@@ -206,7 +229,7 @@ def pending_approvals(root=None, limit: int = 200,
         if tenant and row.get("tenant") != tenant:
             continue
         seq = row.get("seq")
-        if seq in approved or seq in consumed:
+        if seq in approved or seq in consumed or seq in denied:
             continue
         out.append(row)
     return out[-max(1, int(limit)):]
@@ -214,21 +237,26 @@ def pending_approvals(root=None, limit: int = 200,
 
 def approve(root, seq: int, approver: str, note: str = "",
             approve_action: bool = True, tenant: str = "default") -> dict:
-    target = find(root, seq)
-    if target is None:
-        raise LedgerError(f"no ledger row {seq}")
-    if approval_state(target) != "pending":
-        raise LedgerError(f"row {seq} is not a pending approval")
-    return append(root, {
-        "kind": "approval",
-        "tenant": target.get("tenant", tenant),
-        "approval_for": seq,
-        "approved": bool(approve_action),
-        "approver": approver,
-        "note": note,
-        "tool": target.get("tool"),
-        "args_sha256": target.get("args_sha256"),
-    })
+    with _lock(root):
+        rows = read(root)
+        target = next((r for r in rows if r.get("seq") == seq), None)
+        if target is None:
+            raise LedgerError(f"no ledger row {seq}")
+        if approval_state(target) != "pending":
+            raise LedgerError(f"row {seq} is not a pending approval")
+        if any(r.get("kind") == "approval" and r.get("approval_for") == seq
+               for r in rows):
+            raise LedgerError(f"row {seq} has already been decided")
+        return _append_locked(root, {
+            "kind": "approval",
+            "tenant": target.get("tenant", tenant),
+            "approval_for": seq,
+            "approved": bool(approve_action),
+            "approver": approver,
+            "note": note,
+            "tool": target.get("tool"),
+            "args_sha256": target.get("args_sha256"),
+        }, tenant)
 
 
 def consume_approval(root, seq: int, tool: str, args_sha256: str,
@@ -246,7 +274,9 @@ def consume_approval(root, seq: int, tool: str, args_sha256: str,
                     if r.get("kind") == "approval_use"}
         consumed |= {r.get("approval_id") for r in rows
                      if r.get("kind") == "action" and r.get("approval_id") is not None}
-        if seq in consumed:
+        denied = {r.get("approval_for") for r in rows
+                  if r.get("kind") == "approval" and r.get("approved") is False}
+        if seq in consumed or seq in denied:
             return None
         approval = next((r for r in rows
                          if r.get("kind") == "approval"
@@ -279,6 +309,10 @@ def find_approval(root=None, seq: int | None = None, tool: str | None = None,
                 if r.get("kind") == "approval_use"}
     consumed |= {r.get("approval_id") for r in rows
                  if r.get("kind") == "action" and r.get("approval_id") is not None}
+    denied = {r.get("approval_for") for r in rows
+              if r.get("kind") == "approval" and r.get("approved") is False}
+    if seq in denied:
+        return None
     for row in rows:
         if (row.get("kind") == "approval" and row.get("approval_for") == seq
                 and row.get("approved") is True

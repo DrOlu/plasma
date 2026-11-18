@@ -32,10 +32,20 @@ def status(root=None) -> dict:
                     "at": None, "error": "unreadable"}
     else:
         data = {}
-    data = data or {}
+    if not isinstance(data, dict):
+        return {"global": True, "hosts": {},
+                "reason": "killswitch state is not an object — failing closed",
+                "at": None, "error": "invalid"}
+    hosts = data.get("hosts")
+    if hosts is None:
+        hosts = {}
+    if not isinstance(hosts, dict):
+        return {"global": True, "hosts": {},
+                "reason": "killswitch hosts state is not an object — failing closed",
+                "at": None, "error": "invalid"}
     return {
         "global": bool(data.get("global", False)),
-        "hosts": dict(data.get("hosts") or {}),
+        "hosts": dict(hosts),
         "reason": data.get("reason", ""),
         "at": data.get("at"),
     }
@@ -55,6 +65,8 @@ def set_global(root, enabled: bool, reason: str = "", actor: str = "cli") -> dic
 
 def _set_global(root, enabled: bool, reason: str = "", actor: str = "cli") -> dict:
     data = agentstate.read_json(path(root), {}) or {}
+    if not isinstance(data, dict):
+        data = {}
     data["global"] = bool(enabled)
     data["reason"] = reason
     data["actor"] = actor
@@ -70,7 +82,9 @@ def set_host(root, host: str, enabled: bool, reason: str = "",
 def _set_host(root, host: str, enabled: bool, reason: str = "",
               actor: str = "cli") -> dict:
     data = agentstate.read_json(path(root), {}) or {}
-    hosts = dict(data.get("hosts") or {})
+    if not isinstance(data, dict):
+        data = {}
+    hosts = dict(data.get("hosts") or {}) if isinstance(data.get("hosts"), dict) else {}
     if enabled:
         hosts[host] = {"reason": reason, "actor": actor,
                        "at": agentstate.now_iso()}

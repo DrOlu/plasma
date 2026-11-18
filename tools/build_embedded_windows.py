@@ -24,8 +24,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from plasma import __version__  # noqa: E402
-from plasma.manifest import create_manifest  # noqa: E402
+from plasma import __version__
+from plasma.manifest import create_manifest
 
 INSTANCE_FILES = [
     "models.py", "needle_menu.json", "graph_edges.json", "graph_bridge.py",
@@ -40,9 +40,10 @@ SENSOR_ROOT_FILES = ["whids.pin.json", "whids.toml", "plasma-iocs.gen",
 
 def gzip_file(src: Path, dst: Path):
     """Deterministic gzip (mtime=0) so builds are reproducible."""
-    with open(src, "rb") as fi, open(dst, "wb") as raw:
-        with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0, compresslevel=9) as gz:
-            shutil.copyfileobj(fi, gz)
+    with open(src, "rb") as fi, open(dst, "wb") as raw, \
+            gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0,
+                          compresslevel=9) as gz:
+        shutil.copyfileobj(fi, gz)
 
 
 def copy_engine(engine_dir: Path, dest: Path, platform: str):

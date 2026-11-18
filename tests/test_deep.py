@@ -1,8 +1,6 @@
 """persistence_deep: normalization, suspect heuristic, PS template shape."""
 import json
 
-import pytest
-
 from plasma import deep
 
 

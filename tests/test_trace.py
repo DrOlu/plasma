@@ -2,7 +2,6 @@
 import json
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -243,11 +242,14 @@ def test_provision_enables_and_requires_restart(monkeypatch):
                         lambda: {"available": True, "enabled": False,
                                  "version": "dtrace: v2.0.0"})
     seen = []
-    monkeypatch.setattr(trace, "_run_ps",
-                        lambda s, timeout=60: seen.append(s) or "ok")
+
+    def fake_run(cmd, **kw):
+        seen.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
+    monkeypatch.setattr(trace.subprocess, "run", fake_run)
     res = trace.provision()
     assert res["ok"] and res["reboot_required"] is True
-    assert any("bcdedit" in s for s in seen)
+    assert any("bcdedit" in " ".join(map(str, c)) for c in seen)
 
 
 def test_provision_winget_path(monkeypatch):
@@ -279,7 +281,9 @@ def test_provision_without_winget_uses_msi(monkeypatch):
     seen = []
     monkeypatch.setattr(trace, "_install_msi",
                         lambda d: seen.append(str(d)) or {"ok": True, "rc": 0})
-    monkeypatch.setattr(trace, "_run_ps", lambda s, timeout=60: "ok")
+    monkeypatch.setattr(trace.subprocess, "run",
+                        lambda cmd, **kw: subprocess.CompletedProcess(
+                            cmd, 0, stdout="ok", stderr=""))
     res = trace.provision()
     assert res["ok"] and seen
     assert any(a["action"] == "install DTrace 2.0 MSI" for a in res["actions"])

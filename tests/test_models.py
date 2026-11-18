@@ -1,7 +1,6 @@
 import pytest
-from pydantic import ValidationError
-
 from models import PlasmaEvent
+from pydantic import ValidationError
 
 
 def base(**over):
