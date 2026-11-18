@@ -8,9 +8,12 @@ Plasma ships two artifacts per release:
 | `plasma-<version>-windows-x64.msi` | **MSI for GPO / enterprise deployment** |
 
 The MSI installs the exe into `C:\Program Files\Plasma\` and runs
-`plasma install --force --root "<PLASMA_ROOT>"` as a deferred, elevated
-custom action — so a GPO deployment provisions Sysmon/WHIDS and the event
-store without anyone at the console.
+`plasma install --force --root "<PLASMA_ROOT>" --rotate` as a deferred,
+elevated custom action — so a GPO deployment provisions Sysmon/WHIDS and
+the event store without anyone at the console. `--rotate` swaps the
+canonical `bin\plasma.exe` and restarts the registered tasks, so an upgrade
+leaves the running node reporting the package version rather than the
+previous release.
 
 ## Silent install
 
@@ -82,7 +85,9 @@ A node deployed by MSI runs the same `install` path as the exe, so its
 
 ## Note on signing
 
-The exe inside the MSI is Authenticode-signed from 1.2.0 onward. The MSI
-itself is signed when the SignPath Foundation application is approved; until
-then, distribute the MSI over a trusted internal share and verify the
-embedded exe's signature with `Get-AuthenticodeSignature`.
+The exe inside the MSI is Authenticode-signed from 1.2.0 onward. From
+1.19.2 the release workflow also signs the MSI with the same PFX and
+timestamp, and `SHA256SUMS` covers the signed MSI. The current certificate
+is self-signed, so a fresh host reports `UnknownError` until the
+certificate is trusted; distribute the MSI over a trusted internal share
+and verify both signatures with `Get-AuthenticodeSignature`.

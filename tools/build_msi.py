@@ -54,7 +54,7 @@ WXS_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
          sensors silently is a policy decision, not an uninstaller default). -->
     <CustomAction Id="PlasmaInstall"
                   FileRef="PlasmaExeFile"
-                  ExeCommand="install --force --root &quot;[PLASMA_ROOT]&quot;"
+                  ExeCommand="install --force --root &quot;[PLASMA_ROOT]&quot; --rotate"
                   Execute="deferred"
                   Impersonate="no" />
     <InstallExecuteSequence>

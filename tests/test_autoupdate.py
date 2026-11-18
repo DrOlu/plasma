@@ -210,6 +210,12 @@ def test_install_parser_has_no_autoupdate():
         ["install", "--dry-run", "--no-autoupdate"]).no_autoupdate is True
 
 
+def test_install_parser_has_rotate_switch():
+    parser = cli.build_parser()
+    assert parser.parse_args(["install", "--dry-run"]).rotate is False
+    assert parser.parse_args(["install", "--dry-run", "--rotate"]).rotate is True
+
+
 # ---------------------------------------------------------------------------
 # rotation: retry, task quiescing and stale-backup recovery
 # ---------------------------------------------------------------------------

@@ -1339,6 +1339,37 @@ def cmd_install(args) -> int:
                           "error": f"junction creation failed: {exc}"}, indent=2))
         return 4
 
+    # 5. Optional canonical rotation (MSI path). A package upgrade copies the
+    # new versioned binary but the running node is `bin\plasma.exe`; without
+    # this the service keeps executing the previous release even though the
+    # config and instance already point at the new one. `update apply` does
+    # its own rotation, so this is opt-in and only the MSI passes it.
+    rotation = None
+    if getattr(args, "rotate", False):
+        try:
+            rotation = autoupdate.rotate_running(
+                me, bindir / me.name,
+                bool(config.get("update", {}).get("restart_serve", True)))
+        except (OSError, subprocess.SubprocessError) as exc:
+            print(json.dumps({"ok": False, "stage": "rotate",
+                              "error": f"rotation failed: {exc}"}, indent=2))
+            return 4
+        if not rotation["rotation"].get("ok"):
+            print(json.dumps({
+                "ok": False, "stage": "rotate",
+                "error": rotation["rotation"].get("error"),
+                "rotation": rotation,
+            }, indent=2))
+            return 4
+        canonical = rotation.get("canonical")
+        if canonical is not None and not canonical.get("ok"):
+            print(json.dumps({
+                "ok": False, "stage": "rotate_canonical",
+                "error": canonical.get("error"),
+                "rotation": rotation,
+            }, indent=2))
+            return 4
+
     print(json.dumps({
         "ok": True,
         "installed": str(target),
@@ -1348,6 +1379,7 @@ def cmd_install(args) -> int:
         "degraded": degraded,
         "degradation_reason": degradation_reason,
         "files_verified": verification["checked"],
+        "rotated": rotation is not None,
     }, indent=2))
     return 0
 
@@ -2454,6 +2486,9 @@ def build_parser() -> argparse.ArgumentParser:
     ins.add_argument("--require-whids", action="store_true",
                      help="fail closed when WHIDS/Sysmon are not feasible (old strict behavior)")
     ins.add_argument("--force", action="store_true")
+    ins.add_argument("--rotate", action="store_true",
+                     help="after install, rotate bin\\plasma.exe and restart tasks "
+                          "(used by the MSI so the running node matches the package)")
     ins.add_argument("--no-autoprotect", action="store_true",
                      help="install with automatic containment off (dry-run only)")
     ins.add_argument("--no-autoupdate", action="store_true",

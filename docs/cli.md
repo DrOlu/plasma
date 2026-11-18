@@ -42,13 +42,15 @@ topic is supplied. An unknown topic exits 1 with a structured error.
 
 ```text
 plasma install [--dry-run] [--force] [--root PATH] [--skip-whids]
-              [--skip-sysmon-check] [--require-whids]
+              [--skip-sysmon-check] [--require-whids] [--rotate]
 ```
 
 Intelligent installer: verifies the payload manifest, decides FULL/MINIMAL,
 installs Sysmon when possible, provisions WHIDS, writes `config.json`, flips
 the `current` junction, and reports the decision. `--require-whids` makes a
-degraded decision fail with exit 3.
+degraded decision fail with exit 3. `--rotate` (used by the MSI) swaps
+`bin\plasma.exe` and restarts the registered tasks after staging, so the
+running node matches the package; a failed rotation exits 4.
 
 ### health / status / probe / ask
 

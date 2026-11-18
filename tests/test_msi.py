@@ -47,6 +47,10 @@ def test_wxs_is_wellformed_and_complete(tmp_path):
     assert ca.get("Impersonate") == "no"
     assert "install --force --root" in ca.get("ExeCommand")
     assert "[PLASMA_ROOT]" in ca.get("ExeCommand")
+    # The package must leave the running node on the packaged version, not
+    # just copy a versioned sibling: --rotate swaps bin\plasma.exe and
+    # restarts the tasks.
+    assert "--rotate" in ca.get("ExeCommand")
 
     seq = root.find(f".//{NS}Custom")
     assert seq.get("Action") == ca.get("Id")

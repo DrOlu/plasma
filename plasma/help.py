@@ -277,7 +277,12 @@ approvals, ledgers and event stores are preserved where possible.
 `--dry-run` plans without changing the host. `--skip-whids` forces MINIMAL.
 `--require-whids` fails closed when the full stack is not feasible.
 `--no-autoprotect` installs the old dry-run-only posture.
-`--no-autoupdate` removes the daily update task.""",
+`--no-autoupdate` removes the daily update task.
+
+`--rotate` is used by the MSI custom action: after staging the version it
+swaps `bin\\plasma.exe` and restarts the registered tasks so the running node
+immediately reports the package version. The same rotation happens
+automatically at the end of `update apply`.""",
     [
         ("Plan an install", "plasma install --dry-run"),
         ("Default install", "plasma install"),

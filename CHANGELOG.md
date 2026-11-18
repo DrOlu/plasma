@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.19.3 — 2026-11-18
+
+MSI upgrades now converge the running node.
+
+- **`install --rotate`.** The MSI custom action passes `--rotate`, so after
+  staging the new version the installer swaps `bin\plasma.exe` and restarts
+  the registered tasks. Previously the package copied a versioned sibling
+  and updated `config.json`, but the running node kept executing the old
+  canonical binary — an MSI upgrade from 1.19.1 to 1.19.2 left `/healthz`
+  reporting 1.19.1.
+- **Rotation is all-or-nothing.** A failed canonical swap returns exit 4
+  with the rotation detail instead of reporting a successful install.
+- Verified on WS2: silent MSI install exits 0, `bin\plasma.exe --version`
+  and `/healthz` both report 1.19.3.
+- 788 tests collected; full suite and `-W error` pass; `ruff check` clean.
+
 ## 1.19.2 — 2026-11-18
 
 Enterprise MSI packaging.
