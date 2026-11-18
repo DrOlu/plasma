@@ -21,7 +21,7 @@ def test_failed_payload_is_not_journaled_as_applied(tmp_path, monkeypatch):
 
     def fake_run(payload, timeout=60):
         calls["n"] += 1
-        if calls["n"] == 1:
+        if "Disable-LocalUser" in str(payload):
             return {"rc": 1, "output": "", "stderr": "boom"}
         return {"rc": 0, "output": "True"}
 
