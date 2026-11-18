@@ -1,12 +1,12 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.18.6</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.19.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.18.6</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.19.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
@@ -112,29 +112,21 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    prevent (AppLocker, egress, Defender ASR, LSA protection)
 ```
 
-## What's new in 1.18.6
+## What's new in 1.19.0
 
-- **Self-update rotation is reliable on Windows.** The tasks that hold the
-  binary — `PlasmaServe`, `PlasmaWatch`, `PlasmaWhidsWatchdog`,
-  `PlasmaIdentityPull` — are stopped before the swap and restarted after
-  it. A serve-launched update skips `PlasmaServe` so it cannot kill its own
-  process tree.
-- **Retries and recovery.** Five rotation attempts, stale `.old` backups
-  preserved under a unique name, read-only attributes cleared, and a failed
-  swap restores the previous binary instead of leaving the host without an
-  executable. `PlasmaServe` restarts after the update. The manual
-  `plasma update apply` path uses the same quiesce/rotate/restart helper.
-- **Ring and serve fixes from the live estate.** An explicit host ring now
-  wins over the configured default. The updater stops every other
-  `plasma*` process before rotation — identified by image name, because
-  WS1 hides `CommandLine`/`ExecutablePath` from WMI — so PyInstaller's
-  lingering serve child releases port 9999 and the restarted API reports
-  the new version.
-- **SYSTEM escalation for manual updates.** If the updater is running as an
-  Administrator and some SYSTEM-owned process survives the direct kill, it
-  registers a one-shot SYSTEM task to finish the cleanup, then removes it.
-  The normal `PlasmaUpdate` path is already SYSTEM and skips this step.
-- **743 tests**, full suite green, ruff error-level checks clean.
+- **Every command has a detailed help page.** `plasma <command> --help`
+  includes a description, working examples, notes, safety, output and
+  related commands. `-h` works everywhere.
+- **`plasma help` is the discovery command.** No topic prints the grouped
+  command map and the dry-run → plan → apply workflow; a topic prints one
+  detailed page.
+- **`plasma help --json` is the machine catalog.** Schema
+  `plasma.help/1` lists every command path, usage, argument, default,
+  choice, example, safety class and see-also. One topic narrows it.
+- **The HTTP API carries the same metadata.** `/v1/commands` rows include
+  summary, description, examples and safety; `help --json` is runnable
+  through `/v1/exec`.
+- **755 tests**, full suite green, ruff error-level checks clean.
 
 ## What's new in 1.18.0
 

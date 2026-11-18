@@ -396,12 +396,23 @@ def test_openapi_and_docs_are_unauthenticated(running):
 # command tree completeness
 # ---------------------------------------------------------------------------
 
-def test_commands_have_root_and_133_commands(running):
+def test_commands_have_root_and_134_commands(running):
     _, key, base = running
     _, body = _request(base, "/v1/commands", key=key)
     assert body["root"]["path"] == []
-    assert len(body["commands"]) == 133
+    assert len(body["commands"]) == 134
     assert all(row["path"] for row in body["commands"])
+
+
+def test_commands_include_agent_help_metadata(running):
+    _, key, base = running
+    _, body = _request(base, "/v1/commands", key=key)
+    by_path = {tuple(row["path"]): row for row in body["commands"]}
+    row = by_path[("actuate", "apply")]
+    assert row["summary"]
+    assert row["safety"].startswith("plan-gated")
+    assert any("--apply --plan" in e["command"] for e in row["examples"])
+    assert row["see_also"]
 
 
 def test_commands_include_positionals(running):

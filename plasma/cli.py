@@ -21,6 +21,7 @@ from pathlib import Path
 from . import __version__, whids, observatory, actuate, drift, tap, fleet, identity, notify, health, watch, chain, coverage, store, deep, playbooks, canary, trace, sigma, fim, enforce, prevent
 from . import agentstate, statemachine, policy as agent_policy, ledger, killswitch, tenants, rings, evidence, assurance, evals, mcp as mcp_server, protect
 from . import autoupdate
+from . import help as helpmod
 from . import update as updater
 from .bundle import build_bundle
 from .manifest import create_manifest, verify_manifest
@@ -2197,8 +2198,41 @@ def cmd_internal_bridge(args) -> int:
     return 0 if "error" not in result else 1
 
 
+def cmd_help(args) -> int:
+    """Detailed help, examples and the machine-readable catalog."""
+    parser = build_parser()
+    if args.json:
+        if args.topic:
+            node = helpmod.command_json(parser, args.topic)
+            if node is None:
+                _emit({"ok": False,
+                       "error": "unknown command path: " + " ".join(args.topic),
+                       "hint": "run `plasma help --json` for the catalog"})
+                return 1
+            _emit(node)
+        else:
+            _emit(helpmod.catalog(parser))
+        return 0
+    if args.topic:
+        target = helpmod.find_parser(parser, args.topic)
+        if target is None:
+            print(json.dumps({
+                "ok": False,
+                "error": "unknown command path: " + " ".join(args.topic),
+                "hint": "run `plasma help` or `plasma help --json`",
+            }), file=sys.stderr)
+            return 1
+        print(target.format_help())
+        return 0
+    print(helpmod.overview(parser))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="plasma", description="Plasma EDR bundle tooling")
+    p = argparse.ArgumentParser(
+        prog="plasma",
+        usage="plasma [-h] [--version] <command> [<args>...]",
+        description="Plasma EDR bundle tooling")
     p.add_argument("--version", action="version", version=f"plasma {__version__}")
     sub = p.add_subparsers(dest="command", required=True)
 
@@ -2868,6 +2902,15 @@ def build_parser() -> argparse.ArgumentParser:
     hb.add_argument("--events", default=None)
     hb.add_argument("--coverage", action="store_true")
     hb.set_defaults(func=cmd_internal_bridge)
+
+    hp = sub.add_parser("help", help="detailed command reference, examples and JSON catalog")
+    hp.add_argument("topic", nargs="*",
+                    help="command path, e.g. control approvals approve")
+    hp.add_argument("--json", action="store_true",
+                    help="machine-readable catalog (all commands or one topic)")
+    hp.set_defaults(func=cmd_help)
+
+    helpmod.install(p)
     return p
 
 

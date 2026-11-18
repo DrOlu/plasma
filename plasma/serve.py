@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import ClassVar
 
 from . import __version__, agentstate
+from . import help as helpmod
 from .lifecycle import SERVE_REQUEST, require
 from .openapi import SPEC
 from .redact import redact_text
@@ -450,8 +451,23 @@ def _command_tree(parser, path: list[str] | None = None,
             "choices": list(action.choices) if getattr(action, "choices", None) else None,
             "help": action.help or "",
         })
-    rows = [{"path": path, "help": help_text, "options": options,
-             "positionals": positionals}]
+    spec = helpmod.COMMANDS.get(" ".join(path), {})
+    rows = [{
+        "path": path,
+        "help": help_text,
+        "summary": spec.get("summary", ""),
+        "description": spec.get("description", ""),
+        "examples": [
+            {"title": title, "command": command}
+            for title, command in spec.get("examples", [])
+        ],
+        "safety": spec.get("safety", ""),
+        "output": spec.get("output", ""),
+        "see_also": spec.get("see_also", []),
+        "notes": spec.get("notes", []),
+        "options": options,
+        "positionals": positionals,
+    }]
     for action in parser._actions:
         if not isinstance(action, argparse._SubParsersAction):
             continue

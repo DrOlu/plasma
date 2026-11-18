@@ -4,6 +4,38 @@ Every command prints JSON. Exit codes are part of the contract:
 `0` success/clean, `1` data or input error, `2` refused/attention needed,
 `3` execution or verification failure.
 
+## Help and discovery
+
+Every command has a detailed help page with a description, working examples,
+notes, a safety classification and related commands. This is the surface an
+orchestrating agent should use instead of guessing flags.
+
+```powershell
+plasma --help                      # root overview + agent workflow
+plasma help                        # command map, grouped
+plasma help control approvals approve
+plasma prevent asr --help          # argparse syntax + examples
+plasma help --json                 # complete machine-readable catalog
+plasma help actuate apply --json   # one command as JSON
+```
+
+`plasma help --json` returns schema `plasma.help/1`: every command path,
+summary, full description, usage, arguments (required, default, choices),
+examples, safety class, output and related commands. The same help metadata
+is included in `GET /v1/commands` on the HTTP API; an agent can also run
+`POST /v1/exec {"argv": ["help", "--json"]}`.
+
+### help
+
+```text
+plasma help [topic ...] [--json]
+```
+
+With no topic, prints the grouped command map and the dry-run → plan →
+apply workflow. With a topic, prints the same detailed page as
+`plasma <topic> --help`. `--json` returns the catalog, or one command when a
+topic is supplied. An unknown topic exits 1 with a structured error.
+
 ## Endpoint commands
 
 ### install
@@ -304,8 +336,9 @@ plasma rollback [--bin PATH]
 ### manifest / bundle
 
 ```text
-plasma manifest verify <path>
-plasma bundle create   [--out FILE]
+plasma manifest create --dir DIR [--version X]
+plasma manifest verify --dir DIR
+plasma bundle build    [--out DIR] [--engines DIR] [--platform NAME]
 ```
 
 Integrity tooling for the embedded payload.

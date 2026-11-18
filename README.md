@@ -52,6 +52,25 @@ plasma eval run
 See [Agent-native operation](https://drolu.github.io/plasma/agent-native/)
 and the [Control plane](https://drolu.github.io/plasma/control-plane/).
 
+### Help built for orchestration
+
+Every command has a detailed page with examples, notes, safety class and
+related commands. Agents should start from the JSON catalog rather than
+scrape text:
+
+```powershell
+plasma help                      # grouped command map + workflow
+plasma help prevent asr          # one command in depth
+plasma --help                    # root overview
+plasma help --json               # full machine-readable catalog
+```
+
+`plasma help --json` returns schema `plasma.help/1`: every command path,
+summary, description, usage, arguments, defaults, choices, examples,
+safety and related commands. `GET /v1/commands` carries the same metadata,
+and `POST /v1/exec {"argv":["help","--json"]}` returns the catalog over the
+HTTP API.
+
 ### HTTP API
 
 `plasma serve` exposes the same CLI over an authenticated HTTP API, as an

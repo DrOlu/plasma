@@ -4,6 +4,22 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.19.0 — 2026-11-18
+
+Agent-oriented help for every command.
+
+- **Every command has a detailed help page.** Description, examples,
+  notes, safety, output and see-also, not just flags. `-h` works
+  everywhere.
+- **`plasma help` is the discovery command.** Grouped command map and the
+  dry-run → plan → apply workflow; `plasma help <path>` for one command.
+- **`plasma help --json` is the machine catalog.** Schema
+  `plasma.help/1` with every path, argument, example and safety class.
+- **The HTTP API carries the same metadata.** `/v1/commands` rows include
+  summary, description, examples and safety; `help --json` is executable
+  through `/v1/exec`.
+- 755 tests collected; full suite passes; ruff error-level checks clean.
+
 ## 1.18.6 — 2026-11-18
 
 Manual administrator updates can clear SYSTEM-owned stale processes.

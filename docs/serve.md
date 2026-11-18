@@ -50,10 +50,12 @@ curl -s http://HOST:9999/openapi.json | jq '.paths | keys'
 
 `POST /v1/exec` is deliberately generic: the spec describes the argv
 envelope, while the full command surface is discoverable at
-`GET /v1/commands` (133 commands plus a separate `root` object, each with
-options, positionals, argparse types, mutating flags and long-running
-markers). A per-command OpenAPI schema would duplicate the argparse tree
-and drift; the command tree is the better contract.
+`GET /v1/commands` (134 commands plus a separate `root` object, each with
+options, positionals, argparse types, mutating flags, long-running markers,
+a summary, description, examples, safety class and related commands). A
+per-command OpenAPI schema would duplicate the argparse tree and drift; the
+enriched command tree is the better contract. For the complete catalog as
+one document, call `POST /v1/exec` with `{"argv": ["help", "--json"]}`.
 
 The spec is generated from `plasma/openapi.py` and its `info.version`
 tracks the package version. A unit test asserts that the spec paths and

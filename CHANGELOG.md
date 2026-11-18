@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.19.0 — 2026-11-18
+
+Agent-oriented help for every command.
+
+- **Every command has a detailed help page.** `plasma <command> --help`
+  now includes a full description, working examples, notes, a safety
+  classification, output contract and related commands, not just flags.
+  `-h` works everywhere.
+- **`plasma help` is the discovery command.** No topic prints a grouped
+  command map, the dry-run → plan → apply workflow and exit codes. A topic
+  prints the same detailed page (`plasma help control approvals approve`).
+- **`plasma help --json` is the machine catalog.** Schema
+  `plasma.help/1` returns every command path, summary, description, usage,
+  arguments (required/default/choices), examples, safety, output and
+  see-also. One topic narrows it to one command.
+- **The HTTP API carries the same metadata.** `GET /v1/commands` rows now
+  include summary, description, examples, safety and see-also;
+  `POST /v1/exec {"argv":["help","--json"]}` returns the full catalog.
+- **Registry completeness is tested.** A test walks the real argparse tree
+  and fails if a command is added without a help entry; another asserts
+  every entry has examples.
+- 755 tests collected; full suite passes; ruff error-level checks clean.
+
 ## 1.18.6 — 2026-11-18
 
 Manual administrator updates can clear SYSTEM-owned stale processes.
