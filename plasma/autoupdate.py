@@ -16,6 +16,7 @@ Defaults are deliberately conservative:
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import socket
@@ -190,6 +191,92 @@ def _task_running(task: str) -> bool:
     return False
 
 
+def _keep_ancestors(pid: int) -> str:
+    """PowerShell prefix that fills ``$keep`` with our own process tree."""
+    return (
+        f"$keep = @(); $cur = {pid}; "
+        "for ($i = 0; $i -lt 6 -and $cur; $i++) { "
+        "$keep += [int]$cur; "
+        "$p = Get-CimInstance Win32_Process -Filter "
+        "\"ProcessId = $cur\" -ErrorAction SilentlyContinue; "
+        "if (-not $p) { break }; $cur = $p.ParentProcessId }; "
+    )
+
+
+def _is_system() -> bool:
+    if os.name != "nt":
+        return False
+    try:
+        out = subprocess.run(
+            ["whoami"], capture_output=True, text=True, encoding="utf-8",
+            errors="replace", check=False,
+        )
+    except OSError:
+        return False
+    return out.stdout.strip().lower() in ("nt authority\\system", "system")
+
+
+def _remaining_plasma(pid: int) -> list[int]:
+    if os.name != "nt":
+        return []
+    script = (
+        _keep_ancestors(pid) +
+        "Get-CimInstance Win32_Process -Filter \"Name LIKE 'plasma%'\" | "
+        "Where-Object { $keep -notcontains [int]$_.ProcessId } | "
+        "ForEach-Object { $_.ProcessId }"
+    )
+    run = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        check=False,
+    )
+    return [int(tok) for tok in run.stdout.split() if tok.strip().isdigit()]
+
+
+def _kill_as_system(pid: int) -> list[int]:
+    """Run the cleanup from a one-shot SYSTEM task.
+
+    An Administrator's remote token often cannot terminate SYSTEM-owned
+    serve processes (``Access is denied``). The production ``PlasmaUpdate``
+    task already runs as SYSTEM, but a manual update should behave the same.
+    """
+    if os.name != "nt":
+        return []
+    script = (
+        _keep_ancestors(pid) +
+        "Get-CimInstance Win32_Process -Filter \"Name LIKE 'plasma%'\" | "
+        "Where-Object { $keep -notcontains [int]$_.ProcessId } | "
+        "ForEach-Object { Stop-Process -Id $_.ProcessId -Force "
+        "-ErrorAction SilentlyContinue }"
+    )
+    encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+    name = f"PlasmaUpdateKill{pid}"
+    register = (
+        "$a = New-ScheduledTaskAction -Execute 'powershell.exe' "
+        f"-Argument '-NoProfile -NonInteractive -EncodedCommand {encoded}'; "
+        "$p = New-ScheduledTaskPrincipal -UserId 'SYSTEM' "
+        "-LogonType ServiceAccount -RunLevel Highest; "
+        f"Register-ScheduledTask -TaskName '{name}' -Action $a "
+        "-Principal $p -Force | Out-Null; "
+        f"Start-ScheduledTask -TaskName '{name}'"
+    )
+    subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+         register],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        check=False,
+    )
+    time.sleep(6)
+    subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+         f"Unregister-ScheduledTask -TaskName '{name}' -Confirm:$false "
+         "-ErrorAction SilentlyContinue"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        check=False,
+    )
+    return _remaining_plasma(pid)
+
+
 def _kill_lingering_serve() -> list[int]:
     """Kill plasma processes that outlive their scheduled-task parent.
 
@@ -201,13 +288,9 @@ def _kill_lingering_serve() -> list[int]:
     """
     if os.name != "nt":
         return []
+    pid = os.getpid()
     script = (
-        f"$keep = @(); $cur = {os.getpid()}; "
-        "for ($i = 0; $i -lt 6 -and $cur; $i++) { "
-        "$keep += [int]$cur; "
-        "$p = Get-CimInstance Win32_Process -Filter "
-        "\"ProcessId = $cur\" -ErrorAction SilentlyContinue; "
-        "if (-not $p) { break }; $cur = $p.ParentProcessId }; "
+        _keep_ancestors(pid) +
         "Get-CimInstance Win32_Process -Filter \"Name LIKE 'plasma%'\" | "
         "Where-Object { $keep -notcontains [int]$_.ProcessId } | "
         "ForEach-Object { Stop-Process -Id $_.ProcessId -Force "
@@ -218,7 +301,13 @@ def _kill_lingering_serve() -> list[int]:
         capture_output=True, text=True, encoding="utf-8", errors="replace",
         check=False,
     )
-    return [int(tok) for tok in run.stdout.split() if tok.strip().isdigit()]
+    attempted = [int(tok) for tok in run.stdout.split()
+                 if tok.strip().isdigit()]
+    remaining = _remaining_plasma(pid)
+    if remaining and not _is_system():
+        _kill_as_system(pid)
+        attempted.extend(remaining)
+    return sorted(set(attempted))
 
 
 def _stop_tasks(restart_serve: bool = True, skip_serve: bool = False) -> dict:

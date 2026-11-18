@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.18.6 — 2026-11-18
+
+Manual administrator updates can clear SYSTEM-owned stale processes.
+
+- **Escalate the cleanup to SYSTEM when needed.** A remote Administrator
+  token often cannot terminate SYSTEM-owned `serve` processes
+  (`Access is denied`), which left the old API image on port 9999 after a
+  manual `update auto`. If any plasma process survives the direct kill and
+  the updater is not already SYSTEM, it registers a one-shot SYSTEM task to
+  finish the cleanup, waits, and removes the task. The normal
+  `PlasmaUpdate` path is already SYSTEM and skips the escalation.
+- 743 tests collected; full suite passes; ruff error-level checks clean.
+
 ## 1.18.5 — 2026-11-18
 
 Serve-process cleanup that works on hardened hosts.

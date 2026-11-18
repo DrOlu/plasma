@@ -260,9 +260,26 @@ def test_kill_lingering_serve_returns_pids(monkeypatch):
         stdout = "123\n456\n"
 
     monkeypatch.setattr(autoupdate.os, "name", "nt")
+    monkeypatch.setattr(autoupdate, "_is_system", lambda: True)
     monkeypatch.setattr(autoupdate.subprocess, "run",
                         lambda *a, **k: _Out())
     assert autoupdate._kill_lingering_serve() == [123, 456]
+
+
+def test_kill_lingering_serve_escalates_for_admin(monkeypatch):
+    calls = []
+
+    class _Out:
+        stdout = "10\n20\n"
+
+    monkeypatch.setattr(autoupdate.os, "name", "nt")
+    monkeypatch.setattr(autoupdate.subprocess, "run",
+                        lambda *a, **k: _Out())
+    monkeypatch.setattr(autoupdate, "_is_system", lambda: False)
+    monkeypatch.setattr(autoupdate, "_kill_as_system",
+                        lambda pid: calls.append(pid) or [])
+    assert autoupdate._kill_lingering_serve() == [10, 20]
+    assert calls == [autoupdate.os.getpid()]
 
 
 def test_start_tasks_ignores_kill_metadata(monkeypatch):
