@@ -280,7 +280,8 @@ def test_start_tasks_ignores_kill_metadata(monkeypatch):
     assert all("_killed_serve" not in c for c in calls)
 
 
-def test_stop_tasks_is_noop_off_windows():
+def test_stop_tasks_is_noop_off_windows(monkeypatch):
+    monkeypatch.setattr(autoupdate.os, "name", "posix")
     assert autoupdate._stop_tasks() == {}
     assert autoupdate._start_tasks({"PlasmaWatch": True}) == {}
 
