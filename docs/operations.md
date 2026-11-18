@@ -109,8 +109,8 @@ path as `update apply`. `broad` hosts wait 24 hours after publication;
 switch pauses updates. A host's explicit ring assignment wins over the
 configured default. Around the swap Plasma stops the tasks that hold the
 binary (`PlasmaServe`, `PlasmaWatch`, `PlasmaWhidsWatchdog`,
-`PlasmaIdentityPull`), kills any lingering `serve` child that would keep
-the old image on port 9999, retries a locked image, preserves a stale
+`PlasmaIdentityPull`), stops every other `plasma*` process so no child can
+keep the old image on port 9999, retries a locked image, preserves a stale
 `.old` backup, restores the previous binary if the swap fails, and restarts
 the tasks afterwards — so `PlasmaServe` serves the new version. A
 serve-launched update skips `PlasmaServe` to avoid killing its own process

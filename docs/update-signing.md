@@ -43,8 +43,9 @@ What the automatic path does:
 4. downloads, verifies SHA-256, and verifies the pinned Authenticode signer;
 5. runs the same `install --force` path, stops the tasks that hold the
    binary (`PlasmaServe`, `PlasmaWatch`, `PlasmaWhidsWatchdog`,
-   `PlasmaIdentityPull`), kills any lingering `serve` child that PyInstaller
-   left holding port 9999, rotates the running binary **and** the canonical
+   `PlasmaIdentityPull`), stops every other `plasma*` process so
+   PyInstaller's child cannot keep port 9999, rotates the running binary
+   **and** the canonical
    `plasma.exe`, then restarts those tasks. A locked image is retried five
    times; a stale `.old` backup is preserved under a unique name; a failed
    swap restores the previous binary. A serve-launched update skips

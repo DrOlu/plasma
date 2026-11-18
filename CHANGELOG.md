@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.18.5 — 2026-11-18
+
+Serve-process cleanup that works on hardened hosts.
+
+- **Identify lingering plasma processes by image name.** WS1 hides
+  `CommandLine` and `ExecutablePath` from WMI, so the command-line match
+  used in 1.18.4 found nothing and the old serve process kept port 9999.
+  The updater now walks its own ancestor chain and stops every other
+  `plasma*` process before rotation. All of them are restarted by
+  `_start_tasks` (or by their normal schedule), and the update process
+  cannot kill itself.
+- 742 tests collected; full suite passes; ruff error-level checks clean.
+
 ## 1.18.4 — 2026-11-18
 
 Ring selection and serve restart fixes found on the live estate.

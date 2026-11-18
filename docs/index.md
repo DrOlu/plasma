@@ -1,12 +1,12 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.18.4</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.18.5</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.18.4</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.18.5</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
@@ -112,7 +112,7 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    prevent (AppLocker, egress, Defender ASR, LSA protection)
 ```
 
-## What's new in 1.18.4
+## What's new in 1.18.5
 
 - **Self-update rotation is reliable on Windows.** The tasks that hold the
   binary — `PlasmaServe`, `PlasmaWatch`, `PlasmaWhidsWatchdog`,
@@ -125,8 +125,11 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
   executable. `PlasmaServe` restarts after the update. The manual
   `plasma update apply` path uses the same quiesce/rotate/restart helper.
 - **Ring and serve fixes from the live estate.** An explicit host ring now
-  wins over the configured default, and the updater kills PyInstaller's
-  lingering `serve` child so the restarted API reports the new version.
+  wins over the configured default. The updater stops every other
+  `plasma*` process before rotation — identified by image name, because
+  WS1 hides `CommandLine`/`ExecutablePath` from WMI — so PyInstaller's
+  lingering serve child releases port 9999 and the restarted API reports
+  the new version.
 - **742 tests**, full suite green, ruff error-level checks clean.
 
 ## What's new in 1.18.0

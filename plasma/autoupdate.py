@@ -191,20 +191,25 @@ def _task_running(task: str) -> bool:
 
 
 def _kill_lingering_serve() -> list[int]:
-    """Kill serve processes that outlive their scheduled-task parent.
+    """Kill plasma processes that outlive their scheduled-task parent.
 
     A PyInstaller one-file executable re-execs itself as a child. Ending the
-    task kills the bootloader but can leave that child holding the port and
+    task kills the bootloader but can leave that child holding port 9999 and
     the old image, so a restart would bind-fail and the API would keep
-    reporting the previous version.
+    reporting the previous version. ``CommandLine`` is not readable on every
+    hardened host, so identify by image name and keep our own ancestor chain.
     """
     if os.name != "nt":
         return []
     script = (
-        f"$me = {os.getpid()}; "
+        f"$keep = @(); $cur = {os.getpid()}; "
+        "for ($i = 0; $i -lt 6 -and $cur; $i++) { "
+        "$keep += [int]$cur; "
+        "$p = Get-CimInstance Win32_Process -Filter "
+        "\"ProcessId = $cur\" -ErrorAction SilentlyContinue; "
+        "if (-not $p) { break }; $cur = $p.ParentProcessId }; "
         "Get-CimInstance Win32_Process -Filter \"Name LIKE 'plasma%'\" | "
-        "Where-Object { $_.ProcessId -ne $me -and "
-        "$_.CommandLine -match '(^|\\s)serve(\\s|$)' } | "
+        "Where-Object { $keep -notcontains [int]$_.ProcessId } | "
         "ForEach-Object { Stop-Process -Id $_.ProcessId -Force "
         "-ErrorAction SilentlyContinue; $_.ProcessId }"
     )
