@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.18.1 — 2026-11-18
+
+Self-update install robustness.
+
+- **A locked staged exe no longer aborts the install.** `cmd_install`
+  copied `sys.executable` over `bin\<same name>` unconditionally; during
+  an update the staged exe (or a stale copy of it) could be locked, and
+  the whole install failed before the updater's authoritative rotation.
+  The copy is now skipped when the bytes already match and tolerated when
+  the destination is locked.
+- 731 tests collected; full suite passes; ruff clean.
+
 ## 1.18.0 — 2026-11-18
 
 Measured self-update.

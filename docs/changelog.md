@@ -4,6 +4,15 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.18.1 — 2026-11-18
+
+Self-update install robustness.
+
+- **A locked staged exe no longer aborts the install.** The installer
+  skips the `sys.executable` copy when the bytes already match and
+  tolerates a locked destination; the updater's rotation is authoritative.
+- 731 tests collected; full suite passes; ruff clean.
+
 ## 1.18.0 — 2026-11-18
 
 Measured self-update.

@@ -893,7 +893,15 @@ def cmd_install(args) -> int:
     bindir = root / "bin"
     bindir.mkdir(parents=True, exist_ok=True)
     me = Path(sys.executable)
-    shutil.copy2(me, bindir / me.name)
+    dest = bindir / me.name
+    try:
+        if not _same_bytes(me, dest):
+            shutil.copy2(me, dest)
+    except OSError:
+        # A running or staged exe can be locked while the updater rotates
+        # it. The rotation that follows the install is authoritative; a
+        # locked copy must not abort the whole install.
+        pass
     # Scheduled tasks must point at a stable name, not the transient
     # `plasma-update-staged.exe` the updater re-enters during an install.
     task_exe = bindir / ("plasma.exe" if me.name.startswith("plasma-update")
