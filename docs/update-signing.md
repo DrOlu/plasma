@@ -112,8 +112,8 @@ but the **pin** is what matters.
 
 ## Release signing in CI
 
-`release.yml` signs the Windows exe with Authenticode **before** SHA-256
-sums are computed, when repository secrets exist:
+`release.yml` signs the Windows exe **and the MSI** with Authenticode
+**before** SHA-256 sums are computed, when repository secrets exist:
 
 | Secret | Purpose |
 |---|---|
@@ -122,7 +122,9 @@ sums are computed, when repository secrets exist:
 
 The workflow imports the certificate into the ephemeral runner's trust
 stores (so `signtool verify /pa` exercises the real chain), signs with a
-DigiCert RFC 3161 timestamp, verifies, then hashes the **signed** file.
+DigiCert RFC 3161 timestamp, verifies, then hashes the **signed** files.
+The MSI is built with `-arch x64`, so it installs under
+`C:\Program Files\Plasma` rather than `Program Files (x86)`.
 Without secrets, the release proceeds unsigned.
 
 ## Signpath Foundation (publicly trusted signing)

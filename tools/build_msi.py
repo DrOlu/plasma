@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Build an MSI for GPO / enterprise deployment from the single-file exe.
+r"""Build an MSI for GPO / enterprise deployment from the single-file exe.
 
 Requires the WiX Toolset CLI (v4/v5 dotnet tool: `dotnet tool install
---global wix`). Run on Windows in CI — the MSI installs the exe into
-Program Files and runs `plasma install` as a deferred, elevated custom
-action, so a GPO Software Installation deployment provisions the node
-without an operator at the console.
+--global wix`). Run on Windows in CI — the MSI is built with `-arch x64`,
+installs the exe into `C:\Program Files\Plasma`, and runs `plasma install`
+as a deferred, elevated custom action, so a GPO Software Installation
+deployment provisions the node without an operator at the console.
 
     python tools/build_msi.py --exe dist/plasma.exe --version 1.4.0 \
         --out dist/plasma-1.4.0-windows-x64.msi
@@ -29,6 +29,7 @@ WXS_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
            Version="{version}"
            UpgradeCode="{upgrade}"
            Scope="perMachine"
+           InstallerVersion="500"
            Compressed="yes">
     <MajorUpgrade DowngradeErrorMessage="A newer version of Plasma EDR is installed." />
     <MediaTemplate EmbedCab="yes" />
@@ -100,7 +101,8 @@ def main(argv=None) -> int:
     if args.wxs_only:
         return 0
 
-    proc = subprocess.run([args.wix, "build", str(wxs_path), "-o", str(out)],
+    proc = subprocess.run([args.wix, "build", str(wxs_path),
+                           "-arch", "x64", "-o", str(out)],
                           capture_output=True, text=True, encoding="utf-8",
                           errors="replace", timeout=600, check=False)
     if proc.returncode != 0:

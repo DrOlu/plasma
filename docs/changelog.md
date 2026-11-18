@@ -4,6 +4,18 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.19.2 — 2026-11-18
+
+Enterprise MSI packaging.
+
+- **The MSI is Authenticode-signed** in the release workflow, using the same
+  PFX and timestamp as the exe; `SHA256SUMS` covers the signed MSI.
+- **The MSI is built with `-arch x64`**, so it installs under
+  `C:\Program Files\Plasma` instead of `Program Files (x86)`.
+- Verified on WS2: silent MSI install exits 0, installed exe and `/healthz`
+  report 1.19.2.
+- 786 tests collected; full suite and `-W error` pass; `ruff check` clean.
+
 ## 1.19.1 — 2026-11-18
 
 Holistic security and correctness review.

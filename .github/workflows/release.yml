@@ -124,6 +124,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "MSI build failed" }
 
           $msi = "dist/plasma-$version-windows-x64.msi"
+          if ($env:SIGNING_PFX_BASE64) {
+            & $signtool sign /f $pfxPath /p $env:SIGNING_PFX_PASSWORD `
+              /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 $msi
+            if ($LASTEXITCODE -ne 0) { throw "MSI signing failed" }
+            & $signtool verify /pa /v $msi
+            if ($LASTEXITCODE -ne 0) { throw "MSI verification failed" }
+            Write-Host "Signed and verified: $msi"
+          } else {
+            Write-Host "No signing secrets configured - publishing unsigned MSI"
+          }
           $sums = @(
             ((Get-FileHash $exe -Algorithm SHA256).Hash.ToLower() + "  " + (Split-Path $exe -Leaf)),
             ((Get-FileHash $msi -Algorithm SHA256).Hash.ToLower() + "  " + (Split-Path $msi -Leaf))
