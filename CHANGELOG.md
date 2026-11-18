@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.18.3 — 2026-11-18
+
+Manual `update apply` shares the hardened rotation path.
+
+- **`update apply` now quiesces and restarts the scheduled tasks** with the
+  same `rotate_running` helper as `update auto`, so the manual path cannot
+  hit the in-use-image failure that prompted 1.18.2.
+- 738 tests collected; full suite passes; ruff error-level checks clean.
+
 ## 1.18.2 — 2026-11-18
 
 Self-update rotation reliability on Windows.

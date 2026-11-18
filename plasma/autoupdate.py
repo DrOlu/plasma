@@ -242,6 +242,29 @@ def _rotate_with_retry(staged, target, attempts: int = 5) -> dict:
     return result
 
 
+def rotate_running(staged, target, restart_serve: bool = True) -> dict:
+    """Quiesce the tasks, rotate the running/canonical binaries, restart.
+
+    Shared by ``update auto`` and the manual ``update apply`` path so both
+    are equally robust against an in-use image.
+    """
+    target = Path(target)
+    stopped = _stop_tasks(
+        restart_serve,
+        skip_serve=os.environ.get("PLASMA_SERVE_CHILD") == "1")
+    rotation = {"ok": False, "error": "not attempted"}
+    canonical_rotation = None
+    try:
+        rotation = _rotate_with_retry(staged, target)
+        canonical = target.parent / "plasma.exe"
+        if canonical != target:
+            canonical_rotation = _rotate_with_retry(staged, canonical)
+    finally:
+        started = _start_tasks(stopped)
+    return {"rotation": rotation, "canonical": canonical_rotation,
+            "stopped": stopped, "started": started}
+
+
 def _notify(root, cfg, title: str, body: str) -> dict | None:
     if not cfg.get("notify"):
         return None
@@ -395,16 +418,13 @@ def _apply(root, cfg, host, repo, rel, token, allow_unsigned,
     # Windows will not let us replace a versioned binary that a scheduled
     # task has open. Stop the tasks that hold it, rotate, then restart them.
     # PlasmaUpdate itself is not stopped: it is the process running this code.
-    serve_child = os.environ.get("PLASMA_SERVE_CHILD") == "1"
-    stopped = _stop_tasks(bool(cfg.get("restart_serve", True)),
-                          skip_serve=serve_child)
     current = root / "bin" / Path(sys.executable).name
-    rotation = _rotate_with_retry(staged, current)
-    canonical = root / "bin" / "plasma.exe"
-    canonical_rotation = None
-    if canonical != current:
-        canonical_rotation = _rotate_with_retry(staged, canonical)
-    started = _start_tasks(stopped)
+    rotated = rotate_running(staged, current,
+                             bool(cfg.get("restart_serve", True)))
+    rotation = rotated["rotation"]
+    canonical_rotation = rotated["canonical"]
+    stopped = rotated["stopped"]
+    started = rotated["started"]
     if not rotation.get("ok"):
         _journal(root, {"host": host, "status": "failed",
                         "stage": "rotate", "detail": rotation.get("error"),

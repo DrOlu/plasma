@@ -218,6 +218,23 @@ def test_rotate_with_retry_gives_up(monkeypatch):
     assert len(calls) == 2
 
 
+def test_rotate_running_restarts_tasks_even_on_failure(monkeypatch):
+    events = []
+    monkeypatch.setattr(autoupdate, "_stop_tasks",
+                        lambda *a, **k: events.append("stop")
+                        or {"PlasmaWatch": True})
+    monkeypatch.setattr(autoupdate, "_start_tasks",
+                        lambda stopped: events.append("start")
+                        or {"PlasmaWatch": True})
+    monkeypatch.setattr(autoupdate, "_rotate_with_retry",
+                        lambda *a, **k: events.append("rotate")
+                        or {"ok": False, "error": "locked"})
+    out = autoupdate.rotate_running("staged", "/tmp/bin/plasma-1.exe")
+    assert events == ["stop", "rotate", "rotate", "start"]
+    assert out["rotation"]["ok"] is False
+    assert out["started"] == {"PlasmaWatch": True}
+
+
 def test_stop_tasks_is_noop_off_windows():
     assert autoupdate._stop_tasks() == {}
     assert autoupdate._start_tasks({"PlasmaWatch": True}) == {}

@@ -1762,8 +1762,13 @@ def cmd_update_apply(args) -> int:
         return 3
     _state("installed", f"tag={res.get('tag')}")
     bin_exe = Path(args.bin) if args.bin else root / "bin" / Path(sys.executable).name
-    rot = updater.rotate_bin(staged, bin_exe)
-    print(json.dumps({"stage": "bin_rotation", **rot}, indent=2, default=str))
+    rotated = autoupdate.rotate_running(staged, bin_exe)
+    rot = rotated["rotation"]
+    print(json.dumps({"stage": "bin_rotation", **rot,
+                      "canonical": rotated["canonical"],
+                      "stopped": rotated["stopped"],
+                      "started": rotated["started"]},
+                     indent=2, default=str))
     if not rot.get("ok"):
         _state("failed", "bin rotation failed")
         return 4
