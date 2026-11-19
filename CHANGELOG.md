@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.20.1 — 2026-11-19
+
+- **Root help names the token model.** `plasma --help` now says canary files
+  and native DNS/HTTP tokens are normalized into the event store, matching
+  the command help and the 1.20.0 feature set.
+- No behavior change; this is a documentation/help patch on top of 1.20.0.
+
 ## 1.20.0 — 2026-11-19
 
 - **Believable file canaries.** Random subdirectories and document names by
