@@ -43,6 +43,14 @@ prevention is audit-first and opt-in.**
   protection. AppLocker starts in audit; every control is dry-run first,
   plan-gated, verified and rollbackable by journal id.
 
+### Do canary tokens need Docker or a cloud service?
+
+No. File canaries are local documents. DNS tokens are read from the local
+Sysmon channel through a narrow EID 22 include. HTTP tokens are served by
+`plasma canary serve`, which binds loopback by default and refuses a
+non-loopback bind without an explicit flag. There is no container, no
+external callback and no telemetry endpoint.
+
 Every apply still passes a dry-run + plan gate, and the kill switch blocks
 all containment. Plasma does not ship its own kernel driver.
 

@@ -358,6 +358,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <a href="#agent-layer">Agent layer</a>
       <a href="#neuralosd">Orchestration</a>
       <a href="#sensors">Sensors</a>
+      <a href="#canaries">Canaries</a>
       <a href="#detection">Detection</a>
       <a href="#response">Response</a>
       <a href="#prevention">Prevention</a>
@@ -678,7 +679,7 @@ python orchestrate.py undo 35</pre>
     <div class="section-head reveal">
       <span class="kicker">Sensors</span>
       <h2>Eyes on the machine, not on the wire.</h2>
-      <p class="lede">Seven collectors, each bounded and each honest about what it can see. None of them ships your diary anywhere.</p>
+      <p class="lede">Eight collectors, each bounded and each honest about what it can see. None of them ships your diary anywhere.</p>
     </div>
 
     <div class="grid c3">
@@ -718,10 +719,10 @@ python orchestrate.py undo 35</pre>
       </article>
 
       <article class="card c-coral reveal">
-        <div class="cap"><span>Canaries</span><b>6 files</b></div>
-        <h3>Ransomware decoys</h3>
-        <p>Six decoy documents placed where ransomware looks first. A missing or modified decoy is a score-10 impact finding, verified on every watch sweep.</p>
-        <div class="tags"><span>T1486</span><span>score 10</span><span>watch</span></div>
+        <div class="cap"><span>Canaries</span><b>8 files + tokens</b></div>
+        <h3>Impact and access tripwires</h3>
+        <p>Randomized, believable decoys; DNS hostname tokens via a narrow Sysmon EID 22 include; HTTP <code>.url</code> tokens via a loopback-first local collector. No Docker, no cloud.</p>
+        <div class="tags"><span>T1486</span><span>DNS/HTTP</span><span>score 8–10</span></div>
       </article>
 
       <article class="card c-lav reveal" style="grid-column:span 2">
@@ -737,6 +738,44 @@ python orchestrate.py undo 35</pre>
         <p>SCM failure actions restart a crashed WHIDS; a hung <code>StartPending</code> needs more. A SYSTEM task runs <code>whids ensure</code> every two minutes and logs every action.</p>
         <div class="tags"><span>PlasmaWhidsWatchdog</span><span>self-healing</span></div>
       </article>
+    </div>
+  </div>
+</section>
+
+<!-- CANARIES -->
+<section class="block" id="canaries">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Canaries</span>
+      <h2>Tripwires that should never be touched.</h2>
+      <p class="lede">Three native token types, one evidence path. No container, no external callback, no telemetry endpoint.</p>
+    </div>
+
+    <div class="grid c3">
+      <article class="card c-coral reveal">
+        <div class="cap"><span>File canaries</span><b>score 10</b></div>
+        <h3>Believable decoys</h3>
+        <p>Valid xlsx/docx/pdf/csv documents with randomized names and subdirectories. The body never says “canary”; the hash manifest is the only marker. Missing or modified is impact.</p>
+        <div class="tags"><span>T1486</span><span>watch</span><span>hash manifest</span></div>
+      </article>
+
+      <article class="card c-cyan reveal">
+        <div class="cap"><span>DNS tokens</span><b>score 8</b></div>
+        <h3>Hostname tripwires</h3>
+        <p>A unique hostname under a controlled suffix. A query is observed through a narrow Sysmon EID 22 include; ordinary DNS stays out of the channel. No callback server.</p>
+        <div class="tags"><span>Sysmon 22</span><span>narrow include</span><span>local</span></div>
+      </article>
+
+      <article class="card c-lime reveal">
+        <div class="cap"><span>HTTP tokens</span><b>score 8</b></div>
+        <h3>Local callback</h3>
+        <p>A plausible Windows <code>.url</code> shortcut pointing at <code>plasma canary serve</code>. Loopback-first, GET/HEAD only, 1×1 GIF, no file serving, no redirects.</p>
+        <div class="tags"><span>.url</span><span>loopback</span><span>no Docker</span></div>
+      </article>
+    </div>
+
+    <div class="note reveal" style="margin-top:18px">
+      DNS and HTTP hits become <code>source="canary"</code> alert rows, deduplicated across sweeps. <code>watch</code> surfaces them, <code>fleet</code> adds <code>canary_token_hit</code>, and enforcement maps canary findings to approval-gated isolation. Configured canary accounts are checked on every sweep.
     </div>
   </div>
 </section>
@@ -766,7 +805,7 @@ python orchestrate.py undo 35</pre>
           and watch uses the loudest finding to pick its verdict.
         </p>
         <div class="tags" style="margin-top:14px">
-          <span>gene ×10</span><span>trace ×10</span><span>canary 10</span><span>chain weighted</span>
+          <span>gene ×10</span><span>trace ×10</span><span>canary 8/10</span><span>chain weighted</span>
         </div>
       </div>
 
@@ -1279,7 +1318,7 @@ POST /v1/exec        run one CLI argv</pre>
     </div>
     <div class="grid c2 reveal">
       <div class="card c-lime">
-        <div class="cap"><span>Product Guide</span><b>PDF · 18 pages</b></div>
+        <div class="cap"><span>Product Guide</span><b>PDF · 19 pages</b></div>
         <h3>What it is and what it does</h3>
         <p>Architecture, detection, coverage, prevention, response, neuralOSd orchestration, the HTTP API and the honest limits. Version 1.20.0.</p>
         <div class="mini"><a class="btn dark" href="https://drolu.github.io/plasma/Plasma_Product_Guide.pdf">Download the Product Guide</a></div>
@@ -1322,6 +1361,7 @@ POST /v1/exec        run one CLI argv</pre>
         <ul>
           <li><a href="#architecture">Architecture</a></li>
           <li><a href="#agent-layer">Agent layer</a></li>
+          <li><a href="#canaries">Canaries</a></li>
           <li><a href="#response">Response</a></li>
           <li><a href="#coverage">Coverage</a></li>
         </ul>

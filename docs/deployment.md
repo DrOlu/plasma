@@ -64,7 +64,11 @@ uninstaller default. Remove those explicitly if required.
 
 ```powershell
 plasma health
-plasma canary deploy          # optional: impact decoys on this node
+plasma canary deploy          # optional: realistic impact decoys
+plasma canary token create --kind dns --domain assets.internal
+plasma canary sysmon --apply  # narrow Sysmon EID 22 include
+plasma canary token create --kind http --base-url http://collector:8088
+plasma canary serve --host 127.0.0.1 --port 8088
 ```
 
 A node deployed by MSI runs the same `install` path as the exe, so its

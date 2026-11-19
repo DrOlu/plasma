@@ -95,7 +95,7 @@ without sending its diary anywhere?**
 
 ```text
 SENSORS            Sysmon · WHIDS gene rules · Security-log identity ·
-                   ETW tap · deep persistence probe
+                   ETW tap · deep persistence probe · canary tokens
         │
         ▼  one strict event contract (events.jsonl, on the box)
 ON-DEVICE BRAIN    frozen neuralOS instance — 10 probes, refuse-if-unknown
@@ -661,8 +661,11 @@ Prefer a visual tour? **[Open the one-page overview](https://drolu.github.io/pla
 - **Playbooks** — `contain-user`, `isolate-box`: fixed sequences applied as
   one plan-gated unit, aborting on the first failure, reversible last-first.
 - **Store hygiene** — `store rotate|compact|stats` keeps the diary bounded.
-- **Canary files** — decoy documents whose deletion/modification is a
-  score-10 impact finding, verified on every `watch` sweep.
+- **Canaries and tokens** — randomized, believable decoy documents
+  (score 10 on modification/deletion), DNS hostname tokens observed through
+  a narrow Sysmon EID 22 include (score 8), HTTP `.url` tokens served by a
+  loopback-first local collector (score 8), and configured canary accounts
+  (score 10). All hits land in the same `source="canary"` event path.
 - **MSI + GPO** — an enterprise package that provisions a node silently
   through Group Policy.
 - **DTrace, on demand** — reviewed, bounded kernel/syscall tracing where

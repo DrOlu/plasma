@@ -11,6 +11,7 @@ desk asks questions when there is a reason to.**
         │  Sysmon ─┐                                                              │
         │  WHIDS  ─┼─► normalizers ─► data\events.jsonl   (one strict contract)   │
         │  identity┘                        │                                     │
+        │  canary files/tokens ─────────────┤                                     │
         │  ETW tap (on demand)              ▼                                     │
         │                       frozen neuralOS instance                          │
         │                       (menu of 10 probes, refuses unknowns)             │
@@ -23,7 +24,9 @@ desk asks questions when there is a reason to.**
 
 Nothing streams to a server. There is no collector daemon of Plasma's own,
 no cloud dependency, and no standing network path except the management
-channel you already have (WinRM 5985 or SSM).
+channel you already have (WinRM 5985 or SSM). Canary tokens follow the same
+rule: DNS queries are read from the local Sysmon channel, and HTTP tokens
+are served by a loopback-first local collector.
 
 ## The event contract
 

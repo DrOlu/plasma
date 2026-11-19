@@ -32,6 +32,12 @@ plan, a risk tier and (when required) an approval reference. Applying the
 action stays behind the CLI's plan/approval gate. A hallucinating or
 prompt-injected model cannot change a host through the tool API.
 
+Canary token creation, collection and hit review are available through the
+CLI and the authenticated HTTP API (`/v1/exec`); the MCP `deploy_canary`
+tool remains a dry-run plan. Token creation is a local write, not a host
+change, and `canary serve` is classified long-running so the HTTP API
+refuses to start it.
+
 ## Autonomy tiers
 
 Set the node's posture with `plasma control policy set --autonomy …`.
