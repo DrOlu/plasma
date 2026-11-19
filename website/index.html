@@ -343,7 +343,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <a class="skip" href="#main">Skip to content</a>
 
 <div class="announce">
-  <b>v1.20.1 is out</b> &nbsp;·&nbsp; Root help now names native canary tokens &nbsp;·&nbsp;
+  <b>v1.21.0 is out</b> &nbsp;·&nbsp; Plan-gated interception at native Windows gates &nbsp;·&nbsp;
   <a href="https://drolu.github.io/plasma/changelog/">read the changelog</a>
 </div>
 
@@ -351,7 +351,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
   <div class="wrap header-inner">
     <a class="brand" href="#top" aria-label="Plasma home">
       <span class="brand-mark" aria-hidden="true">P</span>
-      <span>Plasma</span><em>v1.20.1</em>
+      <span>Plasma</span><em>v1.21.0</em>
     </a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
       <a href="#architecture">Architecture</a>
@@ -359,6 +359,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <a href="#neuralosd">Orchestration</a>
       <a href="#sensors">Sensors</a>
       <a href="#canaries">Canaries</a>
+      <a href="#intercept">Intercept</a>
       <a href="#detection">Detection</a>
       <a href="#response">Response</a>
       <a href="#prevention">Prevention</a>
@@ -384,7 +385,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <section class="hero">
   <div class="wrap hero-grid">
     <div class="reveal">
-      <span class="pill"><i></i> Windows EDR · on-device · v1.20.1</span>
+      <span class="pill"><i></i> Windows EDR · on-device · v1.21.0</span>
       <h1>No log lake.<br>No cloud.<br><span class="hl">No blind trust.</span></h1>
       <p class="sub">
         <strong>Detects always. Contains only when armed. Blocks only through Microsoft's own
@@ -634,7 +635,7 @@ plasma control audit verify</pre>
         <div class="cap"><span>Event parse</span><b>100%</b></div>
         <h3>Contract clean</h3>
         <p>DTrace, WHIDS storm rows and long command lines now validate. Both estate hosts parse every event in the store.</p>
-        <div class="tags"><span>WS1 + WS2</span><span>1.20.1</span></div>
+        <div class="tags"><span>WS1 + WS2</span><span>1.21.0</span></div>
       </article>
     </div>
 
@@ -776,6 +777,54 @@ python orchestrate.py undo 35</pre>
 
     <div class="note reveal" style="margin-top:18px">
       DNS and HTTP hits become <code>source="canary"</code> alert rows, deduplicated across sweeps. <code>watch</code> surfaces them, <code>fleet</code> adds <code>canary_token_hit</code>, and enforcement maps canary findings to approval-gated isolation. Configured canary accounts are checked on every sweep.
+    </div>
+  </div>
+</section>
+
+<!-- INTERCEPT -->
+<section class="block alt" id="intercept">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Interception</span>
+      <h2>Deny at the gate, not after the damage.</h2>
+      <p class="lede">Typed rules compiled into gates Windows already owns. No kernel driver. Every apply is dry-run first, plan-gated, journaled and reversible.</p>
+    </div>
+
+    <div class="grid c3">
+      <article class="card c-cyan reveal">
+        <div class="cap"><span>Phase 0</span><b>shadow</b></div>
+        <h3>Would-block evidence</h3>
+        <p>Evaluate rules over a bounded event tail without changing the host. Tune false positives before a rule becomes enforcement.</p>
+        <div class="tags"><span>intercept evaluate</span><span>read-only</span></div>
+      </article>
+
+      <article class="card c-coral reveal">
+        <div class="cap"><span>Phase 1</span><b>NTFS ACL</b></div>
+        <h3>Canary protection</h3>
+        <p>A deny ACE for write/delete makes the decoy a small safe. The prior SDDL is journaled; rollback restores it exactly.</p>
+        <div class="tags"><span>deny</span><span>audit fallback</span><span>rollback</span></div>
+      </article>
+
+      <article class="card c-lime reveal">
+        <div class="cap"><span>Phase 2</span><b>MCP gateway</b></div>
+        <h3>Agent tool-call gate</h3>
+        <p>Rules are evaluated before policy and handlers. A denied call returns <code>INTERCEPTED</code> with an audit id; shadow rules audit without blocking.</p>
+        <div class="tags"><span>synchronous</span><span>ledger</span></div>
+      </article>
+
+      <article class="card c-lav reveal" style="grid-column:span 2">
+        <div class="cap"><span>Phase 3</span><b>native broker</b></div>
+        <h3>ACL and firewall, plan-gated</h3>
+        <p>Brokers typed rules into NTFS ACLs and Windows Firewall outbound blocks. Dry-run → plan → apply → verify → rollback. The same discipline as the response and prevention planes.</p>
+        <div class="tags"><span>plan-bound</span><span>single-use</span><span>kill switch</span></div>
+      </article>
+
+      <article class="card reveal">
+        <div class="cap"><span>Limits</span><b>honest</b></div>
+        <h3>No kernel driver</h3>
+        <p>It uses Windows' own gates. Kernel-mode malware, malicious drivers and direct syscalls remain outside the claim.</p>
+        <div class="tags"><span>no driver</span><span>no arbitrary shell</span></div>
+      </article>
     </div>
   </div>
 </section>
@@ -1320,13 +1369,13 @@ POST /v1/exec        run one CLI argv</pre>
       <div class="card c-lime">
         <div class="cap"><span>Product Guide</span><b>PDF · 19 pages</b></div>
         <h3>What it is and what it does</h3>
-        <p>Architecture, detection, coverage, prevention, response, neuralOSd orchestration, the HTTP API and the honest limits. Version 1.20.1.</p>
+        <p>Architecture, detection, coverage, prevention, response, neuralOSd orchestration, the HTTP API and the honest limits. Version 1.21.0.</p>
         <div class="mini"><a class="btn dark" href="https://drolu.github.io/plasma/Plasma_Product_Guide.pdf">Download the Product Guide</a></div>
       </div>
       <div class="card c-lav">
         <div class="cap"><span>Operations Guide</span><b>PDF · 19 pages</b></div>
         <h3>Install, operate, respond</h3>
-        <p>Install, configuration, daily operations, the prevention runbook, fleet, neuralOSd orchestration, the HTTP API, troubleshooting and cheat sheet. Version 1.20.1.</p>
+        <p>Install, configuration, daily operations, the prevention runbook, fleet, neuralOSd orchestration, the HTTP API, troubleshooting and cheat sheet. Version 1.21.0.</p>
         <div class="mini"><a class="btn dark" href="https://drolu.github.io/plasma/Plasma_Operations_Guide.pdf">Download the Operations Guide</a></div>
       </div>
     </div>
@@ -1341,7 +1390,7 @@ POST /v1/exec        run one CLI argv</pre>
       <p>Install the signed release, point the harness at the MCP server, and let the policy engine decide what the model is allowed to do.</p>
     </div>
     <div class="cta-actions">
-      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.20.1</a>
+      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.21.0</a>
       <a class="btn pink" href="https://drolu.github.io/plasma/getting-started/">Read the docs</a>
     </div>
   </div>
@@ -1362,6 +1411,7 @@ POST /v1/exec        run one CLI argv</pre>
           <li><a href="#architecture">Architecture</a></li>
           <li><a href="#agent-layer">Agent layer</a></li>
           <li><a href="#canaries">Canaries</a></li>
+          <li><a href="#intercept">Intercept</a></li>
           <li><a href="#response">Response</a></li>
           <li><a href="#coverage">Coverage</a></li>
         </ul>

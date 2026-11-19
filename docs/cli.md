@@ -176,6 +176,29 @@ collector; hits are written to `<root>/canary-hits.jsonl`. `watch` (or
 `canary collect`) turns DNS/HTTP hits into `source="canary"` event-store
 alerts, deduplicated across sweeps.
 
+### intercept
+
+```text
+plasma intercept status
+plasma intercept rules list
+plasma intercept rules add --file FILE
+plasma intercept rules remove RULE_ID
+plasma intercept evaluate [--events FILE] [--max-rows N] [--out FILE]
+plasma intercept apply RULE_ID [--apply --plan ID --reason TEXT]
+plasma intercept protect-canary [--prefix PATH] [--apply --plan ID --reason TEXT]
+plasma intercept rollback --id ID [--apply --plan ID --reason TEXT]
+```
+
+Deterministic policy at native gates. `evaluate` is the shadow phase: it
+reports `would_block` without changing the host. `protect-canary` adds an
+NTFS deny/audit ACL to the canary manifest. `apply` brokers `acl` and
+`firewall` rules. The MCP tool-call gateway evaluates `agent_tool_call`
+rules before policy and handlers. Every apply is dry-run first, plan-gated,
+payload-bound, journaled and reversible.
+
+`acl` rollback restores the prior SDDL; `firewall` rollback removes the
+named rule. AppLocker and ASR remain under `plasma prevent`.
+
 ### drift
 
 ```text

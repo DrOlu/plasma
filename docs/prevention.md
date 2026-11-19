@@ -59,6 +59,7 @@ Findings map to actions:
 | injection technique (T1055 family) with a PID | `snapshot`, then `kill_process` | automatic when armed |
 | `chain_injection_chain` / `chain_injection_apc_chain` | `snapshot`, then `kill_process` on the image PID | automatic when armed |
 | `canary_tripped`, `canary_dns_tripped`, `canary_http_tripped`, `canary_account_tripped` | `isolate_host` | approval required |
+| `intercept` ACL/firewall rule | native deny + journal | plan-gated; dry-run first |
 
 Policy lives in `config.json`:
 

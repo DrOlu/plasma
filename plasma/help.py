@@ -73,7 +73,7 @@ GROUPS = [
         "deep", "observe", "chain", "coverage", "store", "watch", "notify",
     ]),
     ("respond", "Response and prevention", [
-        "actuate", "playbook", "enforce", "protect", "prevent",
+        "actuate", "playbook", "enforce", "protect", "prevent", "intercept",
     ]),
     ("fleet", "Fleet and case work", ["fleet", "drift"]),
     ("trust", "Agent trust, audit and evidence", [
@@ -961,6 +961,160 @@ Without --apply the command only writes
            "The include is suffix-based; a token hostname must end with one "
            "of the configured domains."],
     see_also=["canary token create", "canary collect", "watch"],
+))
+
+_add("intercept", _c(
+    "deterministic policy at native interception points",
+    """Interception is the layer between a sensor and a responder: it sees an
+attempt at the boundary and can allow, deny, or record a would-be denial.
+Plasma does not ship a kernel driver. It brokers typed rules into gates
+Windows already owns: NTFS ACLs for canary files, Windows Firewall for
+outbound destinations, and the MCP boundary for agent tool calls.
+
+Phase 0 is shadow evaluation over the event store. Phase 1 is canary ACL
+protection. Phase 2 is the agent tool-call gateway. Phase 3 applies rules
+with a dry-run, plan id, journal, verification and rollback.""",
+    [
+        ("Status", "plasma intercept status"),
+        ("Shadow-evaluate rules", "plasma intercept evaluate --events C:\\ProgramData\\Plasma\\data\\events.jsonl"),
+        ("Protect canaries", "plasma intercept protect-canary"),
+        ("Apply a rule", "plasma intercept apply block-test-net --apply --plan 12 --reason \"IR-42\""),
+    ],
+    safety=LOCAL_WRITE + "; " + PLAN_GATED,
+    notes=["Rules are typed and deterministic; the model may propose but "
+           "cannot apply one without the plan gate.",
+           "No kernel driver and no arbitrary shell: backends are ACL, "
+           "firewall and the agent gateway."],
+    see_also=["prevent", "canary", "mcp", "watch"],
+))
+
+_add("intercept status", _c(
+    "show intercept rules, enforcement mode and journal counts",
+    """Read the local rule registry and journal summary. Use it before an
+incident to confirm which rules exist and whether they are shadow or
+enforcing.""",
+    [("Status", "plasma intercept status")],
+    see_also=["intercept rules list", "intercept evaluate"],
+))
+
+_add("intercept rules", _c(
+    "manage the local intercept rule registry",
+    """Rules live in `<root>/intercept-rules.json`. A rule has an id, a point,
+a match object, an action, a backend and a mode. Rules are validated before
+they are written; unknown fields and malformed values are refused.""",
+    [
+        ("List rules", "plasma intercept rules list"),
+        ("Add from a file", "plasma intercept rules add --file rules.json"),
+    ],
+    safety=LOCAL_WRITE,
+    see_also=["intercept rules add", "intercept apply"],
+))
+
+_add("intercept rules list", _c(
+    "list intercept rules",
+    """Print every rule id, point, action, backend, mode and match. This is
+read-only and safe on a read-only HTTP API.""",
+    [("List", "plasma intercept rules list")],
+    see_also=["intercept rules add", "intercept rules remove"],
+))
+
+_add("intercept rules add", _c(
+    "add one or more rules from a JSON file",
+    """The file may contain one rule object or `{"rules": [...]}`. Every rule
+is validated and the registry is written atomically. Existing rule ids are
+refused rather than replaced.""",
+    [
+        ("Add one rule", "plasma intercept rules add --file rule.json"),
+        ("Add a set", "plasma intercept rules add --file rules.json"),
+    ],
+    safety=LOCAL_WRITE,
+    see_also=["intercept rules list", "intercept rules remove"],
+))
+
+_add("intercept rules remove", _c(
+    "remove an intercept rule",
+    """Remove one rule by id. Removing a rule does not undo an already-applied
+native policy; use `intercept rollback --id <journal-id>` for that.""",
+    [("Remove", "plasma intercept rules remove block-test-net")],
+    safety=LOCAL_WRITE,
+    see_also=["intercept rules list", "intercept rollback"],
+))
+
+_add("intercept evaluate", _c(
+    "shadow-evaluate rules over the event store",
+    """Read a bounded tail of the event store and apply every matching rule.
+This is Phase 0: it records `would_block` decisions without changing a host.
+Use it to tune rules before enforcement, or to explain what an enforcing
+rule would have done. Exit 0 even when would-block decisions exist; the
+JSON reports the count.
+
+`--out` writes the decisions to a file, which is a local write; without it
+the command is read-only.""",
+    [
+        ("Evaluate", "plasma intercept evaluate --events events.jsonl"),
+        ("Bounded tail", "plasma intercept evaluate --max-rows 1000"),
+        ("Write decisions", "plasma intercept evaluate --out decisions.json"),
+    ],
+    safety=LOCAL_WRITE,
+    see_also=["intercept rules list", "watch", "chain"],
+))
+
+_add("intercept apply", _c(
+    "apply a native intercept rule (dry-run by default)",
+    """Compile one rule to its native backend and render the exact payload.
+Without `--apply` the command journals a dry-run and returns a plan id.
+With `--apply --plan <id>` it claims that plan, changes the native policy,
+verifies the result and writes an undo recipe.
+
+Supported enforcing backends: `acl` (canary file protection) and `firewall`
+(outbound destination block). `gateway` rules apply at the MCP boundary and
+need no host mutation. AppLocker and ASR remain available through
+`plasma prevent` with the same plan discipline.""",
+    [
+        ("Dry-run a firewall rule", "plasma intercept apply block-test-net"),
+        ("Apply it", "plasma intercept apply block-test-net --apply --plan 12 --reason \"IR-42\""),
+        ("Dry-run a canary ACL rule", "plasma intercept apply protect-canary"),
+    ],
+    safety=LOCAL_WRITE + "; " + PLAN_GATED + "; " + PRIVILEGED,
+    notes=["A bad inline policy can break a host. Default is dry-run; the "
+           "plan is single-use and payload-bound.",
+           "ACL apply stores the prior SDDL for rollback."],
+    see_also=["intercept rollback", "prevent", "intercept protect-canary"],
+))
+
+_add("intercept protect-canary", _c(
+    "protect canary files with an NTFS deny/audit ACL",
+    """Read the canary manifest, add a deny ACE for write/delete by Everyone
+and a failure audit rule, then verify the ACL. The canary becomes both a
+tripwire and a small safe: a destructive writer is denied and the attempt is
+recorded. The prior SDDL is journaled for rollback.
+
+Without `--apply` this is a dry-run; with `--apply --plan <id>` it applies
+the reviewed plan. The Sysmon/file audit policy must be enabled for failure
+events to reach the Security log.""",
+    [
+        ("Dry-run", "plasma intercept protect-canary"),
+        ("Apply", "plasma intercept protect-canary --apply --plan 7 --reason \"canary protection\""),
+        ("Only a prefix", "plasma intercept protect-canary --prefix D:\\Finance"),
+    ],
+    safety=LOCAL_WRITE + "; " + PLAN_GATED + "; " + PRIVILEGED,
+    notes=["A deny ACE is enforced by NTFS, not a Plasma driver.",
+           "Rollback restores the exact prior SDDL captured at apply time."],
+    see_also=["canary deploy", "intercept rollback", "watch"],
+))
+
+_add("intercept rollback", _c(
+    "undo an applied intercept action by journal id",
+    """Find an applied ACL or firewall entry, render its undo payload, and
+require a second dry-run plan. ACL rollback restores the saved SDDL;
+firewall rollback removes the named rule. The kill switch blocks rollback
+execution, but a dry-run remains available.""",
+    [
+        ("Dry-run rollback", "plasma intercept rollback --id 4"),
+        ("Apply rollback", "plasma intercept rollback --id 4 --apply --plan 9 --reason \"test complete\""),
+    ],
+    safety=LOCAL_WRITE + "; " + PLAN_GATED + "; " + PRIVILEGED,
+    see_also=["intercept apply", "intercept protect-canary", "intercept status"],
 ))
 
 _add("fim", _c(

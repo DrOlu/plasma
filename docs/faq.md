@@ -43,6 +43,13 @@ prevention is audit-first and opt-in.**
   protection. AppLocker starts in audit; every control is dry-run first,
   plan-gated, verified and rollbackable by journal id.
 
+### Does interception require a kernel driver?
+
+No. `plasma intercept` brokers typed rules into NTFS ACLs, Windows Firewall
+and the MCP tool-call boundary. It does not ship a minifilter, WFP callout
+or API hook. Kernel-mode malware, malicious drivers and direct syscalls are
+outside the claim; AppLocker/ASR remain under `plasma prevent`.
+
 ### Do canary tokens need Docker or a cloud service?
 
 No. File canaries are local documents. DNS tokens are read from the local

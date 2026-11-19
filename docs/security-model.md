@@ -86,6 +86,10 @@ to a marketing page.
   `canary:verify`. DNS and HTTP tokens add access/recon tripwires without
   cloud callbacks; HTTP tokens use a loopback-first local collector.
 - **Endpoint DLP / content inspection.** Not attempted.
+- **Kernel interception.** Plasma compiles policy into NTFS ACLs, Windows
+  Firewall and the MCP boundary. It does not ship a minifilter, WFP callout
+  or API hook; kernel-mode malware and direct syscalls remain outside the
+  claim.
 
 ## Data handling
 

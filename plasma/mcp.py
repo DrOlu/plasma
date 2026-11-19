@@ -22,6 +22,7 @@ from . import (
     __version__,
     agentstate,
     health,
+    intercept,
     killswitch,
     ledger,
     policy,
@@ -272,6 +273,33 @@ def handle(request: dict, root=None) -> dict | None:
         return {"jsonrpc": "2.0", "id": req_id,
                 "result": _text_result({"ok": False, "code": "INVALID_ARGS",
                                         "error": str(exc)}, error=True)}
+
+    # Phase 2: the agent tool-call gateway sees the call before any handler
+    # or policy mutation. A shadow rule is recorded but does not block.
+    gate = intercept.evaluate_agent_call(root, name, args, context)
+    if gate.get("rule"):
+        gate_decision = {
+            "allowed": bool(gate.get("allowed")),
+            "approval_required": bool(gate.get("approval_required")),
+            "code": "intercepted" if not gate.get("allowed") else "shadow",
+            "risk": spec.risk,
+            "autonomy": policy.load(root).get("autonomy"),
+            "reasons": [str(gate.get("reason") or "intercept rule")],
+            "policy_sha256": agentstate.sha256_obj(policy.load(root)),
+        }
+        if not gate.get("allowed"):
+            row = ledger.record(root, tool=name, args=args,
+                                decision=gate_decision, context=context,
+                                outcome="intercepted")
+            return {"jsonrpc": "2.0", "id": req_id, "result": _text_result({
+                "ok": False, "code": "INTERCEPTED",
+                "audit_id": row["seq"], "rule": gate.get("rule"),
+                "point": gate.get("point"),
+                "reasons": gate_decision["reasons"]}, error=True)}
+        if gate.get("would_block"):
+            ledger.record(root, tool=name, args=args,
+                          decision=gate_decision, context=context,
+                          outcome="intercept_shadow")
 
     local_tools = {"contain_user", "deploy_canary", "quarantine_file",
                    "kill_process", "isolate_host"}

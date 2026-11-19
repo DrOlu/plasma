@@ -38,6 +38,12 @@ tool remains a dry-run plan. Token creation is a local write, not a host
 change, and `canary serve` is classified long-running so the HTTP API
 refuses to start it.
 
+Intercept rules at `point: agent_tool_call` are evaluated **before** policy
+and handlers. A denied call returns `INTERCEPTED` with the rule id and an
+audit ledger entry; a shadow rule is audited but allowed. This is the
+synchronous gateway that lets an operator stop a class of agent action
+without relying on the model to comply.
+
 ## Autonomy tiers
 
 Set the node's posture with `plasma control policy set --autonomy …`.

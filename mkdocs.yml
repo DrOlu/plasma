@@ -50,6 +50,7 @@ nav:
   - Operate:
       - Response: response.md
       - Prevention and blocking: prevention.md
+      - Interception: intercept.md
       - Fleet: fleet.md
       - HTTP API (serve): serve.md
       - Operations: operations.md

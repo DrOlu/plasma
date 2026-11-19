@@ -201,6 +201,24 @@ deduplicated across `watch` sweeps. Configure canary accounts with
 `{"canary": {"accounts": ["svc-print-archive"]}}` in `config.json`. No
 Docker, cloud callback or external service is required.
 
+## Interception at native gates
+
+```bash
+plasma intercept status
+plasma intercept rules add --file rules.json
+plasma intercept evaluate --events data/events.jsonl   # shadow: would-block
+plasma intercept protect-canary                        # dry-run ACL plan
+plasma intercept protect-canary --apply --plan 7 --reason "canary protection"
+plasma intercept apply block-test-net --apply --plan 12 --reason "IR-42"
+plasma intercept rollback --id 12 --apply --plan 15 --reason "test complete"
+```
+
+Interception is the synchronous layer between sensors and responders. Plasma
+does not ship a kernel driver: it brokers typed rules into NTFS ACLs for
+canary protection, Windows Firewall rules for outbound destinations, and the
+MCP tool-call boundary. Every apply is dry-run first, single-use plan-bound,
+journaled and reversible; ACL rollback restores the prior SDDL.
+
 ## Observatory, drift and actuation (rmagent lineage)
 
 Read-only host questions answered locally by fixed PowerShell payloads

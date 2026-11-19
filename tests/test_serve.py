@@ -329,6 +329,9 @@ def test_command_path_and_mutation_rules():
     assert serve.is_long_running("canary serve") is True
     assert serve.is_mutating(["canary", "token", "create", "--kind", "dns"]) is True
     assert serve.is_mutating(["canary", "token", "list"]) is False
+    assert serve.is_mutating(["intercept", "evaluate"]) is False
+    assert serve.is_mutating(["intercept", "evaluate", "--out", "x.json"]) is True
+    assert serve.is_mutating(["intercept", "protect-canary"]) is True
 
 
 # ---------------------------------------------------------------------------
@@ -402,11 +405,11 @@ def test_openapi_and_docs_are_unauthenticated(running):
 # command tree completeness
 # ---------------------------------------------------------------------------
 
-def test_commands_have_root_and_142_commands(running):
+def test_commands_have_root_and_152_commands(running):
     _, key, base = running
     _, body = _request(base, "/v1/commands", key=key)
     assert body["root"]["path"] == []
-    assert len(body["commands"]) == 142
+    assert len(body["commands"]) == 152
     assert all(row["path"] for row in body["commands"])
 
 

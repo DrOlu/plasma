@@ -1,12 +1,12 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.20.1</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.21.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.20.1</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.21.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
@@ -109,8 +109,20 @@ DESK               status · ask · drift · chains · coverage · fleet ·
         │
         ▼  measured, policy-gated, journaled
 PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
-                   prevent (AppLocker, egress, Defender ASR, LSA protection)
+                   prevent (AppLocker, egress, Defender ASR, LSA protection) ·
+                   intercept (NTFS ACL, firewall, agent gateway)
 ```
+
+## What's new in 1.21.0
+
+- **Interception phases 0-3.** `plasma intercept` adds shadow rule
+  evaluation, NTFS canary protection, an MCP tool-call gateway and a native
+  ACL/firewall policy broker.
+- **Plan-gated and reversible.** Every apply is dry-run first, single-use,
+  payload-bound, journaled and reversible. No kernel driver.
+- **Estate-verified on WS1 and WS2:** canary write denial and rollback,
+  firewall apply/rollback, shadow matches and an MCP `INTERCEPTED` response.
+- **833 tests**, full suite and `-W error` pass.
 
 ## What's new in 1.20.1
 
@@ -667,6 +679,8 @@ Prefer a visual tour? **[Open the one-page overview](https://drolu.github.io/pla
 - **Playbooks** — `contain-user`, `isolate-box`: fixed sequences applied as
   one plan-gated unit, aborting on the first failure, reversible last-first.
 - **Store hygiene** — `store rotate|compact|stats` keeps the diary bounded.
+- **Interception** — typed rules compiled into NTFS ACLs, Windows
+  Firewall rules and the MCP tool-call gateway; plan-gated and reversible.
 - **Canaries and tokens** — randomized, believable decoy documents
   (score 10 on modification/deletion), DNS hostname tokens observed through
   a narrow Sysmon EID 22 include (score 8), HTTP `.url` tokens served by a

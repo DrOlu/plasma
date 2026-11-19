@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.21.0 — 2026-11-19
+
+- **Intercept phases 0-3.** New `plasma intercept` surface: shadow rule
+  evaluation over the event store, NTFS deny/audit protection for canary
+  files, a synchronous MCP tool-call gateway, and a native policy broker
+  for ACL and firewall rules.
+- **Plan-gated and reversible.** Every intercept apply is dry-run first,
+  payload-bound, journaled with an undo recipe, verified, and reversible.
+- **No kernel driver.** The broker uses gates Windows already owns: NTFS
+  ACLs, Windows Firewall, and the MCP boundary.
+- **Estate-verified on WS1 and WS2:** shadow matches, canary write denial,
+  ACL rollback, firewall rule apply/rollback, and an MCP `INTERCEPTED`
+  response.
+- 833 tests collected; full suite and `-W error` pass.
+
 ## 1.20.1 — 2026-11-19
 
 - **Root help names the token model.** `plasma --help` now says canary files

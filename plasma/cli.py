@@ -38,6 +38,7 @@ from . import (
     fleet,
     health,
     identity,
+    intercept,
     killswitch,
     ledger,
     notify,
@@ -1804,6 +1805,93 @@ def cmd_canary_sysmon(args) -> int:
     return 0 if result.get("ok") else 3
 
 
+def cmd_intercept_status(args) -> int:
+    _emit({"ok": True, **intercept.status(args.root)})
+    return 0
+
+
+def cmd_intercept_rules_list(args) -> int:
+    try:
+        result = intercept.list_rules(args.root)
+    except ValueError as exc:
+        _emit({"ok": False, "error": str(exc)[:300]})
+        return 1
+    _emit({"ok": True, **result})
+    return 0
+
+
+def cmd_intercept_rules_add(args) -> int:
+    try:
+        blob = json.loads(Path(args.file).read_text(encoding="utf-8-sig"))
+        items = blob.get("rules") if isinstance(blob, dict) else None
+        rules = items if isinstance(items, list) else [blob]
+        added = [intercept.add_rule(args.root, rule) for rule in rules]
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        _emit({"ok": False, "error": str(exc)[:300]})
+        return 1
+    _emit({"ok": True, "added": added})
+    return 0
+
+
+def cmd_intercept_rules_remove(args) -> int:
+    try:
+        result = intercept.remove_rule(args.root, args.rule_id)
+    except ValueError as exc:
+        _emit({"ok": False, "error": str(exc)[:300]})
+        return 1
+    _emit({"ok": "error" not in result, **result})
+    return 0 if "error" not in result else 1
+
+
+def cmd_intercept_evaluate(args) -> int:
+    try:
+        rules = intercept.list_rules(args.root)["rules"]
+    except ValueError as exc:
+        _emit({"ok": False, "error": str(exc)[:300]})
+        return 1
+    result = intercept.evaluate_store(
+        args.events or _events_path(args.root), rules,
+        max_rows=max(1, int(args.max_rows)))
+    if args.out:
+        try:
+            Path(args.out).write_text(
+                json.dumps(result, indent=2, default=str) + "\n",
+                encoding="utf-8")
+        except OSError as exc:
+            _emit({"ok": False, "error": f"cannot write --out: {exc}"})
+            return 1
+    _emit({"ok": True, **result})
+    return 0
+
+
+def cmd_intercept_apply(args) -> int:
+    result = intercept.apply_rule(
+        args.root, args.rule_id, apply=args.apply, plan=args.plan,
+        reason=args.reason)
+    _emit(result)
+    return 0 if "error" not in result else 2
+
+
+def cmd_intercept_rollback(args) -> int:
+    result = intercept.rollback(
+        args.root, args.id, apply=args.apply, plan=args.plan,
+        reason=args.reason)
+    _emit(result)
+    return 0 if "error" not in result else 2
+
+
+def cmd_intercept_protect_canary(args) -> int:
+    try:
+        result = intercept.protect_canary(
+            args.root, apply=args.apply, plan=args.plan,
+            reason=args.reason, prefix=args.prefix)
+    except ValueError as exc:
+        _emit({"ok": False, "error": str(exc)[:300]})
+        return 1
+    _emit(result)
+    return 0 if "error" not in result else 2
+
+
 def cmd_fim_baseline(args) -> int:
     result = fim.baseline(args.root, args.path or None)
     print(json.dumps(result, indent=2, default=str))
@@ -2748,6 +2836,58 @@ def build_parser() -> argparse.ArgumentParser:
     cnsy.add_argument("--apply", action="store_true",
                       help="hot-reload the generated config through Sysmon64.exe -c")
     cnsy.set_defaults(func=cmd_canary_sysmon)
+
+    it = sub.add_parser("intercept",
+                        help="deterministic policy at native interception points")
+    its = it.add_subparsers(dest="intercept_action", required=True)
+    itsx = its.add_parser("status", help="intercept rules and journal summary")
+    itsx.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    itsx.set_defaults(func=cmd_intercept_status)
+
+    itr = its.add_parser("rules", help="manage intercept rules")
+    itrs = itr.add_subparsers(dest="rules_action", required=True)
+    itrl = itrs.add_parser("list", help="list rules")
+    itrl.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    itrl.set_defaults(func=cmd_intercept_rules_list)
+    itra = itrs.add_parser("add", help="add rules from a JSON file")
+    itra.add_argument("--file", required=True)
+    itra.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    itra.set_defaults(func=cmd_intercept_rules_add)
+    itrr = itrs.add_parser("remove", help="remove a rule")
+    itrr.add_argument("rule_id")
+    itrr.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    itrr.set_defaults(func=cmd_intercept_rules_remove)
+
+    ite = its.add_parser("evaluate", help="shadow-evaluate rules over the event store")
+    ite.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    ite.add_argument("--events", default=None)
+    ite.add_argument("--max-rows", type=int, default=5000)
+    ite.add_argument("--out", default=None)
+    ite.set_defaults(func=cmd_intercept_evaluate)
+
+    ita = its.add_parser("apply", help="apply a native intercept rule (dry-run by default)")
+    ita.add_argument("rule_id")
+    ita.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    ita.add_argument("--apply", action="store_true")
+    ita.add_argument("--plan", type=int, default=None)
+    ita.add_argument("--reason", default=None)
+    ita.set_defaults(func=cmd_intercept_apply)
+
+    itc = its.add_parser("protect-canary", help="protect canary files with an NTFS deny/audit ACL")
+    itc.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    itc.add_argument("--prefix", default=None)
+    itc.add_argument("--apply", action="store_true")
+    itc.add_argument("--plan", type=int, default=None)
+    itc.add_argument("--reason", default=None)
+    itc.set_defaults(func=cmd_intercept_protect_canary)
+
+    itb = its.add_parser("rollback", help="undo an intercept apply by journal id")
+    itb.add_argument("--id", type=int, required=True)
+    itb.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    itb.add_argument("--apply", action="store_true")
+    itb.add_argument("--plan", type=int, default=None)
+    itb.add_argument("--reason", default=None)
+    itb.set_defaults(func=cmd_intercept_rollback)
 
     fm = sub.add_parser("fim", help="critical-file integrity monitoring")
     fms = fm.add_subparsers(dest="fim_action", required=True)

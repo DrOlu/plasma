@@ -197,6 +197,12 @@ MUTATING = (
     "canary token remove",
     "canary collect",
     "canary sysmon",
+    "intercept rules add",
+    "intercept rules remove",
+    "intercept evaluate",
+    "intercept apply",
+    "intercept protect-canary",
+    "intercept rollback",
     "fim baseline",
     "store rotate",
     "store compact",
@@ -327,6 +333,8 @@ def is_mutating(argv: list[str], path: str | None = None,
     if path == "sigma convert" and "--dry-run" in argv:
         return False
     if path == "deep persistence" and not _argv_value(argv, "--json-out"):
+        return False
+    if path == "intercept evaluate" and not _argv_value(argv, "--out"):
         return False
     if path == "manifest" and parsed is not None:
         return getattr(parsed, "action", "") == "create"

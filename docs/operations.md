@@ -223,6 +223,25 @@ Add canary accounts to `config.json`:
 A tripped canary is evidence. Snapshot and isolate before investigating;
 the enforcement policy keeps `isolate_host` behind approval.
 
+## Interception
+
+```powershell
+plasma intercept status
+plasma intercept rules add --file rules.json
+plasma intercept evaluate --events C:\ProgramData\Plasma\data\events.jsonl
+plasma intercept protect-canary
+plasma intercept protect-canary --apply --plan 7 --reason "canary protection"
+plasma intercept apply block-test-net --apply --plan 12 --reason "IR-42"
+plasma intercept rollback --id 12 --apply --plan 15 --reason "test complete"
+```
+
+Shadow evaluation reports would-block decisions without changing the host.
+Canary protection adds an NTFS deny ACE; normal Administrator tokens may
+not hold `SeSecurityPrivilege`, so the audit rule can be skipped while the
+deny still applies. Firewall rules are outbound blocks by destination.
+Every apply is dry-run first, single-use plan-bound, journaled and
+reversible.
+
 ## Scheduling
 
 Task Scheduler (or cron on a desk) runs, at minimum:
