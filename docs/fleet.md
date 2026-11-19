@@ -63,6 +63,7 @@ report.md                    rendered dossier
 | Finding | Score | Rule |
 |---|---|---|
 | `canary_tripped` | 10 | a canary account appears on any host |
+| `canary_token_hit` | 9 | a DNS/HTTP canary token fired on a host |
 | `lateral_hop` | 9 | the same user on **2+ hosts** within the window |
 | `shared_hash` | 8 | the same file hash on 2+ hosts |
 | `blind_host` | 8 | a host's self-check reports blindness or an unhealthy sensor |

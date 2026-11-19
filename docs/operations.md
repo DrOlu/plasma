@@ -187,17 +187,41 @@ services, its network edges? `attest` includes a **blind check** — a box
 that cannot see itself reports that honestly, and fleet correlation turns
 it into a `blind_host` finding.
 
-## Canary files
+## Canaries and tokens
 
 ```powershell
 plasma canary deploy --root C:\ProgramData\Plasma [--dir D:\Finance]
 plasma canary verify --root C:\ProgramData\Plasma   # exit 2 when tripped
 plasma canary status --root C:\ProgramData\Plasma
+plasma canary token create --root C:\ProgramData\Plasma --kind dns --domain assets.internal
+plasma canary sysmon --root C:\ProgramData\Plasma --apply
+plasma canary token create --root C:\ProgramData\Plasma --kind http --base-url http://collector:8088
+plasma canary serve --root C:\ProgramData\Plasma --host 127.0.0.1 --port 8088
+plasma canary collect --root C:\ProgramData\Plasma
+plasma canary hits --root C:\ProgramData\Plasma
 ```
 
-Deploy once per node (and on data shares with `--dir`); `watch` checks
-them from then on. A tripped canary should be treated as impact — isolate
-and snapshot before investigating.
+Deploy file canaries once per node (and on data shares with `--dir`). The
+default layout is randomized and the content is a valid document, so the
+decoy does not announce itself. `watch` verifies them from then on.
+
+DNS tokens need a narrow Sysmon include: run `canary sysmon --apply` after
+creating them. It writes Plasma's baseline plus the token include and
+replaces the current Sysmon config, so review a custom config first. It logs
+only queries ending in a registered token suffix; ordinary DNS traffic stays
+out of the channel. HTTP tokens point at one
+local collector; bind it to loopback or a management VLAN, never the
+internet. Hits are appended to the event store by `watch` or `canary
+collect`, and deduplicated across sweeps.
+
+Add canary accounts to `config.json`:
+
+```json
+{"canary": {"accounts": ["svc-print-archive"]}}
+```
+
+A tripped canary is evidence. Snapshot and isolate before investigating;
+the enforcement policy keeps `isolate_host` behind approval.
 
 ## Scheduling
 

@@ -140,14 +140,41 @@ One bounded pass over every auto-start location with Authenticode status.
 ### watch / notify
 
 ```text
-plasma watch once
-plasma watch loop --every SECONDS
+plasma watch once [--canary-account ACCOUNT...]
+plasma watch loop --every SECONDS [--canary-account ACCOUNT...]
 plasma notify show [--root PATH]
 plasma notify test [--root PATH] [--host NAME]
 ```
 
-`watch` = health + drift + new alerts + chains → verdict; exits non-zero
-when findings exist. `notify` validates and tests delivery channels.
+`watch` = health + drift + canaries + new alerts + chains → verdict; exits
+non-zero when findings exist. Configured canary accounts live in
+`config.json` under `canary.accounts`; `--canary-account` overrides them for
+one invocation. `notify` validates and tests delivery channels.
+
+### canary
+
+```text
+plasma canary deploy [--dir PATH] [--randomize|--no-randomize] [--subdir NAME]
+plasma canary verify
+plasma canary status
+plasma canary token create --kind dns --domain SUFFIX [--out PATH]
+plasma canary token create --kind http --base-url URL [--out PATH] [--name NAME]
+plasma canary token list
+plasma canary token remove ID [--delete-artifact]
+plasma canary serve [--host 127.0.0.1] [--port 8088] [--max-requests N]
+plasma canary collect [--since MINUTES] [--max-events N]
+plasma canary hits [--last N]
+plasma canary sysmon [--domain SUFFIX...] [--apply]
+```
+
+File canaries are realistic decoys with randomized subdirectories and names
+by default; the body never identifies itself. `verify` reports missing or
+modified files at score 10. DNS tokens are unique hostnames matched from
+Sysmon EID 22; `canary sysmon --apply` writes a narrow `DnsQuery` include
+and hot-reloads it. HTTP tokens are `.url` shortcuts served by the local
+collector; hits are written to `<root>/canary-hits.jsonl`. `watch` (or
+`canary collect`) turns DNS/HTTP hits into `source="canary"` event-store
+alerts, deduplicated across sweeps.
 
 ### drift
 

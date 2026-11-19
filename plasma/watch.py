@@ -10,19 +10,137 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from pathlib import Path
 
-from . import health, notify, observatory
+from . import agentstate, health, notify, observatory
 
 # WHIDS alert directory. A module constant so tests and alternate installs
 # can point the sweep at the real location without patching Path.
 ALERTS_DIR = Path(r"C:\Program Files\Whids\Logs\Alerts")
 ALERT_OFFSETS_FILE = "watch-alert-offsets.json"
+CANARY_ACCOUNT_STATE = "watch-canary-accounts-state.json"
 HIGH_CRITICALITY = 8.0
+_ACCOUNT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._@$-]{0,63}$")
 
 
-def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
+def _events_path(root) -> Path:
+    """Use the configured store, then the conventional root/data path."""
+    cfg = agentstate.read_json(Path(root) / "config.json", {}) or {}
+    configured = cfg.get("events_path") if isinstance(cfg, dict) else None
+    return Path(configured) if configured else Path(root) / "data" / "events.jsonl"
+
+
+def _configured_canary_accounts(root) -> list[str]:
+    cfg = agentstate.read_json(Path(root) / "config.json", {}) or {}
+    if not isinstance(cfg, dict):
+        return []
+    block = cfg.get("canary") if isinstance(cfg.get("canary"), dict) else {}
+    values = block.get("accounts")
+    if values is None:
+        values = cfg.get("canary_accounts")
+    if not isinstance(values, (list, tuple)):
+        return []
+    out = []
+    for value in values:
+        text = str(value).strip()
+        if _ACCOUNT_RE.match(text) and text not in out:
+            out.append(text)
+    return out[:20]
+
+
+def _canary_account_findings(root, accounts) -> list[dict]:
+    """Query the Security channel for configured canary accounts.
+
+    The query is bounded (observatory caps it at 500 rows / 7 days) and the
+    result is deduplicated by event identity, so a five-minute watch loop
+    does not re-alert the same logon forever.
+    """
+    accounts = [str(a) for a in (accounts or []) if _ACCOUNT_RE.match(str(a))]
+    if not accounts:
+        return []
+    answer = observatory.run_question("canary", canaries=accounts)
+    if not isinstance(answer, dict):
+        return [{"type": "canary_account_scan_error", "score": 5,
+                 "detail": "canary account collector returned no answer"}]
+    if answer.get("error"):
+        return [{"type": "canary_account_scan_error", "score": 5,
+                 "detail": str(answer["error"])[:200]}]
+    state_path = Path(root) / CANARY_ACCOUNT_STATE
+    state = agentstate.read_json(state_path, {}) or {}
+    seen = set(state.get("seen") or []) if isinstance(state, dict) else set()
+    new_seen = set(seen)
+    findings = []
+    for hit in answer.get("hits") or []:
+        if not isinstance(hit, dict):
+            continue
+        key = hashlib.sha256(json.dumps({
+            "when": hit.get("when"), "id": hit.get("id"),
+            "user": hit.get("user"), "source_ip": hit.get("source_ip"),
+            "logon_type": hit.get("logon_type"),
+        }, sort_keys=True).encode()).hexdigest()[:32]
+        if key in new_seen:
+            continue
+        event_id = hit.get("id")
+        source_ip = hit.get("source_ip")
+        user = hit.get("user") or accounts[0]
+        detail = (f"canary account '{user}' logon event {event_id}"
+                  + (f" from {source_ip}" if source_ip not in (None, "", "-")
+                     else ""))
+        findings.append({
+            "type": "canary_account_tripped", "score": 10,
+            "detail": detail[:200], "user": user,
+            "event_id": event_id,
+            "dest_ip": None if source_ip in (None, "", "-") else source_ip,
+            "ts": hit.get("when"),
+        })
+        new_seen.add(key)
+    agentstate.write_json(state_path, {"seen": list(new_seen)[-2000:]})
+    return findings
+
+
+def _canary_token_findings(root) -> tuple[list[dict], list[str]]:
+    """Collect DNS/HTTP token hits; return findings plus non-fatal info."""
+    from . import canary_tokens
+
+    findings: list[dict] = []
+    info: list[str] = []
+    store = _events_path(root)
+    dns = canary_tokens.collect_dns_hits(root, store)
+    for hit in dns.get("hits") or []:
+        event = hit.get("event") or {}
+        findings.append({
+            "type": "canary_dns_tripped", "score": 8,
+            "detail": str(event.get("description") or "canary DNS token hit")[:200],
+            "pid": event.get("pid"), "process": event.get("process"),
+            "user": event.get("user"), "dest_ip": event.get("dest_ip"),
+            "dns_query": event.get("dns_query"),
+            "alert_id": event.get("alert_id"), "ts": event.get("ts"),
+        })
+    if dns.get("error"):
+        findings.append({"type": "canary_token_scan_error", "score": 5,
+                         "detail": str(dns["error"])[:200]})
+    elif dns.get("sysmon_error"):
+        info.append("canary DNS: " + str(dns["sysmon_error"])[:160])
+
+    http = canary_tokens.collect_http_hits(root, store)
+    for hit in http.get("hits") or []:
+        event = hit.get("event") or {}
+        findings.append({
+            "type": "canary_http_tripped", "score": 8,
+            "detail": str(event.get("description") or "canary HTTP token hit")[:200],
+            "dest_ip": event.get("dest_ip"),
+            "alert_id": event.get("alert_id"), "ts": event.get("ts"),
+        })
+    if http.get("error"):
+        findings.append({"type": "canary_token_scan_error", "score": 5,
+                         "detail": str(http["error"])[:200]})
+    return findings, info
+
+
+def sweep(root, since_alerts: int = 25, drift_question: str = "attest",
+          canary_accounts=None) -> dict:
     root = Path(root)
     findings = []
     info = []
@@ -119,6 +237,24 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
         findings.append({"type": "canary_scan_error", "score": 5,
                          "detail": str(exc)[:160]})
 
+    # 5b. native canary tokens — DNS tripwires and local HTTP callbacks.
+    try:
+        token_findings, token_info = _canary_token_findings(root)
+        findings.extend(token_findings)
+        info.extend(token_info)
+    except Exception as exc:  # noqa: BLE001 — collector failures are data
+        findings.append({"type": "canary_token_scan_error", "score": 5,
+                         "detail": str(exc)[:160]})
+
+    # 5c. canary accounts — configured in config.json under canary.accounts.
+    try:
+        accounts = (canary_accounts if canary_accounts is not None
+                    else _configured_canary_accounts(root))
+        findings.extend(_canary_account_findings(root, accounts))
+    except Exception as exc:  # noqa: BLE001 — collector failures are data
+        findings.append({"type": "canary_account_scan_error", "score": 5,
+                         "detail": str(exc)[:160]})
+
     # 6. critical-file integrity — configurable FIM baseline.
     try:
         from . import fim as fim_mod
@@ -139,11 +275,19 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest") -> dict:
                         "investigate" if top < 8 else "act now")}
 
 
-def _head_token(path: Path) -> str:
-    """Fingerprint of the file's first bytes, to detect rotation."""
+def _head_token(path: Path, limit: int = 512) -> str:
+    """Fingerprint of the first *limit* bytes, capped at 512.
+
+    Hashing the whole current file would change on every append and look
+    like a replaced file.  Hashing exactly the bytes already consumed keeps
+    append-only growth stable while still detecting a rewrite.
+    """
+    limit = max(0, min(int(limit), 512))
+    if not limit:
+        return ""
     try:
         with path.open("rb") as fh:
-            return hashlib.sha1(fh.read(512)).hexdigest()
+            return hashlib.sha1(fh.read(limit)).hexdigest()
     except OSError:
         return ""
 
@@ -174,18 +318,20 @@ def _new_high_alerts(root, alerts_dir: Path) -> list[dict]:
         except OSError:
             continue
         previous = offsets.get(key) or {}
-        head = _head_token(path)
         if not previous:
             # First sight (fresh install or upgrade): start at the current
             # end. Re-alerting the entire alert history on the first sweep
             # would flood an operator; history is available via `whids pull`.
-            offsets[key] = {"offset": size, "size": size, "head": head}
+            offsets[key] = {"offset": size, "size": size,
+                            "head": _head_token(path, min(size, 512))}
             continue
         start = int(previous.get("offset", 0) or 0)
-        # A smaller file is truncated; a different head is a replaced file.
-        # Either way, the old offset points into the wrong content.
+        head = _head_token(path, min(start, 512))
+        # A smaller file is truncated; a different prefix is a replaced
+        # file. Either way, the old offset points into the wrong content.
         if size < start or (previous.get("head") and previous["head"] != head):
             start = 0
+            head = ""
         if size == start:
             offsets[key] = {"offset": size, "size": size, "head": head}
             continue
@@ -234,7 +380,8 @@ def _new_high_alerts(root, alerts_dir: Path) -> list[dict]:
                 "technique": event.get("technique"),
                 "alert_id": event.get("alert_id"),
             })
-        offsets[key] = {"offset": consumed, "size": size, "head": head}
+        offsets[key] = {"offset": consumed, "size": size,
+                        "head": _head_token(path, min(consumed, 512))}
 
     agentstate.write_json(state_path, {"files": offsets})
     # Collapse identical findings from a loop (same rule/process) so one
@@ -254,8 +401,8 @@ def _new_high_alerts(root, alerts_dir: Path) -> list[dict]:
     return collapsed[:10]
 
 
-def watch_once(root, quiet_clean: bool = True) -> dict:
-    result = sweep(root)
+def watch_once(root, quiet_clean: bool = True, canary_accounts=None) -> dict:
+    result = sweep(root, canary_accounts=canary_accounts)
     should_notify = (not quiet_clean) or result["top_score"] > 0
     delivered = None
     if should_notify:

@@ -151,6 +151,7 @@ LONG_RUNNING = (
     "serve",
     "mcp serve",
     "watch loop",
+    "canary serve",
     "_bridge",
 )
 
@@ -192,6 +193,10 @@ MUTATING = (
     "whids ensure",
     "whids prune",
     "canary deploy",
+    "canary token create",
+    "canary token remove",
+    "canary collect",
+    "canary sysmon",
     "fim baseline",
     "store rotate",
     "store compact",

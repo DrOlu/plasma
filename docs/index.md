@@ -1,12 +1,12 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.19.3</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.20.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.19.3</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.20.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
@@ -111,6 +111,21 @@ DESK               status · ask · drift · chains · coverage · fleet ·
 PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    prevent (AppLocker, egress, Defender ASR, LSA protection)
 ```
+
+## What's new in 1.20.0
+
+- **Native canary tokens.** File canaries now use randomized, believable
+  documents; DNS tokens are observed through a narrow Sysmon EID 22 include;
+  HTTP tokens use a loopback-first local collector. No Docker, no cloud.
+- **One evidence path.** DNS/HTTP hits become `source="canary"` alerts,
+  `watch` surfaces them, `fleet` correlates them, and enforcement maps them
+  to approval-gated isolation.
+- **Canary accounts are in the sweep.** Configure `canary.accounts` and
+  every watch sweep checks 4624/4625/4771/4776 with deduplication.
+- **Field-verified on WS1 and WS2:** file deploy/verify/tamper, a real
+  Sysmon EID 22 query, an HTTP collector hit, watch findings, and a real
+  4625 on a disabled canary account.
+- **823 tests**, full suite and `-W error` pass, `ruff check` clean.
 
 ## What's new in 1.19.3
 

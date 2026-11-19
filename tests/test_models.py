@@ -78,6 +78,19 @@ def test_extra_field_forbidden():
         PlasmaEvent(**base(unknown_field="x"))
 
 
+def test_canary_alert_event_parses():
+    """Canary token hits use source='canary' and kind='alert'."""
+    ev = PlasmaEvent(**base(
+        source="canary", kind="alert", event_id=9001, severity="high",
+        score=0.8, action="logged", alert_id="canary:dns:abc123",
+        description="canary DNS token queried",
+        dns_query="abc123.assets.internal",
+    ))
+    assert ev.source == "canary"
+    assert ev.alert_id == "canary:dns:abc123"
+    assert ev.score == 0.8
+
+
 def test_dtrace_trace_event_parses():
     """DTrace rows use source='dtrace' and kind='trace'; both must be in the
     strict contract or every trace event is counted as a parse failure."""

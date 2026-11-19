@@ -26,6 +26,7 @@ from . import (
     assurance,
     autoupdate,
     canary,
+    canary_tokens,
     chain,
     coverage,
     deep,
@@ -447,7 +448,7 @@ def _service_present(pattern: str) -> bool:
 #            install report; `observe attest` will surface the coverage gap.
 # ---------------------------------------------------------------------------
 
-SYSMON_BASELINE_CONFIG = (
+_SYSMON_TEMPLATE = (
     '<Sysmon schemaversion="4.90"><EventFiltering>'
     '<ProcessCreate onmatch="exclude"/>'
     '<FileCreateTime onmatch="exclude"/>'
@@ -473,7 +474,7 @@ SYSMON_BASELINE_CONFIG = (
     '</PipeEvent>'
     '<FileCreate onmatch="exclude"/>'
     '<RegistryEvent onmatch="exclude"/>'
-    '<DnsQuery onmatch="exclude"/>'
+    '{dns}'
     # FileDelete is opt-in in Sysmon. Log deletions of executable/archive
     # artifacts only — enough for T1070.004 without flooding the channel.
     '<FileDelete onmatch="include">'
@@ -495,17 +496,47 @@ SYSMON_BASELINE_CONFIG = (
     '</FileDelete>'
     '</EventFiltering></Sysmon>'
 )
+
+
+def sysmon_baseline_config(dns_suffixes=None) -> str:
+    """Build the Sysmon baseline; optionally add a narrow DnsQuery include.
+
+    DNS query logging is high-volume, so the default remains excluded.  The
+    canary path adds only the token suffixes: a query for an ordinary domain
+    never reaches the channel.  Suffixes are validated by the caller and
+    XML-escaped here so a token domain cannot break the config.
+    """
+    from xml.sax.saxutils import escape
+
+    suffixes = []
+    for value in dns_suffixes or []:
+        text = str(value).strip().lower().rstrip(".")
+        if text and text not in suffixes:
+            suffixes.append(text)
+    if not suffixes:
+        dns = '<DnsQuery onmatch="exclude"/>'
+    else:
+        rules = "".join(
+            '<QueryName condition="end with">'
+            f'{escape("." + suffix)}</QueryName>'
+            for suffix in suffixes[:32]
+        )
+        dns = f'<DnsQuery onmatch="include">{rules}</DnsQuery>'
+    return _SYSMON_TEMPLATE.format(dns=dns)
+
+
+SYSMON_BASELINE_CONFIG = sysmon_baseline_config()
 SYSMON_URLS = (
     "https://download.sysinternals.com/files/Sysmon.zip",
     "https://live.sysinternals.com/Sysmon64.exe",
 )
 
 
-def write_sysmon_config(tools_dir: Path) -> Path:
+def write_sysmon_config(tools_dir: Path, dns_suffixes=None) -> Path:
     """Materialize the Plasma baseline Sysmon config under the install root."""
     tools_dir.mkdir(parents=True, exist_ok=True)
     path = tools_dir / "plasma-sysmon-baseline.xml"
-    path.write_text(SYSMON_BASELINE_CONFIG, encoding="utf-8")
+    path.write_text(sysmon_baseline_config(dns_suffixes), encoding="utf-8")
     return path
 
 
@@ -605,7 +636,7 @@ def _register_whids_watchdog(bin_exe: Path, root: Path) -> dict:
     return {"ok": rc == 0, "task": WATCHDOG_TASK, "detail": out[:200]}
 
 
-def _apply_sysmon_config(tools_dir: Path) -> dict:
+def _apply_sysmon_config(tools_dir: Path, dns_suffixes=None) -> dict:
     """Re-apply the baseline config to an existing Sysmon (hot reload).
 
     Sysmon keeps whatever config it was installed with. Detection content
@@ -617,7 +648,7 @@ def _apply_sysmon_config(tools_dir: Path) -> dict:
                 if (system_root / name).exists()), None)
     if exe is None:
         return {"ok": False, "reason": "sysmon binary not found"}
-    cfg = write_sysmon_config(tools_dir)
+    cfg = write_sysmon_config(tools_dir, dns_suffixes=dns_suffixes)
     try:
         proc = subprocess.run([str(exe), "-c", str(cfg)],
                               capture_output=True, text=True, encoding="utf-8",
@@ -1644,7 +1675,8 @@ def cmd_whids_prune(args) -> int:
 
 
 def cmd_canary_deploy(args) -> int:
-    result = canary.deploy(args.root, extra_dirs=args.dir)
+    result = canary.deploy(args.root, extra_dirs=args.dir,
+                           randomize=args.randomize, subdir=args.subdir)
     print(json.dumps(result, indent=2, default=str))
     return 2 if result.get("code") == "KILLSWITCH" else (1 if "error" in result else 0)
 
@@ -1666,6 +1698,110 @@ def cmd_canary_status(args) -> int:
     print(json.dumps(result, indent=2, default=str))
     return 0
 
+
+def _events_path(root) -> Path:
+    cfg = agentstate.read_json(Path(root) / "config.json", {}) or {}
+    configured = cfg.get("events_path") if isinstance(cfg, dict) else None
+    return Path(configured) if configured else Path(root) / "data" / "events.jsonl"
+
+
+def cmd_canary_token_create(args) -> int:
+    try:
+        token = canary_tokens.create(
+            args.root, args.kind, domain=args.domain,
+            base_url=args.base_url, out=args.out, name=args.name,
+            label=args.label)
+    except (ValueError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:300]})
+        return 1
+    result = {"ok": True, "token": token}
+    if token.get("kind") == "dns":
+        result["next"] = ("plasma canary sysmon --root "
+                          f"{args.root} --apply")
+    _emit(result)
+    return 0
+
+
+def cmd_canary_token_list(args) -> int:
+    try:
+        result = canary_tokens.list_tokens(args.root)
+    except (ValueError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:300]})
+        return 1
+    _emit({"ok": True, **result})
+    return 0
+
+
+def cmd_canary_token_remove(args) -> int:
+    try:
+        result = canary_tokens.remove(args.root, args.token_id,
+                                      delete_artifact=args.delete_artifact)
+    except (ValueError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:300]})
+        return 1
+    _emit({"ok": "error" not in result, **result})
+    return 0 if "error" not in result else 1
+
+
+def cmd_canary_serve(args) -> int:
+    try:
+        result = canary_tokens.serve(
+            args.root, host=args.host, port=args.port,
+            allow_non_loopback=args.allow_non_loopback,
+            max_requests=args.max_requests)
+    except (ValueError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:300]})
+        return 1
+    _emit(result)
+    return 0 if result.get("ok") else 1
+
+
+def cmd_canary_collect(args) -> int:
+    try:
+        result = canary_tokens.collect_all(
+            args.root, args.events or _events_path(args.root),
+            since_minutes=args.since, max_events=args.max_events)
+    except (ValueError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:300]})
+        return 1
+    _emit(result)
+    errors = [result.get("dns", {}).get("error"),
+              result.get("http", {}).get("error")]
+    return 1 if any(errors) else 0
+
+
+def cmd_canary_hits(args) -> int:
+    result = canary_tokens.hits(
+        args.root, args.events or _events_path(args.root), last=args.last)
+    _emit(result)
+    return 0
+
+
+def cmd_canary_sysmon(args) -> int:
+    try:
+        domains = list(args.domain or canary_tokens.dns_domains(args.root))
+        domains = [canary_tokens.validate_domain(d) for d in domains]
+    except ValueError as exc:
+        _emit({"ok": False, "error": str(exc)[:300]})
+        return 1
+    if not domains:
+        _emit({"ok": False,
+               "error": "no DNS token domains — create one with "
+                        "`plasma canary token create --kind dns --domain ...`"})
+        return 1
+    tools_dir = Path(args.root) / "tools"
+    try:
+        path = write_sysmon_config(tools_dir, dns_suffixes=domains)
+        result = {"ok": True, "written": str(path), "domains": domains}
+        if args.apply:
+            result["apply"] = _apply_sysmon_config(tools_dir, dns_suffixes=domains)
+            if not result["apply"].get("ok"):
+                result["ok"] = False
+    except OSError as exc:
+        _emit({"ok": False, "error": f"cannot write Sysmon config: {exc}"})
+        return 3
+    _emit(result)
+    return 0 if result.get("ok") else 3
 
 
 def cmd_fim_baseline(args) -> int:
@@ -1798,7 +1934,8 @@ def cmd_health(args) -> int:
 
 
 def cmd_watch_once(args) -> int:
-    result = watch.watch_once(args.root, quiet_clean=not args.notify_clean)
+    result = watch.watch_once(args.root, quiet_clean=not args.notify_clean,
+                              canary_accounts=args.canary_account or None)
     print(json.dumps({k: v for k, v in result.items() if k != "notify"}, indent=2, default=str))
     n = result.get("notify")
     if n is not None:
@@ -1815,7 +1952,8 @@ def cmd_watch_once(args) -> int:
 def cmd_watch_loop(args) -> int:
     import time as _time
     while True:
-        result = watch.watch_once(args.root, quiet_clean=True)
+        result = watch.watch_once(args.root, quiet_clean=True,
+                                  canary_accounts=args.canary_account or None)
         line = {"at": result["at"], "verdict": result["verdict"],
                 "top_score": result["top_score"]}
         if getattr(args, "enforce", False):
@@ -2537,12 +2675,17 @@ def build_parser() -> argparse.ArgumentParser:
     spr.add_argument("--dry-run", action="store_true")
     spr.set_defaults(func=cmd_whids_prune)
 
-    cn = sub.add_parser("canary", help="decoys for impact detection (T1486)")
+    cn = sub.add_parser("canary", help="decoys and tokens for impact/access detection")
     cns = cn.add_subparsers(dest="canary_action", required=True)
     cnd = cns.add_parser("deploy", help="create canary files and record their hashes")
     cnd.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     cnd.add_argument("--dir", action="append", default=[],
                      help="extra directory for canaries (repeatable)")
+    cnd.add_argument("--randomize", action=argparse.BooleanOptionalAction,
+                     default=True,
+                     help="randomize subdirectories and document names (default: true)")
+    cnd.add_argument("--subdir", default=None,
+                     help="fixed subdirectory name instead of a random one")
     cnd.set_defaults(func=cmd_canary_deploy)
     cnv = cns.add_parser("verify", help="check canaries (exit 2 when tripped)")
     cnv.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
@@ -2550,6 +2693,61 @@ def build_parser() -> argparse.ArgumentParser:
     cnsx = cns.add_parser("status", help="manifest + current canary state")
     cnsx.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     cnsx.set_defaults(func=cmd_canary_status)
+
+    ct = cns.add_parser("token", help="native DNS and HTTP canary tokens")
+    cts = ct.add_subparsers(dest="token_action", required=True)
+    ctc = cts.add_parser("create", help="create a DNS or HTTP token")
+    ctc.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    ctc.add_argument("--kind", required=True, choices=["dns", "http"])
+    ctc.add_argument("--domain", default=None,
+                     help="DNS suffix for a dns token, e.g. assets.internal")
+    ctc.add_argument("--base-url", default=None,
+                     help="collector base URL for an http token, e.g. http://collector:8088")
+    ctc.add_argument("--out", default=None,
+                     help="artifact file or directory (http defaults to <root>/canary-artifacts)")
+    ctc.add_argument("--name", default=None, help="plausible artifact filename")
+    ctc.add_argument("--label", default=None, help="operator label (not written to the artifact)")
+    ctc.set_defaults(func=cmd_canary_token_create)
+    ctl = cts.add_parser("list", help="list registered tokens")
+    ctl.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    ctl.set_defaults(func=cmd_canary_token_list)
+    ctr = cts.add_parser("remove", help="remove a token from the registry")
+    ctr.add_argument("token_id", help="token id from `canary token list`")
+    ctr.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    ctr.add_argument("--delete-artifact", action="store_true",
+                     help="also delete the artifact if it is under --root")
+    ctr.set_defaults(func=cmd_canary_token_remove)
+
+    cnsrv = cns.add_parser("serve", help="local HTTP token collector (blocks)")
+    cnsrv.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cnsrv.add_argument("--host", default="127.0.0.1")
+    cnsrv.add_argument("--port", type=int, default=8088)
+    cnsrv.add_argument("--allow-non-loopback", action="store_true",
+                       help="required before binding a VLAN/collector interface")
+    cnsrv.add_argument("--max-requests", type=int, default=0,
+                       help="stop after N valid hits (0 = run until stopped)")
+    cnsrv.set_defaults(func=cmd_canary_serve)
+
+    cnc = cns.add_parser("collect", help="collect DNS/HTTP token hits into the event store")
+    cnc.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cnc.add_argument("--events", default=None)
+    cnc.add_argument("--since", type=int, default=15, help="Sysmon DNS lookback minutes")
+    cnc.add_argument("--max-events", type=int, default=500)
+    cnc.set_defaults(func=cmd_canary_collect)
+
+    cnh = cns.add_parser("hits", help="show recent canary alert rows")
+    cnh.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cnh.add_argument("--events", default=None)
+    cnh.add_argument("--last", type=int, default=50)
+    cnh.set_defaults(func=cmd_canary_hits)
+
+    cnsy = cns.add_parser("sysmon", help="write/apply a narrow Sysmon DnsQuery include")
+    cnsy.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cnsy.add_argument("--domain", action="append", default=[],
+                      help="DNS suffix to include (default: registered token domains)")
+    cnsy.add_argument("--apply", action="store_true",
+                      help="hot-reload the generated config through Sysmon64.exe -c")
+    cnsy.set_defaults(func=cmd_canary_sysmon)
 
     fm = sub.add_parser("fim", help="critical-file integrity monitoring")
     fms = fm.add_subparsers(dest="fim_action", required=True)
@@ -2883,12 +3081,16 @@ def build_parser() -> argparse.ArgumentParser:
     wpo.add_argument("--notify-clean", action="store_true", help="notify even when clean")
     wpo.add_argument("--enforce", action="store_true",
                      help="feed findings to the enforcement policy (dry-run unless policy says enforce)")
+    wpo.add_argument("--canary-account", action="append", default=[],
+                     help="canary account to query (repeatable; default: config canary.accounts)")
     wpo.set_defaults(func=cmd_watch_once)
     wpl = wps.add_parser("loop", help="sweep forever every N seconds")
     wpl.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     wpl.add_argument("--every", type=int, default=3600)
     wpl.add_argument("--enforce", action="store_true",
                      help="feed each sweep to the enforcement policy")
+    wpl.add_argument("--canary-account", action="append", default=[],
+                     help="canary account to query (repeatable; default: config canary.accounts)")
     wpl.set_defaults(func=cmd_watch_loop)
 
     np_ = sub.add_parser("notify", help="alert channel configuration and delivery")

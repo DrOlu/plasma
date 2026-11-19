@@ -766,32 +766,43 @@ produces the gene file and a summary of converted and skipped rules.""",
 ))
 
 _add("canary", _c(
-    "decoy-file impact detection",
-    """Canary files answer the impact question directly: did something
-enumerate and destroy user documents? Plasma records the hash and state of
-known decoys, verifies them later, and reports tampering as a high-value
-finding.
+    "decoy files and native DNS/HTTP token tripwires",
+    """Canaries answer the questions heuristics answer late: did something
+enumerate and destroy user documents, and did something use an artifact
+that no legitimate workflow should touch?
 
-Canaries are not a substitute for file integrity monitoring; they detect
-impact, not every change.""",
+File canaries are hash-verified decoys. DNS tokens are unique hostnames
+whose queries are observed through a narrow Sysmon EID 22 include. HTTP
+tokens are `.url` shortcuts served by a local Plasma collector. All three
+produce the same `source="canary"` alert rows in the event store, so
+`watch`, `fleet` and the response policy see one evidence path.
+
+Canaries detect; they do not replace file integrity monitoring, backups or
+the prevention layer.""",
     [
-        ("Deploy", "plasma canary deploy"),
-        ("Verify", "plasma canary verify"),
-        ("Status", "plasma canary status"),
+        ("Deploy believable file decoys", "plasma canary deploy --dir D:\\Shares\\Finance"),
+        ("Create a DNS token", "plasma canary token create --kind dns --domain assets.internal"),
+        ("Create an HTTP token", "plasma canary token create --kind http --base-url http://collector:8088"),
+        ("Start the local collector", "plasma canary serve --host 127.0.0.1 --port 8088"),
     ],
     safety=LOCAL_WRITE,
-    see_also=["fim", "watch", "observe"],
+    see_also=["fim", "watch", "observe", "canary token"],
 ))
 
 _add("canary deploy", _c(
-    "create canary files and record their hashes",
-    """Write decoy documents to the configured locations (or an explicit
-directory) and record each path and hash in the canary manifest. Existing
-canaries are left untouched; their current hash is recorded, not
-overwritten.""",
+    "create realistic canary files and record their hashes",
+    """Write decoy documents to the configured locations (or explicit
+directories) and record each path, size and SHA-256 in the manifest.
+Existing canaries are left untouched; their current hash is recorded, not
+overwritten.
+
+By default each location gets a plausible subdirectory and a random subset
+of document names. The content is a valid document body and never says
+"canary". Use --no-randomize when an external policy pins exact paths.""",
     [
-        ("Default locations", "plasma canary deploy"),
-        ("Custom directory", "plasma canary deploy --dir D:\\Shares\\Finance"),
+        ("Default randomized layout", "plasma canary deploy"),
+        ("A real user-data directory", "plasma canary deploy --dir D:\\Shares\\Finance"),
+        ("Fixed names for a lab", "plasma canary deploy --no-randomize"),
     ],
     safety=LOCAL_WRITE,
     see_also=["canary verify", "canary status"],
@@ -813,6 +824,143 @@ Use it to confirm coverage before an incident rather than discovering a
 missing decoy during one.""",
     [("Status", "plasma canary status")],
     see_also=["canary deploy", "canary verify"],
+))
+
+_add("canary token", _c(
+    "create and manage native DNS and HTTP canary tokens",
+    """A token is a unique artifact that should never be used. DNS tokens are
+observed from Sysmon EID 22 (or any event carrying `dns_query`) and need no
+callback service. HTTP tokens point at `plasma canary serve` and are
+delivered as Windows `.url` shortcuts. Both write a local registry under
+the Plasma root; no cloud service is involved.""",
+    [
+        ("DNS token", "plasma canary token create --kind dns --domain assets.internal"),
+        ("HTTP token", "plasma canary token create --kind http --base-url http://collector:8088"),
+        ("List tokens", "plasma canary token list"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["Token ids are unguessable but not secrets: anyone who can read "
+           "the registry can enumerate them. Protect the Plasma root.",
+           "DNS tokens need a narrow Sysmon DnsQuery include: run "
+           "`plasma canary sysmon --apply` after creating them."],
+    see_also=["canary serve", "canary collect", "canary sysmon"],
+))
+
+_add("canary token create", _c(
+    "create a DNS hostname token or an HTTP URL token",
+    """Allocate a unique 96-bit token id and write the registry entry.
+
+For `--kind dns`, --domain is the suffix (for example assets.internal);
+the token is `<id>.<domain>`. Optionally write the FQDN to --out.
+
+For `--kind http`, --base-url is the collector (for example
+http://collector:8088); the token URL is `<base>/t/<id>`. A Windows `.url`
+artifact is written to --out or `<root>/canary-artifacts/`.""",
+    [
+        ("DNS token for an internal suffix", "plasma canary token create --kind dns --domain assets.internal"),
+        ("HTTP token with a plausible shortcut name", "plasma canary token create --kind http --base-url http://collector:8088 --name Intranet_Portal.url"),
+        ("Write a DNS token artifact", "plasma canary token create --kind dns --domain assets.internal --out C:\\Shares\\Finance\\notes.txt"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["The artifact contains no secret; its value is that it should "
+           "never be opened or resolved.",
+           "A DNS token needs a matching internal DNS record (usually a "
+           "wildcard/sinkhole for the suffix) and `plasma canary sysmon "
+           "--apply`.",
+           "HTTP base URLs must be http(s), must not contain credentials, "
+           "and must not include a path."],
+    see_also=["canary token list", "canary sysmon", "canary serve"],
+))
+
+_add("canary token list", _c(
+    "list registered canary tokens",
+    """Print every token id, kind, artifact path and creation time. Use it to
+confirm what was deployed and to get the id for removal.""",
+    [("List", "plasma canary token list")],
+    see_also=["canary token create", "canary token remove"],
+))
+
+_add("canary token remove", _c(
+    "remove a token from the local registry",
+    """Remove one token by id. The artifact is left in place unless
+--delete-artifact is set, and even then deletion is restricted to paths
+under the Plasma root.""",
+    [
+        ("Remove", "plasma canary token remove 0123456789abcdef01234567"),
+        ("Remove and delete its artifact", "plasma canary token remove 0123456789abcdef01234567 --delete-artifact"),
+    ],
+    safety=LOCAL_WRITE,
+    see_also=["canary token list", "canary collect"],
+))
+
+_add("canary serve", _c(
+    "run the local HTTP token collector",
+    """Bind a small HTTP listener that recognizes `/t/<token-id>` and records
+the hit. It returns a 1x1 GIF, never serves files, accepts only GET/HEAD,
+and refuses a non-loopback bind unless --allow-non-loopback is explicit.
+This is a local collector, not a public web service.""",
+    [
+        ("Loopback collector", "plasma canary serve --host 127.0.0.1 --port 8088"),
+        ("Collector VLAN interface", "plasma canary serve --host 10.0.5.20 --allow-non-loopback"),
+        ("Stop after one hit for a test", "plasma canary serve --max-requests 1"),
+    ],
+    safety=LOCAL_WRITE + "; long-running",
+    notes=["Hits are written to <root>/canary-hits.jsonl. `watch` or "
+           "`canary collect` turns them into event-store alerts.",
+           "Use a management VLAN or a dedicated collector host; do not "
+           "expose this port to the internet."],
+    see_also=["canary token create", "canary collect", "canary hits"],
+))
+
+_add("canary collect", _c(
+    "collect DNS and HTTP token hits into the event store",
+    """Pull a bounded Sysmon DNS window, scan the existing event-store tail,
+and ingest new local HTTP hits. Only matching token queries or known token
+ids become `source="canary"` alert rows. Collection is idempotent: a hit
+key is recorded so repeated sweeps do not duplicate alerts.""",
+    [
+        ("Collect now", "plasma canary collect"),
+        ("Short DNS window", "plasma canary collect --since 5 --max-events 200"),
+        ("Explicit store", "plasma canary collect --events C:\\ProgramData\\Plasma\\data\\events.jsonl"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["Sysmon DNS collection requires Windows and a DnsQuery include; "
+           "see `plasma canary sysmon`."],
+    see_also=["canary sysmon", "canary hits", "watch"],
+))
+
+_add("canary hits", _c(
+    "show recent canary alert rows from the event store",
+    """Print the tail of `source="canary"` alerts. This is the quick check
+after a controlled test or during triage; it does not modify the store.""",
+    [
+        ("Recent hits", "plasma canary hits"),
+        ("Last 10", "plasma canary hits --last 10"),
+    ],
+    see_also=["canary collect", "watch", "chain"],
+))
+
+_add("canary sysmon", _c(
+    "write or apply a narrow Sysmon DnsQuery include for token domains",
+    """Generate the Plasma Sysmon baseline with an include rule for the
+registered DNS token suffixes, then optionally hot-reload it through
+Sysmon64.exe -c. Only queries ending in a token suffix are logged; ordinary
+DNS traffic stays out of the channel.
+
+Without --apply the command only writes
+`<root>/tools/plasma-sysmon-baseline.xml`.""",
+    [
+        ("Write from registered tokens", "plasma canary sysmon"),
+        ("Write and apply", "plasma canary sysmon --apply"),
+        ("Explicit suffix", "plasma canary sysmon --domain assets.internal --apply"),
+    ],
+    safety=LOCAL_WRITE + "; " + PRIVILEGED,
+    notes=["--apply requires Administrator and an installed Sysmon service.",
+           "--apply replaces the Sysmon config with Plasma's baseline plus "
+           "the token include; review an existing custom config first.",
+           "The include is suffix-based; a token hostname must end with one "
+           "of the configured domains."],
+    see_also=["canary token create", "canary collect", "watch"],
 ))
 
 _add("fim", _c(
@@ -1028,21 +1176,23 @@ store looks unexpectedly small.""",
 ))
 
 _add("watch", _c(
-    "one sweep or a loop: health, drift, alerts, chains and enforcement",
+    "one sweep or a loop: health, drift, canaries, alerts, chains and enforcement",
     """The periodic decision sweep. `watch once` combines health, drift,
-new alerts and chain scoring into one verdict, optionally delivering
-notifications and feeding the measured enforcement policy. `watch loop`
-repeats on an interval for foreground operation.
+canary files, DNS/HTTP token hits, configured canary accounts, new alerts
+and chain scoring into one verdict, optionally delivering notifications and
+feeding the measured enforcement policy. `watch loop` repeats on an interval
+for foreground operation.
 
 Exit is non-zero when findings exist, which makes the command suitable for
 a scheduled task or an orchestrator check.""",
     [
         ("One sweep", "plasma watch once"),
         ("One sweep with enforcement", "plasma watch once --enforce"),
+        ("Query a canary account", "plasma watch once --canary-account svc-print-archive"),
         ("Loop every 60 seconds", "plasma watch loop --every 60 --enforce"),
     ],
     safety=LOCAL_WRITE,
-    see_also=["health", "enforce", "notify"],
+    see_also=["health", "enforce", "notify", "canary"],
 ))
 
 _add("watch once", _c(
@@ -1052,11 +1202,16 @@ chains, and return a verdict. With --enforce, findings are passed to the
 measured enforcement policy, which still applies its own allowlist, score
 floor, action cap and cooldown.
 
+Canary accounts come from `canary.accounts` in config.json unless
+--canary-account overrides them. DNS and HTTP token hits are collected
+automatically and deduplicated across sweeps.
+
 `--notify-clean` sends a notification even when nothing is found; the
 default is to notify only on findings.""",
     [
         ("Detect only", "plasma watch once"),
         ("Measured enforcement", "plasma watch once --enforce"),
+        ("Query a specific canary account", "plasma watch once --canary-account svc-print-archive"),
         ("Notify even when clean", "plasma watch once --notify-clean"),
     ],
     safety=LOCAL_WRITE,
@@ -1064,7 +1219,7 @@ default is to notify only on findings.""",
            "5 minutes.",
            "A finding does not automatically mean an action: the policy "
            "decides."],
-    see_also=["enforce", "protect", "notify"],
+    see_also=["enforce", "protect", "notify", "canary"],
 ))
 
 _add("watch loop", _c(

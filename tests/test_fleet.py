@@ -230,6 +230,22 @@ def test_correlate_alert_rows_do_not_make_a_lateral_hop(tmp_path):
     assert not [f for f in out["findings"] if f["type"] == "lateral_hop"]
 
 
+def test_correlate_canary_token_hits_across_hosts(tmp_path):
+    cd = fleet.init_case(tmp_path, "tokens", window_seconds=1800)
+    _write_host_events(cd, "WS1", [ev(
+        "WS1", source="canary", kind="alert", event_id=9001,
+        alert_id="canary:dns:abc123", score=0.8, ts_=ts(0))])
+    _write_host_events(cd, "WS2", [ev(
+        "WS2", source="canary", kind="alert", event_id=9001,
+        alert_id="canary:dns:abc123", score=0.8, ts_=ts(60))])
+    out = fleet.correlate(tmp_path, "tokens")
+    hits = [f for f in out["findings"] if f["type"] == "canary_token_hit"]
+    assert len(hits) == 1
+    assert hits[0]["score"] == 9
+    assert hits[0]["hosts"] == ["WS1", "WS2"]
+    assert hits[0]["canary_kind"] == "dns"
+
+
 def test_correlate_local_console_logons_do_not_make_a_hop(tmp_path):
     cd = fleet.init_case(tmp_path, "local", window_seconds=1800)
     _write_host_events(cd, "WS1", [ev("WS1", user="olu", kind="auth",

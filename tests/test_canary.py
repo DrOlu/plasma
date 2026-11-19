@@ -2,12 +2,14 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from plasma import canary, health, watch
 
 
-def _deploy(tmp_path):
+def _deploy(tmp_path, **kwargs):
     root = tmp_path / "plasma"
-    result = canary.deploy(root)
+    result = canary.deploy(root, randomize=False, **kwargs)
     return root, result
 
 
@@ -25,7 +27,7 @@ def test_deploy_writes_files_and_manifest(tmp_path):
 def test_deploy_extra_dirs(tmp_path):
     root, _ = _deploy(tmp_path)
     extra = tmp_path / "finance"
-    canary.deploy(root, extra_dirs=[extra])
+    canary.deploy(root, extra_dirs=[extra], randomize=False)
     assert (extra / canary.CANARY_NAMES[0]).exists()
     manifest = json.loads((root / "canaries.json").read_text())
     paths = [e["path"] for e in manifest["canaries"]]
@@ -37,11 +39,50 @@ def test_deploy_does_not_overwrite_existing(tmp_path):
     target = canary.default_dir(root) / canary.CANARY_NAMES[0]
     target.parent.mkdir(parents=True)
     target.write_text("pre-existing content")
-    result = canary.deploy(root)
+    result = canary.deploy(root, randomize=False)
     assert target.read_text() == "pre-existing content"
     assert result["created"] == len(canary.CANARY_NAMES) - 1
     # the manifest records the hash of what is actually there
     assert canary.verify(root)["intact"] == len(canary.CANARY_NAMES)
+
+
+def test_deploy_randomized_paths_are_not_self_identifying(tmp_path):
+    root = tmp_path / "plasma"
+    first = canary.deploy(root)
+    second = canary.deploy(root, extra_dirs=[tmp_path / "finance"])
+    assert first["randomized"] is True
+    assert all("Canaries" not in p for p in first["dirs"])
+    manifest = json.loads((root / "canaries.json").read_text())
+    assert manifest["randomized"] is True
+    # Every path is a real document; the body must not advertise the decoy.
+    for entry in manifest["canaries"]:
+        path = Path(entry["path"])
+        assert path.exists()
+        blob = path.read_bytes()
+        assert b"canary" not in blob.lower()
+        assert b"PLASMA" not in blob
+    # A second deploy with another base also records the extra files.
+    assert second["deployed"] > first["deployed"]
+
+
+def test_canary_subdir_cannot_escape_root(tmp_path):
+    with pytest.raises(ValueError):
+        canary.deploy(tmp_path / "plasma", subdir="..\\escape")
+
+
+def test_canary_content_is_a_real_document(tmp_path):
+    root = tmp_path / "plasma"
+    canary.deploy(root, randomize=False)
+    for name in canary.CANARY_NAMES:
+        blob = (canary.default_dir(root) / name).read_bytes()
+        if name.endswith((".xlsx", ".docx")):
+            import io
+            import zipfile
+            assert zipfile.is_zipfile(io.BytesIO(blob))
+        elif name.endswith(".pdf"):
+            assert blob.startswith(b"%PDF-1.4")
+        elif name.endswith(".csv"):
+            assert b"Date,Reference,Description,Amount,Status" in blob
 
 
 def test_verify_intact(tmp_path):

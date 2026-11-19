@@ -129,6 +129,9 @@ def test_commands_mark_mutating_and_long_running(running):
     assert by_path[("control", "policy", "set")]["mutating"] is True
     assert by_path[("actuate", "actions")]["mutating"] is False
     assert by_path[("serve",)]["long_running"] is True
+    assert by_path[("canary", "token", "create")]["mutating"] is True
+    assert by_path[("canary", "token", "list")]["mutating"] is False
+    assert by_path[("canary", "serve")]["long_running"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -323,6 +326,9 @@ def test_command_path_and_mutation_rules():
     assert serve.is_mutating(["health", "--apply"]) is True
     assert serve.is_long_running("watch loop") is True
     assert serve.is_long_running("watch once") is False
+    assert serve.is_long_running("canary serve") is True
+    assert serve.is_mutating(["canary", "token", "create", "--kind", "dns"]) is True
+    assert serve.is_mutating(["canary", "token", "list"]) is False
 
 
 # ---------------------------------------------------------------------------
@@ -396,11 +402,11 @@ def test_openapi_and_docs_are_unauthenticated(running):
 # command tree completeness
 # ---------------------------------------------------------------------------
 
-def test_commands_have_root_and_134_commands(running):
+def test_commands_have_root_and_142_commands(running):
     _, key, base = running
     _, body = _request(base, "/v1/commands", key=key)
     assert body["root"]["path"] == []
-    assert len(body["commands"]) == 134
+    assert len(body["commands"]) == 142
     assert all(row["path"] for row in body["commands"])
 
 

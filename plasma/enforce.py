@@ -194,9 +194,10 @@ def proposals(findings: list[dict], policy: dict) -> list[dict]:
             if pid:
                 action, target = "kill_process", str(pid)
                 why.append(f"{ftype} image pid {pid}")
-        elif ftype == "canary_tripped":
+        elif ftype in ("canary_tripped", "canary_dns_tripped",
+                       "canary_http_tripped", "canary_account_tripped"):
             action, target = "isolate_host", None
-            why.append("canary tripped — impact behaviour on this host")
+            why.append(f"{ftype} — canary interaction on this host")
 
         if not action:
             continue

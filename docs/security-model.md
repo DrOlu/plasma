@@ -83,7 +83,8 @@ to a marketing page.
   (`plasma canary deploy`, verified on every `watch`): a missing or modified
   decoy is a score-10 finding. This is deliberately not an "encryption
   burst" heuristic; the coverage report attributes the technique to
-  `canary:verify`.
+  `canary:verify`. DNS and HTTP tokens add access/recon tripwires without
+  cloud callbacks; HTTP tokens use a loopback-first local collector.
 - **Endpoint DLP / content inspection.** Not attempted.
 
 ## Data handling

@@ -99,3 +99,26 @@ def test_pipe_events_include_create_and_connect():
     assert pipe is not None and pipe.get("onmatch") == "include"
     types = {el.text for el in pipe if el.tag == "EventType"}
     assert types == {"CreatePipe", "ConnectPipe"}
+
+
+def test_dns_is_excluded_by_default_and_narrow_include_is_opt_in():
+    from plasma import cli
+    default = ET.fromstring(cli.sysmon_baseline_config())
+    dns = default.find("EventFiltering/DnsQuery")
+    assert dns is not None and dns.get("onmatch") == "exclude"
+    assert len(list(dns)) == 0
+
+    narrow = ET.fromstring(cli.sysmon_baseline_config(
+        ["assets.internal", "assets.internal"]))
+    dns = narrow.find("EventFiltering/DnsQuery")
+    assert dns is not None and dns.get("onmatch") == "include"
+    names = [el.text for el in dns if el.tag == "QueryName"]
+    assert names == [".assets.internal"]
+
+
+def test_sysmon_config_escapes_dns_suffix():
+    from plasma import cli
+    text = cli.sysmon_baseline_config(['a&b.example'])
+    assert "a&amp;b.example" in text
+    # still well-formed after escaping
+    ET.fromstring(text)

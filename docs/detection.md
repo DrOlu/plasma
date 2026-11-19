@@ -160,20 +160,47 @@ Sigma rules can be converted mechanically into the same gene format; see
 [Sigma conversion](sigma.md). Critical-file integrity is covered by
 [FIM](fim.md).
 
-## Canary files — impact detection (T1486)
+## Canaries — impact and access tripwires
 
 ```powershell
-plasma canary deploy [--dir D:\Finance]   # decoy documents + hash manifest
+plasma canary deploy [--dir D:\Finance]   # realistic decoys + hash manifest
 plasma canary verify                        # exit 2 when a canary is touched
 plasma canary status
+plasma canary token create --kind dns --domain assets.internal
+plasma canary sysmon --apply                # narrow Sysmon EID 22 include
+plasma canary token create --kind http --base-url http://collector:8088
+plasma canary serve --host 127.0.0.1 --port 8088
+plasma canary collect
+plasma canary hits
 ```
 
-Six decoy documents (xlsx/csv/docx/pdf/txt) are written with recorded
-SHA-256 hashes. `watch` verifies them on every sweep: a **missing or
-modified canary is a score-10 finding** (`canary_tripped`) — the honest
-detector for destructive impact that does not depend on guessing at
-encryption bursts. Deploy them to user-data shares as well as the default
-`Canaries` folder.
+File canaries are valid xlsx/csv/docx/pdf documents with random
+subdirectories and names. The body never says "canary"; the manifest is the
+only marker. `watch` verifies them on every sweep: a **missing or modified
+canary is a score-10 finding** (`canary_tripped`) — the honest detector for
+destructive impact that does not depend on guessing at encryption bursts.
+Deploy them to user-data shares as well as the default `Documents` folder.
+
+DNS tokens are unique hostnames. Give the suffix a matching internal DNS
+record (usually a wildcard/sinkhole) so the query reaches a resolver. A
+query is observed through a narrow Sysmon EID 22 include (only the
+configured token suffixes) or any normalized event carrying `dns_query`;
+`watch` emits `canary_dns_tripped` at score 8.
+HTTP tokens are Windows `.url` shortcuts pointing at `plasma canary serve`;
+the hit is recorded locally and becomes `canary_http_tripped` at score 8.
+No Docker, cloud service or external callback is involved.
+
+Configured canary accounts are queried on every watch sweep:
+`config.json`:
+
+```json
+{"canary": {"accounts": ["svc-print-archive"]}}
+```
+
+A 4624/4625/4771/4776 for that account becomes
+`canary_account_tripped` at score 10. A canary hit is evidence, not an
+automatic kill: the response policy still requires approval for host
+isolation.
 
 ## IOC push
 

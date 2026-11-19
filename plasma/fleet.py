@@ -14,6 +14,7 @@ Ethos guards, inherited from the observatory:
 
 Join rules (rmagent-so lineage):
   canary_tripped  10  a canary account appears on any host
+  canary_token_hit 9  a DNS/HTTP canary token fired on a host
   lateral_hop      9  same user seen on 2+ hosts inside the time window
   shared_hash      8  same file hash on 2+ hosts
   shared_domain    7  same dns_query on 2+ hosts
@@ -37,6 +38,7 @@ CANARY_DEFAULTS = ["plasma-canary"]
 
 _FINDING_SCORES = {
     "canary_tripped": 10,
+    "canary_token_hit": 9,
     "lateral_hop": 9,
     "shared_hash": 8,
     "blind_host": 8,
@@ -369,6 +371,28 @@ def correlate(root, case, window_seconds=None, cap_findings=50) -> dict:
                 })
                 break
 
+    # --- canary_token_hit: a DNS/HTTP token fired on any host --------------
+    token_hosts: dict[str, dict] = {}
+    for host, rows in per_host.items():
+        for row in rows:
+            alert_id = str(row.get("alert_id") or "")
+            if (row.get("source") != "canary"
+                    or not alert_id.startswith("canary:")):
+                continue
+            entry = token_hosts.setdefault(alert_id, {
+                "hosts": set(), "kind": "dns" if alert_id.startswith(
+                    "canary:dns:") else "http", "first_ts": row.get("ts"),
+            })
+            entry["hosts"].add(host)
+    for alert_id, entry in sorted(token_hosts.items()):
+        findings.append({
+            "type": "canary_token_hit", "score": 9,
+            "hosts": sorted(entry["hosts"]), "alert_id": alert_id,
+            "canary_kind": entry["kind"], "ts": entry["first_ts"],
+            "detail": (f"{entry['kind']} canary token {alert_id} fired on "
+                       + ", ".join(sorted(entry["hosts"]))),
+        })
+
     # --- lateral_hop: a *network* logon by the same user on 2+ hosts -------
     # Process/alert rows carry a username too, but a user running locally on
     # two boxes is not a hop. Only Security-channel auth rows with network
@@ -435,6 +459,8 @@ def correlate(root, case, window_seconds=None, cap_findings=50) -> dict:
         evidence: dict[str, list] = {}
         for host, rows in per_host.items():
             for row in rows:
+                if row.get("source") == "canary":
+                    continue
                 v = row.get(field)
                 if not v or str(v).lower() in ("-", "none"):
                     continue

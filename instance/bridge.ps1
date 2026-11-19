@@ -29,7 +29,7 @@ $ErrorActionPreference = 'Stop'
 $ROW_CAP = 25
 $KINDS = @('alert','auth','dns','file','image_load','network','process','registry')
 $SEVERITIES = @('info','low','medium','high','critical')
-$SOURCES = @('sentinel','sysmon','sealighter','plasma')
+$SOURCES = @('sentinel','sysmon','sealighter','whids','plasma','tap','dtrace','canary')
 $ACTIONS = @('allowed','blocked','quarantined','killed','logged')
 $DIGEST_FIELDS = @('ts','host','source','kind','event_id','severity','user','process','pid','parent','cmdline','dest_ip','dest_port','dns_query','file_path','file_hash','registry_path','technique','alert_id','score','action','description')
 

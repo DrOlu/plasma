@@ -182,6 +182,25 @@ expressions merged and deduplicated; the previous rule file is backed up; every
 apply is journaled. The shipped WHIDS config is detect-only (`report`); Plasma
 never drives WHIDS response actions.
 
+## Canaries and native tokens
+
+```bash
+plasma canary deploy --dir D:\Finance          # realistic, randomized decoys
+plasma canary token create --kind dns --domain assets.internal
+plasma canary sysmon --apply                   # narrow Sysmon EID 22 include
+plasma canary token create --kind http --base-url http://collector:8088
+plasma canary serve --host 127.0.0.1 --port 8088
+plasma canary collect                          # DNS/HTTP hits -> event store
+plasma canary hits
+```
+
+File canaries are hash-verified impact detectors. DNS tokens are unique
+hostnames observed from Sysmon EID 22; HTTP tokens are `.url` shortcuts
+served by a local collector. Both become `source="canary"` alerts and are
+deduplicated across `watch` sweeps. Configure canary accounts with
+`{"canary": {"accounts": ["svc-print-archive"]}}` in `config.json`. No
+Docker, cloud callback or external service is required.
+
 ## Observatory, drift and actuation (rmagent lineage)
 
 Read-only host questions answered locally by fixed PowerShell payloads
@@ -300,9 +319,10 @@ plasma fleet scan --inventory fleet.json --case incident-42 --window 3600
 plasma fleet report --case incident-42          # one-page markdown dossier
 ```
 
-Deterministic joins: canary_tripped (10), lateral_hop (9, same user on
-2+ hosts inside the window), shared_hash (8), shared_domain (7),
-shared_ip (7), blind_host (8, from attest answers in the case).
+Deterministic joins: canary_tripped (10), canary_token_hit (9, a DNS/HTTP
+token fired), lateral_hop (9, same user on 2+ hosts inside the window),
+shared_hash (8), shared_domain (7), shared_ip (7), blind_host (8, from
+attest answers in the case).
 Verdicts: clean / investigate / act now. Credentials arrive via env vars
 (`password_env`) and are never written to disk — enforced by test.
 
@@ -314,7 +334,7 @@ pip install 'plasma-edr[desk]'   # adds pywinrm for the winrm transport
 
 ```bash
 plasma health                                   # is the stack alive? (json verdict)
-plasma watch once                               # sweep: health + drift + canary + alerts
+plasma watch once                               # sweep: health + drift + canaries + alerts
 plasma notify show | plasma notify test         # alert channels (telegram/webhook)
 plasma update auto --check-only                 # exit 2 when an update is available
 plasma update auto                              # measured signed self-update

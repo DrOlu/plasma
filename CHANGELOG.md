@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.20.0 — 2026-11-19
+
+- **Believable file canaries.** Random subdirectories and document names by
+  default, valid xlsx/docx/pdf/csv bodies, and no self-identifying marker in
+  the file. `--no-randomize` preserves a pinned layout.
+- **DNS tokens.** `canary token create --kind dns` allocates a unique
+  hostname; `canary sysmon --apply` writes a narrow Sysmon EID 22 include
+  and hot-reloads it. Matches become score-8 `canary_dns_tripped` findings.
+- **HTTP tokens.** `canary token create --kind http` writes a plausible
+  Windows `.url` shortcut; `canary serve` is a loopback-first local
+  collector that refuses non-loopback binds without an explicit flag.
+- **One evidence path.** DNS/HTTP hits are appended as `source="canary"`
+  alert rows, deduplicated across sweeps; `watch` surfaces them, `fleet`
+  adds `canary_token_hit` (score 9), and enforcement maps them to
+  approval-gated isolation.
+- **Canary accounts are in the sweep.** `config.json` `canary.accounts` (or
+  `watch --canary-account`) queries 4624/4625/4771/4776; repeated logons are
+  deduplicated.
+- **Offset fix.** Short append-only logs no longer look replaced when they
+  grow, so the first hit is not re-ingested on every sweep.
+- Field-tested on WS1 and WS2: file deploy/verify/tamper, real Sysmon EID 22
+  query, HTTP collector hit, watch findings, and a real 4625 on a disabled
+  canary account. 823 tests collected; full suite and `-W error` pass;
+  `ruff check` clean on the changed modules.
+
 ## 1.19.3 — 2026-11-18
 
 MSI upgrades now converge the running node.
