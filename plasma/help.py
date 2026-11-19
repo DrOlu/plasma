@@ -2284,11 +2284,11 @@ operator interface and is excluded from the recommended workflow.""",
 ROOT_DESCRIPTION = """Plasma is a lake-less, agent-native Windows EDR.
 
 Detection is local: Sysmon/WHIDS alerts, Security-channel audit events, an
-ETW tap, DTrace on demand, file integrity and canary decoys are normalized
-into one JSONL store. Response is explicit: every action is scoped,
-journaled and reversible, and automatic containment is armed narrowly by
-default. The agent trust layer decides what an agent may do; the kill
-switch always wins.
+ETW tap, DTrace on demand, file integrity, canary files and native DNS/HTTP
+tokens are normalized into one JSONL store. Response is explicit: every
+action is scoped, journaled and reversible, and automatic containment is
+armed narrowly by default. The agent trust layer decides what an agent may
+do; the kill switch always wins.
 
 Every command prints JSON. Exit codes are part of the contract:
 0 success/clean, 1 data/input error, 2 refused/findings/attention,
