@@ -455,3 +455,14 @@ def test_new_mcp_tools_are_typed_and_present():
     assert tools.get("query_events").risk == "read"
     assert tools.get("scan_memory").dry_run_only is True
     assert tools.validate_args("query_events", {"limit": 5})["limit"] == 5
+
+
+def test_policy_simulate_cli_reads_args_file(tmp_path, capsys):
+    from plasma import cli
+    path = tmp_path / "args.json"
+    path.write_text('{"host": "WS1"}')
+    assert cli.main(["control", "policy", "simulate", "isolate_host",
+                     "--args-file", str(path), "--root", str(tmp_path)]) == 0
+    import json
+    body = json.loads(capsys.readouterr().out)
+    assert body["decision"]["code"] == "approval_required"

@@ -2690,8 +2690,15 @@ def cmd_control_policy_set(args) -> int:
 
 
 def cmd_control_policy_simulate(args) -> int:
+    text = args.args or "{}"
+    if args.args_file:
+        try:
+            text = Path(args.args_file).read_text(encoding="utf-8-sig")
+        except OSError as exc:
+            _emit({"ok": False, "error": f"cannot read --args-file: {exc}"})
+            return 1
     try:
-        payload = json.loads(args.args or "{}")
+        payload = json.loads(text)
     except json.JSONDecodeError as exc:
         _emit({"ok": False, "error": f"--args is not JSON: {exc}"})
         return 1
@@ -3752,6 +3759,8 @@ def build_parser() -> argparse.ArgumentParser:
                            help="explain a policy decision without changing state")
     psim.add_argument("tool", help="typed tool name, e.g. isolate_host")
     psim.add_argument("--args", default="{}", help="tool arguments as JSON")
+    psim.add_argument("--args-file", dest="args_file", default=None,
+                      help="read tool arguments from a JSON file (Windows quoting)")
     psim.add_argument("--scopes", default=None,
                       help="comma-separated scopes; default: the tool's own")
     psim.add_argument("--recent-actions", dest="recent_actions", type=int, default=0)
