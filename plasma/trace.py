@@ -26,6 +26,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from . import netguard
 from .redact import redact_text
 
 MARKER = "plasma|"
@@ -423,7 +424,8 @@ def _install_msi(dest_dir) -> dict:
     dest = Path(name)
     try:
         with os.fdopen(fd, "wb") as fh:
-            with urllib.request.urlopen(MSI_URL, timeout=120) as resp:
+            netguard.require_https(MSI_URL)
+            with urllib.request.urlopen(MSI_URL, timeout=120) as resp:  # nosec B310
                 shutil.copyfileobj(resp, fh)
             fh.flush()
             os.fsync(fh.fileno())

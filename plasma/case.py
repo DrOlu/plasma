@@ -288,7 +288,7 @@ def _score_counts(rows) -> list[dict]:
             for key in ("critical", "high", "medium", "low") if buckets[key]]
 
 
-def report(root, name: str) -> dict:
+def report(root, name: str, write: bool = True) -> dict:
     meta = _meta(root, name)
     directory = case_dir(root, name)
     events = _jsonl(directory / "events.jsonl")
@@ -347,9 +347,11 @@ def report(root, name: str) -> dict:
               for note in notes] or ["None."]
     markdown = "\n".join(lines).rstrip() + "\n"
     path = directory / "report.md"
-    path.write_text(markdown, encoding="utf-8")
-    _update_counts(root, name, meta)
-    return {"ok": True, "case": meta.get("name"), "path": str(path),
+    if write:
+        path.write_text(markdown, encoding="utf-8")
+        _update_counts(root, name, meta)
+    return {"ok": True, "case": meta.get("name"),
+            "path": str(path) if write else None,
             "markdown": markdown, "summary": {
                 "events": len(events), "findings": len(findings),
                 "notes": len(notes), "scores": scores,

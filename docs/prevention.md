@@ -5,7 +5,7 @@ Plasma has two prevention tiers, and they are deliberately different things.
 | Tier | Mechanism | Blocks first execution? | Latency |
 |---|---|---|---|
 | **0 — Containment** | `plasma enforce` turns findings into allowlisted, reversible actions | No | seconds to minutes |
-| **1 — Enforcement points** | `plasma prevent` configures AppLocker, Windows Firewall, Defender ASR and LSA protection | **Yes** | at execution / connection |
+| **1 — Enforcement points** | `plasma prevent` configures AppLocker, Windows Firewall, Defender ASR, LSA, Controlled Folder Access, Network Protection and the driver blocklist | **Yes** | at execution / connection |
 
 Plasma does **not** ship a kernel driver. Inline blocking at the file,
 process and network boundary belongs to Microsoft's signed components;
@@ -177,22 +177,73 @@ LSA plugins before enabling it in production.
 - **Not a substitute for backups.** Every control here is reversible, and
   the journal is the audit trail that proves what changed.
 
-## Posture — WDAC, CFA, Network Protection, driver blocklist
+## Posture and Defender controls
 
 ```powershell
 plasma prevent posture
 ```
 
-Read-only inventory of the signed enforcement points Plasma delegates to:
-active WDAC policy files, Defender Controlled Folder Access, Network
-Protection, the Microsoft vulnerable driver blocklist, ASR rule counts,
-real-time protection and tamper protection. The result names each gap. It
-does not change a setting.
+Inventory of the signed enforcement points Plasma delegates to: active WDAC
+policy files, Defender Controlled Folder Access, Network Protection, the
+Microsoft vulnerable driver blocklist, ASR rule counts, real-time protection
+and tamper protection. Each row says whether Plasma can apply it and names
+the preview command. Gaps come with recommendations.
 
-This is deliberately an inventory, not an implicit claim: a control that is
-off is reported as off. Enabling CFA or Network Protection remains an
-explicit Defender-policy change, because both can break line-of-business
-applications if applied without a pilot.
+WDAC stays **read-only**: a bad code-integrity policy can stop a host
+booting, and recovery may need offline action. CFA, Network Protection and
+the driver blocklist are opt-in, plan-gated and reversible.
+
+### Controlled Folder Access
+
+```powershell
+plasma prevent cfa --mode audit
+plasma prevent cfa --mode audit --apply --plan 7 --reason "pilot"
+plasma prevent cfa --mode block --apply --plan 8 --reason "enforce"
+plasma prevent rollback --id 8
+```
+
+Modes are `off`, `audit` and `block`; the default is `audit`. Apply captures
+the current value before writing, verifies the resulting value, and journals
+the previous value for rollback. A policy-managed host may ignore the local
+setting; that is reported as a failed apply, not a false success.
+
+### Network Protection
+
+```powershell
+plasma prevent network --mode audit
+plasma prevent network --mode audit --apply --plan 9 --reason "pilot"
+plasma prevent network --mode block --apply --plan 10 --reason "enforce"
+plasma prevent rollback --id 10
+```
+
+Same discipline as CFA. Network Protection can affect browsers, updaters
+and telemetry endpoints; pilot in audit first.
+
+### Vulnerable driver blocklist
+
+```powershell
+plasma prevent driver-blocklist
+plasma prevent driver-blocklist --apply --plan 11 --reason "baseline"
+plasma prevent driver-blocklist --off
+plasma prevent rollback --id 11
+```
+
+Writes `VulnerableDriverBlocklistEnable` under the Code Integrity config key
+and captures the previous value. A reboot may be required before the change
+is fully effective. Plasma never reboots the host.
+
+### Posture and rollback safety
+
+- Every apply is dry-run first, single-use, payload-bound and reason-gated.
+- The kill switch blocks applies while leaving previews available.
+- Rollback verifies the restored value, not just that PowerShell returned.
+- The journal records the control, mode, previous value, plan, reason and
+  verification result.
+
+This is deliberately an inventory first: a control that is off is reported
+as off. CFA and Network Protection can be changed through Plasma, but only
+as an explicit, previewed, plan-gated action. Both can break line-of-business
+applications if applied without a pilot, so audit mode is the default.
 
 ## Verification
 

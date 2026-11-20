@@ -24,6 +24,8 @@ import subprocess
 import urllib.parse
 import urllib.request
 
+from . import netguard
+
 # Signer pinning: an update is executed only if the downloaded exe carries an
 # Authenticode signature from one of these certificates (SHA-1 thumbprints, as
 # reported by Get-AuthenticodeSignature). This is a SECOND trust anchor:
@@ -96,7 +98,8 @@ def _gh(url: str, token: str = "", timeout: int = 60,
     if token:
         headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    netguard.require_https(req.full_url)
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
         return resp.read()
 
 

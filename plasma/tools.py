@@ -203,6 +203,13 @@ TOOLS: tuple[ToolSpec, ...] = (
                  "depth": {"type": "integer", "minimum": 1, "maximum": 10}}),
     ),
     ToolSpec(
+        "get_enforcement_posture",
+        "Read WDAC, CFA, Network Protection, driver blocklist and ASR state.",
+        ("health:read",),
+        "read",
+        _schema(),
+    ),
+    ToolSpec(
         "get_summary",
         "Return a bounded digest of processes, lineage, users and rare commands.",
         ("events:read",),

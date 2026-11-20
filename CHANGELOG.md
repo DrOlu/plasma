@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.24.0 — 2026-11-20
+
+- **Opt-in Defender enforcement.** New `prevent cfa`, `prevent network` and
+  `prevent driver-blocklist` controls: preview, plan-gated apply, positive
+  verification and rollback by journal id. WDAC remains read-only.
+- **Rollback proves the restored value.** CFA/Network Protection and the
+  driver-blocklist rollback compare the resulting value with the captured
+  previous value, not just the PowerShell exit code.
+- **Actionable posture.** `prevent posture` now says which controls Plasma
+  can apply, gives the preview command and emits a recommendation per gap.
+- **Detection regression suite.** `plasma detect test` runs deterministic
+  positive and negative chain cases; a broken expectation exits 2.
+- **Security hardening.** All outbound downloads are HTTPS-only with no
+  embedded credentials; Sysmon XML refuses DTD/entity input; query regex and
+  detection case files are bounded; MCP `get_case` no longer writes.
+- **Agent surface.** MCP adds `get_enforcement_posture` (20 tools total).
+- 919 tests collected; full suite and `-W error` pass.
+
 ## 1.23.0 — 2026-11-20
 
 - **Typed investigation.** `plasma query` adds a closed local query language

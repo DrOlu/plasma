@@ -541,6 +541,166 @@ def lsa(apply=False, plan=None, reason=None, root=".", enable=True) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Defender preference controls: CFA, Network Protection, driver blocklist
+# ---------------------------------------------------------------------------
+
+DEFENDER_CONTROLS = {
+    "cfa": {
+        "name": "Controlled Folder Access",
+        "pref": "EnableControlledFolderAccess",
+        "values": {"off": 0, "audit": 2, "block": 1},
+        "rollback": "cfa",
+    },
+    "network": {
+        "name": "Network Protection",
+        "pref": "EnableNetworkProtection",
+        "values": {"off": 0, "audit": 2, "block": 1},
+        "rollback": "network",
+    },
+}
+
+
+def _defender_mode(control: str, mode: str) -> tuple[int, str]:
+    spec = DEFENDER_CONTROLS.get(control)
+    if spec is None:
+        raise ValueError("control must be cfa or network")
+    text = str(mode or "audit").strip().lower()
+    if text not in spec["values"]:
+        raise ValueError("mode must be off, audit or block")
+    return spec["values"][text], text
+
+
+def defender_preference(control: str, mode: str = "audit", apply: bool = False,
+                        plan=None, reason=None, root=".") -> dict:
+    """Preview, apply or refuse one Defender preference control.
+
+    The value is reversible because the current setting is captured at
+    apply time and journaled. A policy-managed host may ignore the write;
+    verification catches that and the apply fails rather than lying.
+    """
+    root = Path(root)
+    try:
+        value, label = _defender_mode(control, mode)
+    except ValueError as exc:
+        return {"error": str(exc), "code": "REFUSED"}
+    spec = DEFENDER_CONTROLS[control]
+    pref = spec["pref"]
+    payload = (
+        "$ErrorActionPreference='Stop'\n"
+        f"$prev=(Get-MpPreference -ErrorAction Stop).{pref}\n"
+        f"Set-MpPreference -{pref} {value} -ErrorAction Stop\n"
+        f"$v=(Get-MpPreference -ErrorAction Stop).{pref}\n"
+        "[pscustomobject]@{applied=$true; "
+        f"control='{control}'; mode='{label}'; "
+        "previous=[int]$prev; value=[int]$v} | ConvertTo-Json -Compress")
+    digest = hashlib.sha256(payload.encode()).hexdigest()
+    if not apply:
+        current = _defender_current(pref)
+        return _append_journal(root, {
+            "control": control, "mode": label, "desired": value,
+            "current": current, "payload_sha256": digest,
+            "status": "dry-run", "reason": reason,
+            "undo": {"kind": control},
+            "preview": payload[:2000],
+        })
+    blocked = _blocked(root)
+    if blocked:
+        return blocked
+    entry = _claim_plan(root, plan, control, digest, reason)
+    if "error" in entry:
+        return entry
+    rc, out = _ps(payload, timeout=120)
+    result, err = _parse_json_tail(rc, out)
+    if result is None:
+        return {"error": f"{spec['name']} apply failed (Defender may be absent "
+                         "or managed by policy)", "detail": err,
+                "code": "FAILED"}
+    actual = result.get("value")
+    try:
+        actual_int = int(actual)
+    except (TypeError, ValueError):
+        return {"error": f"{spec['name']} returned an unexpected value",
+                "detail": result, "code": "FAILED"}
+    if actual_int != value:
+        return {"error": f"{spec['name']} did not take effect; a policy may "
+                         "override local preferences", "wanted": value,
+                "actual": actual_int, "code": "FAILED"}
+    return _append_journal(root, {
+        "control": control, "mode": label, "desired": value,
+        "payload_sha256": digest, "status": "applied", "reason": reason,
+        "plan": plan, "verification": result,
+        "undo": {"kind": control, "previous": result.get("previous")},
+    })
+
+
+def _defender_current(pref: str):
+    data, _ = _ps_json(
+        f"$p=Get-MpPreference -ErrorAction SilentlyContinue; "
+        f"if($p){{ [pscustomobject]@{{value=[int]$p.{pref}}} | "
+        "ConvertTo-Json -Compress }", timeout=60)
+    if isinstance(data, dict):
+        try:
+            return int(data.get("value"))
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+DRIVER_BLOCKLIST_KEY = r"HKLM:\SYSTEM\CurrentControlSet\Control\CI\Config"
+DRIVER_BLOCKLIST_NAME = "VulnerableDriverBlocklistEnable"
+
+
+def driver_blocklist(apply: bool = False, plan=None, reason=None,
+                     root=".", enable: bool = True) -> dict:
+    """Preview or apply the Microsoft vulnerable driver blocklist switch."""
+    root = Path(root)
+    value = 1 if enable else 0
+    payload = (
+        "$ErrorActionPreference='Stop'\n"
+        f"$p='{DRIVER_BLOCKLIST_KEY}'\n"
+        f"$prev=(Get-ItemProperty -Path $p -Name {DRIVER_BLOCKLIST_NAME} "
+        "-ErrorAction SilentlyContinue).VulnerableDriverBlocklistEnable\n"
+        f"New-ItemProperty -Path $p -Name {DRIVER_BLOCKLIST_NAME} -Value {value} "
+        "-PropertyType DWord -Force | Out-Null\n"
+        f"$v=(Get-ItemProperty -Path $p).{DRIVER_BLOCKLIST_NAME}\n"
+        "[pscustomobject]@{applied=$true; previous=$prev; value=$v; "
+        "reboot_required=$true} | ConvertTo-Json -Compress")
+    digest = hashlib.sha256(payload.encode()).hexdigest()
+    if not apply:
+        return _append_journal(root, {
+            "control": "driver-blocklist", "enable": bool(enable),
+            "payload_sha256": digest, "status": "dry-run", "reason": reason,
+            "undo": {"kind": "driver-blocklist"},
+            "reboot_required": True, "preview": payload[:2000],
+        })
+    blocked = _blocked(root)
+    if blocked:
+        return blocked
+    entry = _claim_plan(root, plan, "driver-blocklist", digest, reason)
+    if "error" in entry:
+        return entry
+    rc, out = _ps(payload, timeout=120)
+    result, err = _parse_json_tail(rc, out)
+    if result is None:
+        return {"error": "driver blocklist apply failed", "detail": err,
+                "code": "FAILED"}
+    try:
+        actual = int(result.get("value"))
+    except (TypeError, ValueError):
+        return {"error": "driver blocklist returned an unexpected value",
+                "detail": result, "code": "FAILED"}
+    if actual != value:
+        return {"error": "driver blocklist did not take effect",
+                "wanted": value, "actual": actual, "code": "FAILED"}
+    return _append_journal(root, {
+        "control": "driver-blocklist", "enable": bool(enable),
+        "payload_sha256": digest, "status": "applied", "reason": reason,
+        "plan": plan, "verification": result,
+        "undo": {"kind": "driver-blocklist", "previous": result.get("previous")},
+    })
+
+
+# ---------------------------------------------------------------------------
 # Plan gate, rollback, status
 # ---------------------------------------------------------------------------
 
@@ -665,6 +825,48 @@ def rollback(root, entry_id: int, apply: bool = False, plan=None,
                 "-PropertyType DWord -Force | Out-Null\n"
                 "[pscustomobject]@{restored=$true; reboot_required=$true} "
                 "| ConvertTo-Json -Compress")
+    elif kind in ("cfa", "network"):
+        spec = DEFENDER_CONTROLS[kind]
+        previous = undo.get("previous")
+        try:
+            prior = int(previous)
+        except (TypeError, ValueError):
+            return {"error": f"entry {entry_id} has no captured {spec['name']} state"}
+        if prior not in (0, 1, 2):
+            return {"error": f"entry {entry_id} has an invalid {spec['name']} restore value"}
+        pref = spec["pref"]
+        script = (
+            "$ErrorActionPreference='Stop'\n"
+            f"Set-MpPreference -{pref} {prior} -ErrorAction Stop\n"
+            f"$v=(Get-MpPreference -ErrorAction Stop).{pref}\n"
+            "[pscustomobject]@{restored=$true; value=[int]$v} "
+            "| ConvertTo-Json -Compress")
+    elif kind == "driver-blocklist":
+        previous = undo.get("previous")
+        if previous is None:
+            script = (
+                "$ErrorActionPreference='Stop'\n"
+                f"$p='{DRIVER_BLOCKLIST_KEY}'\n"
+                f"Remove-ItemProperty -Path $p -Name {DRIVER_BLOCKLIST_NAME} "
+                "-Force -ErrorAction Stop\n"
+                "[pscustomobject]@{restored=$true; value=0; reboot_required=$true} "
+                "| ConvertTo-Json -Compress")
+        else:
+            try:
+                prior = int(previous)
+            except (TypeError, ValueError):
+                return {"error": f"entry {entry_id} has an invalid driver blocklist value"}
+            if prior not in (0, 1):
+                return {"error": f"entry {entry_id} has an invalid driver blocklist value"}
+            script = (
+                "$ErrorActionPreference='Stop'\n"
+                f"$p='{DRIVER_BLOCKLIST_KEY}'\n"
+                f"New-ItemProperty -Path $p -Name {DRIVER_BLOCKLIST_NAME} "
+                f"-Value {prior} -PropertyType DWord -Force | Out-Null\n"
+                f"$v=(Get-ItemProperty -Path $p).{DRIVER_BLOCKLIST_NAME}\n"
+                "[pscustomobject]@{restored=$true; value=[int]$v; "
+                "reboot_required=$true} "
+                "| ConvertTo-Json -Compress")
     else:
         return {"error": f"entry {entry_id} has no rollback recipe"}
     digest = hashlib.sha256(script.encode()).hexdigest()
@@ -689,6 +891,17 @@ def rollback(root, entry_id: int, apply: bool = False, plan=None,
     result, err = _parse_json_tail(rc, out)
     if result is None:
         return {"error": "rollback failed", "detail": err, "code": "FAILED"}
+    if kind in ("cfa", "network", "driver-blocklist"):
+        expected = undo.get("previous")
+        if expected is not None:
+            try:
+                if int(result.get("value")) != int(expected):
+                    return {"error": "rollback did not restore the previous value",
+                            "expected": expected, "actual": result.get("value"),
+                            "code": "FAILED"}
+            except (TypeError, ValueError):
+                return {"error": "rollback returned an unexpected value",
+                        "detail": result, "code": "FAILED"}
     _append_journal(root, {
         "control": kind, "status": "rolled_back", "rollback_of": entry_id,
         "verification": result, "undo": {"kind": kind},
@@ -760,33 +973,52 @@ def posture() -> dict:
         network, f"unknown({network})")
     controls = [
         {"control": "wdac", "state": "enforced" if wdac else "absent",
+         "apply_supported": False,
          "detail": f"{wdac} active Code Integrity policy file(s)"},
         {"control": "controlled_folder_access", "state": cfa_state,
+         "apply_supported": True, "preview": "plasma prevent cfa --mode audit",
          "detail": "Defender Controlled Folder Access"},
         {"control": "network_protection", "state": net_state,
+         "apply_supported": True, "preview": "plasma prevent network --mode audit",
          "detail": "Defender Network Protection"},
         {"control": "vulnerable_driver_blocklist",
          "state": "enabled" if driver else "off",
+         "apply_supported": True,
+         "preview": "plasma prevent driver-blocklist",
          "detail": "Microsoft vulnerable driver blocklist"},
         {"control": "asr", "state": "partial" if asr_enabled < asr_ids
          else "configured" if asr_ids else "none",
+         "apply_supported": True,
          "detail": f"{asr_enabled}/{asr_ids} ASR rule(s) in block mode"},
         {"control": "realtime", "state": "off"
          if payload.get("realtime_disabled") else "on",
+         "apply_supported": False,
          "detail": "Defender real-time protection"},
         {"control": "tamper_protection", "state": str(payload.get("tamper") or "unknown"),
+         "apply_supported": False,
          "detail": "Defender tamper protection"},
     ]
-    gaps = []
+    gaps, recommendations = [], []
     if not wdac:
         gaps.append("no active WDAC policy")
+        recommendations.append(
+            "WDAC is read-only here; review and deploy a signed policy "
+            "through your normal change process.")
     if cfa == 0:
         gaps.append("Controlled Folder Access is off")
+        recommendations.append(
+            "plasma prevent cfa --mode audit   # preview; then --apply --plan")
     if network == 0:
         gaps.append("Network Protection is off")
+        recommendations.append(
+            "plasma prevent network --mode audit   # preview; then --apply --plan")
     if not driver:
         gaps.append("vulnerable driver blocklist is off")
+        recommendations.append(
+            "plasma prevent driver-blocklist   # preview; reboot may be required")
     if not asr_ids:
         gaps.append("no ASR rules configured")
+        recommendations.append(
+            "plasma prevent asr --ids <GUID> --action Audit")
     return {"ok": True, "supported": True, "controls": controls,
-            "gaps": gaps, "raw": payload}
+            "gaps": gaps, "recommendations": recommendations, "raw": payload}

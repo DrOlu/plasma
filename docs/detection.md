@@ -115,15 +115,19 @@ collection — a broken baseline is worse than none.
 
 ```powershell
 plasma detect validate --rules sensors/plasma-baseline.gen
+plasma detect test
 plasma detect diff --old old.gen --new candidate.gen
 plasma detect replay --events captured.jsonl
 ```
 
 `validate` compiles every `~=` regex, checks condition variables and names
-duplicates. `diff` compares rule sets by name and canonical hash, so an
-added, removed or silently changed rule is visible before promotion.
-`replay` runs the chain engine and a bounded summary over a captured store;
-the model is not involved. Promotion stays on the install/WHIDS path.
+duplicates. `test` runs a built-in suite of positive and negative chain
+cases (phishing, brute force, Kerberos spray, privilege-to-persistence,
+account creation, injection) and exits 2 if any case breaks. `diff` compares
+rule sets by name and canonical hash, so an added, removed or silently
+changed rule is visible before promotion. `replay` runs the chain engine and
+a bounded summary over a captured store; the model is not involved.
+Promotion stays on the install/WHIDS path.
 
 ## Coverage — knowing your holes
 

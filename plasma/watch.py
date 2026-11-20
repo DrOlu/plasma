@@ -287,7 +287,7 @@ def _head_token(path: Path, limit: int = 512) -> str:
         return ""
     try:
         with path.open("rb") as fh:
-            return hashlib.sha1(fh.read(limit)).hexdigest()
+            return hashlib.sha1(fh.read(limit), usedforsecurity=False).hexdigest()
     except OSError:
         return ""
 

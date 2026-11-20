@@ -238,6 +238,7 @@ plasma case seal NAME
 plasma case verify NAME
 
 plasma detect validate --rules FILE
+plasma detect test [--cases FILE]
 plasma detect diff --old FILE --new FILE
 plasma detect replay --events FILE [--rules FILE] [--max-rows N]
 ```
@@ -342,6 +343,9 @@ layer refuses to touch.
 ```text
 plasma prevent status
 plasma prevent posture
+plasma prevent cfa [--mode off|audit|block] [--apply --plan ID --reason TEXT]
+plasma prevent network [--mode off|audit|block] [--apply --plan ID --reason TEXT]
+plasma prevent driver-blocklist [--off] [--apply --plan ID --reason TEXT]
 plasma prevent applocker [--mode audit|enforce] [--allow-path P]... [--apply --plan ID --reason TEXT]
 plasma prevent egress --allow IP[:PORT]... [--apply --plan ID --reason TEXT]
 plasma prevent asr --ids GUID[,GUID] [--action Audit|Enabled|Disabled] [--apply --plan ID --reason TEXT]
@@ -354,7 +358,9 @@ dry-run first, plan-gated, verified, journaled and undoable by id.
 AppLocker defaults to audit; egress requires an explicit allowlist; ASR needs
 Defender; LSA takes effect after a reboot. `posture` is read-only and reports
 WDAC, Controlled Folder Access, Network Protection, the vulnerable driver
-blocklist, ASR counts and tamper protection.
+blocklist, ASR counts and tamper protection. `cfa`, `network` and
+`driver-blocklist` are opt-in, plan-gated and rollbackable; WDAC stays
+read-only.
 
 ### update
 
@@ -392,7 +398,7 @@ and bound to the tool and argument hash.
 plasma mcp serve [--root PATH]
 ```
 
-MCP over stdio. Nineteen typed tools; mutating tools return a dry-run plan and
+MCP over stdio. Twenty typed tools; mutating tools return a dry-run plan and
 approval reference, never an execution. See
 [Agent-native operation](agent-native.md).
 

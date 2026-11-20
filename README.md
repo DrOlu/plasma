@@ -35,7 +35,7 @@ policy, an approval queue and a journal.
 ## Agent-native operation
 
 Plasma can be driven by an agent harness without giving it arbitrary
-execution. Nineteen typed tools are exposed over MCP (`plasma mcp serve`);
+execution. Twenty typed tools are exposed over MCP (`plasma mcp serve`);
 mutating tools return a dry-run plan and an approval reference, never an
 execution. A deterministic policy engine, a hash-chained provenance ledger,
 a kill switch and a single-use approval queue sit between the model and the
@@ -232,6 +232,7 @@ plasma case report IR-2026-042
 plasma case seal IR-2026-042 && plasma case verify IR-2026-042
 
 plasma detect validate --rules sensors/plasma-baseline.gen
+plasma detect test
 plasma detect diff --old old.gen --new candidate.gen
 plasma detect replay --events captured.jsonl
 ```
@@ -325,19 +326,27 @@ dry-run + plan gate.
 
 ```powershell
 plasma prevent status
+plasma prevent posture
 plasma prevent applocker --mode audit                 # plan
 plasma prevent applocker --mode audit --apply --plan 3 --reason "pilot"
 plasma prevent egress --allow 10.0.0.0/8 --allow 1.2.3.4:443
 plasma prevent asr --ids <rule-guid> --action Audit
+plasma prevent cfa --mode audit                       # preview
+plasma prevent cfa --mode audit --apply --plan 7 --reason "pilot"
+plasma prevent network --mode audit
+plasma prevent driver-blocklist
 plasma prevent lsa
 plasma prevent rollback --id 7 --apply
 ```
 
 AppLocker (audit by default), firewall egress default-deny with a mandatory
-allowlist, Defender ASR and LSA protection. Plasma ships no kernel driver:
-inline blocking is delegated to Microsoft's signed enforcement points, with
-Plasma owning policy, evidence and rollback. Details and limits:
-<https://drolu.github.io/plasma/prevention/>.
+allowlist, Defender ASR, LSA protection, Controlled Folder Access, Network
+Protection and the vulnerable driver blocklist. CFA/Network Protection/
+driver-blocklist are opt-in, plan-gated and reversible; WDAC stays read-only
+because a bad boot-time policy is not safely automated. Plasma ships no
+kernel driver: inline blocking is delegated to Microsoft's signed
+enforcement points, with Plasma owning policy, evidence and rollback.
+Details and limits: <https://drolu.github.io/plasma/prevention/>.
 
 ## ETW tap (krabsetw) — the gap providers
 

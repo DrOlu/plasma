@@ -33,10 +33,12 @@ never silent either.
 plasma prevent posture
 ```
 
-Read-only inventory of the signed Windows controls behind prevention: active
-WDAC policy files, Controlled Folder Access, Network Protection, the
-vulnerable driver blocklist, ASR rule counts, real-time protection and tamper
-protection. The result names the gaps; it changes nothing.
+Inventory of the signed Windows controls behind prevention: active WDAC
+policy files, Controlled Folder Access, Network Protection, the vulnerable
+driver blocklist, ASR rule counts, real-time protection and tamper
+protection. Each row says whether Plasma can apply it and gives the preview
+command. WDAC stays read-only; CFA, Network Protection and the driver
+blocklist are opt-in and plan-gated with rollback.
 
 ## Watch — the scheduled sweep
 

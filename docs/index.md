@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.23.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.24.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.23.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.24.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">900 tests</span>
+<span class="raft-badge">919 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -70,7 +70,7 @@ with Task Scheduler, cron or another agent.
 
 The same material as printable, offline documents:
 
-- [Plasma Product Guide (PDF, 19 pages)](Plasma_Product_Guide.pdf) — architecture,
+- [Plasma Product Guide (PDF, 20 pages)](Plasma_Product_Guide.pdf) — architecture,
   detection, coverage, prevention, response, neuralOSd orchestration and the honest limits.
 - [Plasma Operations Guide (PDF, 19 pages)](Plasma_Operations_Guide.pdf) —
   install, configuration, daily operations, prevention runbook, fleet,
@@ -115,6 +115,22 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    prevent (AppLocker, egress, Defender ASR, LSA protection) ·
                    intercept (NTFS ACL, firewall, agent gateway)
 ```
+
+## What's new in 1.24.0
+
+- **Opt-in Defender controls.** `prevent cfa`, `prevent network` and
+  `prevent driver-blocklist` now preview, apply, verify and roll back with
+  the same plan gate as AppLocker and ASR. WDAC stays read-only.
+- **Rollback that proves itself.** The previous value is captured at apply
+  time and rollback verifies the restored value, not just the command exit.
+- **Detection regression suite.** `plasma detect test` runs deterministic
+  hit/miss cases for phishing, brute force, Kerberos spray, privilege to
+  persistence, account creation and injection.
+- **Hardened network fetches.** Every download is HTTPS-only, with no
+  embedded credentials or control characters.
+- **True read-only MCP reads.** `get_case` renders in memory and no longer
+  writes a report file.
+- **919 tests**, full suite and `-W error` pass.
 
 ## What's new in 1.23.0
 
@@ -644,7 +660,7 @@ See [State machines](state-machines.md).
 
 Plasma is now **agent-native**, not just agent-adjacent:
 
-- **Capability contract** — 19 typed tools with scopes, risk tiers,
+- **Capability contract** — 20 typed tools with scopes, risk tiers,
   preconditions and JSON schemas. Unknown tools and extra arguments are
   refused before anything runs.
 - **Deterministic policy engine** — assist / supervised / autonomous tiers,

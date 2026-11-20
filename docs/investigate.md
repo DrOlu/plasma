@@ -95,13 +95,15 @@ evidence, not encryption.
 
 ```powershell
 plasma detect validate --rules sensors/plasma-baseline.gen
+plasma detect test
 plasma detect diff --old old.gen --new candidate.gen
 plasma detect replay --events captured.jsonl
 ```
 
 `validate` compiles every regex expression and checks condition variables;
-`diff` reports rules added, removed and changed by name and content hash;
-`replay` runs the chain engine and a bounded summary over a captured store.
+`test` runs deterministic hit/miss chain cases; `diff` reports rules added,
+removed and changed by name and content hash; `replay` runs the chain engine
+and a bounded summary over a captured store.
 Promotion stays on the existing install/WHIDS path, so a rule cannot reach a
 live sensor without passing that gate.
 

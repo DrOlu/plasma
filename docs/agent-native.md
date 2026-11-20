@@ -27,6 +27,7 @@ Unknown tools and unexpected arguments are refused before anything runs.
 | `get_case` | read | `events:read` | executes |
 | `get_coverage` | read | `events:read` | executes |
 | `get_blind_spots` | read | `health:read` | executes |
+| `get_enforcement_posture` | read | `health:read` | executes |
 | `simulate_policy` | read | `policy:read` | executes |
 | `scan_memory` | medium | `response:memory` | dry-run plan |
 | `deploy_canary` | medium | `response:canary` | dry-run plan |

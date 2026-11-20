@@ -61,6 +61,7 @@ nav:
       - Compliance evidence: compliance.md
       - Assurance: assurance.md
       - Security model: security-model.md
+      - Security audit 1.24: security-audit-1.24.md
   - Reference:
       - CLI reference: cli.md
       - Troubleshooting: troubleshooting.md

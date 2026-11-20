@@ -42,6 +42,7 @@ from . import (
     killswitch,
     ledger,
     memory,
+    netguard,
     notify,
     observatory,
     playbooks,
@@ -681,7 +682,8 @@ def internet_available(prober=None, timeout: int = 5) -> bool:
     def _default(url: str) -> bool:
         req = urllib.request.Request(url, method="HEAD",
                                      headers={"User-Agent": "plasma-installer"})
-        urllib.request.urlopen(req, timeout=timeout)
+        netguard.require_https(req.full_url)
+        urllib.request.urlopen(req, timeout=timeout)  # nosec B310
         return True
 
     probe = prober or _default
@@ -794,7 +796,8 @@ def _try_install_sysmon(tools_dir: Path) -> tuple[bool, str]:
         staged = None
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "plasma-installer"})
-            with urllib.request.urlopen(req, timeout=120) as resp:
+            netguard.require_https(req.full_url)
+            with urllib.request.urlopen(req, timeout=120) as resp:  # nosec B310
                 data = resp.read()
             if url.endswith(".zip"):
                 zf = zipfile.ZipFile(io.BytesIO(data))
@@ -2005,6 +2008,17 @@ def cmd_detect_diff(args) -> int:
     return 0
 
 
+def cmd_detect_test(args) -> int:
+    try:
+        cases = detect_mod._load_cases(args.cases) if args.cases else None
+        result = detect_mod.test_cases(cases)
+    except detect_mod.DetectError as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit(result)
+    return 0 if result.get("ok") else 2
+
+
 def cmd_detect_replay(args) -> int:
     try:
         result = detect_mod.replay(args.events, args.rules, max_rows=args.max_rows)
@@ -2530,6 +2544,22 @@ def cmd_prevent_asr(args) -> int:
     result = prevent.asr(args.ids, action=args.action, apply=args.apply,
                          plan=args.plan, reason=args.reason, root=args.root)
     print(json.dumps(result, indent=2, default=str))
+    return 0 if "error" not in result else 2
+
+
+def cmd_prevent_defender(args) -> int:
+    result = prevent.defender_preference(
+        args.control, mode=args.mode, apply=args.apply, plan=args.plan,
+        reason=args.reason, root=args.root)
+    _emit(result)
+    return 0 if "error" not in result else 2
+
+
+def cmd_prevent_driver_blocklist(args) -> int:
+    result = prevent.driver_blocklist(
+        apply=args.apply, plan=args.plan, reason=args.reason,
+        root=args.root, enable=not args.off)
+    _emit(result)
     return 0 if "error" not in result else 2
 
 
@@ -3214,6 +3244,11 @@ def build_parser() -> argparse.ArgumentParser:
     dtv = dts.add_parser("validate", help="compile regexes and check rule shape")
     dtv.add_argument("--rules", required=True)
     dtv.set_defaults(func=cmd_detect_validate)
+    dtt = dts.add_parser("test",
+                         help="run deterministic hit/miss regression cases")
+    dtt.add_argument("--cases", default=None,
+                     help="JSON case file (default: built-in suite)")
+    dtt.set_defaults(func=cmd_detect_test)
     dtd = dts.add_parser("diff", help="compare two rule files by name and hash")
     dtd.add_argument("--old", required=True)
     dtd.add_argument("--new", required=True)
@@ -3561,6 +3596,24 @@ def build_parser() -> argparse.ArgumentParser:
     pvpo = pvs.add_parser("posture",
                           help="WDAC, CFA, Network Protection and driver blocklist state")
     pvpo.set_defaults(func=cmd_prevent_posture)
+    for name, control, label in (
+            ("cfa", "cfa", "Controlled Folder Access"),
+            ("network", "network", "Network Protection")):
+        pvd = pvs.add_parser(name, help=f"{label} (off/audit/block; dry-run first)")
+        pvd.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+        pvd.add_argument("--mode", choices=["off", "audit", "block"], default="audit")
+        pvd.add_argument("--apply", action="store_true")
+        pvd.add_argument("--plan", type=int, default=None)
+        pvd.add_argument("--reason", default=None)
+        pvd.set_defaults(func=cmd_prevent_defender, control=control)
+    pvdr = pvs.add_parser("driver-blocklist",
+                          help="Microsoft vulnerable driver blocklist (reboot may be required)")
+    pvdr.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    pvdr.add_argument("--off", action="store_true", help="disable instead of enable")
+    pvdr.add_argument("--apply", action="store_true")
+    pvdr.add_argument("--plan", type=int, default=None)
+    pvdr.add_argument("--reason", default=None)
+    pvdr.set_defaults(func=cmd_prevent_driver_blocklist)
     pva = pvs.add_parser("applocker", help="AppLocker Exe policy (audit by default)")
     pva.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     pva.add_argument("--mode", choices=["audit", "enforce"], default="audit")

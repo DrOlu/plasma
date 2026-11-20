@@ -466,3 +466,11 @@ def test_policy_simulate_cli_reads_args_file(tmp_path, capsys):
     import json
     body = json.loads(capsys.readouterr().out)
     assert body["decision"]["code"] == "approval_required"
+
+
+def test_mcp_get_case_is_read_only(tmp_path, monkeypatch):
+    from plasma import case, mcp
+    case.open_case(tmp_path, "C1")
+    out = mcp.HANDLERS["get_case"](tmp_path, {"name": "C1"}, {})
+    assert out["ok"] is True
+    assert not (tmp_path / "cases" / "C1" / "report.md").exists()

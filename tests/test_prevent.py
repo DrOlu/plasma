@@ -199,3 +199,91 @@ def test_posture_names_missing_controls(monkeypatch):
     assert "Controlled Folder Access is off" in out["gaps"]
     assert "Network Protection is off" in out["gaps"]
     assert "vulnerable driver blocklist is off" in out["gaps"]
+
+
+def _defender_fake(monkeypatch, apply_value=2, previous=0, rollback_value=0):
+    calls = []
+
+    def run(script, timeout=120):
+        calls.append(script)
+        if "Set-MpPreference" in script:
+            if "previous" in script:
+                return 0, json.dumps({"applied": True, "control": "cfa",
+                                      "mode": "audit", "previous": previous,
+                                      "value": apply_value})
+            return 0, json.dumps({"restored": True, "value": rollback_value})
+        if "New-ItemProperty" in script and "VulnerableDriverBlocklistEnable" in script:
+            if "previous" in script:
+                return 0, json.dumps({"applied": True, "previous": previous,
+                                      "value": apply_value,
+                                      "reboot_required": True})
+            return 0, json.dumps({"restored": True, "value": rollback_value,
+                                  "reboot_required": True})
+        return 0, "{}"
+
+    monkeypatch.setattr(prevent, "_ps", run)
+    monkeypatch.setattr(prevent, "_ps_json",
+                        lambda s, timeout=120: ({"value": previous}, None))
+    return calls
+
+
+def test_cfa_preview_apply_and_rollback(tmp_path, monkeypatch):
+    _defender_fake(monkeypatch)
+    dry = prevent.defender_preference("cfa", mode="audit", root=tmp_path)
+    assert dry["status"] == "dry-run"
+    assert dry["desired"] == 2 and dry["current"] == 0
+    done = prevent.defender_preference(
+        "cfa", mode="audit", root=tmp_path, apply=True, plan=dry["id"],
+        reason="pilot")
+    assert done["status"] == "applied"
+    assert done["undo"]["previous"] == 0
+    preview = prevent.rollback(tmp_path, done["id"])
+    rolled = prevent.rollback(tmp_path, done["id"], apply=True,
+                              plan=preview["plan"], reason="test complete")
+    assert rolled["rolled_back"] is True
+
+
+def test_network_block_maps_to_one(tmp_path, monkeypatch):
+    _defender_fake(monkeypatch, apply_value=1)
+    dry = prevent.defender_preference("network", mode="block", root=tmp_path)
+    assert dry["desired"] == 1
+    assert "EnableNetworkProtection 1" in dry["preview"]
+
+
+def test_cfa_rejects_invalid_mode(tmp_path):
+    out = prevent.defender_preference("cfa", mode="sometimes", root=tmp_path)
+    assert out["code"] == "REFUSED"
+
+
+def test_cfa_verification_fails_when_policy_overrides(tmp_path, monkeypatch):
+    _defender_fake(monkeypatch, apply_value=0)  # wanted 2, actual 0
+    dry = prevent.defender_preference("cfa", mode="block", root=tmp_path)
+    done = prevent.defender_preference(
+        "cfa", mode="block", root=tmp_path, apply=True, plan=dry["id"],
+        reason="pilot")
+    assert done["code"] == "FAILED"
+    assert "did not take effect" in done["error"]
+
+
+def test_driver_blocklist_preview_apply_and_rollback(tmp_path, monkeypatch):
+    _defender_fake(monkeypatch, apply_value=1, previous=0)
+    dry = prevent.driver_blocklist(root=tmp_path)
+    assert dry["status"] == "dry-run" and dry["reboot_required"] is True
+    done = prevent.driver_blocklist(root=tmp_path, apply=True, plan=dry["id"],
+                                    reason="pilot")
+    assert done["status"] == "applied"
+    preview = prevent.rollback(tmp_path, done["id"])
+    rolled = prevent.rollback(tmp_path, done["id"], apply=True,
+                              plan=preview["plan"], reason="test complete")
+    assert rolled["rolled_back"] is True
+
+
+def test_defender_apply_requires_plan_and_reason(tmp_path, monkeypatch):
+    _defender_fake(monkeypatch)
+    dry = prevent.defender_preference("cfa", root=tmp_path)
+    missing_reason = prevent.defender_preference(
+        "cfa", root=tmp_path, apply=True, plan=dry["id"])
+    assert missing_reason["code"] == "REFUSED"
+    missing_plan = prevent.defender_preference(
+        "cfa", root=tmp_path, apply=True, reason="pilot")
+    assert missing_plan["code"] == "REFUSED"

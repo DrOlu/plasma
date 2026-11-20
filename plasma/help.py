@@ -1772,17 +1772,20 @@ Read this before planning a response so a target is not rejected late.""",
 _add("prevent", _c(
     "Tier 1 prevention through signed Windows enforcement points",
     """Apply real inline prevention using Windows' own signed components:
-AppLocker/WDAC for execution, Windows Firewall for egress, Defender ASR
-for behaviour and LSA protection for credential access. Plasma does not
-ship a kernel driver.
+AppLocker for execution, Windows Firewall for egress, Defender ASR for
+behaviour, LSA protection for credential access, Controlled Folder Access,
+Network Protection and the vulnerable driver blocklist. WDAC is inventoried
+read-only because a bad boot-time policy is not safely automated.
 
 Every control is dry-run first, plan-gated, verified after apply, journaled
 and reversible by id. Prevention is intentionally separate from detection
 so a failed control cannot silently disable detection.""",
     [
-        ("Posture", "plasma prevent status"),
+        ("Posture and applyability", "plasma prevent posture"),
         ("Plan AppLocker audit mode", "plasma prevent applocker --mode audit"),
-        ("Plan egress allowlist", "plasma prevent egress --allow 10.0.0.10:443"),
+        ("Preview Controlled Folder Access", "plasma prevent cfa --mode audit"),
+        ("Preview Network Protection", "plasma prevent network --mode audit"),
+        ("Preview the driver blocklist", "plasma prevent driver-blocklist"),
         ("Undo a control", "plasma prevent rollback --id 12 --apply --plan <id>"),
     ],
     safety=PLAN_GATED,
@@ -2503,8 +2506,10 @@ Detection is local: Sysmon/WHIDS alerts, Security-channel audit events, an
 ETW tap, DTrace on demand, file integrity, canary files, native DNS/HTTP
 tokens and on-demand memory scanning are normalized into one JSONL store.
 Investigation is local too: typed queries, explicit process lineage, bounded
-summaries and sealed case directories. Response is explicit: every action
-is scoped, journaled and reversible, and
+summaries and sealed case directories. Prevention is opt-in: AppLocker,
+egress, ASR, LSA, Controlled Folder Access, Network Protection and the
+driver blocklist are previewed, plan-gated and reversible; WDAC is read-only.
+Response is explicit: every action is scoped, journaled and reversible, and
 automatic containment is armed narrowly by default. The agent trust layer
 decides what an agent may do; the kill switch always wins.
 
@@ -2519,9 +2524,11 @@ ROOT_EPILOG = """AGENT QUICK START
   4. plasma watch once                       # detect and decide
   5. plasma query --kind alert --since 1h    # typed, bounded investigation
   6. plasma case open IR-1 && plasma case add IR-1 --process <name>
-  7. plasma control killswitch status        # is mutation allowed
-  8. plasma actuate apply ... --reason ...   # dry-run; prints a plan id
-  9. plasma actuate apply ... --apply --plan <id>
+  7. plasma prevent posture                  # what enforcement is available
+  8. plasma prevent cfa --mode audit         # preview a reversible control
+  9. plasma control killswitch status        # is mutation allowed
+ 10. plasma actuate apply ... --reason ...   # dry-run; prints a plan id
+ 11. plasma actuate apply ... --apply --plan <id>
 
 DISCOVERY
   plasma help                    command map and conventions
@@ -3030,6 +3037,7 @@ variables; diff compares rule files by name and content hash; replay runs
 the chain engine and a bounded summary over a captured store.""",
     [
         ("Validate baseline", "plasma detect validate --rules sensors/plasma-baseline.gen"),
+        ("Run regression cases", "plasma detect test"),
         ("Diff two rule sets", "plasma detect diff --old old.gen --new new.gen"),
         ("Replay a capture", "plasma detect replay --events captured.jsonl"),
     ],
@@ -3085,6 +3093,77 @@ The result names the gaps. It is the inventory behind `plasma prevent`.""",
     notes=["Read-only PowerShell; no Defender setting is changed.",
            "WDAC policies are counted from the active Code Integrity store."],
     see_also=["prevent status", "prevent asr", "health"],
+))
+
+_add("detect test", _c(
+    "run deterministic hit/miss detection regression cases",
+    """Run a built-in suite of positive and negative chain cases, or a JSON
+case file. Each case names a chain, supplies events, and expects a hit or a
+miss. The suite is intentionally small and deterministic: it catches broken
+chain logic, not unknown malware.""",
+    [
+        ("Built-in suite", "plasma detect test"),
+        ("Custom cases", "plasma detect test --cases detection-cases.json"),
+    ],
+    safety=READ_ONLY,
+    output="JSON with passed, failed and per-case results.",
+    notes=["Exit 2 when any case fails.",
+           "A hit case can also require a minimum score."],
+    see_also=["detect validate", "detect replay", "chain score"],
+))
+
+_add("prevent cfa", _c(
+    "Controlled Folder Access: preview, apply or roll back",
+    """Preview or change Defender Controlled Folder Access. Modes are off,
+audit and block. Apply requires a plan id from the preview and a reason;
+the current value is captured and journaled for rollback.
+
+The default is audit. A policy-managed host may ignore the local setting;
+apply verifies the resulting value and fails rather than claiming success.""",
+    [
+        ("Preview audit", "plasma prevent cfa --mode audit"),
+        ("Apply previewed audit", "plasma prevent cfa --mode audit --apply --plan 7 --reason \"pilot\""),
+        ("Roll back", "plasma prevent rollback --id 7"),
+    ],
+    safety=PLAN_GATED,
+    notes=["CFA can break line-of-business apps; pilot in audit first.",
+           "Rollback restores the captured previous value."],
+    see_also=["prevent posture", "prevent rollback", "prevent network"],
+))
+
+_add("prevent network", _c(
+    "Network Protection: preview, apply or roll back",
+    """Preview or change Defender Network Protection. Modes are off, audit
+and block. Apply requires a plan id from the preview and a reason; the
+current value is captured and journaled for rollback.
+
+The default is audit. Verification catches a policy override.""",
+    [
+        ("Preview audit", "plasma prevent network --mode audit"),
+        ("Apply previewed block", "plasma prevent network --mode block --apply --plan 8 --reason \"pilot\""),
+        ("Roll back", "plasma prevent rollback --id 8"),
+    ],
+    safety=PLAN_GATED,
+    notes=["Network Protection can affect browsers and updaters; pilot in audit first.",
+           "Rollback restores the captured previous value."],
+    see_also=["prevent posture", "prevent rollback", "prevent cfa"],
+))
+
+_add("prevent driver-blocklist", _c(
+    "Microsoft vulnerable driver blocklist: preview, apply or roll back",
+    """Preview or set the Microsoft vulnerable driver blocklist switch.
+Apply requires a plan id and a reason; the previous registry value is
+captured for rollback. A system restart may be required before the change
+is fully effective.""",
+    [
+        ("Preview enable", "plasma prevent driver-blocklist"),
+        ("Apply previewed enable", "plasma prevent driver-blocklist --apply --plan 9 --reason \"baseline\""),
+        ("Preview the opposite direction", "plasma prevent driver-blocklist --off"),
+    ],
+    safety=PLAN_GATED,
+    notes=["Rollback restores or removes the registry value.",
+           "Plasma does not restart the host."],
+    see_also=["prevent posture", "prevent rollback"],
 ))
 
 # END_OF_HELP_SOURCE

@@ -556,9 +556,10 @@ def triage_targets(rows, min_score: float = 0.7, since_minutes: int = 60,
                 "description": str(row.get("description") or "")[:300],
                 "ts": row.get("ts"),
             }
+    cap = max(1, min(int(max_targets), 50))
     targets = sorted(ranked.values(),
                      key=lambda row: (row["score"], row["ts"] or ""),
-                     reverse=True)[:max(1, int(max_targets))]
+                     reverse=True)[:cap]
     return {"checked": len(rows), "targets": targets,
             "suppressed": len(ranked) - len(targets)}
 

@@ -106,3 +106,12 @@ def test_empty_note_is_refused(tmp_path):
     case.open_case(tmp_path, "c1")
     with pytest.raises(case.CaseError):
         case.add_note(tmp_path, "c1", "   ")
+
+
+def test_read_only_report_does_not_write(tmp_path):
+    events = _seed(tmp_path)
+    case.open_case(tmp_path, "c1")
+    case.add_query(tmp_path, "c1", {"kind": "alert"}, events_path=events)
+    result = case.report(tmp_path, "c1", write=False)
+    assert result["markdown"]
+    assert not (tmp_path / "cases" / "c1" / "report.md").exists()

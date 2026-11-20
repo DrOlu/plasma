@@ -91,3 +91,33 @@ def test_json_array_is_supported(tmp_path):
     path = tmp_path / "rules.json"
     path.write_text(json.dumps([_rule()]))
     assert detect.load_rules(path)[0]["Name"] == "Test Rule"
+
+
+def test_builtin_regression_suite_passes():
+    out = detect.test_cases()
+    assert out["ok"] is True
+    assert out["cases"] >= 10
+    assert out["passed"] == out["cases"]
+
+
+def test_broken_expectation_is_reported():
+    out = detect.test_cases([{
+        "name": "wrong", "chain": "phish_spawn_chain", "expect": "hit",
+        "events": [{"ts": "2026-11-20T10:00:00Z", "kind": "process",
+                    "process": "notepad.exe"}],
+    }])
+    assert out["ok"] is False
+    assert out["failed"][0]["name"] == "wrong"
+
+
+def test_case_file_is_loaded(tmp_path):
+    path = tmp_path / "cases.json"
+    path.write_text(json.dumps({"cases": [{
+        "name": "file case", "chain": "account_creation_privilege",
+        "expect": "hit",
+        "events": [
+            {"ts": "2026-11-20T10:00:00Z", "kind": "auth", "event_id": 4720},
+            {"ts": "2026-11-20T10:05:00Z", "kind": "auth", "event_id": 4732},
+        ],
+    }]}))
+    assert detect.test_cases(detect._load_cases(path))["ok"] is True

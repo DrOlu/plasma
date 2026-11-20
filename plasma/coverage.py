@@ -85,7 +85,15 @@ def enabled_event_ids(sensors_dir=None,
     if not path.exists():
         return None
     try:
-        root = ET.fromstring(path.read_text(encoding="utf-8"))
+        if path.stat().st_size > (8 << 20):
+            return None
+        text = path.read_text(encoding="utf-8")
+        # Sysmon configs never need a DTD or external entity. Refuse both
+        # before handing the document to the XML parser.
+        low = text.lower()
+        if "<!doctype" in low or "<!entity" in low:
+            return None
+        root = ET.fromstring(text)  # nosec B314 - local config, DTD refused
     except (OSError, ET.ParseError):
         return None
     filtering = root.find("EventFiltering")

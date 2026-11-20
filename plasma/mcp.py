@@ -26,6 +26,7 @@ from . import (
     killswitch,
     ledger,
     policy,
+    prevent,
     tenants,
     tools,
 )
@@ -254,6 +255,13 @@ def _handler_summary(root, args, context):
     return result
 
 
+def _handler_enforcement_posture(root, args, context):
+    if not _tenant_owns_local(root, context.get("tenant")):
+        return {"ok": False, "code": "DENIED",
+                "error": "this tenant does not own the local host"}
+    return prevent.posture()
+
+
 def _handler_coverage(root, args, context):
     return {"ok": True, **coverage_mod.coverage()}
 
@@ -276,7 +284,7 @@ def _handler_case(root, args, context):
     try:
         if args.get("timeline"):
             return {"ok": True, **case_mod.timeline(root, name)}
-        report = case_mod.report(root, name)
+        report = case_mod.report(root, name, write=False)
         meta = case_mod.list_cases(root)
         return {"ok": True, "case": report.get("case"),
                 "path": report.get("path"),
@@ -322,6 +330,7 @@ HANDLERS = {
     "query_events": _handler_query_events,
     "get_process_tree": _handler_process_tree,
     "get_summary": _handler_summary,
+    "get_enforcement_posture": _handler_enforcement_posture,
     "get_coverage": _handler_coverage,
     "get_blind_spots": _handler_blind_spots,
     "get_case": _handler_case,

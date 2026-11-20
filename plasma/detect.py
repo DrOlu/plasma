@@ -161,3 +161,178 @@ def replay(events_path, rules_path=None, max_rows: int = 5000) -> dict:
             "sources": digest.get("sources"),
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# Deterministic regression suite
+# ---------------------------------------------------------------------------
+
+def _row(ts, **fields):
+    return {"ts": ts, **fields}
+
+
+BUILTIN_CASES = [
+    {
+        "name": "phish story hits",
+        "chain": "phish_spawn_chain",
+        "expect": "hit",
+        "score": 9,
+        "events": [
+            _row("2026-11-20T10:00:00Z", kind="process", process="winword.exe",
+                 user="sam"),
+            _row("2026-11-20T10:01:00Z", kind="process",
+                 process="powershell.exe", user="sam",
+                 description="powershell -enc SQBFAFgA"),
+            _row("2026-11-20T10:02:00Z", kind="network", process="powershell.exe",
+                 user="sam", dest_ip="203.0.113.9"),
+        ],
+    },
+    {
+        "name": "phish without script host misses",
+        "chain": "phish_spawn_chain",
+        "expect": "miss",
+        "events": [
+            _row("2026-11-20T10:00:00Z", kind="process", process="winword.exe"),
+            _row("2026-11-20T10:02:00Z", kind="network", dest_ip="203.0.113.9"),
+        ],
+    },
+    {
+        "name": "brute force then same-user success hits",
+        "chain": "brute_force_success",
+        "expect": "hit",
+        "score": 8,
+        "events": [
+            *[_row(f"2026-11-20T10:0{i}:00Z", kind="auth", event_id=4625,
+                   user="CORP\\olu") for i in range(5)],
+            _row("2026-11-20T10:10:00Z", kind="auth", event_id=4624,
+                 user="CORP\\olu"),
+        ],
+    },
+    {
+        "name": "brute force success for another user misses",
+        "chain": "brute_force_success",
+        "expect": "miss",
+        "events": [
+            *[_row(f"2026-11-20T10:0{i}:00Z", kind="auth", event_id=4625,
+                   user="CORP\\olu") for i in range(5)],
+            _row("2026-11-20T10:10:00Z", kind="auth", event_id=4624,
+                 user="CORP\\admin"),
+        ],
+    },
+    {
+        "name": "Kerberos spray then TGT hits",
+        "chain": "kerberos_brute_force",
+        "expect": "hit",
+        "score": 9,
+        "events": [
+            *[_row(f"2026-11-20T10:0{i}:00Z", kind="auth", event_id=4771,
+                   user="olu@CORP.LOCAL") for i in range(5)],
+            _row("2026-11-20T10:10:00Z", kind="auth", event_id=4768,
+                 user="olu@CORP.LOCAL"),
+        ],
+    },
+    {
+        "name": "privilege change then persistence hits",
+        "chain": "persistence_after_privilege",
+        "expect": "hit",
+        "score": 9,
+        "events": [
+            _row("2026-11-20T10:00:00Z", kind="process",
+                 description="net localgroup administrators svc /add"),
+            _row("2026-11-20T10:05:00Z", kind="process",
+                 description="schtasks /create /tn x /tr cmd.exe"),
+        ],
+    },
+    {
+        "name": "account creation then privileged group hits",
+        "chain": "account_creation_privilege",
+        "expect": "hit",
+        "score": 9,
+        "events": [
+            _row("2026-11-20T10:00:00Z", kind="auth", event_id=4720,
+                 user="CORP\\svc-temp"),
+            _row("2026-11-20T10:05:00Z", kind="auth", event_id=4728,
+                 user="CORP\\Domain Admins"),
+        ],
+    },
+    {
+        "name": "account creation alone misses",
+        "chain": "account_creation_privilege",
+        "expect": "miss",
+        "events": [
+            _row("2026-11-20T10:00:00Z", kind="auth", event_id=4720,
+                 user="CORP\\svc-temp"),
+        ],
+    },
+    {
+        "name": "remote RWX then thread hits",
+        "chain": "injection_chain",
+        "expect": "hit",
+        "score": 9,
+        "events": [
+            _row("2026-11-20T10:00:00Z", kind="trace", process="evil.exe",
+                 description='dtrace inject-rwx "self": 0 target=1234'),
+            _row("2026-11-20T10:00:05Z", kind="trace", process="evil.exe",
+                 description="dtrace inject-remote-thread target=1234"),
+        ],
+    },
+    {
+        "name": "RWX alone misses",
+        "chain": "injection_chain",
+        "expect": "miss",
+        "events": [
+            _row("2026-11-20T10:00:00Z", kind="trace", process="evil.exe",
+                 description='dtrace inject-rwx "self": 0 target=1234'),
+        ],
+    },
+]
+
+
+def _load_cases(path):
+    path = Path(path)
+    try:
+        if path.stat().st_size > (4 << 20):
+            raise DetectError("case file is larger than 4 MiB")
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise DetectError(f"cannot read cases {path}: {exc}") from exc
+    rows = payload.get("cases") if isinstance(payload, dict) else payload
+    if not isinstance(rows, list) or not rows:
+        raise DetectError("case file must contain a non-empty cases array")
+    if len(rows) > 500:
+        raise DetectError("case file is limited to 500 cases")
+    return rows
+
+
+def test_cases(cases=None) -> dict:
+    """Run hit/miss regression cases against the chain engine."""
+    cases = cases if cases is not None else BUILTIN_CASES
+    results = []
+    for index, case in enumerate(cases, 1):
+        if not isinstance(case, dict):
+            results.append({"name": f"case-{index}", "passed": False,
+                            "error": "case is not an object"})
+            continue
+        name = str(case.get("name") or f"case-{index}")
+        chain_name = str(case.get("chain") or "")
+        expect = str(case.get("expect") or "hit").lower()
+        events = case.get("events")
+        if not chain_name or not isinstance(events, list):
+            results.append({"name": name, "passed": False,
+                            "error": "case needs chain and events"})
+            continue
+        findings = chain.scan(events)
+        matched = [f for f in findings if f.get("type") == f"chain_{chain_name}"]
+        hit = bool(matched)
+        score = float(case.get("score") or 0)
+        score_ok = not hit or float(matched[0].get("score") or 0) >= score
+        passed = (hit if expect == "hit" else not hit) and score_ok
+        results.append({
+            "name": name, "chain": chain_name, "expect": expect,
+            "hit": hit, "score": matched[0].get("score") if hit else None,
+            "passed": passed,
+        })
+    failed = [row for row in results if not row.get("passed")]
+    return {"ok": not failed, "cases": len(results),
+            "passed": len(results) - len(failed), "failed": failed,
+            "results": results}

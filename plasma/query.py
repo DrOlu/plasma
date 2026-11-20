@@ -195,6 +195,8 @@ def _validate(spec: dict) -> dict:
             and clean["since"] > clean["until"]:
         raise QueryError("since must be earlier than until")
     if "regex" in clean:
+        if len(str(clean["regex"])) > 256:
+            raise QueryError("regex is limited to 256 characters")
         try:
             re.compile(str(clean["regex"]))
         except re.error as exc:
