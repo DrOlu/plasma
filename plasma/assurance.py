@@ -23,6 +23,8 @@ from . import (
 THIRD_PARTY = [
     {"name": "WHIDS", "version": "1.7.0", "license": "AGPL-3.0",
      "note": "bundled detection payload; source offer required"},
+    {"name": "HollowsHunter", "version": "0.4.1.1", "license": "BSD-2-Clause",
+     "note": "bundled user-mode memory scanner; LICENSE travels beside it"},
     {"name": "pydantic", "license": "MIT"},
     {"name": "pydantic-core", "license": "MIT"},
     {"name": "pywinrm", "license": "MIT", "note": "optional desk-side dependency"},

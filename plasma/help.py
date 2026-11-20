@@ -69,7 +69,7 @@ GROUPS = [
         "install", "serve", "mcp", "eval",
     ]),
     ("collect", "Collection and detection", [
-        "whids", "identity", "tap", "trace", "sigma", "canary", "fim",
+        "whids", "identity", "tap", "trace", "sigma", "canary", "memory", "fim",
         "deep", "observe", "chain", "coverage", "store", "watch", "notify",
     ]),
     ("respond", "Response and prevention", [
@@ -1115,6 +1115,67 @@ execution, but a dry-run remains available.""",
     ],
     safety=LOCAL_WRITE + "; " + PLAN_GATED + "; " + PRIVILEGED,
     see_also=["intercept apply", "intercept protect-canary", "intercept status"],
+))
+
+_add("memory", _c(
+    "bounded on-demand process-memory scanning",
+    """Memory is the layer Sysmon, WHIDS and file integrity cannot see. Plasma
+binds HollowsHunter (PE-sieve) as an explicit probe that looks inside a
+running process for hollowed or replaced PEs, reflective DLLs, shellcode,
+inline hooks and in-memory patches.
+
+The scanner is pinned and SHA-256 verified. It runs only when asked, writes
+a bounded scan archive under `<root>/memory/`, and appends normalized
+findings as `source="memory"` alerts. No dumps are produced by default.""",
+    [
+        ("Scan one PID", "plasma memory scan --pid 4832"),
+        ("Scan by name", "plasma memory scan --pname powershell.exe,rundll32.exe"),
+        ("Deep scan", "plasma memory scan --pid 4832 --deep"),
+        ("Tool status", "plasma memory status"),
+    ],
+    safety=LOCAL_WRITE + "; " + PRIVILEGED,
+    notes=["`--all` scans every process and can be slow; prefer a PID or name.",
+           "`--dump` writes potentially sensitive process artifacts under the "
+           "Plasma root and is refused with --all.",
+           "The scanner is user-mode and cannot see every protected process."],
+    see_also=["watch", "enforce", "intercept", "trace"],
+))
+
+_add("memory scan", _c(
+    "scan targeted processes with the pinned HollowsHunter scanner",
+    """Run HollowsHunter against a PID list, process-name list, or all
+processes. The default scan adds shellcode-pattern detection; `--deep` adds
+thread-stack scanning. Reports are archived locally; findings become
+`source="memory"` alert rows, deduplicated across repeated scans.
+
+Exit 0 means clean, 2 means findings, 1 means an input/tool error.""",
+    [
+        ("One process", "plasma memory scan --pid 4832"),
+        ("A small name set", "plasma memory scan --pname powershell.exe,rundll32.exe --deep"),
+        ("All processes", "plasma memory scan --all --timeout 120"),
+        ("Scan and dump artifacts", "plasma memory scan --pid 4832 --dump"),
+    ],
+    safety=LOCAL_WRITE + "; " + PRIVILEGED,
+    notes=["No raw dumps by default; --dump is explicit and local.",
+           "The scanner is hash-pinned; a mismatched binary is refused.",
+           "A clean scan is a point-in-time result, not proof of innocence."],
+    see_also=["memory status", "watch", "enforce", "intercept"],
+))
+
+_add("memory status", _c(
+    "show scanner availability, hashes and last scan",
+    """Report the resolved 64/32-bit scanner, its SHA-256, the pinned version
+and the most recent scan metadata. Read-only.""",
+    [("Status", "plasma memory status")],
+    see_also=["memory scan", "memory list"],
+))
+
+_add("memory list", _c(
+    "list recent memory scans",
+    """Print the archived scan metadata, including targets, elapsed time,
+suspicious count and report directory. Read-only.""",
+    [("Recent scans", "plasma memory list")],
+    see_also=["memory scan", "memory status"],
 ))
 
 _add("fim", _c(
@@ -2438,11 +2499,11 @@ operator interface and is excluded from the recommended workflow.""",
 ROOT_DESCRIPTION = """Plasma is a lake-less, agent-native Windows EDR.
 
 Detection is local: Sysmon/WHIDS alerts, Security-channel audit events, an
-ETW tap, DTrace on demand, file integrity, canary files and native DNS/HTTP
-tokens are normalized into one JSONL store. Response is explicit: every
-action is scoped, journaled and reversible, and automatic containment is
-armed narrowly by default. The agent trust layer decides what an agent may
-do; the kill switch always wins.
+ETW tap, DTrace on demand, file integrity, canary files, native DNS/HTTP
+tokens and on-demand memory scanning are normalized into one JSONL store.
+Response is explicit: every action is scoped, journaled and reversible, and
+automatic containment is armed narrowly by default. The agent trust layer
+decides what an agent may do; the kill switch always wins.
 
 Every command prints JSON. Exit codes are part of the contract:
 0 success/clean, 1 data/input error, 2 refused/findings/attention,

@@ -193,6 +193,7 @@ MUTATING = (
     "whids ensure",
     "whids prune",
     "canary deploy",
+    "memory scan",
     "canary token create",
     "canary token remove",
     "canary collect",

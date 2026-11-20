@@ -41,6 +41,7 @@ from . import (
     intercept,
     killswitch,
     ledger,
+    memory,
     notify,
     observatory,
     playbooks,
@@ -1892,6 +1893,29 @@ def cmd_intercept_protect_canary(args) -> int:
     return 0 if "error" not in result else 2
 
 
+def cmd_memory_scan(args) -> int:
+    result = memory.scan(
+        args.root, pids=args.pid, pnames=args.pname,
+        all_processes=args.all, dump=args.dump, deep=args.deep,
+        timeout=args.timeout, scanner=args.scanner,
+        events_path=args.events or _events_path(args.root),
+        no_events=args.no_events, no_dedupe=args.no_dedupe)
+    _emit(result)
+    if "error" in result:
+        return 1
+    return 2 if result.get("findings") else 0
+
+
+def cmd_memory_status(args) -> int:
+    _emit({"ok": True, **memory.status(args.root)})
+    return 0
+
+
+def cmd_memory_list(args) -> int:
+    _emit({"ok": True, **memory.list_scans(args.root)})
+    return 0
+
+
 def cmd_fim_baseline(args) -> int:
     result = fim.baseline(args.root, args.path or None)
     print(json.dumps(result, indent=2, default=str))
@@ -2888,6 +2912,32 @@ def build_parser() -> argparse.ArgumentParser:
     itb.add_argument("--plan", type=int, default=None)
     itb.add_argument("--reason", default=None)
     itb.set_defaults(func=cmd_intercept_rollback)
+
+    mem = sub.add_parser("memory",
+                         help="bounded on-demand process-memory scanning")
+    mems = mem.add_subparsers(dest="memory_action", required=True)
+    memsc = mems.add_parser("scan", help="scan targeted processes with HollowsHunter")
+    memsc.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    memsc.add_argument("--pid", action="append", type=int, default=[])
+    memsc.add_argument("--pname", action="append", default=[])
+    memsc.add_argument("--all", action="store_true",
+                       help="scan all processes (explicit; can be slow)")
+    memsc.add_argument("--deep", action="store_true",
+                       help="add shellcode, IAT and thread-stack scans")
+    memsc.add_argument("--dump", action="store_true",
+                       help="write scanner artifacts under the Plasma root (sensitive)")
+    memsc.add_argument("--timeout", type=int, default=300)
+    memsc.add_argument("--scanner", choices=["64", "32"], default="64")
+    memsc.add_argument("--events", default=None)
+    memsc.add_argument("--no-events", action="store_true")
+    memsc.add_argument("--no-dedupe", action="store_true")
+    memsc.set_defaults(func=cmd_memory_scan)
+    memst = mems.add_parser("status", help="scanner availability and last scan")
+    memst.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    memst.set_defaults(func=cmd_memory_status)
+    memls = mems.add_parser("list", help="recent memory scans")
+    memls.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    memls.set_defaults(func=cmd_memory_list)
 
     fm = sub.add_parser("fim", help="critical-file integrity monitoring")
     fms = fm.add_subparsers(dest="fim_action", required=True)

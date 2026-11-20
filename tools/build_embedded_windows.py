@@ -81,13 +81,15 @@ def _copy_payload(src_dir: Path, dest: Path) -> int:
 
 
 def assemble(engine_dir: Path, whids_payload: Path | None, out: Path, platform: str,
-             tap_payload: Path | None = None) -> dict:
+             tap_payload: Path | None = None,
+             memory_payload: Path | None = None) -> dict:
     if out.exists():
         shutil.rmtree(out)
     (out / "instance").mkdir(parents=True)
     (out / "engines" / platform).mkdir(parents=True)
     (out / "sensors" / "whids").mkdir(parents=True)
     (out / "sensors" / "tap").mkdir(parents=True)
+    (out / "sensors" / "memory").mkdir(parents=True)
     (out / "sensors" / "dtrace").mkdir(parents=True)
 
     missing = []
@@ -107,6 +109,9 @@ def assemble(engine_dir: Path, whids_payload: Path | None, out: Path, platform: 
 
     payload_files = _copy_payload(whids_payload, out / "sensors" / "whids")
     tap_files = _copy_payload(tap_payload, out / "sensors" / "tap")
+    memory_files = _copy_payload(memory_payload, out / "sensors" / "memory")
+    if not memory_files:
+        missing.append("sensors/memory")
     # Reviewed D scripts travel with the binary: v1.5.0 omitted them, so the
     # whole trace feature failed on installed nodes (field-found).
     dtrace_files = 0
@@ -130,6 +135,7 @@ def assemble(engine_dir: Path, whids_payload: Path | None, out: Path, platform: 
         "probes": probes,
         "whids_payload_files": payload_files,
         "tap_payload_files": tap_files,
+        "memory_payload_files": memory_files,
         "dtrace_payload_files": dtrace_files,
         "platform": platform,
     }
@@ -161,6 +167,7 @@ def main() -> int:
     ap.add_argument("--engine-dir", default="engines/windows-x86_64")
     ap.add_argument("--whids-payload", default="sensors/whids")
     ap.add_argument("--tap-payload", default="sensors/tap")
+    ap.add_argument("--memory-payload", default="sensors/memory")
     ap.add_argument("--platform", default="windows-x86_64")
     ap.add_argument("--out", default="build/embedded")
     ap.add_argument("--dist", default="dist")
@@ -173,9 +180,11 @@ def main() -> int:
     engine_dir = (ROOT / a.engine_dir).resolve()
     payload = (ROOT / a.whids_payload).resolve()
     tap_payload = (ROOT / a.tap_payload).resolve()
+    memory_payload = (ROOT / a.memory_payload).resolve()
 
     info = assemble(engine_dir, payload if payload.is_dir() else None, out, a.platform,
-                    tap_payload if tap_payload.is_dir() else None)
+                    tap_payload if tap_payload.is_dir() else None,
+                    memory_payload if memory_payload.is_dir() else None)
     if info["missing"]:
         print(json.dumps({"ok": False, "missing": info["missing"]}, indent=2))
         return 2
@@ -193,6 +202,7 @@ def main() -> int:
         "platform": info["platform"],
         "whids_payload_files": info["whids_payload_files"],
         "tap_payload_files": info["tap_payload_files"],
+        "memory_payload_files": info["memory_payload_files"],
     }, indent=2))
     return 0
 

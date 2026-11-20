@@ -43,6 +43,14 @@ prevention is audit-first and opt-in.**
   protection. AppLocker starts in audit; every control is dry-run first,
   plan-gated, verified and rollbackable by journal id.
 
+### How is memory scanning different from Sysmon/ETW?
+
+Sysmon and ETW tell you what a process did. HollowsHunter/PE-sieve looks at
+what is inside the process now: replaced images, implanted PEs, shellcode,
+patches and IAT hooks. It is an on-demand, hash-pinned user-mode probe, not a
+standing monitor. Scan a PID or a small name set; `--all` is explicit. No
+dumps are written by default.
+
 ### Does interception require a kernel driver?
 
 No. `plasma intercept` brokers typed rules into NTFS ACLs, Windows Firewall

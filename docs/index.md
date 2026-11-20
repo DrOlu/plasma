@@ -1,12 +1,12 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.21.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.22.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.21.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.22.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
@@ -95,7 +95,7 @@ without sending its diary anywhere?**
 
 ```text
 SENSORS            Sysmon · WHIDS gene rules · Security-log identity ·
-                   ETW tap · deep persistence probe · canary tokens
+                   ETW tap · deep persistence probe · canary tokens · memory scan
         │
         ▼  one strict event contract (events.jsonl, on the box)
 ON-DEVICE BRAIN    frozen neuralOS instance — 10 probes, refuse-if-unknown
@@ -112,6 +112,18 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    prevent (AppLocker, egress, Defender ASR, LSA protection) ·
                    intercept (NTFS ACL, firewall, agent gateway)
 ```
+
+## What's new in 1.22.0
+
+- **Memory scanning.** `plasma memory scan` binds a pinned HollowsHunter/
+  PE-sieve probe for hollowing, implanted PEs, shellcode, code patches and
+  IAT hooks. Findings become `source="memory"` alerts.
+- **No dumps by default.** `--dump` is explicit and local; `--all` is
+  explicit; managed .NET JIT noise is suppressed.
+- **Bundled and verified.** 64/32-bit scanners are fetched into the Windows
+  payload and hash-checked before execution.
+- **Estate-verified on WS1** with a real PowerShell deep scan.
+- **846 tests**, full suite and `-W error` pass.
 
 ## What's new in 1.21.0
 

@@ -223,6 +223,22 @@ Add canary accounts to `config.json`:
 A tripped canary is evidence. Snapshot and isolate before investigating;
 the enforcement policy keeps `isolate_host` behind approval.
 
+## Memory scanning
+
+```powershell
+plasma memory status
+plasma memory scan --pid 4832
+plasma memory scan --pname powershell.exe,rundll32.exe --deep
+plasma memory scan --all --timeout 120
+plasma memory list
+```
+
+HollowsHunter/PE-sieve is a pinned, on-demand probe for in-memory implants.
+Target a PID or a small name set; `--all` is explicit. No dumps are written
+by default. `--dump` is local, explicit and refused with `--all`. Findings
+land in the event store as `source="memory"` alerts; a clean scan is a
+point-in-time result, not proof of innocence.
+
 ## Interception
 
 ```powershell

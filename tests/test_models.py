@@ -91,6 +91,16 @@ def test_canary_alert_event_parses():
     assert ev.score == 0.8
 
 
+def test_memory_alert_event_parses():
+    ev = PlasmaEvent(**base(
+        source="memory", kind="alert", event_id=9100, severity="high",
+        score=0.9, action="logged", alert_id="memory:hollowing:684",
+        description="HollowsHunter hollowing", pid=684,
+    ))
+    assert ev.source == "memory"
+    assert ev.alert_id == "memory:hollowing:684"
+
+
 def test_dtrace_trace_event_parses():
     """DTrace rows use source='dtrace' and kind='trace'; both must be in the
     strict contract or every trace event is counted as a parse failure."""

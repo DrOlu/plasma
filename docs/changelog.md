@@ -4,6 +4,23 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.22.0 — 2026-11-20
+
+- **Memory scanning.** New `plasma memory scan` binds HollowsHunter/PE-sieve
+  as a pinned, on-demand probe for hollowing, implanted PEs, shellcode,
+  code patches and IAT hooks. Reports are archived under `<root>/memory/`;
+  findings become `source="memory"` alerts.
+- **No dumps by default.** `--dump` is explicit and refused with `--all`;
+  the scanner is SHA-256 verified before execution.
+- **JIT noise control.** Managed .NET shellcode false positives are
+  suppressed from the alert stream and reported as a count.
+- **Bundled and bounded.** 64-bit and 32-bit scanners are fetched into the
+  Windows payload; targeted PID/name scans are the default, `--all` is
+  explicit.
+- Estate-tested on WS1 with a real `powershell.exe` scan (3.4s deep scan;
+  managed JIT suppressed). 846 tests collected; full suite and `-W error`
+  pass.
+
 ## 1.21.0 — 2026-11-19
 
 - **Intercept phases 0-3.** New `plasma intercept` surface: shadow rule

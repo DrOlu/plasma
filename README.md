@@ -201,6 +201,20 @@ deduplicated across `watch` sweeps. Configure canary accounts with
 `{"canary": {"accounts": ["svc-print-archive"]}}` in `config.json`. No
 Docker, cloud callback or external service is required.
 
+## Memory scanning
+
+```bash
+plasma memory status
+plasma memory scan --pid 4832
+plasma memory scan --pname powershell.exe,rundll32.exe --deep
+plasma memory list
+```
+
+HollowsHunter/PE-sieve is bundled as a pinned, hash-verified, on-demand
+probe for hollowed or replaced PEs, reflective DLLs, shellcode, code
+patches and IAT hooks. Findings become `source="memory"` alerts. No dumps
+by default; `--dump` is explicit and local, and `--all` is opt-in.
+
 ## Interception at native gates
 
 ```bash

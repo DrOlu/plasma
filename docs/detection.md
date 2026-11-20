@@ -202,6 +202,18 @@ A 4624/4625/4771/4776 for that account becomes
 automatic kill: the response policy still requires approval for host
 isolation.
 
+## Memory scanning
+
+```powershell
+plasma memory scan --pid 4832
+plasma memory scan --pname powershell.exe,rundll32.exe --deep
+```
+
+HollowsHunter/PE-sieve looks inside running processes for hollowing,
+implanted PEs, shellcode, code patches and IAT hooks. It is on-demand and
+bounded; the scanner is hash-pinned. Findings are `source="memory"` alerts
+with T1055/T1055.012/T1620 as appropriate. No dumps by default.
+
 ## IOC push
 
 ```powershell

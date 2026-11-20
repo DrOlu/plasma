@@ -140,6 +140,8 @@ jobs:
           find whids-bundle -path "*whids/windows/whids-v*-amd64.exe" -exec cp {} sensors/whids/whids.exe \;
           test -s sensors/whids/whids.exe || { echo "FATAL: whids agent binary not found in bundle" >&2; ls -R whids-bundle >&2; exit 1; }
           ls -la sensors/whids
+      - name: Fetch pinned memory scanner
+        run: python tools/fetch_memory_tools.py --dest sensors/memory
       - uses: ilammy/msvc-dev-cmd@v1
       - name: Clone krabsetw + compile plasma-tap into the payload
         shell: cmd
@@ -148,7 +150,7 @@ jobs:
           mkdir sensors\tap
           cl /nologo /std:c++17 /EHsc /O2 /W3 /DUNICODE /D_UNICODE /I krabsetw-src\krabs tap\plasma-tap.cpp /Fe:sensors\tap\plasma-tap.exe tdh.lib advapi32.lib
       - name: Build single self-contained exe
-        run: python tools/build_embedded_windows.py --engine-dir engines/windows-x86_64 --whids-payload sensors/whids --tap-payload sensors/tap --dist dist --name plasma
+        run: python tools/build_embedded_windows.py --engine-dir engines/windows-x86_64 --whids-payload sensors/whids --tap-payload sensors/tap --memory-payload sensors/memory --dist dist --name plasma
       - name: Smoke test the embedded executable
         shell: bash
         run: |
@@ -178,6 +180,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "MSI build failed" }
           ./dist/plasma.exe canary deploy --root "$RUNNER_TEMP/canary-root"
           ./dist/plasma.exe canary verify --root "$RUNNER_TEMP/canary-root"
+          ./dist/plasma.exe memory status --root "$RUNNER_TEMP/canary-root"
       - uses: actions/upload-artifact@v4
         with:
           name: plasma-windows-x64

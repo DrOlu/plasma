@@ -199,6 +199,26 @@ payload-bound, journaled and reversible.
 `acl` rollback restores the prior SDDL; `firewall` rollback removes the
 named rule. AppLocker and ASR remain under `plasma prevent`.
 
+### memory
+
+```text
+plasma memory scan --pid PID...
+plasma memory scan --pname NAME...
+plasma memory scan --all [--timeout SECONDS]
+plasma memory scan ... [--deep] [--dump] [--scanner 64|32]
+plasma memory status
+plasma memory list
+```
+
+Bounded, on-demand HollowsHunter/PE-sieve scan for hollowed or replaced
+PEs, reflective DLLs, shellcode, code patches and IAT hooks. The scanner is
+SHA-256 pinned and refuses a mismatched binary. Findings become
+`source="memory"` alerts. `--dump` is explicit, local and refused with
+`--all`; no dumps are produced by default. Managed .NET JIT shellcode
+observations are suppressed from the alert stream.
+
+Exit 0 = clean, 2 = findings, 1 = input/tool error.
+
 ### drift
 
 ```text

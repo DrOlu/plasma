@@ -12,6 +12,7 @@ desk asks questions when there is a reason to.**
         │  WHIDS  ─┼─► normalizers ─► data\events.jsonl   (one strict contract)   │
         │  identity┘                        │                                     │
         │  canary files/tokens ─────────────┤                                     │
+        │  memory scan (on demand) ─────────┤                                     │
         │  ETW tap (on demand)              ▼                                     │
         │                       frozen neuralOS instance                          │
         │                       (menu of 10 probes, refuses unknowns)             │

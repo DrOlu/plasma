@@ -86,6 +86,11 @@ to a marketing page.
   `canary:verify`. DNS and HTTP tokens add access/recon tripwires without
   cloud callbacks; HTTP tokens use a loopback-first local collector.
 - **Endpoint DLP / content inspection.** Not attempted.
+- **Memory scanning is point-in-time.** HollowsHunter/PE-sieve is a
+  user-mode probe, not a kernel monitor. It can miss a short-lived implant
+  between scans, cannot read every protected process and may produce
+  managed-JIT noise; Plasma suppresses that specific class. Dumps are
+  opt-in, local and sensitive.
 - **Kernel interception.** Plasma compiles policy into NTFS ACLs, Windows
   Firewall and the MCP boundary. It does not ship a minifilter, WFP callout
   or API hook; kernel-mode malware and direct syscalls remain outside the
