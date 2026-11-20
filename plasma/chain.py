@@ -79,6 +79,20 @@ BUILTIN_CHAINS = [
         ],
     },
     {
+        "name": "account_creation_privilege",
+        "score": 9,
+        "gap_seconds": 1800,
+        "detail": "a new account was created, then added to a privileged group",
+        "steps": [
+            {"kind": "auth", "event_id": 4720},
+            {"any_of": [
+                {"kind": "auth", "event_id": 4728},
+                {"kind": "auth", "event_id": 4732},
+                {"kind": "auth", "event_id": 4756},
+            ]},
+        ],
+    },
+    {
         "name": "injection_chain",
         "score": 9,
         "gap_seconds": 120,

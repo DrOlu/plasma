@@ -316,3 +316,24 @@ def test_persistence_chain_ignores_benign_cmdline():
     ]
     assert not [f for f in chain.scan(rows)
                 if f["type"] == "chain_persistence_after_privilege"]
+
+
+def test_account_creation_then_privileged_group_fires():
+    rows = [
+        _row("2026-11-05T10:00:00Z", kind="auth", event_id=4720,
+             user="CORP\\svc-temp", score=0.8),
+        _row("2026-11-05T10:05:00Z", kind="auth", event_id=4728,
+             user="CORP\\Domain Admins", score=0.8),
+    ]
+    findings = chain.scan(rows)
+    matched = [f for f in findings
+               if f["type"] == "chain_account_creation_privilege"]
+    assert matched and matched[0]["score"] == 9
+
+
+def test_account_creation_without_privilege_does_not_fire():
+    rows = [_row("2026-11-05T10:00:00Z", kind="auth", event_id=4720,
+                 user="CORP\\svc-temp")]
+    findings = chain.scan(rows)
+    assert not [f for f in findings
+                if f["type"] == "chain_account_creation_privilege"]

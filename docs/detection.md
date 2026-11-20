@@ -82,6 +82,7 @@ window between adjacent steps, plus optional **count** steps.
 | `phish_spawn_chain` | 9 | Office app → script host (powershell/wscript/cscript/mshta) → encoded command or egress, all within 15 min |
 | `brute_force_success` | 8 | ≥5 failed logons for one user, then a success, within 60 min |
 | `persistence_after_privilege` | 9 | account/group change → persistence-shaped command (schtasks, service, run key, WMI), within 60 min |
+| `account_creation_privilege` | 9 | a new account (4720) → privileged group membership (4728/4732/4756), within 30 min |
 
 ```powershell
 plasma chain score --events C:\ProgramData\Plasma\data\events.jsonl
