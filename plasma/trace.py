@@ -290,6 +290,19 @@ def normalize(row: dict, info: dict, host: str) -> dict:
     return {k: v for k, v in event.items() if v is not None}
 
 
+def _content_key(event: dict) -> str:
+    """Hash the observation, not the wall clock.
+
+    Two identical syscall observations in the same window are duplicates
+    even if the second lands in the next second. Timestamp is deliberately
+    excluded from the dedupe key; the first observation keeps the earliest
+    time.
+    """
+    payload = {k: v for k, v in event.items() if k != "ts"}
+    return hashlib.sha256(json.dumps(payload, ensure_ascii=False,
+                                     sort_keys=True).encode()).hexdigest()
+
+
 def run(script_name: str, events_path, seconds: int = 10,
         max_rows: int = DEFAULT_MAX_ROWS, out=None, root=None,
         host: str | None = None) -> dict:
@@ -341,15 +354,13 @@ def run(script_name: str, events_path, seconds: int = 10,
         for ln in store.read_text(encoding="utf-8-sig", errors="replace").splitlines():
             if ln.strip():
                 try:
-                    existing.add(hashlib.sha256(
-                        json.dumps(json.loads(ln), ensure_ascii=False,
-                                   sort_keys=True).encode()).hexdigest())
+                    existing.add(_content_key(json.loads(ln)))
                 except json.JSONDecodeError:
                     continue
     with store.open("a", encoding="utf-8") as fh:
         for ev in events:
             payload = json.dumps(ev, ensure_ascii=False, sort_keys=True)
-            digest = hashlib.sha256(payload.encode()).hexdigest()
+            digest = _content_key(ev)
             if digest in existing:
                 continue
             fh.write(payload + "\n")
