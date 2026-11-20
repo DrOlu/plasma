@@ -294,3 +294,14 @@ def test_supported_ids_include_directory_events_but_default_excludes_noise():
     assert 4720 in identity.DEFAULT_IDS
     with pytest.raises(ValueError):
         identity.parse_ids("9999")
+
+
+def test_process_ids_accept_hex_security_encoding():
+    ev = identity.normalize_process(
+        {"event_id": 4688, "ts": "2026-10-19T13:00:00.000Z",
+         "user": "olu", "domain": "CORP", "process": "C:\\Windows\\cmd.exe",
+         "parent": "C:\\Windows\\explorer.exe",
+         "pid": "0x1a4", "ppid": "0x64"}, host="WS1")
+    assert ev["pid"] == 420
+    assert ev["ppid"] == 100
+    PlasmaEvent(**ev)

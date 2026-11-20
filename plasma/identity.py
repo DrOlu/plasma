@@ -194,6 +194,18 @@ def _base_name(path):
     return str(path).replace("\\", "/").rsplit("/", 1)[-1]
 
 
+def _pid(value):
+    """Security 4688 prints process IDs as hex; accept both hex and decimal."""
+    text = str(value or "").strip().lower()
+    if not text or text == "-":
+        return None
+    try:
+        number = int(text, 16) if text.startswith("0x") else int(text, 10)
+    except (TypeError, ValueError):
+        return None
+    return number if 0 <= number <= 2_147_483_647 else None
+
+
 def _status_ok(row: dict) -> bool:
     return str(row.get("status") or "0x0").strip().lower() in STATUS_SUCCESS
 
@@ -291,8 +303,7 @@ def normalize_logon(row: dict, host: str) -> dict:
         "action": "logged",
         "user": _clip(full_user, 128),
         "process": _clip(_base_name(row.get("process")), 260),
-        "pid": int(row["pid"]) if str(row.get("pid") or "").isdigit() and
-               int(row["pid"]) <= 2_147_483_647 else None,
+        "pid": _pid(row.get("pid")),
         "dest_ip": _clip(source_ip, 45),
         "description": _clip(_auth_description(eid, row, source_ip), 512),
     }
@@ -338,10 +349,8 @@ def normalize_process(row: dict, host: str) -> dict:
         "action": "logged",
         "user": _clip(full_user, 128),
         "process": _clip(_base_name(image), 260),
-        "pid": int(row["pid"]) if str(row.get("pid") or "").isdigit() and
-               int(row["pid"]) <= 2_147_483_647 else None,
-        "ppid": int(row["ppid"]) if str(row.get("ppid") or "").isdigit() and
-                int(row["ppid"]) <= 2_147_483_647 else None,
+        "pid": _pid(row.get("pid")),
+        "ppid": _pid(row.get("ppid")),
         "parent": _clip(_base_name(parent), 260),
         "image": _clip(image, 512),
         "cmdline": _clip(cmdline, 2048),
