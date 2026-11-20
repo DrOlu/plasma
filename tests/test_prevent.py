@@ -173,11 +173,11 @@ def test_egress_warns_when_dns_is_not_allowlisted():
 
 
 def test_posture_reports_controls_and_gaps(monkeypatch):
-    monkeypatch.setattr(prevent, "_ps_json", lambda s, timeout=120: {
+    monkeypatch.setattr(prevent, "_ps_json", lambda s, timeout=120: ({
         "wdac_policies": 1, "cfa": 2, "network": 1, "asr_ids": 3,
         "asr_enabled": 2, "driver_blocklist": 1,
         "realtime_disabled": False, "tamper": "1",
-    })
+    }, None))
     out = prevent.posture()
     assert out["ok"] is True
     states = {row["control"]: row["state"] for row in out["controls"]}
@@ -189,11 +189,11 @@ def test_posture_reports_controls_and_gaps(monkeypatch):
 
 
 def test_posture_names_missing_controls(monkeypatch):
-    monkeypatch.setattr(prevent, "_ps_json", lambda s, timeout=120: {
+    monkeypatch.setattr(prevent, "_ps_json", lambda s, timeout=120: ({
         "wdac_policies": 0, "cfa": 0, "network": 0, "asr_ids": 0,
         "asr_enabled": 0, "driver_blocklist": 0,
         "realtime_disabled": True, "tamper": "unknown",
-    })
+    }, None))
     out = prevent.posture()
     assert "no active WDAC policy" in out["gaps"]
     assert "Controlled Folder Access is off" in out["gaps"]

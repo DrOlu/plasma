@@ -736,10 +736,13 @@ def posture() -> dict:
         return {"ok": False, "supported": False,
                 "error": "PowerShell is not available on this host",
                 "controls": [], "gaps": ["enforcement posture unknown"]}
-    payload = _ps_json(_POSTURE_PS)
+    parsed = _ps_json(_POSTURE_PS)
+    payload = parsed[0] if isinstance(parsed, tuple) else parsed
     if not isinstance(payload, dict):
+        detail = parsed[1] if isinstance(parsed, tuple) and len(parsed) > 1 else None
         return {"ok": False, "supported": True,
                 "error": "could not read Defender/Code Integrity posture",
+                "detail": detail,
                 "controls": [], "gaps": ["enforcement posture unknown"]}
     try:
         wdac = int(payload.get("wdac_policies") or 0)
