@@ -188,3 +188,35 @@ def _decision(allowed: bool, approval: bool, code: str, spec: tools.ToolSpec,
         "reasons": reasons,
         "policy_sha256": agentstate.sha256_obj(policy),
     }
+
+def simulate(tool_name: str, args: dict | None = None,
+             context: dict | None = None, policy: dict | None = None,
+             recent_actions: int = 0, killswitch_blocked: bool = False) -> dict:
+    """Explain what the policy would decide, without changing anything.
+
+    The context defaults to exactly the scopes the tool declares, so the
+    simulation answers "if a harness held this scope, what would Plasma do?"
+    rather than failing for a scope the caller did not supply.
+    """
+    try:
+        spec = tools.get(tool_name)
+    except tools.ToolError as exc:
+        return {"ok": False, "tool": tool_name, "code": "UNKNOWN_TOOL",
+                "error": str(exc)[:200]}
+    context = dict(context or {})
+    context.setdefault("scopes", list(spec.scopes))
+    active = policy if policy is not None else load()
+    decision = evaluate(tool_name, args or {}, context=context, policy=active,
+                        recent_actions=recent_actions,
+                        killswitch_blocked=killswitch_blocked)
+    return {
+        "ok": True,
+        "tool": tool_name,
+        "args": args or {},
+        "risk": spec.risk,
+        "dry_run_only": spec.dry_run_only,
+        "decision": decision,
+        "policy_sha256": decision.get("policy_sha256"),
+        "note": ("read-only simulation; no action, approval or ledger row "
+                 "was created"),
+    }

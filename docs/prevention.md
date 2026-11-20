@@ -177,10 +177,28 @@ LSA plugins before enabling it in production.
 - **Not a substitute for backups.** Every control here is reversible, and
   the journal is the audit trail that proves what changed.
 
+## Posture — WDAC, CFA, Network Protection, driver blocklist
+
+```powershell
+plasma prevent posture
+```
+
+Read-only inventory of the signed enforcement points Plasma delegates to:
+active WDAC policy files, Defender Controlled Folder Access, Network
+Protection, the Microsoft vulnerable driver blocklist, ASR rule counts,
+real-time protection and tamper protection. The result names each gap. It
+does not change a setting.
+
+This is deliberately an inventory, not an implicit claim: a control that is
+off is reported as off. Enabling CFA or Network Protection remains an
+explicit Defender-policy change, because both can break line-of-business
+applications if applied without a pilot.
+
 ## Verification
 
 ```powershell
 plasma prevent status
+plasma prevent posture
 plasma enforce status
 Get-NetFirewallRule -DisplayName 'PlasmaPrevent-*'
 Get-AppLockerPolicy -Effective | Select-Object -ExpandProperty RuleCollections

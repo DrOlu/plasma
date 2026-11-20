@@ -112,7 +112,7 @@ def _load(root) -> dict:
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"canary token registry unreadable: {exc}") from exc
     if not isinstance(doc, dict) or not isinstance(doc.get("tokens"), list):
-        raise ValueError("canary token registry has no 'tokens' array")
+        raise ValueError("canary token registry has no 'tokens' array")  # noqa: TRY004
     return doc
 
 
@@ -728,7 +728,7 @@ def make_server(root, host: str = "127.0.0.1", port: int = 8088,
         sys_version = ""
         protocol_version = "HTTP/1.0"
 
-        def log_message(self, fmt, *args):  # noqa: A003 - stdlib API
+        def log_message(self, fmt, *args):
             return
 
         def _handle(self, send_body: bool):
@@ -764,13 +764,13 @@ def make_server(root, host: str = "127.0.0.1", port: int = 8088,
                 threading.Thread(target=self.server.shutdown,
                                  daemon=True).start()
 
-        def do_GET(self):  # noqa: N802 - stdlib API
+        def do_GET(self):
             self._handle(True)
 
-        def do_HEAD(self):  # noqa: N802 - stdlib API
+        def do_HEAD(self):
             self._handle(False)
 
-        def do_POST(self):  # noqa: N802 - stdlib API
+        def do_POST(self):
             self.send_response(405)
             self.send_header("Allow", "GET, HEAD")
             self.send_header("Content-Length", "0")

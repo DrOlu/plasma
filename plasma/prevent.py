@@ -695,3 +695,95 @@ def rollback(root, entry_id: int, apply: bool = False, plan=None,
     })
     return {"entry": entry_id, "control": kind, "rolled_back": True,
             "result": result}
+
+
+# ---------------------------------------------------------------------------
+# Enforcement posture (read-only)
+# ---------------------------------------------------------------------------
+
+_POSTURE_PS = r"""
+$ErrorActionPreference = 'SilentlyContinue'
+$ci = @(Get-ChildItem (Join-Path $env:WINDIR 'System32\CodeIntegrity\CiPolicies\Active') -Filter *.cip)
+$mp = Get-MpPreference
+$drv = (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Config' -Name VulnerableDriverBlocklistEnable).VulnerableDriverBlocklistEnable
+$ids = @($mp.AttackSurfaceReductionRules_Ids)
+$actions = @($mp.AttackSurfaceReductionRules_Actions)
+$enabled = 0
+for ($i = 0; $i -lt $ids.Count; $i++) {
+  $a = if ($i -lt $actions.Count) { $actions[$i] } else { '' }
+  if ($a -eq 'Enabled' -or $a -eq 1) { $enabled++ }
+}
+[pscustomobject]@{
+  wdac_policies = $ci.Count
+  cfa = [int]$mp.EnableControlledFolderAccess
+  network = [int]$mp.EnableNetworkProtection
+  asr_ids = $ids.Count
+  asr_enabled = $enabled
+  driver_blocklist = [int]$drv
+  realtime_disabled = [bool]$mp.DisableRealtimeMonitoring
+  tamper = [string]$mp.EnableTamperProtection
+} | ConvertTo-Json -Compress
+"""
+
+
+def posture() -> dict:
+    """Read the signed enforcement points Plasma delegates to.
+
+    Read-only. This is the honest inventory behind `prevent`: which Windows
+    controls are on, auditing or absent. It does not change a setting.
+    """
+    if not shutil.which("powershell.exe") and not shutil.which("pwsh"):
+        return {"ok": False, "supported": False,
+                "error": "PowerShell is not available on this host",
+                "controls": [], "gaps": ["enforcement posture unknown"]}
+    payload = _ps_json(_POSTURE_PS)
+    if not isinstance(payload, dict):
+        return {"ok": False, "supported": True,
+                "error": "could not read Defender/Code Integrity posture",
+                "controls": [], "gaps": ["enforcement posture unknown"]}
+    try:
+        wdac = int(payload.get("wdac_policies") or 0)
+        cfa = int(payload.get("cfa") or 0)
+        network = int(payload.get("network") or 0)
+        driver = int(payload.get("driver_blocklist") or 0)
+        asr_ids = int(payload.get("asr_ids") or 0)
+        asr_enabled = int(payload.get("asr_enabled") or 0)
+    except (TypeError, ValueError):
+        return {"ok": False, "supported": True,
+                "error": "posture payload had non-numeric fields",
+                "controls": [], "gaps": ["enforcement posture unknown"]}
+    cfa_state = {0: "off", 1: "block", 2: "audit"}.get(cfa, f"unknown({cfa})")
+    net_state = {0: "off", 1: "block", 2: "audit"}.get(
+        network, f"unknown({network})")
+    controls = [
+        {"control": "wdac", "state": "enforced" if wdac else "absent",
+         "detail": f"{wdac} active Code Integrity policy file(s)"},
+        {"control": "controlled_folder_access", "state": cfa_state,
+         "detail": "Defender Controlled Folder Access"},
+        {"control": "network_protection", "state": net_state,
+         "detail": "Defender Network Protection"},
+        {"control": "vulnerable_driver_blocklist",
+         "state": "enabled" if driver else "off",
+         "detail": "Microsoft vulnerable driver blocklist"},
+        {"control": "asr", "state": "partial" if asr_enabled < asr_ids
+         else "configured" if asr_ids else "none",
+         "detail": f"{asr_enabled}/{asr_ids} ASR rule(s) in block mode"},
+        {"control": "realtime", "state": "off"
+         if payload.get("realtime_disabled") else "on",
+         "detail": "Defender real-time protection"},
+        {"control": "tamper_protection", "state": str(payload.get("tamper") or "unknown"),
+         "detail": "Defender tamper protection"},
+    ]
+    gaps = []
+    if not wdac:
+        gaps.append("no active WDAC policy")
+    if cfa == 0:
+        gaps.append("Controlled Folder Access is off")
+    if network == 0:
+        gaps.append("Network Protection is off")
+    if not driver:
+        gaps.append("vulnerable driver blocklist is off")
+    if not asr_ids:
+        gaps.append("no ASR rules configured")
+    return {"ok": True, "supported": True, "controls": controls,
+            "gaps": gaps, "raw": payload}

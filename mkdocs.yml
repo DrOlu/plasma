@@ -47,6 +47,7 @@ nav:
       - File integrity (FIM): fim.md
       - Sigma conversion: sigma.md
       - Memory scanning: memory.md
+      - Investigation: investigate.md
       - DTrace tracing: trace.md
   - Operate:
       - Response: response.md

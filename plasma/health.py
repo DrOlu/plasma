@@ -192,7 +192,81 @@ def checks(root) -> list[dict]:
     if degraded_mode:
         results.append({"check": "install_mode", "ok": True,
                         "detail": "MINIMAL mode — expected reduced coverage"})
+
+    # Canary integrity is part of health, not only a watch finding: a
+    # deleted or modified decoy is the strongest available impact signal.
+    try:
+        from . import canary as canary_mod
+        cstatus = canary_mod.status(root)
+        if cstatus.get("deployed"):
+            tripped = cstatus.get("tripped") or []
+            results.append({
+                "check": "canary_integrity", "ok": not tripped,
+                "detail": (f"{cstatus.get('intact', 0)} intact"
+                           if not tripped else
+                           f"{len(tripped)} canary artifact(s) tripped: "
+                           + ", ".join(str(t.get("path")) for t in tripped[:3])),
+            })
+    except (OSError, ValueError):
+        pass
+
+    spots = blind_spots(root, config, results)
+    results.append({
+        "check": "blind_spot_accounting", "ok": True,
+        "detail": ("none" if not spots else
+                   f"{len(spots)} known blind spot(s): "
+                   + "; ".join(s["area"] for s in spots[:5])),
+        "blind_spots": spots,
+    })
     return results
+
+
+def blind_spots(root, config: dict | None = None,
+                results: list[dict] | None = None) -> list[dict]:
+    """Account for what this node cannot see. Never silent, never inflated."""
+    config = config or {}
+    sensors = config.get("sensors") if isinstance(config.get("sensors"), dict) else {}
+    results = results or []
+    spots = []
+
+    def add(area, detail, severity="medium"):
+        spots.append({"area": area, "detail": detail, "severity": severity})
+
+    if config.get("degraded"):
+        add("minimal install", "WHIDS/gene detection is not installed",
+            "high")
+    status = str((sensors.get("whids") or {}).get("status") or "skipped")
+    if status not in ("active", "installing"):
+        add("gene detection", f"WHIDS is {status}; only identity/tap/on-demand "
+            "sensing is present", "high")
+
+    for check in results:
+        if check.get("ok") or check.get("check") == "blind_spot_accounting":
+            continue
+        if check.get("check") in ("sysmon_config", "sysmon_feed",
+                                  "sensor_heartbeat", "canary_integrity"):
+            add(check["check"], str(check.get("detail") or "failed"), "high")
+        elif check.get("check") in ("whids_service", "sysmon_service"):
+            add(check["check"], str(check.get("detail") or "failed"), "critical")
+
+    try:
+        from . import canary as canary_mod
+        cstatus = canary_mod.status(root)
+        if not cstatus.get("deployed"):
+            add("impact canary", "no file canary deployed; destructive "
+                "impact has no direct tripwire", "medium")
+    except (OSError, ValueError):
+        pass
+
+    try:
+        from . import coverage as coverage_mod
+        report = coverage_mod.coverage()
+        for technique in report.get("blind") or []:
+            add("ATT&CK " + str(technique),
+                "no shipped rule covers this core on-box technique", "medium")
+    except (OSError, ValueError, KeyError):
+        add("coverage inventory", "coverage could not be computed", "low")
+    return spots
 
 
 def _store_age_minutes(events_path) -> float | None:
@@ -233,6 +307,11 @@ def verdict(root) -> dict:
               "down" if any(c["check"] in ("whids_service", "sysmon_service",
                                            "sysmon_feed") for c in hard_fail) else
               "degraded")
+    spots = []
+    for check in results:
+        if check.get("check") == "blind_spot_accounting":
+            spots = check.get("blind_spots") or []
     return {"status": status, "checks": results,
             "failed": [c["check"] for c in hard_fail],
+            "blind_spots": spots,
             "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}

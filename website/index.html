@@ -343,7 +343,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <a class="skip" href="#main">Skip to content</a>
 
 <div class="announce">
-  <b>v1.22.0 is out</b> &nbsp;·&nbsp; On-demand memory scanning with pinned HollowsHunter &nbsp;·&nbsp;
+  <b>v1.23.0 is out</b> &nbsp;·&nbsp; Typed investigation, sealed cases, memory triage and honest posture &nbsp;·&nbsp;
   <a href="https://drolu.github.io/plasma/changelog/">read the changelog</a>
 </div>
 
@@ -351,7 +351,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
   <div class="wrap header-inner">
     <a class="brand" href="#top" aria-label="Plasma home">
       <span class="brand-mark" aria-hidden="true">P</span>
-      <span>Plasma</span><em>v1.22.0</em>
+      <span>Plasma</span><em>v1.23.0</em>
     </a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
       <a href="#architecture">Architecture</a>
@@ -360,6 +360,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <a href="#sensors">Sensors</a>
       <a href="#canaries">Canaries</a>
       <a href="#memory">Memory</a>
+      <a href="#investigation">Investigation</a>
       <a href="#intercept">Intercept</a>
       <a href="#detection">Detection</a>
       <a href="#response">Response</a>
@@ -386,7 +387,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <section class="hero">
   <div class="wrap hero-grid">
     <div class="reveal">
-      <span class="pill"><i></i> Windows EDR · on-device · v1.22.0</span>
+      <span class="pill"><i></i> Windows EDR · on-device · v1.23.0</span>
       <h1>No log lake.<br>No cloud.<br><span class="hl">No blind trust.</span></h1>
       <p class="sub">
         <strong>Detects always. Contains only when armed. Blocks only through Microsoft's own
@@ -401,7 +402,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <div class="hero-badges">
         <span><b>0</b> standing cloud calls</span>
         <span><b>259</b> Sigma rules</span>
-        <span><b>11</b> typed agent tools</span>
+        <span><b>19</b> typed agent tools</span>
         <span><b>37</b> ATT&amp;CK techniques</span>
         <span><b>1</b> self-contained exe</span>
       </div>
@@ -542,7 +543,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <article class="card c-yellow">
         <div class="cap"><span>Capability</span><b>11</b></div>
         <h3>Typed tools</h3>
-        <p>Eleven tools, each with a scope, risk tier and JSON schema. Unknown tools and extra arguments are refused before anything runs.</p>
+        <p>Nineteen tools, each with a scope, risk tier and JSON schema. Unknown tools and extra arguments are refused before anything runs.</p>
         <div class="tags"><span>schema-first</span><span>dry-run in MCP</span></div>
       </article>
       <article class="card c-lav">
@@ -571,7 +572,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <pre><span class="c"># expose the typed tools over stdio</span>
 plasma mcp serve
 
-<span class="c"># the harness sees eleven tools</span>
+<span class="c"># the harness sees nineteen tools</span>
 {"jsonrpc":"2.0","id":2,"method":"tools/list"}
 
 <span class="c"># a critical action is not executed</span>
@@ -636,7 +637,7 @@ plasma control audit verify</pre>
         <div class="cap"><span>Event parse</span><b>100%</b></div>
         <h3>Contract clean</h3>
         <p>DTrace, WHIDS storm rows and long command lines now validate. Both estate hosts parse every event in the store.</p>
-        <div class="tags"><span>WS1 + WS2</span><span>1.22.0</span></div>
+        <div class="tags"><span>WS1 + WS2</span><span>1.23.0</span></div>
       </article>
     </div>
 
@@ -816,6 +817,51 @@ python orchestrate.py undo 35</pre>
 
     <div class="note reveal" style="margin-top:18px">
       Findings become <code>source="memory"</code> alerts and flow into watch, chains, fleet and the response policy. <code>--dump</code> is local, opt-in and refused with <code>--all</code>.
+    </div>
+  </div>
+</section>
+
+<!-- INVESTIGATION -->
+<section class="block alt" id="investigation">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Investigation</span>
+      <h2>Ask a precise question. Keep the answer.</h2>
+      <p class="lede">A closed query language, explicit PID lineage, a compact digest, and a case directory that can be sealed and verified. No database, no lake, no model in the path.</p>
+    </div>
+
+    <div class="grid c4">
+      <article class="card c-yellow reveal">
+        <div class="cap"><span>Query</span><b>typed</b></div>
+        <h3>No shell pipelines</h3>
+        <p><code>plasma query</code> accepts named fields only. A typo is refused, not ignored. Process names match case-insensitively with globs; time and score are explicit.</p>
+        <div class="tags"><span>--since 1h</span><span>--count-by</span><span>--min-score</span></div>
+      </article>
+
+      <article class="card c-lime reveal">
+        <div class="cap"><span>Lineage</span><b>ppid only</b></div>
+        <h3>No guessed parents</h3>
+        <p><code>plasma tree</code> follows only explicit <code>pid</code>/<code>ppid</code> edges. A missing parent is an orphan, not a name-match guess.</p>
+        <div class="tags"><span>Sysmon EID 1</span><span>4688 ppid</span><span>depth cap</span></div>
+      </article>
+
+      <article class="card c-cyan reveal">
+        <div class="cap"><span>Case</span><b>sealed</b></div>
+        <h3>Evidence that survives</h3>
+        <p>Selected events, findings and notes live in a plain directory. <code>case seal</code> hashes every artifact; <code>case verify</code> detects later changes.</p>
+        <div class="tags"><span>report.md</span><span>manifest.json</span><span>chain hash</span></div>
+      </article>
+
+      <article class="card c-pink reveal">
+        <div class="cap"><span>Detect</span><b>replay</b></div>
+        <h3>Test rules before promotion</h3>
+        <p><code>detect validate</code> compiles every regex; <code>detect diff</code> names added, removed and changed rules; <code>detect replay</code> runs chains over a capture.</p>
+        <div class="tags"><span>validate</span><span>diff</span><span>replay</span></div>
+      </article>
+    </div>
+
+    <div class="note reveal" style="margin-top:18px">
+      <code>plasma summarize</code> is the orientation step: process first/last seen, parent→child counts, rare command lines, users, hosts and score bands — bounded and explicitly truncated. <code>memory triage</code> turns injection-shaped alerts into one targeted scan.
     </div>
   </div>
 </section>
@@ -1408,13 +1454,13 @@ POST /v1/exec        run one CLI argv</pre>
       <div class="card c-lime">
         <div class="cap"><span>Product Guide</span><b>PDF · 19 pages</b></div>
         <h3>What it is and what it does</h3>
-        <p>Architecture, detection, coverage, prevention, response, neuralOSd orchestration, the HTTP API and the honest limits. Version 1.22.0.</p>
+        <p>Architecture, detection, coverage, prevention, response, neuralOSd orchestration, the HTTP API and the honest limits. Version 1.23.0.</p>
         <div class="mini"><a class="btn dark" href="https://drolu.github.io/plasma/Plasma_Product_Guide.pdf">Download the Product Guide</a></div>
       </div>
       <div class="card c-lav">
         <div class="cap"><span>Operations Guide</span><b>PDF · 19 pages</b></div>
         <h3>Install, operate, respond</h3>
-        <p>Install, configuration, daily operations, the prevention runbook, fleet, neuralOSd orchestration, the HTTP API, troubleshooting and cheat sheet. Version 1.22.0.</p>
+        <p>Install, configuration, daily operations, the prevention runbook, fleet, neuralOSd orchestration, the HTTP API, troubleshooting and cheat sheet. Version 1.23.0.</p>
         <div class="mini"><a class="btn dark" href="https://drolu.github.io/plasma/Plasma_Operations_Guide.pdf">Download the Operations Guide</a></div>
       </div>
     </div>
@@ -1429,7 +1475,7 @@ POST /v1/exec        run one CLI argv</pre>
       <p>Install the signed release, point the harness at the MCP server, and let the policy engine decide what the model is allowed to do.</p>
     </div>
     <div class="cta-actions">
-      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.22.0</a>
+      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.23.0</a>
       <a class="btn pink" href="https://drolu.github.io/plasma/getting-started/">Read the docs</a>
     </div>
   </div>
@@ -1451,6 +1497,7 @@ POST /v1/exec        run one CLI argv</pre>
           <li><a href="#agent-layer">Agent layer</a></li>
           <li><a href="#canaries">Canaries</a></li>
           <li><a href="#memory">Memory</a></li>
+          <li><a href="#investigation">Investigation</a></li>
           <li><a href="#intercept">Intercept</a></li>
           <li><a href="#response">Response</a></li>
           <li><a href="#coverage">Coverage</a></li>

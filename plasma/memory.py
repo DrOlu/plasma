@@ -1,4 +1,3 @@
-# ruff: noqa: ISC004
 """Plasma memory: bounded, on-demand process-memory scanning.
 
 HollowsHunter (PE-sieve) is a user-mode scanner for implants that file and
@@ -477,3 +476,110 @@ def list_scans(root) -> dict:
         except (OSError, json.JSONDecodeError):
             continue
     return {"count": len(rows), "scans": rows[:50]}
+
+
+# ---------------------------------------------------------------------------
+# Triggered triage
+# ---------------------------------------------------------------------------
+
+TRIAGE_TECHNIQUES = frozenset({
+    "T1055", "T1055.001", "T1055.002", "T1055.003", "T1055.004",
+    "T1055.005", "T1055.012", "T1620", "T1003", "T1003.001",
+})
+TRIAGE_EVENT_IDS = frozenset({9100})
+
+
+def _recent(row: dict, minutes: int) -> bool:
+    if not minutes:
+        return True
+    from datetime import datetime, timezone
+    try:
+        stamp = datetime.fromisoformat(str(row.get("ts", "")).replace(
+            "Z", "+00:00"))
+    except ValueError:
+        return False
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    return (now - stamp).total_seconds() <= max(1, int(minutes)) * 60
+
+
+def triage_targets(rows, min_score: float = 0.7, since_minutes: int = 60,
+                   max_targets: int = 5, include_memory: bool = False) -> dict:
+    """Select high-signal PIDs from the event tail for a memory scan.
+
+    This is deliberately conservative: only a scored alert whose technique
+    is injection/credential-shaped, or a memory finding, makes a process a
+    scan target. A high score alone is not enough — ransomware alerts do not
+    become memory scans.
+    """
+    ranked = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if not include_memory and str(row.get("source") or "") == "memory":
+            continue
+        if not _recent(row, since_minutes):
+            continue
+        try:
+            score = float(row.get("score") or 0)
+        except (TypeError, ValueError):
+            continue
+        if score < float(min_score):
+            continue
+        technique = str(row.get("technique") or "").split(",")[0].strip()
+        try:
+            event_id = int(row.get("event_id") or 0)
+        except (TypeError, ValueError):
+            event_id = 0
+        text = str(row.get("description") or "").lower()
+        signal = (technique in TRIAGE_TECHNIQUES
+                  or event_id in TRIAGE_EVENT_IDS
+                  or any(word in text for word in (
+                      "inject", "shellcode", "hollow", "credential dump",
+                      "lsass")))
+        if not signal:
+            continue
+        try:
+            pid = int(row.get("pid"))
+        except (TypeError, ValueError):
+            continue
+        if pid <= 0:
+            continue
+        current = ranked.get(pid)
+        if current is None or score > current["score"]:
+            ranked[pid] = {
+                "pid": pid,
+                "score": round(score, 3),
+                "process": _base_name(row.get("process")),
+                "technique": technique or None,
+                "description": str(row.get("description") or "")[:300],
+                "ts": row.get("ts"),
+            }
+    targets = sorted(ranked.values(),
+                     key=lambda row: (row["score"], row["ts"] or ""),
+                     reverse=True)[:max(1, int(max_targets))]
+    return {"checked": len(rows), "targets": targets,
+            "suppressed": len(ranked) - len(targets)}
+
+
+def triage(root, events_path=None, min_score: float = 0.7,
+           since_minutes: int = 60, max_targets: int = 5,
+           deep: bool = True, timeout: int = DEFAULT_TIMEOUT,
+           include_memory: bool = False) -> dict:
+    """Triage recent high-signal alerts into one bounded memory scan."""
+    root = Path(root)
+    events_path = Path(events_path or root / "data" / "events.jsonl")
+    from .query import _load_rows
+    rows = _load_rows(events_path, max_rows=5000)
+    selected = triage_targets(
+        rows, min_score=min_score, since_minutes=since_minutes,
+        max_targets=max_targets, include_memory=include_memory)
+    if not selected["targets"]:
+        return {"ok": True, "code": "NO_TARGETS", **selected,
+                "message": "no high-signal process to scan in the window"}
+    pids = [row["pid"] for row in selected["targets"]]
+    result = scan(root, pids=pids, deep=deep, timeout=timeout,
+                  events_path=events_path)
+    return {"ok": "error" not in result, **selected, "pids": pids,
+            "scan": result}

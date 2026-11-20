@@ -170,3 +170,32 @@ def test_egress_warns_when_dns_is_not_allowlisted():
     warnings = prevent.egress_warnings(["10.0.0.0/8"])
     assert warnings and "port-53" in warnings[0]
     assert prevent.egress_warnings(["10.0.0.0/8", "10.0.0.2:53"]) == []
+
+
+def test_posture_reports_controls_and_gaps(monkeypatch):
+    monkeypatch.setattr(prevent, "_ps_json", lambda s, timeout=120: {
+        "wdac_policies": 1, "cfa": 2, "network": 1, "asr_ids": 3,
+        "asr_enabled": 2, "driver_blocklist": 1,
+        "realtime_disabled": False, "tamper": "1",
+    })
+    out = prevent.posture()
+    assert out["ok"] is True
+    states = {row["control"]: row["state"] for row in out["controls"]}
+    assert states["wdac"] == "enforced"
+    assert states["controlled_folder_access"] == "audit"
+    assert states["network_protection"] == "block"
+    assert states["asr"] == "partial"
+    assert out["gaps"] == []
+
+
+def test_posture_names_missing_controls(monkeypatch):
+    monkeypatch.setattr(prevent, "_ps_json", lambda s, timeout=120: {
+        "wdac_policies": 0, "cfa": 0, "network": 0, "asr_ids": 0,
+        "asr_enabled": 0, "driver_blocklist": 0,
+        "realtime_disabled": True, "tamper": "unknown",
+    })
+    out = prevent.posture()
+    assert "no active WDAC policy" in out["gaps"]
+    assert "Controlled Folder Access is off" in out["gaps"]
+    assert "Network Protection is off" in out["gaps"]
+    assert "vulnerable driver blocklist is off" in out["gaps"]

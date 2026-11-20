@@ -21,6 +21,14 @@ Unknown tools and unexpected arguments are refused before anything runs.
 | `read_policy` | read | `policy:read` | executes |
 | `list_approvals` | read | `approvals:read` | executes |
 | `audit_tail` | read | `audit:read` | executes |
+| `query_events` | read | `events:read` | executes |
+| `get_process_tree` | read | `events:read` | executes |
+| `get_summary` | read | `events:read` | executes |
+| `get_case` | read | `events:read` | executes |
+| `get_coverage` | read | `events:read` | executes |
+| `get_blind_spots` | read | `health:read` | executes |
+| `simulate_policy` | read | `policy:read` | executes |
+| `scan_memory` | medium | `response:memory` | dry-run plan |
 | `deploy_canary` | medium | `response:canary` | dry-run plan |
 | `contain_user` | high | `response:identity` | dry-run plan |
 | `isolate_host` | critical | `response:network` | dry-run plan |

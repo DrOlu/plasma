@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.23.0 — 2026-11-20
+
+- **Typed investigation.** `plasma query` adds a closed local query language
+  with exact, glob, time, score and aggregate filters. Unknown fields are
+  refused. `plasma tree` builds lineage only from explicit `pid`/`ppid`
+  edges, and `plasma summarize` reduces a bounded tail to a compact digest.
+- **Case workspace.** `plasma case` collects selected events and findings,
+  records notes, renders a timeline and Markdown report, and seals every
+  artifact with a SHA-256 manifest. `case verify` detects changes.
+- **Triggered memory triage.** `plasma memory triage` scans only PIDs
+  selected by injection- or credential-shaped alerts, deduplicated across
+  runs.
+- **Identity coverage.** 4720/4722/4724/4728/4732/4756/4648/4672-class
+  account, group and privilege events normalize into the event contract.
+  4662/4672 are supported but excluded from the default high-volume pull.
+  4688 now retains parent PID for lineage.
+- **Detection harness.** `plasma detect validate|diff|replay` compiles rule
+  regexes, compares rule sets by name and hash, and replays chains over a
+  captured store.
+- **Tamper and blind-spot accounting.** `health` verifies canary integrity,
+  names blind spots, and includes them in the verdict. `prevent posture`
+  reads WDAC, Controlled Folder Access, Network Protection and the
+  vulnerable driver blocklist without changing them.
+- **Agent surface.** MCP adds `query_events`, `get_process_tree`,
+  `get_summary`, `get_coverage`, `get_blind_spots`, `get_case`,
+  `scan_memory` and `simulate_policy`. `control policy simulate` explains a
+  decision without creating an action, approval or ledger row.
+- 896 tests collected; full suite passes.
+
 ## 1.22.0 — 2026-11-20
 
 - **Memory scanning.** New `plasma memory scan` binds HollowsHunter/PE-sieve

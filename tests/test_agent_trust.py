@@ -422,3 +422,36 @@ def test_mcp_rejects_oversized_request():
                                  "arguments": {"limit": 1}}} | {"pad": "x" * (mcp.MAX_REQUEST_BYTES + 1)})
     # handle itself validates args; the serve loop enforces the byte cap.
     assert res is not None
+
+
+def test_policy_simulation_is_read_only_and_explains(tmp_path):
+    from plasma import policy
+    before = policy.load(tmp_path)
+    result = policy.simulate("isolate_host", {"host": "WS1"},
+                             policy=policy.DEFAULT_POLICY)
+    assert result["ok"] is True
+    assert result["decision"]["approval_required"] is True
+    assert result["decision"]["code"] == "approval_required"
+    assert policy.load(tmp_path) == before
+
+
+def test_policy_simulation_can_model_narrow_scopes():
+    from plasma import policy
+    result = policy.simulate("isolate_host", {"host": "WS1"},
+                             context={"scopes": ["events:read"]},
+                             policy=policy.DEFAULT_POLICY)
+    assert result["decision"]["allowed"] is False
+    assert any("missing scope" in reason
+               for reason in result["decision"]["reasons"])
+    assert result["note"].startswith("read-only simulation")
+
+
+def test_new_mcp_tools_are_typed_and_present():
+    from plasma import tools
+    names = {tool.name for tool in tools.TOOLS}
+    assert {"query_events", "get_process_tree", "get_coverage",
+            "get_blind_spots", "get_case", "scan_memory",
+            "simulate_policy"} <= names
+    assert tools.get("query_events").risk == "read"
+    assert tools.get("scan_memory").dry_run_only is True
+    assert tools.validate_args("query_events", {"limit": 5})["limit"] == 5

@@ -219,3 +219,78 @@ def test_realm_qualified_upn_is_not_double_prefixed():
         kerberos_row(eid=4768, user="olu@CORP.LOCAL", domain="CORP.LOCAL"),
         host="WS1")
     assert ev["user"] == "olu@CORP.LOCAL"
+
+
+# --- Account, group and privilege coverage (v1.23.0) ----------------------
+
+def account_row(eid=4720, **kw):
+    r = row(eid=eid, user="svc-temp", domain="CORP",
+            target_user="svc-temp", target_domain="CORP",
+            actor="Administrator")
+    r.update(kw)
+    return r
+
+
+def test_account_creation_is_high_signal():
+    ev = identity.normalize_logon(account_row(), host="WS1")
+    assert ev["event_id"] == 4720
+    assert ev["user"] == "CORP\\svc-temp"
+    assert ev["severity"] == "high" and ev["score"] == 0.8
+    assert "account created" in ev["description"]
+    PlasmaEvent(**ev)
+
+
+def test_group_membership_change_is_described():
+    ev = identity.normalize_logon(
+        account_row(eid=4728, user="Domain Admins",
+                    target_user="Domain Admins",
+                    member="CORP\\svc-temp"), host="WS1")
+    assert ev["event_id"] == 4728
+    assert "global group membership added" in ev["description"]
+    assert "svc-temp" in ev["description"]
+    PlasmaEvent(**ev)
+
+
+def test_explicit_credentials_uses_actor_as_user():
+    ev = identity.normalize_logon(
+        row(eid=4648, user="olu", domain="CORP",
+            target_user="Administrator", target_domain="CORP"), host="WS1")
+    assert ev["event_id"] == 4648
+    assert ev["user"] == "CORP\\olu"
+    assert "explicit credentials" in ev["description"]
+    assert ev["severity"] == "medium"
+    PlasmaEvent(**ev)
+
+
+def test_privilege_and_directory_events_are_supported():
+    ev = identity.normalize_logon(
+        row(eid=4672, user="olu", domain="CORP",
+            privileges="SeDebugPrivilege, SeBackupPrivilege"), host="WS1")
+    assert "special privileges" in ev["description"]
+    assert "SeDebugPrivilege" in ev["description"]
+    PlasmaEvent(**ev)
+    ev2 = identity.normalize_logon(
+        row(eid=4662, user="olu", domain="CORP",
+            object_name="DC=corp,DC=local"), host="WS1")
+    assert "directory service access" in ev2["description"]
+    PlasmaEvent(**ev2)
+
+
+def test_process_lineage_keeps_parent_pid():
+    ev = identity.normalize_process(
+        {"event_id": 4688, "ts": "2026-10-19T13:00:00.000Z",
+         "user": "olu", "domain": "CORP", "process": "C:\\Windows\\cmd.exe",
+         "parent": "C:\\Windows\\explorer.exe", "pid": "200", "ppid": "100",
+         "cmdline": "cmd.exe /c whoami"}, host="WS1")
+    assert ev["pid"] == 200 and ev["ppid"] == 100
+    assert ev["parent"] == "explorer.exe"
+    PlasmaEvent(**ev)
+
+
+def test_supported_ids_include_directory_events_but_default_excludes_noise():
+    assert identity.parse_ids("4662,4672") == (4662, 4672)
+    assert 4662 not in identity.DEFAULT_IDS
+    assert 4672 not in identity.DEFAULT_IDS
+    assert 4720 in identity.DEFAULT_IDS
+    with pytest.raises(ValueError):
+        identity.parse_ids("9999")

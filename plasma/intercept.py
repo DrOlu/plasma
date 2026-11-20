@@ -1,4 +1,3 @@
-# ruff: noqa: ISC004
 """Plasma intercept: deterministic policy at Windows' native gates.
 
 An interceptor is not another sensor. It sees an action at the boundary and
@@ -69,7 +68,7 @@ def _load_rules(root) -> list[dict]:
         raise ValueError(f"intercept rule registry unreadable: {exc}") from exc
     rules = blob.get("rules") if isinstance(blob, dict) else None
     if not isinstance(rules, list):
-        raise ValueError("intercept rule registry has no 'rules' array")
+        raise ValueError("intercept rule registry has no 'rules' array")  # noqa: TRY004
     return [_normalize_rule(r) for r in rules]
 
 
@@ -79,7 +78,7 @@ def _save_rules(root, rules: list[dict]) -> None:
 
 def _normalize_rule(rule) -> dict:
     if not isinstance(rule, dict):
-        raise ValueError("a rule must be an object")
+        raise ValueError("a rule must be an object")  # noqa: TRY004
     rule_id = str(rule.get("id") or "").strip()
     if not _ID_RE.match(rule_id):
         raise ValueError(f"invalid rule id: {rule_id!r}")
@@ -97,7 +96,7 @@ def _normalize_rule(rule) -> dict:
         raise ValueError(f"invalid mode: {mode!r}")
     match = rule.get("match") or {}
     if not isinstance(match, dict):
-        raise ValueError("rule match must be an object")
+        raise ValueError("rule match must be an object")  # noqa: TRY004
     clean_match = {}
     for key, value in match.items():
         key = str(key)

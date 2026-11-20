@@ -151,3 +151,61 @@ def test_status_and_list(tmp_path, monkeypatch):
     assert result["version"] == memory.TOOL_VERSION
     assert result["last_scan"] is None
     assert memory.list_scans(root)["count"] == 0
+
+
+def test_triage_targets_only_injection_or_credential_signals():
+    rows = [
+        {"ts": "2999-01-01T00:00:00Z", "kind": "alert", "score": 0.9,
+         "pid": 1, "process": "a.exe", "technique": "T1486",
+         "description": "ransomware note"},
+        {"ts": "2999-01-01T00:00:00Z", "kind": "alert", "score": 0.9,
+         "pid": 2, "process": "b.exe", "technique": "T1055",
+         "description": "injection"},
+        {"ts": "2999-01-01T00:00:00Z", "kind": "process", "score": 0.8,
+         "pid": 3, "process": "c.exe", "description": "lsass access"},
+        {"ts": "2999-01-01T00:00:00Z", "kind": "alert", "score": 0.2,
+         "pid": 4, "process": "d.exe", "technique": "T1055",
+         "description": "below threshold"},
+        {"ts": "2999-01-01T00:00:00Z", "kind": "alert", "score": 0.9,
+         "pid": 5, "process": "e.exe", "source": "memory",
+         "technique": "T1055", "description": "memory"},
+    ]
+    result = memory.triage_targets(rows, min_score=0.7)
+    assert [row["pid"] for row in result["targets"]] == [2, 3]
+
+
+def test_triage_scans_selected_pids(tmp_path, monkeypatch):
+    events = tmp_path / "events.jsonl"
+    events.write_text(json.dumps({
+        "ts": "2999-01-01T00:00:00Z", "kind": "alert", "score": 0.9,
+        "pid": 42, "process": "victim.exe", "technique": "T1055",
+        "description": "shellcode",
+    }) + "\n")
+    seen = {}
+
+    def fake_scan(root, **kwargs):
+        seen.update(kwargs)
+        return {"ok": True, "findings": [], "scan_dir": "x"}
+
+    monkeypatch.setattr(memory, "scan", fake_scan)
+    result = memory.triage(tmp_path, events_path=events, deep=True)
+    assert result["ok"] is True
+    assert result["pids"] == [42]
+    assert seen["pids"] == [42]
+    assert seen["deep"] is True
+
+
+def test_triage_without_targets_does_not_scan(tmp_path, monkeypatch):
+    events = tmp_path / "events.jsonl"
+    events.write_text("")
+    called = False
+
+    def fake_scan(*a, **k):
+        nonlocal called
+        called = True
+        return {}
+
+    monkeypatch.setattr(memory, "scan", fake_scan)
+    result = memory.triage(tmp_path, events_path=events)
+    assert result["code"] == "NO_TARGETS"
+    assert called is False

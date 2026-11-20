@@ -57,9 +57,21 @@ from . import (
     watch,
     whids,
 )
+from . import (
+    case as case_mod,
+)
+from . import (
+    detect as detect_mod,
+)
 from . import help as helpmod
 from . import mcp as mcp_server
 from . import policy as agent_policy
+from . import (
+    query as query_mod,
+)
+from . import (
+    summarize as summarize_mod,
+)
 from . import update as updater
 from .bundle import build_bundle
 from .manifest import create_manifest, verify_manifest
@@ -1893,6 +1905,215 @@ def cmd_intercept_protect_canary(args) -> int:
     return 0 if "error" not in result else 2
 
 
+def _load_query_spec(value):
+    if not value:
+        return {}
+    text = str(value).strip()
+    path = Path(text)
+    if path.exists() and path.is_file():
+        text = path.read_text(encoding="utf-8-sig")
+    try:
+        spec = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise query_mod.QueryError(f"query is not valid JSON: {exc}") from exc
+    if not isinstance(spec, dict):
+        raise query_mod.QueryError("query must be a JSON object")
+    return spec
+
+
+def _query_spec_from_args(args) -> dict:
+    spec = _load_query_spec(getattr(args, "spec", None))
+    values = {
+        "host": getattr(args, "host", None),
+        "user": getattr(args, "user", None),
+        "process": getattr(args, "process", None),
+        "parent": getattr(args, "parent", None),
+        "kind": getattr(args, "kind", None),
+        "source": getattr(args, "source", None),
+        "event_id": getattr(args, "event_id", None),
+        "technique": getattr(args, "technique", None),
+        "contains": getattr(args, "contains", None),
+        "regex": getattr(args, "regex", None),
+        "since": getattr(args, "since", None),
+        "until": getattr(args, "until", None),
+        "min_score": getattr(args, "min_score", None),
+        "max_score": getattr(args, "max_score", None),
+        "pid": getattr(args, "pid", None),
+        "count_by": getattr(args, "count_by", None),
+        "order": getattr(args, "order", None),
+        "limit": getattr(args, "limit", None),
+        "max_rows": getattr(args, "max_rows", None),
+    }
+    for key, value in values.items():
+        if value is not None:
+            spec[key] = value
+    return spec
+
+
+def cmd_query(args) -> int:
+    try:
+        spec = _query_spec_from_args(args)
+        result = query_mod.query(
+            args.events or _events_path(args.root), spec,
+            max_rows=args.max_rows or query_mod.DEFAULT_MAX_ROWS)
+    except (query_mod.QueryError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500], "code": "QUERY_ERROR"})
+        return 1
+    if args.out:
+        try:
+            Path(args.out).write_text(json.dumps(result, indent=2,
+                                                 default=str) + "\n",
+                                      encoding="utf-8")
+            result = {**result, "out": args.out}
+        except OSError as exc:
+            _emit({"ok": False, "error": f"cannot write --out: {exc}"})
+            return 1
+    _emit(result)
+    return 0
+
+
+def cmd_tree(args) -> int:
+    try:
+        result = query_mod.tree(
+            args.events or _events_path(args.root), pid=args.pid,
+            process_name=args.process, depth=args.depth,
+            max_rows=args.max_rows)
+    except (query_mod.QueryError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500], "code": "QUERY_ERROR"})
+        return 1
+    _emit(result)
+    return 0
+
+
+def cmd_detect_validate(args) -> int:
+    try:
+        result = detect_mod.validate(args.rules)
+    except detect_mod.DetectError as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit(result)
+    return 0 if result.get("ok") else 2
+
+
+def cmd_detect_diff(args) -> int:
+    try:
+        result = detect_mod.diff(args.old, args.new)
+    except detect_mod.DetectError as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit(result)
+    return 0
+
+
+def cmd_detect_replay(args) -> int:
+    try:
+        result = detect_mod.replay(args.events, args.rules, max_rows=args.max_rows)
+    except detect_mod.DetectError as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit(result)
+    return 0 if "error" not in result.get("chains", {}) else 2
+
+
+def cmd_summarize(args) -> int:
+    result = summarize_mod.summarize(
+        args.events or _events_path(args.root), since=args.since,
+        max_rows=args.max_rows, limit=args.limit, rare_max=args.rare_max)
+    _emit(result)
+    return 0
+
+
+def cmd_case_open(args) -> int:
+    try:
+        result = case_mod.open_case(
+            args.root, args.name, host=args.host, note=args.note,
+            title=args.title)
+    except (case_mod.CaseError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit(result)
+    return 0
+
+
+def cmd_case_list(args) -> int:
+    _emit({"ok": True, **case_mod.list_cases(args.root)})
+    return 0
+
+
+def cmd_case_add(args) -> int:
+    try:
+        spec = _query_spec_from_args(args)
+        if not spec:
+            raise case_mod.CaseError(
+                "case add requires a filter or --spec; refusing to copy "
+                "the whole store")
+        result = case_mod.add_query(
+            args.root, args.name, spec,
+            events_path=args.events or _events_path(args.root))
+    except (case_mod.CaseError, query_mod.QueryError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit(result)
+    return 0
+
+
+def cmd_case_note(args) -> int:
+    try:
+        result = case_mod.add_note(args.root, args.name, args.text)
+    except (case_mod.CaseError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit(result)
+    return 0
+
+
+def cmd_case_timeline(args) -> int:
+    try:
+        result = case_mod.timeline(args.root, args.name)
+    except (case_mod.CaseError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit(result)
+    return 0
+
+
+def cmd_case_report(args) -> int:
+    try:
+        result = case_mod.report(args.root, args.name)
+    except (case_mod.CaseError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    if args.out:
+        try:
+            Path(args.out).write_text(result["markdown"], encoding="utf-8")
+            result = {**result, "path": args.out}
+        except OSError as exc:
+            _emit({"ok": False, "error": f"cannot write --out: {exc}"})
+            return 1
+    _emit(result)
+    return 0
+
+
+def cmd_case_seal(args) -> int:
+    try:
+        result = case_mod.seal(args.root, args.name)
+    except (case_mod.CaseError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit(result)
+    return 0
+
+
+def cmd_case_verify(args) -> int:
+    try:
+        result = case_mod.verify(args.root, args.name)
+    except (case_mod.CaseError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit(result)
+    return 0 if result.get("ok") else 2
+
+
 def cmd_memory_scan(args) -> int:
     result = memory.scan(
         args.root, pids=args.pid, pnames=args.pname,
@@ -1914,6 +2135,18 @@ def cmd_memory_status(args) -> int:
 def cmd_memory_list(args) -> int:
     _emit({"ok": True, **memory.list_scans(args.root)})
     return 0
+
+
+def cmd_memory_triage(args) -> int:
+    result = memory.triage(
+        args.root, events_path=args.events or _events_path(args.root),
+        min_score=args.min_score, since_minutes=args.since_minutes,
+        max_targets=args.max_targets, deep=not args.no_deep,
+        timeout=args.timeout)
+    _emit(result)
+    if result.get("code") == "NO_TARGETS":
+        return 0
+    return 0 if result.get("ok") else 1
 
 
 def cmd_fim_baseline(args) -> int:
@@ -2271,6 +2504,12 @@ def cmd_prevent_status(args) -> int:
     return 0
 
 
+def cmd_prevent_posture(args) -> int:
+    result = prevent.posture()
+    _emit(result)
+    return 0 if result.get("ok") else 2
+
+
 def cmd_prevent_applocker(args) -> int:
     result = prevent.applocker(args.root, mode=args.mode,
                                allow_paths=args.allow_path,
@@ -2448,6 +2687,26 @@ def cmd_control_policy_set(args) -> int:
         _emit({"error": str(exc)})
         return 1
     return 0
+
+
+def cmd_control_policy_simulate(args) -> int:
+    try:
+        payload = json.loads(args.args or "{}")
+    except json.JSONDecodeError as exc:
+        _emit({"ok": False, "error": f"--args is not JSON: {exc}"})
+        return 1
+    if not isinstance(payload, dict):
+        _emit({"ok": False, "error": "--args must be a JSON object"})
+        return 1
+    context = {}
+    if args.scopes:
+        context["scopes"] = [s.strip() for s in args.scopes.split(",") if s.strip()]
+    result = agent_policy.simulate(
+        args.tool, payload, context=context,
+        recent_actions=args.recent_actions,
+        killswitch_blocked=args.killswitch_blocked)
+    _emit(result)
+    return 0 if result.get("ok") else 2
 
 
 def cmd_control_approvals_list(args) -> int:
@@ -2913,6 +3172,133 @@ def build_parser() -> argparse.ArgumentParser:
     itb.add_argument("--reason", default=None)
     itb.set_defaults(func=cmd_intercept_rollback)
 
+    qp = sub.add_parser("query",
+                        help="typed, bounded queries over the local event store")
+    qp.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    qp.add_argument("--events", default=None)
+    qp.add_argument("--spec", default=None,
+                    help="JSON query object or a path to one")
+    qp.add_argument("--host")
+    qp.add_argument("--user")
+    qp.add_argument("--process")
+    qp.add_argument("--parent")
+    qp.add_argument("--kind")
+    qp.add_argument("--source")
+    qp.add_argument("--event-id", dest="event_id", type=int)
+    qp.add_argument("--technique")
+    qp.add_argument("--contains")
+    qp.add_argument("--regex")
+    qp.add_argument("--since", help="ISO timestamp or duration such as 15m, 1h, 2d")
+    qp.add_argument("--until", help="ISO timestamp or duration")
+    qp.add_argument("--min-score", dest="min_score", type=float)
+    qp.add_argument("--max-score", dest="max_score", type=float)
+    qp.add_argument("--pid", type=int)
+    qp.add_argument("--count-by", dest="count_by", choices=query_mod.COUNT_FIELDS)
+    qp.add_argument("--order", choices=("asc", "desc"), default=None)
+    qp.add_argument("--limit", type=int, default=None)
+    qp.add_argument("--max-rows", dest="max_rows", type=int,
+                    default=query_mod.DEFAULT_MAX_ROWS)
+    qp.add_argument("--out", default=None)
+    qp.set_defaults(func=cmd_query)
+
+    dt = sub.add_parser("detect",
+                        help="detection-engineering harness: validate, diff, replay")
+    dts = dt.add_subparsers(dest="detect_action", required=True)
+    dtv = dts.add_parser("validate", help="compile regexes and check rule shape")
+    dtv.add_argument("--rules", required=True)
+    dtv.set_defaults(func=cmd_detect_validate)
+    dtd = dts.add_parser("diff", help="compare two rule files by name and hash")
+    dtd.add_argument("--old", required=True)
+    dtd.add_argument("--new", required=True)
+    dtd.set_defaults(func=cmd_detect_diff)
+    dtr = dts.add_parser("replay", help="run chains and a summary over a captured store")
+    dtr.add_argument("--events", required=True)
+    dtr.add_argument("--rules", default=None)
+    dtr.add_argument("--max-rows", dest="max_rows", type=int, default=5000)
+    dtr.set_defaults(func=cmd_detect_replay)
+
+    sm = sub.add_parser("summarize",
+                        help="bounded local digest: processes, lineage, rare commands")
+    sm.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    sm.add_argument("--events", default=None)
+    sm.add_argument("--since", default=None,
+                    help="ISO timestamp or duration such as 15m, 1h, 2d")
+    sm.add_argument("--max-rows", dest="max_rows", type=int,
+                    default=query_mod.DEFAULT_MAX_ROWS)
+    sm.add_argument("--limit", type=int, default=20)
+    sm.add_argument("--rare-max", dest="rare_max", type=int, default=2,
+                    help="a command line is rare at or below this count")
+    sm.set_defaults(func=cmd_summarize)
+
+    tp = sub.add_parser("tree", help="parent/child process lineage from PID edges")
+    tp.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    tp.add_argument("--events", default=None)
+    tp.add_argument("--pid", type=int, default=None)
+    tp.add_argument("--process", default=None)
+    tp.add_argument("--depth", type=int, default=3)
+    tp.add_argument("--max-rows", dest="max_rows", type=int,
+                    default=query_mod.DEFAULT_MAX_ROWS)
+    tp.set_defaults(func=cmd_tree)
+
+    cp = sub.add_parser("case", help="durable local case workspace: events, notes, timeline, seal")
+    cps = cp.add_subparsers(dest="case_action", required=True)
+    cpo = cps.add_parser("open", help="create or reopen a case")
+    cpo.add_argument("name")
+    cpo.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpo.add_argument("--host", default=None)
+    cpo.add_argument("--title", default=None)
+    cpo.add_argument("--note", default=None)
+    cpo.set_defaults(func=cmd_case_open)
+    cpl = cps.add_parser("list", help="list local cases")
+    cpl.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpl.set_defaults(func=cmd_case_list)
+    cpa = cps.add_parser("add", help="run a typed query and copy matches into the case")
+    cpa.add_argument("name")
+    cpa.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpa.add_argument("--events", default=None)
+    cpa.add_argument("--spec", default=None)
+    cpa.add_argument("--host")
+    cpa.add_argument("--user")
+    cpa.add_argument("--process")
+    cpa.add_argument("--parent")
+    cpa.add_argument("--kind")
+    cpa.add_argument("--source")
+    cpa.add_argument("--event-id", dest="event_id", type=int)
+    cpa.add_argument("--technique")
+    cpa.add_argument("--contains")
+    cpa.add_argument("--regex")
+    cpa.add_argument("--since")
+    cpa.add_argument("--until")
+    cpa.add_argument("--min-score", dest="min_score", type=float)
+    cpa.add_argument("--max-score", dest="max_score", type=float)
+    cpa.add_argument("--pid", type=int)
+    cpa.add_argument("--limit", type=int, default=200)
+    cpa.add_argument("--max-rows", dest="max_rows", type=int,
+                     default=query_mod.DEFAULT_MAX_ROWS)
+    cpa.set_defaults(func=cmd_case_add)
+    cpn = cps.add_parser("note", help="append an operator note")
+    cpn.add_argument("name")
+    cpn.add_argument("text")
+    cpn.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpn.set_defaults(func=cmd_case_note)
+    cpt = cps.add_parser("timeline", help="merge events, findings and notes on one timeline")
+    cpt.add_argument("name")
+    cpt.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpt.set_defaults(func=cmd_case_timeline)
+    cpr = cps.add_parser("report", help="render a Markdown case report")
+    cpr.add_argument("name")
+    cpr.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpr.add_argument("--out", default=None)
+    cpr.set_defaults(func=cmd_case_report)
+    cpsl = cps.add_parser("seal", help="hash all artifacts into a sealed manifest")
+    cpsl.add_argument("name")
+    cpsl.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpsl.set_defaults(func=cmd_case_seal)
+    cpv = cps.add_parser("verify", help="verify a sealed case has not changed")
+    cpv.add_argument("name")
+    cpv.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpv.set_defaults(func=cmd_case_verify)
+
     mem = sub.add_parser("memory",
                          help="bounded on-demand process-memory scanning")
     mems = mem.add_subparsers(dest="memory_action", required=True)
@@ -2938,6 +3324,16 @@ def build_parser() -> argparse.ArgumentParser:
     memls = mems.add_parser("list", help="recent memory scans")
     memls.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     memls.set_defaults(func=cmd_memory_list)
+    memt = mems.add_parser("triage", help="scan PIDs selected from high-signal alerts")
+    memt.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    memt.add_argument("--events", default=None)
+    memt.add_argument("--since-minutes", dest="since_minutes", type=int, default=60)
+    memt.add_argument("--min-score", dest="min_score", type=float, default=0.7,
+                      help="0-1 alert score threshold (default 0.7)")
+    memt.add_argument("--max-targets", dest="max_targets", type=int, default=5)
+    memt.add_argument("--no-deep", action="store_true")
+    memt.add_argument("--timeout", type=int, default=300)
+    memt.set_defaults(func=cmd_memory_triage)
 
     fm = sub.add_parser("fim", help="critical-file integrity monitoring")
     fms = fm.add_subparsers(dest="fim_action", required=True)
@@ -3155,6 +3551,9 @@ def build_parser() -> argparse.ArgumentParser:
     pvs = pv.add_subparsers(dest="prevent_action", required=True)
     pvst = pvs.add_parser("status", help="read-only prevention posture")
     pvst.set_defaults(func=cmd_prevent_status)
+    pvpo = pvs.add_parser("posture",
+                          help="WDAC, CFA, Network Protection and driver blocklist state")
+    pvpo.set_defaults(func=cmd_prevent_posture)
     pva = pvs.add_parser("applocker", help="AppLocker Exe policy (audit by default)")
     pva.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     pva.add_argument("--mode", choices=["audit", "enforce"], default="audit")
@@ -3349,6 +3748,17 @@ def build_parser() -> argparse.ArgumentParser:
     crit.add_argument("--no-allow-critical", dest="allow_critical",
                       action="store_false")
     pset.set_defaults(func=cmd_control_policy_set)
+    psim = pols.add_parser("simulate",
+                           help="explain a policy decision without changing state")
+    psim.add_argument("tool", help="typed tool name, e.g. isolate_host")
+    psim.add_argument("--args", default="{}", help="tool arguments as JSON")
+    psim.add_argument("--scopes", default=None,
+                      help="comma-separated scopes; default: the tool's own")
+    psim.add_argument("--recent-actions", dest="recent_actions", type=int, default=0)
+    psim.add_argument("--killswitch-blocked", dest="killswitch_blocked",
+                      action="store_true")
+    psim.add_argument("--root", default=None)
+    psim.set_defaults(func=cmd_control_policy_simulate)
 
     appr = ctls.add_parser("approvals", help="list, approve or deny pending actions")
     apprs = appr.add_subparsers(dest="approvals_action", required=True)

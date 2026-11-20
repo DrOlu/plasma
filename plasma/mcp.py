@@ -29,6 +29,18 @@ from . import (
     tenants,
     tools,
 )
+from . import (
+    case as case_mod,
+)
+from . import (
+    coverage as coverage_mod,
+)
+from . import (
+    query as query_mod,
+)
+from . import (
+    summarize as summarize_mod,
+)
 
 PROTOCOL_VERSION = "2024-11-05"
 MAX_REQUEST_BYTES = 1 << 20
@@ -178,6 +190,123 @@ def _handler_kill(root, args, context):
                  "No process was killed; this action is not reversible.")
 
 
+
+def _query_spec(args):
+    spec = {}
+    for key in ("host", "user", "process", "parent", "kind", "source",
+                "technique", "contains", "since", "until", "count_by",
+                "event_id", "min_score", "max_score", "pid", "order",
+                "limit"):
+        if args.get(key) is not None:
+            spec[key] = args[key]
+    return spec
+
+
+def _handler_query_events(root, args, context):
+    spec = _query_spec(args)
+    if args.get("spec"):
+        if isinstance(args["spec"], dict):
+            spec = {**args["spec"], **spec}
+        else:
+            return {"ok": False, "code": "BAD_SPEC",
+                    "error": "spec must be an object"}
+    spec.setdefault("limit", int(args.get("limit", 100)))
+    try:
+        result = query_mod.query(_event_path(root), spec)
+    except query_mod.QueryError as exc:
+        return {"ok": False, "code": "BAD_QUERY", "error": str(exc)[:300]}
+    tenant = context.get("tenant")
+    if tenant:
+        rows = _tenant_rows(root, result.get("events") or [], tenant)
+        result["events"] = rows
+        result["returned"] = len(rows)
+        result["tenant_scoped"] = True
+    return result
+
+
+def _handler_process_tree(root, args, context):
+    try:
+        result = query_mod.tree(
+            _event_path(root), pid=args.get("pid"),
+            process_name=args.get("process"), depth=int(args.get("depth", 3)))
+    except query_mod.QueryError as exc:
+        return {"ok": False, "code": "BAD_QUERY", "error": str(exc)[:300]}
+    tenant = context.get("tenant")
+    if tenant:
+        nodes = _tenant_rows(root, result.get("nodes") or [], tenant)
+        result["nodes"] = nodes
+        result["tenant_scoped"] = True
+    return result
+
+
+def _handler_summary(root, args, context):
+    result = summarize_mod.summarize(
+        _event_path(root), since=args.get("since"),
+        max_rows=int(args.get("max_rows", 5000)),
+        limit=int(args.get("limit", 20)))
+    tenant = context.get("tenant")
+    if tenant:
+        keep = {r.get("host") for r in
+                _tenant_rows(root, _read_rows(root), tenant)}
+        result["hosts"] = [row for row in result.get("hosts") or []
+                           if row.get("host") in keep]
+        result["tenant_scoped"] = True
+    return result
+
+
+def _handler_coverage(root, args, context):
+    return {"ok": True, **coverage_mod.coverage()}
+
+
+def _handler_blind_spots(root, args, context):
+    if not _tenant_owns_local(root, context.get("tenant")):
+        return {"ok": False, "code": "DENIED",
+                "error": "this tenant does not own the local host"}
+    hv = health.verdict(root)
+    return {"ok": True, "status": hv.get("status"),
+            "blind_spots": hv.get("blind_spots") or [],
+            "failed": hv.get("failed") or []}
+
+
+def _handler_case(root, args, context):
+    if not _tenant_owns_local(root, context.get("tenant")):
+        return {"ok": False, "code": "DENIED",
+                "error": "this tenant does not own the local host"}
+    name = args["name"]
+    try:
+        if args.get("timeline"):
+            return {"ok": True, **case_mod.timeline(root, name)}
+        report = case_mod.report(root, name)
+        meta = case_mod.list_cases(root)
+        return {"ok": True, "case": report.get("case"),
+                "path": report.get("path"),
+                "summary": report.get("summary"),
+                "markdown": report.get("markdown"),
+                "cases": meta.get("count")}
+    except case_mod.CaseError as exc:
+        return {"ok": False, "code": "NO_CASE", "error": str(exc)[:300]}
+
+
+def _handler_scan_memory(root, args, context):
+    return _plan(
+        "scan_memory", args,
+        ["verify the pinned HollowsHunter hash",
+         "scan the explicitly selected process(es)",
+         "normalize findings into the local event store"],
+        "No process was scanned. Run plasma memory scan on the endpoint.")
+
+
+def _handler_simulate_policy(root, args, context):
+    scopes = args.get("scopes")
+    sim_context = {"scopes": scopes} if scopes else {}
+    result = policy.simulate(
+        args["tool"], args.get("arguments") or {}, context=sim_context,
+        policy=policy.load(root),
+        recent_actions=int(args.get("recent_actions", 0)),
+        killswitch_blocked=bool(args.get("killswitch_blocked", False)))
+    return result
+
+
 HANDLERS = {
     "read_events": _handler_read_events,
     "list_findings": _handler_list_findings,
@@ -190,6 +319,14 @@ HANDLERS = {
     "isolate_host": _handler_isolate,
     "quarantine_file": _handler_quarantine,
     "kill_process": _handler_kill,
+    "query_events": _handler_query_events,
+    "get_process_tree": _handler_process_tree,
+    "get_summary": _handler_summary,
+    "get_coverage": _handler_coverage,
+    "get_blind_spots": _handler_blind_spots,
+    "get_case": _handler_case,
+    "scan_memory": _handler_scan_memory,
+    "simulate_policy": _handler_simulate_policy,
 }
 
 

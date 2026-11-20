@@ -35,7 +35,7 @@ policy, an approval queue and a journal.
 ## Agent-native operation
 
 Plasma can be driven by an agent harness without giving it arbitrary
-execution. Eleven typed tools are exposed over MCP (`plasma mcp serve`);
+execution. Nineteen typed tools are exposed over MCP (`plasma mcp serve`);
 mutating tools return a dry-run plan and an approval reference, never an
 execution. A deterministic policy engine, a hash-chained provenance ledger,
 a kill switch and a single-use approval queue sit between the model and the
@@ -214,6 +214,33 @@ HollowsHunter/PE-sieve is bundled as a pinned, hash-verified, on-demand
 probe for hollowed or replaced PEs, reflective DLLs, shellcode, code
 patches and IAT hooks. Findings become `source="memory"` alerts. No dumps
 by default; `--dump` is explicit and local, and `--all` is opt-in.
+`plasma memory triage` scans only PIDs selected by injection- or
+credential-shaped alerts.
+
+## Investigation
+
+```bash
+plasma query --process powershell.exe --since 1h
+plasma query --kind alert --min-score 0.7 --count-by process
+plasma tree --pid 4832
+plasma summarize --since 24h
+
+plasma case open IR-2026-042 --host WS1
+plasma case add IR-2026-042 --process lsass.exe --since 2h
+plasma case note IR-2026-042 "confirmed with the user"
+plasma case report IR-2026-042
+plasma case seal IR-2026-042 && plasma case verify IR-2026-042
+
+plasma detect validate --rules sensors/plasma-baseline.gen
+plasma detect diff --old old.gen --new candidate.gen
+plasma detect replay --events captured.jsonl
+```
+
+Typed queries refuse unknown fields. Lineage uses only explicit `pid`/`ppid`
+edges. A case is a plain directory with selected events, notes, a rendered
+report and a SHA-256 manifest; `case verify` detects later changes. The
+detection harness compiles rule regexes, compares rule sets and replays
+chains over a capture without a running sensor.
 
 ## Interception at native gates
 

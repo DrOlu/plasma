@@ -34,20 +34,41 @@ from pathlib import Path
 from . import agentstate
 
 TASK_NAME = "PlasmaIdentityPull"
-DEFAULT_IDS = (4624, 4625, 4688, 4768, 4769, 4770, 4771, 4776)
-SUPPORTED_IDS = frozenset(DEFAULT_IDS)
+DEFAULT_IDS = (4624, 4625, 4648, 4688, 4720, 4722, 4724, 4728, 4732,
+               4756, 4768, 4769, 4770, 4771, 4776)
+# Directory/privilege events are supported but not pulled by default: 4662
+# and 4672 are extremely high-volume on a busy member server. An operator
+# asks for them explicitly when investigating directory or privilege abuse.
+SUPPORTED_IDS = frozenset(DEFAULT_IDS) | {
+    4662, 4672, 4725, 4726, 4738, 4740, 4767,
+}
 LOGON_IDS = frozenset({4624, 4625})
 KERBEROS_IDS = frozenset({4768, 4769, 4770, 4771})
 NTLM_ID = 4776
 PROCESS_ID = 4688
+EXPLICIT_CREDS_ID = 4648
+ACCOUNT_IDS = frozenset({4720, 4722, 4725, 4726, 4738, 4740, 4767})
+GROUP_IDS = frozenset({4728, 4732, 4756})
+PRIVILEGE_IDS = frozenset({4672})
+DIRECTORY_IDS = frozenset({4662})
 MAX_EVENTS = 2000
 STATUS_SUCCESS = {"0x0", "0", "-"}
 
-SEVERITY_BY_ID = {4624: "info", 4625: "medium", 4688: "info",
-                  4768: "info", 4769: "info", 4770: "info",
-                  4771: "medium", 4776: "info"}
-SCORE_BY_ID = {4624: 0.2, 4625: 0.5, 4688: 0.2, 4768: 0.2, 4769: 0.2,
-               4770: 0.2, 4771: 0.5, 4776: 0.2}
+SEVERITY_BY_ID = {
+    4624: "info", 4625: "medium", 4648: "medium", 4688: "info",
+    4720: "high", 4722: "medium", 4724: "high", 4725: "high",
+    4726: "high", 4728: "high", 4732: "high", 4738: "medium",
+    4740: "high", 4756: "high", 4767: "medium", 4768: "info",
+    4769: "info", 4770: "info", 4771: "medium", 4776: "info",
+    4662: "low", 4672: "medium",
+}
+SCORE_BY_ID = {
+    4624: 0.2, 4625: 0.5, 4648: 0.7, 4688: 0.2, 4720: 0.8,
+    4722: 0.6, 4724: 0.8, 4725: 0.7, 4726: 0.8, 4728: 0.8,
+    4732: 0.8, 4738: 0.6, 4740: 0.7, 4756: 0.8, 4767: 0.6,
+    4768: 0.2, 4769: 0.2, 4770: 0.2, 4771: 0.5, 4776: 0.2,
+    4662: 0.4, 4672: 0.5,
+}
 KIND_BY_ID = {PROCESS_ID: "process"}
 
 _PS_TEMPLATE = r"""
@@ -67,18 +88,24 @@ foreach ($e in $ev) {{
   $rows += [pscustomobject]@{{
     ts = $e.TimeCreated.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
     event_id = $e.Id
-    user = if ($e.Id -eq 4688) {{ $d['SubjectUserName'] }} elseif ($d['TargetUserName']) {{ $d['TargetUserName'] }} else {{ $d['SubjectUserName'] }}
-    domain = if ($e.Id -eq 4688) {{ $d['SubjectDomainName'] }} elseif ($d['TargetDomainName']) {{ $d['TargetDomainName'] }} else {{ $d['SubjectDomainName'] }}
+    user = if ($e.Id -in 4648,4662,4672) {{ $d['SubjectUserName'] }} elseif ($e.Id -eq 4688) {{ $d['SubjectUserName'] }} elseif ($d['TargetUserName']) {{ $d['TargetUserName'] }} else {{ $d['SubjectUserName'] }}
+    domain = if ($e.Id -in 4648,4662,4672) {{ $d['SubjectDomainName'] }} elseif ($e.Id -eq 4688) {{ $d['SubjectDomainName'] }} elseif ($d['TargetDomainName']) {{ $d['TargetDomainName'] }} else {{ $d['SubjectDomainName'] }}
     logonType = $d['LogonType']
     workstation = if ($d['WorkstationName']) {{ $d['WorkstationName'] }} else {{ $d['Workstation'] }}
     source_ip = $d['IpAddress']
     process = $d['NewProcessName']
     pid = if ($d['NewProcessId']) {{ $d['NewProcessId'] }} else {{ $d['ProcessId'] }}
+    ppid = if ($e.Id -eq 4688) {{ $d['ProcessId'] }} else {{ $null }}
     parent = $d['ParentProcessName']
     cmdline = $d['CommandLine']
     service = $d['ServiceName']
     status = $d['Status']
     package = $d['PackageName']
+    target_user = $d['TargetUserName']
+    actor = $d['SubjectUserName']
+    member = $d['MemberName']
+    privileges = $d['PrivilegeList']
+    object_name = $d['ObjectName']
   }}
 }}
 [pscustomobject]@{{ events = @($rows); error = $null }} |
@@ -172,6 +199,31 @@ def _status_ok(row: dict) -> bool:
 
 
 def _auth_description(eid: int, row: dict, source_ip) -> str:
+    if eid in ACCOUNT_IDS:
+        action = {
+            4720: "created", 4722: "enabled", 4724: "password reset",
+            4725: "disabled", 4726: "deleted", 4738: "changed",
+            4740: "locked out", 4767: "unlocked",
+        }.get(eid, "changed")
+        return (f"account {action}: {row.get('target_user') or 'unknown'} "
+                f"by {row.get('actor') or row.get('user') or 'unknown'}")
+    if eid in GROUP_IDS:
+        scope = {4728: "global", 4732: "local", 4756: "universal"}[eid]
+        return (f"{scope} group membership added: "
+                f"{row.get('member') or row.get('target_user') or 'unknown'} "
+                f"to {row.get('target_user') or row.get('object_name') or 'group'} "
+                f"by {row.get('actor') or row.get('user') or 'unknown'}")
+    if eid == EXPLICIT_CREDS_ID:
+        return (f"explicit credentials used for "
+                f"{row.get('target_user') or 'unknown'} "
+                f"process={row.get('process') or 'unknown'} "
+                f"from={source_ip or 'local'}")
+    if eid in PRIVILEGE_IDS:
+        return (f"special privileges assigned to {row.get('user') or 'unknown'}: "
+                f"{(row.get('privileges') or 'unknown')[:300]}")
+    if eid in DIRECTORY_IDS:
+        return (f"directory service access by {row.get('user') or 'unknown'} "
+                f"object={row.get('object_name') or 'unknown'}")
     if eid in LOGON_IDS:
         return (f"logon {'success' if eid == 4624 else 'FAILED'} "
                 f"type={row.get('logonType')} from={source_ip or 'local'} "
@@ -227,7 +279,7 @@ def normalize_logon(row: dict, host: str) -> dict:
     if not ts:
         raise ValueError("logon record has no timestamp")
     failed = (eid in (4625, 4771, NTLM_ID) and not _status_ok(row)) or eid == 4625
-    severity = "medium" if failed else SEVERITY_BY_ID.get(eid, "info")
+    severity = ("medium" if failed else SEVERITY_BY_ID.get(eid, "info"))
     event = {
         "ts": ts,
         "host": host,
@@ -288,6 +340,8 @@ def normalize_process(row: dict, host: str) -> dict:
         "process": _clip(_base_name(image), 260),
         "pid": int(row["pid"]) if str(row.get("pid") or "").isdigit() and
                int(row["pid"]) <= 2_147_483_647 else None,
+        "ppid": int(row["ppid"]) if str(row.get("ppid") or "").isdigit() and
+                int(row["ppid"]) <= 2_147_483_647 else None,
         "parent": _clip(_base_name(parent), 260),
         "image": _clip(image, 512),
         "cmdline": _clip(cmdline, 2048),

@@ -71,11 +71,12 @@ GROUPS = [
     ("collect", "Collection and detection", [
         "whids", "identity", "tap", "trace", "sigma", "canary", "memory", "fim",
         "deep", "observe", "chain", "coverage", "store", "watch", "notify",
+        "query", "tree", "summarize", "detect",
     ]),
     ("respond", "Response and prevention", [
         "actuate", "playbook", "enforce", "protect", "prevent", "intercept",
     ]),
-    ("fleet", "Fleet and case work", ["fleet", "drift"]),
+    ("fleet", "Fleet and case work", ["fleet", "case", "drift"]),
     ("trust", "Agent trust, audit and evidence", [
         "control", "evidence", "assurance",
     ]),
@@ -2501,7 +2502,9 @@ ROOT_DESCRIPTION = """Plasma is a lake-less, agent-native Windows EDR.
 Detection is local: Sysmon/WHIDS alerts, Security-channel audit events, an
 ETW tap, DTrace on demand, file integrity, canary files, native DNS/HTTP
 tokens and on-demand memory scanning are normalized into one JSONL store.
-Response is explicit: every action is scoped, journaled and reversible, and
+Investigation is local too: typed queries, explicit process lineage, bounded
+summaries and sealed case directories. Response is explicit: every action
+is scoped, journaled and reversible, and
 automatic containment is armed narrowly by default. The agent trust layer
 decides what an agent may do; the kill switch always wins.
 
@@ -2514,9 +2517,11 @@ ROOT_EPILOG = """AGENT QUICK START
   2. plasma status                           # what is installed
   3. plasma health                           # is the stack alive
   4. plasma watch once                       # detect and decide
-  5. plasma control killswitch status        # is mutation allowed
-  6. plasma actuate apply ... --reason ...   # dry-run; prints a plan id
-  7. plasma actuate apply ... --apply --plan <id>
+  5. plasma query --kind alert --since 1h    # typed, bounded investigation
+  6. plasma case open IR-1 && plasma case add IR-1 --process <name>
+  7. plasma control killswitch status        # is mutation allowed
+  8. plasma actuate apply ... --reason ...   # dry-run; prints a plan id
+  9. plasma actuate apply ... --apply --plan <id>
 
 DISCOVERY
   plasma help                    command map and conventions
@@ -2800,5 +2805,286 @@ def overview(parser: argparse.ArgumentParser) -> str:
     for row in ENVIRONMENT:
         lines.append(f"  {row['name']:<28} {row['meaning']}")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Investigation: typed query, lineage, case workspace (v1.23.0)
+# ---------------------------------------------------------------------------
+
+_add("query", _c(
+    "typed, bounded queries over the local event store",
+    """Ask a precise question of the bounded JSONL event tail without
+assembling a shell pipeline.
+
+The query language is closed: `host`, `user`, `process`, `parent`, `kind`,
+`source`, `event_id`, `technique`, `contains`, `regex`, `since`, `until`,
+`min_score`, `max_score`, `pid`, `count_by`, `order`, `limit` and
+`max_rows`. An unknown field is refused, not ignored, so a typo cannot
+silently widen a search. Process and parent comparisons use the basename,
+case-insensitively, and accept `*`/`?` globs.
+
+Rows are read from the last `--max-rows` (default 5000) within an 8 MiB
+tail. `--out` writes the full result JSON locally.""",
+    [
+        ("Recent PowerShell processes", "plasma query --process powershell.exe --since 1h"),
+        ("High-score alerts by process", "plasma query --kind alert --min-score 0.7 --count-by process"),
+        ("Specific user on one host", "plasma query --host WS1 --user CORP\\olu --since 24h"),
+        ("Reusable JSON spec", "plasma query --spec incident-42-query.json"),
+        ("Write the result to a file", "plasma query --process rundll32.exe --out C:\\Temp\\rundll32.json"),
+    ],
+    safety=READ_ONLY,
+    notes=["Unknown filter names fail closed.",
+           "The search is a bounded tail, not a database query.",
+           "Use `plasma tree` when the question is about lineage."],
+    see_also=["tree", "case add", "chain", "coverage"],
+))
+
+_add("tree", _c(
+    "parent/child process lineage from explicit PID edges",
+    """Build a process tree from explicit `pid`/`ppid` edges in the event
+tail. Select a root by `--pid` or `--process`; with neither, the most recent
+five orphan roots are returned.
+
+A missing parent is reported as an orphan rather than guessed from a process
+name. A wrong lineage edge is worse than no edge in an investigation.
+Depth is capped at 10 and the result at 500 nodes; truncation is explicit.""",
+    [
+        ("Tree for a PID", "plasma tree --pid 4832"),
+        ("Tree for the newest PowerShell", "plasma tree --process powershell.exe --depth 2"),
+        ("Wider history", "plasma tree --pid 1200 --max-rows 10000 --depth 5"),
+    ],
+    safety=READ_ONLY,
+    notes=["Only explicit ppid edges are used.",
+           "Sysmon EID 1 and Security 4688 both populate ppid when available."],
+    see_also=["query", "case add", "chain"],
+))
+
+_add("case", _c(
+    "durable local case workspace",
+    """Create a case directory under `<root>/cases/<name>` and collect
+selected events, findings and operator notes into it. A case is plain files:
+portable into a ticket or evidence bundle, with no server and no database.
+
+`case seal` hashes every artifact and writes a manifest with a chain hash;
+`case verify` recomputes it and fails on any changed or missing file.""",
+    [
+        ("Open a case", "plasma case open IR-2026-042 --host WS1 --title \"LSASS access\""),
+        ("Collect matching events", "plasma case add IR-2026-042 --process lsass.exe --since 2h"),
+        ("Add an operator note", "plasma case note IR-2026-042 \"Confirmed with the user\""),
+        ("Render and seal", "plasma case report IR-2026-042 && plasma case seal IR-2026-042"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["Reopening a case never clears evidence.",
+           "`case add` refuses to run without a filter; copying the whole store is not a case."],
+    see_also=["case open", "case add", "case report", "case seal", "query"],
+))
+
+_add("case open", _c(
+    "create or reopen a local case",
+    """Create `<root>/cases/<name>/` with `case.json`, `events.jsonl`,
+`findings.jsonl` and `notes.md`. Reopening an existing case preserves all
+artifacts and appends an optional note.""",
+    [
+        ("Create", "plasma case open IR-2026-042 --host WS1"),
+        ("Reopen with a note", "plasma case open IR-2026-042 --note \"Second review\""),
+    ],
+    safety=LOCAL_WRITE,
+    see_also=["case add", "case list"],
+))
+
+_add("case list", _c(
+    "list local cases",
+    "Return case metadata, newest first, from `<root>/cases/*/case.json`.",
+    [("List", "plasma case list")],
+    safety=READ_ONLY,
+    see_also=["case open", "case report"],
+))
+
+_add("case add", _c(
+    "query events and copy matches into a case",
+    """Run the same typed query language as `plasma query` and append the
+matching rows to the case. Duplicate rows are not appended twice. A filter
+is mandatory: a case is a selection, not a copy of the diary.""",
+    [
+        ("By process", "plasma case add IR-2026-042 --process powershell.exe --since 2h"),
+        ("By technique", "plasma case add IR-2026-042 --technique T1055 --min-score 0.7"),
+        ("From a spec", "plasma case add IR-2026-042 --spec query.json"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["The source store is never modified.",
+           "Returns how many rows were added and how many matched."],
+    see_also=["query", "case timeline", "case report"],
+))
+
+_add("case note", _c(
+    "append an operator note to a case",
+    "Append a timestamped line to `notes.md`. Notes participate in the timeline and report.",
+    [("Add a note", "plasma case note IR-2026-042 \"Isolation approved by the duty manager\"")],
+    safety=LOCAL_WRITE,
+    see_also=["case timeline", "case report"],
+))
+
+_add("case timeline", _c(
+    "merge events, findings and notes into one timeline",
+    "Return a time-ordered view of the case. Events and findings keep their score; notes are source `operator`.",
+    [("Timeline", "plasma case timeline IR-2026-042")],
+    safety=READ_ONLY,
+    see_also=["case note", "case report"],
+))
+
+_add("case report", _c(
+    "render a Markdown case report",
+    """Write `report.md` inside the case with counts, score bands, event
+kinds, sources, the highest-scoring rows and operator notes.""",
+    [
+        ("Render in place", "plasma case report IR-2026-042"),
+        ("Render elsewhere", "plasma case report IR-2026-042 --out C:\\Temp\\IR-2026-042.md"),
+    ],
+    safety=LOCAL_WRITE,
+    see_also=["case seal", "case timeline"],
+))
+
+_add("case seal", _c(
+    "seal a case with a hash manifest",
+    """Hash every artifact and write `manifest.json` with per-file SHA-256
+and a chain hash. Sealing is not encryption; it is tamper evidence.""",
+    [("Seal", "plasma case seal IR-2026-042")],
+    safety=LOCAL_WRITE,
+    notes=["Renders `report.md` first if it does not exist.",
+           "The manifest excludes itself from its own hash set."],
+    see_also=["case verify", "evidence"],
+))
+
+_add("case verify", _c(
+    "verify a sealed case has not changed",
+    "Recompute every artifact hash and the chain hash. Exit 2 on any changed or missing file.",
+    [("Verify", "plasma case verify IR-2026-042")],
+    safety=READ_ONLY,
+    output="JSON with `code` VERIFIED or TAMPERED.",
+    see_also=["case seal"],
+))
+
+_add("memory triage", _c(
+    "scan processes selected from high-signal alerts",
+    """Select recent PIDs from injection- or credential-shaped alerts and run
+one bounded HollowsHunter scan against them. A high score alone is not
+enough; the technique or event shape must justify a memory scan. The default
+window is 60 minutes and the default cap is five targets.""",
+    [
+        ("Default triage", "plasma memory triage"),
+        ("Wider window", "plasma memory triage --since-minutes 240 --max-targets 10"),
+        ("Stricter threshold", "plasma memory triage --min-score 0.9"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["Requires the pinned HollowsHunter payload, like `memory scan`.",
+           "No target produces `NO_TARGETS`, not an error.",
+           "Findings are deduplicated across repeated triage runs."],
+    see_also=["memory scan", "health", "query"],
+))
+
+_add("control policy simulate", _c(
+    "explain a policy decision without changing anything",
+    """Run the deterministic policy engine against a typed tool call and
+return the exact decision, reasons and policy hash. No action, approval or
+ledger row is created.
+
+By default the simulated context holds exactly the scopes the tool declares.
+Use `--scopes` to model a narrower harness.""",
+    [
+        ("Would isolation be allowed?", "plasma control policy simulate isolate_host --args '{\"host\":\"WS1\"}'"),
+        ("Model a read-only harness", "plasma control policy simulate isolate_host --scopes events:read"),
+        ("Model kill switch", "plasma control policy simulate kill_process --args '{\"pid\":42}' --killswitch-blocked"),
+    ],
+    safety=READ_ONLY,
+    notes=["Read-only: this is the safe way to test an autonomy change.",
+           "Use `--recent-actions` to model the rate limit."],
+    see_also=["control policy show", "control policy set", "mcp"],
+))
+
+
+_add("summarize", _c(
+    "bounded local digest of processes, lineage, users and rare commands",
+    """Reduce a bounded event tail to a small map: process first/last seen,
+parent→child frequencies, top users and hosts, score bands, sources and
+rare command lines. This is the fast orientation step before a typed query
+or a case.
+
+The output is lossy by design. Every section is capped by `--limit`; the
+result sets `truncated` when more existed.""",
+    [
+        ("Last hour", "plasma summarize --since 1h"),
+        ("Wider map", "plasma summarize --since 24h --limit 50"),
+        ("Rare commands only", "plasma summarize --since 6h --rare-max 1"),
+    ],
+    safety=READ_ONLY,
+    notes=["First/last timestamps are UTC ISO values from the event rows.",
+           "Rare command lines are whitespace-normalized and capped at 300 chars."],
+    see_also=["query", "tree", "case add"],
+))
+
+_add("detect", _c(
+    "detection-engineering harness",
+    """Validate, diff and replay written detection content without a running
+WHIDS service. Validation compiles every regex and checks condition
+variables; diff compares rule files by name and content hash; replay runs
+the chain engine and a bounded summary over a captured store.""",
+    [
+        ("Validate baseline", "plasma detect validate --rules sensors/plasma-baseline.gen"),
+        ("Diff two rule sets", "plasma detect diff --old old.gen --new new.gen"),
+        ("Replay a capture", "plasma detect replay --events captured.jsonl"),
+    ],
+    safety=READ_ONLY,
+    notes=["Replay is deterministic; the model is not involved.",
+           "Promotion is intentionally left to the existing install/whids path."],
+    see_also=["detect validate", "detect diff", "detect replay", "coverage"],
+))
+
+_add("detect validate", _c(
+    "compile and structurally validate a rule file",
+    """Parse a JSON or JSONL rule file, require a Name and Matches list,
+compile every `~=` regex, detect duplicate names and warn when a Condition
+references a variable no Matches line defines.""",
+    [("Validate", "plasma detect validate --rules sensors/plasma-baseline.gen")],
+    safety=READ_ONLY,
+    output="JSON with errors, warnings and duplicate names.",
+    see_also=["detect diff", "detect replay"],
+))
+
+_add("detect diff", _c(
+    "compare two rule files",
+    "Report rules added, removed and changed by name and SHA-256 of the canonical rule object.",
+    [("Diff", "plasma detect diff --old sensors/plasma-baseline.gen --new candidate.gen")],
+    safety=READ_ONLY,
+    see_also=["detect validate"],
+))
+
+_add("detect replay", _c(
+    "replay deterministic detection over a captured store",
+    """Run the chain engine and a bounded summary over a captured JSONL
+store. Use this to see how a rule change or a chain change behaves against
+real history before touching a live sensor.""",
+    [("Replay", "plasma detect replay --events captured.jsonl --max-rows 10000")],
+    safety=READ_ONLY,
+    see_also=["detect validate", "chain score", "summarize"],
+))
+
+
+_add("prevent posture", _c(
+    "read the WDAC, CFA, Network Protection and driver-blocklist state",
+    """Read, without changing anything, the Windows enforcement points Plasma
+delegates inline prevention to: active WDAC policy files, Defender
+Controlled Folder Access, Network Protection, the vulnerable driver
+blocklist, ASR rule counts, real-time protection and tamper protection.
+
+The result names the gaps. It is the inventory behind `plasma prevent`.""",
+    [
+        ("Show posture", "plasma prevent posture"),
+        ("Check on a fleet host", "plasma serve  # then GET /v1/exec with prevent posture"),
+    ],
+    safety=READ_ONLY,
+    notes=["Read-only PowerShell; no Defender setting is changed.",
+           "WDAC policies are counted from the active Code Integrity store."],
+    see_also=["prevent status", "prevent asr", "health"],
+))
 
 # END_OF_HELP_SOURCE

@@ -47,7 +47,11 @@ fields validated against pipes and newlines.
 The shipped product registers a SYSTEM task (`PlasmaIdentityPull`) that runs
 the bounded Security-log pull every 15 minutes, so authentication and
 process-lineage events reach the store between operator sweeps: 4624/4625
-logons, 4768/4769/4770/4771 Kerberos, 4776 NTLM and 4688 process creation.
+logons, 4648 explicit credentials, 4720/4722/4724 account lifecycle,
+4728/4732/4756 group membership, 4768/4769/4770/4771 Kerberos, 4776 NTLM and
+4688 process creation with parent PID. Directory-service access (4662) and
+special privileges (4672) are supported but excluded from the default pull
+because they are high-volume; ask for them explicitly with `--ids`.
 Kerberos events exist only on a KDC, so a member server reports zero of them —
 that is data, not an error. Manage the task explicitly with:
 
@@ -105,6 +109,20 @@ plasma drift list
 identity/privilege surface). Score 0 means "nothing changed"; every change
 is a finding with its own score. Drift refuses to baseline on a failed
 collection — a broken baseline is worse than none.
+
+## Detection engineering — validate, diff, replay
+
+```powershell
+plasma detect validate --rules sensors/plasma-baseline.gen
+plasma detect diff --old old.gen --new candidate.gen
+plasma detect replay --events captured.jsonl
+```
+
+`validate` compiles every `~=` regex, checks condition variables and names
+duplicates. `diff` compares rule sets by name and canonical hash, so an
+added, removed or silently changed rule is visible before promotion.
+`replay` runs the chain engine and a bounded summary over a captured store;
+the model is not involved. Promotion stays on the install/WHIDS path.
 
 ## Coverage — knowing your holes
 

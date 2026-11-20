@@ -15,10 +15,28 @@ plasma health
 | `tap_sidecar` | tap binary missing | degraded |
 | `sensor_heartbeat` | newest store row older than 24 h | degraded |
 | `rdp_hardening_drift` | RDP disabled or security layer drifted | degraded |
+| `canary_integrity` | a deployed canary is missing or modified | degraded |
+| `blind_spot_accounting` | never — it names known gaps | informational |
 | `install_mode` | never — it documents MINIMAL mode | informational |
 
 MINIMAL-mode nodes are not penalized for lacking WHIDS: the sensor list comes
 from the install decision recorded in `config.json`.
+
+The verdict now includes a `blind_spots[]` list: skipped sensors, disabled
+Sysmon event IDs, failed feeds, an undeployed canary, and the coverage
+engine's named ATT&CK gaps. A blind spot is not a service failure, but it is
+never silent either.
+
+## Enforcement posture
+
+```powershell
+plasma prevent posture
+```
+
+Read-only inventory of the signed Windows controls behind prevention: active
+WDAC policy files, Controlled Folder Access, Network Protection, the
+vulnerable driver blocklist, ASR rule counts, real-time protection and tamper
+protection. The result names the gaps; it changes nothing.
 
 ## Watch — the scheduled sweep
 

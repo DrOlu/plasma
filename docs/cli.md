@@ -206,6 +206,7 @@ plasma memory scan --pid PID...
 plasma memory scan --pname NAME...
 plasma memory scan --all [--timeout SECONDS]
 plasma memory scan ... [--deep] [--dump] [--scanner 64|32]
+plasma memory triage [--since-minutes N] [--min-score S] [--max-targets N] [--no-deep]
 plasma memory status
 plasma memory list
 ```
@@ -215,9 +216,38 @@ PEs, reflective DLLs, shellcode, code patches and IAT hooks. The scanner is
 SHA-256 pinned and refuses a mismatched binary. Findings become
 `source="memory"` alerts. `--dump` is explicit, local and refused with
 `--all`; no dumps are produced by default. Managed .NET JIT shellcode
-observations are suppressed from the alert stream.
+observations are suppressed from the alert stream. `triage` scans only PIDs
+selected by injection- or credential-shaped alerts in the recent window.
 
 Exit 0 = clean, 2 = findings, 1 = input/tool error.
+
+### investigate
+
+```text
+plasma query [--spec JSON|FILE] [FILTERS] [--since 1h] [--count-by FIELD] [--out FILE]
+plasma tree [--pid PID | --process NAME] [--depth N] [--max-rows N]
+plasma summarize [--since 1h] [--limit N] [--rare-max N]
+
+plasma case open NAME [--host H] [--title TEXT] [--note TEXT]
+plasma case list
+plasma case add NAME [FILTERS] [--spec JSON|FILE]
+plasma case note NAME TEXT
+plasma case timeline NAME
+plasma case report NAME [--out FILE]
+plasma case seal NAME
+plasma case verify NAME
+
+plasma detect validate --rules FILE
+plasma detect diff --old FILE --new FILE
+plasma detect replay --events FILE [--rules FILE] [--max-rows N]
+```
+
+Typed, bounded investigation over the local JSONL store. `query` refuses
+unknown fields; `tree` uses only explicit `pid`/`ppid` edges; `summarize`
+returns a capped digest. A case collects selected rows and notes, renders a
+report and seals every artifact with SHA-256. `detect` compiles rule regexes,
+compares rule sets and replays chains over a capture. See
+[Investigation](investigate.md).
 
 ### drift
 
@@ -311,6 +341,7 @@ layer refuses to touch.
 
 ```text
 plasma prevent status
+plasma prevent posture
 plasma prevent applocker [--mode audit|enforce] [--allow-path P]... [--apply --plan ID --reason TEXT]
 plasma prevent egress --allow IP[:PORT]... [--apply --plan ID --reason TEXT]
 plasma prevent asr --ids GUID[,GUID] [--action Audit|Enabled|Disabled] [--apply --plan ID --reason TEXT]
@@ -321,7 +352,9 @@ plasma prevent rollback --id ID [--apply]
 Tier 1 prevention through Windows enforcement points. Every control is
 dry-run first, plan-gated, verified, journaled and undoable by id.
 AppLocker defaults to audit; egress requires an explicit allowlist; ASR needs
-Defender; LSA takes effect after a reboot.
+Defender; LSA takes effect after a reboot. `posture` is read-only and reports
+WDAC, Controlled Folder Access, Network Protection, the vulnerable driver
+blocklist, ASR counts and tamper protection.
 
 ### update
 
@@ -359,7 +392,7 @@ and bound to the tool and argument hash.
 plasma mcp serve [--root PATH]
 ```
 
-MCP over stdio. Eleven typed tools; mutating tools return a dry-run plan and
+MCP over stdio. Nineteen typed tools; mutating tools return a dry-run plan and
 approval reference, never an execution. See
 [Agent-native operation](agent-native.md).
 

@@ -194,6 +194,12 @@ MUTATING = (
     "whids prune",
     "canary deploy",
     "memory scan",
+    "memory triage",
+    "case open",
+    "case add",
+    "case note",
+    "case report",
+    "case seal",
     "canary token create",
     "canary token remove",
     "canary collect",
@@ -336,6 +342,8 @@ def is_mutating(argv: list[str], path: str | None = None,
     if path == "deep persistence" and not _argv_value(argv, "--json-out"):
         return False
     if path == "intercept evaluate" and not _argv_value(argv, "--out"):
+        return False
+    if path == "query" and not _argv_value(argv, "--out"):
         return False
     if path == "manifest" and parsed is not None:
         return getattr(parsed, "action", "") == "create"

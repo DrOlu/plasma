@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.22.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.23.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.22.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.23.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">731 tests</span>
+<span class="raft-badge">896 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -59,6 +59,8 @@ plasma watch once
 # 4. optional: see what prevention would do (nothing is applied)
 plasma enforce run
 plasma prevent status
+plasma prevent posture
+plasma query --kind alert --min-score 0.7 --since 24h
 ```
 
 Every command prints JSON and uses meaningful exit codes, so it composes
@@ -68,9 +70,9 @@ with Task Scheduler, cron or another agent.
 
 The same material as printable, offline documents:
 
-- [Plasma Product Guide (PDF, 16 pages)](Plasma_Product_Guide.pdf) — architecture,
+- [Plasma Product Guide (PDF, 19 pages)](Plasma_Product_Guide.pdf) — architecture,
   detection, coverage, prevention, response, neuralOSd orchestration and the honest limits.
-- [Plasma Operations Guide (PDF, 16 pages)](Plasma_Operations_Guide.pdf) —
+- [Plasma Operations Guide (PDF, 19 pages)](Plasma_Operations_Guide.pdf) —
   install, configuration, daily operations, prevention runbook, fleet,
   neuralOSd orchestration, troubleshooting and cheat sheet.
 
@@ -104,7 +106,8 @@ ON-DEVICE BRAIN    frozen neuralOS instance — 10 probes, refuse-if-unknown
 ORCHESTRATOR       neuralOSd — plan/apply/undo over the same typed tools
         │
         ▼  pull-based answers over WinRM/SSM, never a standing server
-DESK               status · ask · drift · chains · coverage · fleet ·
+DESK               status · ask · query · tree · summarize · case ·
+                   drift · chains · coverage · fleet ·
                    watch + alerts · plan-gated response (actuate)
         │
         ▼  measured, policy-gated, journaled
@@ -113,17 +116,27 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    intercept (NTFS ACL, firewall, agent gateway)
 ```
 
-## What's new in 1.22.0
+## What's new in 1.23.0
 
-- **Memory scanning.** `plasma memory scan` binds a pinned HollowsHunter/
-  PE-sieve probe for hollowing, implanted PEs, shellcode, code patches and
-  IAT hooks. Findings become `source="memory"` alerts.
-- **No dumps by default.** `--dump` is explicit and local; `--all` is
-  explicit; managed .NET JIT noise is suppressed.
-- **Bundled and verified.** 64/32-bit scanners are fetched into the Windows
-  payload and hash-checked before execution.
-- **Estate-verified on WS1** with a real PowerShell deep scan.
-- **846 tests**, full suite and `-W error` pass.
+- **Typed investigation.** `plasma query` is a closed local query language;
+  `plasma tree` follows explicit PID lineage; `plasma summarize` produces a
+  bounded digest for agent context.
+- **Case workspace.** `plasma case` collects selected events and findings,
+  records operator notes, renders a report and seals the artifacts with a
+  hash manifest. `case verify` detects later changes.
+- **Triggered memory triage.** `plasma memory triage` scans only PIDs
+  selected by injection- or credential-shaped alerts.
+- **Identity coverage.** Account creation/enable/reset, group membership,
+  explicit credentials, special privileges and directory access now
+  normalize into the event contract, with parent PID retained on 4688.
+- **Detection harness.** `plasma detect validate|diff|replay` compiles
+  rule regexes, compares rule sets and replays chains over a capture.
+- **Honest posture.** `health` now accounts for blind spots and canary
+  tamper; `prevent posture` reads WDAC, Controlled Folder Access, Network
+  Protection and the vulnerable driver blocklist.
+- **Agent surface.** Eight new typed MCP tools, including `query_events`,
+  `get_process_tree`, `get_summary`, `get_case` and `simulate_policy`.
+- **896 tests**, full suite and `-W error` pass.
 
 ## What's new in 1.21.0
 
@@ -631,7 +644,7 @@ See [State machines](state-machines.md).
 
 Plasma is now **agent-native**, not just agent-adjacent:
 
-- **Capability contract** — 11 typed tools with scopes, risk tiers,
+- **Capability contract** — 19 typed tools with scopes, risk tiers,
   preconditions and JSON schemas. Unknown tools and extra arguments are
   refused before anything runs.
 - **Deterministic policy engine** — assist / supervised / autonomous tiers,

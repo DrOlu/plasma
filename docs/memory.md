@@ -104,6 +104,20 @@ payload and is included in `plasma assurance sbom`.
 - The scanner may be flagged by other security products; allowlist it
   deliberately.
 
+## Triggered triage
+
+```powershell
+plasma memory triage
+plasma memory triage --since-minutes 240 --max-targets 10 --min-score 0.9
+```
+
+`triage` reads the recent event tail and selects only PIDs justified by an
+injection- or credential-shaped signal: a T1055/T1620/T1003 technique, a
+memory finding, or language such as shellcode, hollowing, injection or
+LSASS. A high score alone (for example a ransomware alert) does not become a
+memory scan. The default window is 60 minutes and the default cap is five
+targets. No target returns `NO_TARGETS`, not an error.
+
 ## Status
 
 ```powershell
