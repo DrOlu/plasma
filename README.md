@@ -12,7 +12,7 @@ WHIDS agent             detection (gene rules) + artifact collection + response
 neuralOS engine         on-device 121M tool-calling model (selection only)
 frozen instance         Pydantic contract + probe menu + bridge + graph layer
 protection (measured)   enforce: snapshot + kill at score 9+, approval for the rest
-                        prevent: AppLocker · egress · ASR · LSA protection
+                        prevent: AppLocker · egress · ASR · LSA · CFA · Network Protection
 ```
 
 The result is an endpoint agent whose detection stays deterministic (WHIDS

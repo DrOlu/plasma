@@ -169,11 +169,13 @@ LSA plugins before enabling it in production.
 
 ## What this is not
 
-- **Not a driver.** There is no file-write prevention, no pre-execution
-  process veto, and no packet-level inline blocking from Plasma itself.
-- **Not agentless prevention.** AppLocker and ASR are endpoint-local
-  controls; a host that is offline from management still enforces its own
-  policy.
+- **Not a driver.** Plasma has no kernel component. File-write and network
+  blocking are delegated to Defender's Controlled Folder Access and Network
+  Protection; execution blocking is AppLocker. There is no Plasma-owned
+  pre-execution veto or packet filter.
+- **Not agentless prevention.** AppLocker, ASR, CFA and Network Protection
+  are endpoint-local controls; a host that is offline from management still
+  enforces its own policy.
 - **Not a substitute for backups.** Every control here is reversible, and
   the journal is the audit trail that proves what changed.
 

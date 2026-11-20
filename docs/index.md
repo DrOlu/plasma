@@ -36,7 +36,7 @@ The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 </div></div>
 <div class="raft-card"><div class="swatch yellow">PREVENTION</div><div class="body">
 <h3>Off until you arm it</h3>
-<p><code>enforce</code> contains in seconds; <code>prevent</code> configures AppLocker, firewall egress, ASR and LSA. Dry-run first, journaled, rollbackable &mdash; no Plasma kernel driver.</p>
+<p><code>enforce</code> contains in seconds; <code>prevent</code> configures AppLocker, firewall egress, ASR, LSA, CFA, Network Protection and the driver blocklist. Dry-run first, journaled, rollbackable &mdash; no Plasma kernel driver.</p>
 </div></div>
 </div>
 
@@ -112,7 +112,7 @@ DESK               status · ask · query · tree · summarize · case ·
         │
         ▼  measured, policy-gated, journaled
 PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
-                   prevent (AppLocker, egress, Defender ASR, LSA protection) ·
+                   prevent (AppLocker, egress, ASR, LSA, CFA, Network Protection) ·
                    intercept (NTFS ACL, firewall, agent gateway)
 ```
 
