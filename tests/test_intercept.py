@@ -247,3 +247,18 @@ def test_intercept_cli_status_rules_and_evaluate(tmp_path, capsys):
                      "--events", str(store)]) == 0
     body = json.loads(capsys.readouterr().out)
     assert body["would_block"] == 1
+
+
+def test_intercept_cli_acl_apply_without_canary_is_structured(tmp_path, capsys):
+    root = _root(tmp_path)
+    rules = tmp_path / "rules.json"
+    rules.write_text(json.dumps(_rule(
+        "no-canary", point="file_write", action="deny", backend="acl",
+        match={"path_prefix": str(tmp_path / "nothing")})))
+    assert cli.main(["intercept", "rules", "add", "--root", str(root),
+                     "--file", str(rules)]) == 0
+    capsys.readouterr()
+    assert cli.main(["intercept", "apply", "no-canary", "--root", str(root)]) == 2
+    body = json.loads(capsys.readouterr().out)
+    assert body["ok"] is False
+    assert "canary" in body["error"]

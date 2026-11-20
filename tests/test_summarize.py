@@ -65,3 +65,11 @@ def test_limit_and_truncation_are_reported(tmp_path):
     out = summarize.summarize(_write(tmp_path), limit=1)
     assert len(out["top_processes"]) == 1
     assert out["truncated"] is True
+
+
+def test_cli_bad_since_is_structured(tmp_path, capsys):
+    from plasma import cli
+    assert cli.main(["summarize", "--root", str(tmp_path),
+                     "--since", "yesterday"]) == 1
+    body = json.loads(capsys.readouterr().out)
+    assert body["ok"] is False and body["code"] == "QUERY_ERROR"

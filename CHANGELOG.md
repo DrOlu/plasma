@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.24.1 — 2026-11-20
+
+- **ACL intercept refuses without a canary.** `plasma intercept apply` on an
+  ACL rule with no matching canary paths now returns a structured JSON
+  refusal (`code: REFUSED`) instead of a Python traceback.
+- **Invalid summary duration is structured.** `plasma summarize --since
+  yesterday` now returns a JSON query error instead of a traceback.
+- 921 tests collected; full suite and `-W error` pass; bandit 0 high/medium;
+  pip-audit 0 known vulnerabilities.
+
 ## 1.24.0 — 2026-11-20
 
 - **Opt-in Defender enforcement.** New `prevent cfa`, `prevent network` and

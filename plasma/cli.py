@@ -1881,17 +1881,25 @@ def cmd_intercept_evaluate(args) -> int:
 
 
 def cmd_intercept_apply(args) -> int:
-    result = intercept.apply_rule(
-        args.root, args.rule_id, apply=args.apply, plan=args.plan,
-        reason=args.reason)
+    try:
+        result = intercept.apply_rule(
+            args.root, args.rule_id, apply=args.apply, plan=args.plan,
+            reason=args.reason)
+    except ValueError as exc:
+        _emit({"ok": False, "error": str(exc)[:500], "code": "REFUSED"})
+        return 2
     _emit(result)
     return 0 if "error" not in result else 2
 
 
 def cmd_intercept_rollback(args) -> int:
-    result = intercept.rollback(
-        args.root, args.id, apply=args.apply, plan=args.plan,
-        reason=args.reason)
+    try:
+        result = intercept.rollback(
+            args.root, args.id, apply=args.apply, plan=args.plan,
+            reason=args.reason)
+    except ValueError as exc:
+        _emit({"ok": False, "error": str(exc)[:500], "code": "REFUSED"})
+        return 2
     _emit(result)
     return 0 if "error" not in result else 2
 
@@ -2030,9 +2038,13 @@ def cmd_detect_replay(args) -> int:
 
 
 def cmd_summarize(args) -> int:
-    result = summarize_mod.summarize(
-        args.events or _events_path(args.root), since=args.since,
-        max_rows=args.max_rows, limit=args.limit, rare_max=args.rare_max)
+    try:
+        result = summarize_mod.summarize(
+            args.events or _events_path(args.root), since=args.since,
+            max_rows=args.max_rows, limit=args.limit, rare_max=args.rare_max)
+    except (query_mod.QueryError, OSError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500], "code": "QUERY_ERROR"})
+        return 1
     _emit(result)
     return 0
 

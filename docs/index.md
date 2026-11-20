@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.24.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.24.1</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.24.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.24.1</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">919 tests</span>
+<span class="raft-badge">921 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -70,7 +70,7 @@ with Task Scheduler, cron or another agent.
 
 The same material as printable, offline documents:
 
-- [Plasma Product Guide (PDF, 20 pages)](Plasma_Product_Guide.pdf) — architecture,
+- [Plasma Product Guide (PDF, 21 pages)](Plasma_Product_Guide.pdf) — architecture,
   detection, coverage, prevention, response, neuralOSd orchestration and the honest limits.
 - [Plasma Operations Guide (PDF, 19 pages)](Plasma_Operations_Guide.pdf) —
   install, configuration, daily operations, prevention runbook, fleet,
@@ -115,6 +115,14 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    prevent (AppLocker, egress, ASR, LSA, CFA, Network Protection) ·
                    intercept (NTFS ACL, firewall, agent gateway)
 ```
+
+## What's new in 1.24.1
+
+- **Structured refusal for ACL intercept.** `intercept apply` on an ACL rule
+  with no matching canary now returns a JSON refusal instead of a traceback.
+- **Structured refusal for bad summaries.** `summarize --since` with an
+  invalid duration returns a JSON query error instead of a traceback.
+- **921 tests**, full suite and `-W error` pass.
 
 ## What's new in 1.24.0
 

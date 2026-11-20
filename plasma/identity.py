@@ -281,7 +281,7 @@ def normalize_logon(row: dict, host: str) -> dict:
     if account.endswith("$") or str(user or "").lower() in ("-", ""):
         full_user = None
     source_ip = row.get("source_ip")
-    if source_ip in ("-", "", "::1", "127.0.0.1", "0.0.0.0", None):
+    if source_ip in ("-", "", "::1", "127.0.0.1", "0.0.0.0", None):  # nosec B104
         source_ip = None
     # 4776 puts the calling machine in Workstation, not IpAddress.
     if eid == NTLM_ID and not source_ip:
