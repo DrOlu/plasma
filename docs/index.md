@@ -12,7 +12,7 @@ The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">896 tests</span>
+<span class="raft-badge">900 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -136,7 +136,7 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
   Protection and the vulnerable driver blocklist.
 - **Agent surface.** Eight new typed MCP tools, including `query_events`,
   `get_process_tree`, `get_summary`, `get_case` and `simulate_policy`.
-- **896 tests**, full suite and `-W error` pass.
+- **900 tests**, full suite and `-W error` pass.
 
 ## What's new in 1.21.0
 

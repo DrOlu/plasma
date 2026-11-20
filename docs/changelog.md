@@ -31,7 +31,7 @@ Highlights by release:
   `get_summary`, `get_coverage`, `get_blind_spots`, `get_case`,
   `scan_memory` and `simulate_policy`. `control policy simulate` explains a
   decision without creating an action, approval or ledger row.
-- 896 tests collected; full suite passes.
+- 900 tests collected; full suite passes.
 
 ## 1.22.0 — 2026-11-20
 
