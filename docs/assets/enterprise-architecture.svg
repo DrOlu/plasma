@@ -93,21 +93,19 @@
   </g>
 
   <!-- Links -->
-  <path d="M 235 166 L 235 236" class="link" marker-end="url(#arrow)"/>
-  <text x="247" y="205" class="label">WinRM 5986 (HTTPS)</text>
+  <path d="M 235 166 L 235 210 L 700 210 L 700 222" class="link" marker-end="url(#arrow)"/>
+  <text x="247" y="202" class="label">WinRM 5986 (HTTPS) · pull bounded tails</text>
+  <text x="247" y="218" class="label">no standing collector</text>
 
-  <path d="M 400 278 L 456 278" class="link" marker-end="url(#arrow)"/>
-  <text x="402" y="268" class="label">GPO / SCCM / Intune</text>
+  <path d="M 400 310 L 432 310" class="link" marker-end="url(#arrow)"/>
 
-  <path d="M 400 160 L 456 160 L 456 294" class="link-cyan" marker-end="url(#arrowCyan)"/>
-  <text x="466" y="182" class="label">pull bounded tails (WinRM 5986)</text>
-  <text x="466" y="198" class="label">no standing collector</text>
+  <path d="M 557 166 L 557 222" class="link-cyan" marker-end="url(#arrowCyan)"/>
+  <text x="567" y="196" class="label">optional API</text>
 
-  <path d="M 714 166 L 714 368" class="link-cyan" marker-end="url(#arrowCyan)"/>
-  <text x="724" y="214" class="label">optional forwarding</text>
-  <text x="724" y="230" class="label">events / alerts</text>
+  <path d="M 882 222 L 882 166" class="link-cyan" marker-end="url(#arrowCyan)"/>
+  <text x="892" y="196" class="label">optional forwarding</text>
 
   <!-- Footer -->
   <text x="40" y="604" class="body">Design rule: detect on the endpoint, pull small answers on demand, keep response plan-gated and reversible.</text>
-  <text x="40" y="626" class="small">Plasma 1.26 · no kernel driver · WDAC remains read-only · canary shield is user-mode and opt-in</text>
+  <text x="40" y="626" class="small">Plasma 1.26.1 · no kernel driver · WDAC remains read-only · canary shield is user-mode and opt-in</text>
 </svg>

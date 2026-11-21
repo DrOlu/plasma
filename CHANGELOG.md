@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.26.1 — 2026-11-21
+
+- Fixed overlapping labels and link paths in the enterprise architecture SVG/PNG; regenerated the product and operations PDFs.
+- No runtime behavior change from 1.26.0.
+- 943 tests collected; full suite and `-W error` pass.
+
 ## 1.26.0 — 2026-11-21
 
 - **Named-pipe canaries.** `canary pipe deploy|list|remove|serve|install|uninstall`
