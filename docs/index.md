@@ -1,12 +1,12 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.26.4</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.26.5</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.26.4</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.26.5</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
@@ -121,6 +121,10 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    prevent (AppLocker, egress, ASR, LSA, CFA, Network Protection) ·
                    intercept (NTFS ACL, firewall, agent gateway)
 ```
+
+## What's new in 1.26.5
+
+- **One fewer chain false positive.** A read-only `Get-ScheduledTask` query no longer completes `persistence_after_privilege`; the step now requires `schtasks`.
 
 ## What's new in 1.26.4
 

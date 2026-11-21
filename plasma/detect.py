@@ -286,6 +286,17 @@ BUILTIN_CASES = [
         ],
     },
     {
+        "name": "account change then scheduled-task query misses",
+        "chain": "persistence_after_privilege",
+        "expect": "miss",
+        "events": [
+            _row("2026-11-20T10:00:00Z", kind="process",
+                 description="net localgroup administrators svc /add"),
+            _row("2026-11-20T10:05:00Z", kind="process",
+                 description="powershell.exe -Command Get-ScheduledTask"),
+        ],
+    },
+    {
         "name": "account creation then privileged group hits",
         "chain": "account_creation_privilege",
         "expect": "hit",

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.26.5 — 2026-11-21
+
+- **Chain false positive fixed.** `persistence_after_privilege` matched the bare substring `sched`, so a read-only `Get-ScheduledTask` query completed the chain after an unrelated account change and scored 9 — the automatic-containment band. The step now requires `schtasks`, and a regression case pins the miss.
+- 957 tests collected; full suite and `-W error` pass.
+
 ## 1.26.4 — 2026-11-21
 
 - **Estate-caught fix.** `Plasma Sensitive File Delete`, `Plasma Hidden File Attribute` and `Plasma Registry Evasion` were first cut at criticality 4-5. WHIDS loaded them (281 genes) and then silently dropped every alert, because `sensors/whids.toml` forwards only criticality > 5. All three now sit at 6.
