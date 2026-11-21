@@ -235,6 +235,7 @@ def _task_script(root, exe=None) -> str:
 def install(root, apply: bool = False, plan=None, reason=None) -> dict:
     root = Path(root)
     rows = _load_pipes(root)
+    _debug(root, f"serve start pipes={len(rows)} apply={bool(apply)}")
     if not rows:
         return {"error": "no pipe canaries; run canary pipe deploy first",
                 "code": "NO_PIPES"}
@@ -400,6 +401,7 @@ def serve(root, apply: bool = False, reason=None, max_kills: int = 5,
                                    "cannot kill", "code": "KILLSWITCH"}))
         return 2
     rows = _load_pipes(root)
+    _debug(root, f"serve start pipes={len(rows)} apply={bool(apply)}")
     if not rows:
         print(json.dumps({"error": "no pipe canaries; run canary pipe deploy",
                           "code": "NO_PIPES"}))
@@ -417,7 +419,9 @@ def serve(root, apply: bool = False, reason=None, max_kills: int = 5,
 
     def listener(entry):
         name = entry.get("path") or rf"\\.\pipe\{entry.get('name')}"
+        _debug(root, f"listener start pipe={name}")
         while not stop.is_set():
+            _debug(root, f"listener loop pipe={name}")
             handle = k32.CreateNamedPipeW(
                 name, PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE
                 | PIPE_WAIT, PIPE_UNLIMITED_INSTANCES, 4096, 4096, 0, None)
