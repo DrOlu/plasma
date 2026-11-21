@@ -165,6 +165,13 @@ plasma canary serve [--host 127.0.0.1] [--port 8088] [--max-requests N]
 plasma canary collect [--since MINUTES] [--max-events N]
 plasma canary hits [--last N]
 plasma canary sysmon [--domain SUFFIX...] [--apply]
+plasma canary registry deploy [--hive HKCU|HKLM] [--count N]
+plasma canary registry list
+plasma canary registry remove ID
+plasma canary shield status
+plasma canary shield install [--apply --plan ID --reason TEXT]
+plasma canary shield uninstall [--apply --plan ID --reason TEXT]
+plasma canary shield sweep [--since-minutes N] [--apply --reason TEXT] [--max-kills N]
 ```
 
 File canaries are realistic decoys with randomized subdirectories and names
@@ -175,6 +182,15 @@ and hot-reloads it. HTTP tokens are `.url` shortcuts served by the local
 collector; hits are written to `<root>/canary-hits.jsonl`. `watch` (or
 `canary collect`) turns DNS/HTTP hits into `source="canary"` event-store
 alerts, deduplicated across sweeps.
+
+Registry canaries are decoy keys under `Software\PlasmaDecoy` in HKCU or
+HKLM. `canary shield install` adds only the recorded canary basenames and
+registry fragments to a narrow Sysmon `FileCreate`/`FileDelete`/
+`RegistryEvent` include, then registers a one-minute SYSTEM task. The sweep
+verifies the live PID/image, refuses protected/trusted processes, kills a
+process that creates/deletes/registry-writes a canary, and journals the
+decision. Reads do not trigger; a pure in-place overwrite is detected by
+`canary verify` as a hash change without process attribution.
 
 ### intercept
 

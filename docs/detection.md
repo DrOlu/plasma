@@ -213,6 +213,15 @@ HTTP tokens are Windows `.url` shortcuts pointing at `plasma canary serve`;
 the hit is recorded locally and becomes `canary_http_tripped` at score 8.
 No Docker, cloud service or external callback is involved.
 
+Registry canaries are decoy keys under `Software\PlasmaDecoy`. The active
+shield (`plasma canary shield install`) adds only the recorded file basenames
+and registry fragments to a narrow Sysmon FileCreate/FileDelete/RegistryEvent
+include and runs a one-minute SYSTEM sweep. It verifies the live PID and
+image, refuses protected/trusted processes, then kills a process that
+creates, deletes or registry-writes a canary. Reads do not trigger; an
+in-place overwrite is still caught by `canary verify` as a hash change,
+without process attribution.
+
 Configured canary accounts are queried on every watch sweep:
 `config.json`:
 
