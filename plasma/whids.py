@@ -180,6 +180,14 @@ def _benign_context(rule_name: str, event_data: dict) -> str | None:
     user = str(_get_flat(event_data, "User") or "").strip().lower()
     microsoft = ("microsoft" in company or "microsoft" in signature
                  or signed in ("microsoft windows", "microsoft corporation"))
+    target = str(_get_flat(event_data, "TargetFilename", "ImageLoaded") or "")
+
+    # PowerShell's own policy compiler writes this temp file on startup and
+    # on module load. Sigma rules that key on user-writable paths then fire
+    # on a routine compiler artifact, producing a storm of high-criticality
+    # noise. Keep the evidence, but at info/0.2.
+    if "__psscriptpolicytest" in target.lower() and image == "powershell.exe":
+        return "PowerShell policy-test temp file"
 
     if "execution from user paths" in rule and microsoft:
         return "Microsoft-signed binary in a user-writable path"

@@ -244,6 +244,30 @@ BUILTIN_CASES = [
         ],
     },
     {
+        "name": "account change then service persistence hits",
+        "chain": "persistence_after_privilege",
+        "expect": "hit",
+        "score": 9,
+        "events": [
+            _row("2026-11-20T10:00:00Z", kind="process",
+                 description="net user svc P@ss /add"),
+            _row("2026-11-20T10:05:00Z", kind="process",
+                 description="sc.exe create EvilService binPath= cmd.exe"),
+        ],
+    },
+    {
+        "name": "account change then run-key persistence hits",
+        "chain": "persistence_after_privilege",
+        "expect": "hit",
+        "score": 9,
+        "events": [
+            _row("2026-11-20T10:00:00Z", kind="process",
+                 description="net localgroup administrators svc /add"),
+            _row("2026-11-20T10:05:00Z", kind="process",
+                 description="reg.exe add HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v Evil /d cmd.exe"),
+        ],
+    },
+    {
         "name": "account creation then privileged group hits",
         "chain": "account_creation_privilege",
         "expect": "hit",

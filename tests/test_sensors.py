@@ -52,7 +52,7 @@ def _rule_by_name(rules, name):
 
 def test_baseline_every_line_is_valid_json_with_compileable_regex():
     rules = _baseline_rules()
-    assert len(rules) == 18
+    assert len(rules) == 21
     for obj in rules:
         assert obj["Meta"]["Schema"] == "1.0.0"
         assert obj["Meta"]["EventIDs"], obj["Name"]
@@ -126,7 +126,10 @@ def test_encoded_cmd_covers_short_and_long_forms():
     assert enc.search("powershell -ec SQBFAFgA")
     assert enc.search("powershell -EncodedCommand SQBFAFgA")
     assert enc.search("powershell -encodedcommand SQBFAFgA")
+    assert enc.search("powershell -e SQBFAFgA")
+    assert enc.search("powershell -e  JgAgACgAZwBjAG0AIAAoACcAaQBlAHsAMAB9ACcA")
     assert not enc.search("powershell -NoProfile -Command Get-Date")
+    assert not enc.search("powershell -e Get-Date")
     assert not enc.search(" powershellenc ")
 
 
@@ -210,3 +213,32 @@ def test_execution_from_user_paths_rule():
     assert img.search(r"C:\Users\Public\drop.exe")
     assert not img.search(r"C:\Program Files\App\app.exe")
 
+
+
+def test_sensitive_file_delete_rule():
+    rule = _rule_by_name(_baseline_rules(), "Plasma Sensitive File Delete")
+    img = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$img"))
+    path = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$path"))
+    assert img.search(r"C:\Windows\System32\cmd.exe")
+    assert path.search(r"C:\Users\bob\Documents\Q4.xlsx")
+    assert path.search(r"C:\Users\bob\Desktop\notes")
+    assert path.search(r"D:\Finance\payroll.csv")
+    assert not path.search(r"C:\Windows\Temp\scratch.tmp")
+    assert not path.search(r"C:\Users\bob\AppData\Local\Temp\x.tmp")
+
+
+def test_hidden_file_attribute_rule():
+    rule = _rule_by_name(_baseline_rules(), "Plasma Hidden File Attribute")
+    img = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$img"))
+    hide = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$hide"))
+    assert img.search(r"C:\Windows\System32\attrib.exe")
+    assert hide.search(r"attrib.exe +h C:\Users\bob\secret.docx")
+    assert not hide.search(r"attrib.exe -h C:\Users\bob\secret.docx")
+
+
+def test_registry_evasion_rule():
+    rule = _rule_by_name(_baseline_rules(), "Plasma Registry Evasion")
+    reg = _match_expr(rule["Matches"][0])
+    assert reg.search(r"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\HideFileExt")
+    assert reg.search(r"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\ShowSuperHidden")
+    assert not reg.search(r"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarGlomLevel")

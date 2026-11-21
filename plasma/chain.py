@@ -75,7 +75,7 @@ BUILTIN_CHAINS = [
         "detail": "account/admin change followed by a persistence-shaped alert",
         "steps": [
             {"description": r"(?i)(net1? .*(user|localgroup).*(/add| add)|add-localgroupmember|new-localuser)"},
-            {"description": r"(?i)(sched|schtasks|new-service|register-scheduledtask|run ?key|eventfilter|bindversion)"},
+            {"description": r"(?i)(sched|schtasks|new-service|register-scheduledtask|run ?key|eventfilter|bindversion|sc(?:\.exe)?\s+create|reg(?:\.exe)?\s+add.*\\run)"},
         ],
     },
     {

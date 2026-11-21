@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "technique": "T1059.001",
+      "guid": "a538de64-1c74-46ed-aa60-b995ed302598",
+      "name": "PowerShell Command Execution",
+      "expected_rule": "Plasma Encoded Cmd"
+    },
+    {
+      "technique": "T1053.005",
+      "guid": "42f53695-ad4a-4546-abb6-7d837f644a71",
+      "name": "Scheduled task Local",
+      "expected_rule": "Plasma Scheduled Task Create"
+    },
+    {
+      "technique": "T1543.003",
+      "guid": "981e2942-e433-44e9-afc1-8c957a1496b6",
+      "name": "Service Installation CMD",
+      "expected_rule": "Plasma Service Registry Persistence"
+    },
+    {
+      "technique": "T1547.001",
+      "guid": "e55be3fd-3521-4610-9d1a-e210e42dcf05",
+      "name": "Reg Key Run",
+      "expected_rule": "Plasma Run Key Persistence"
+    },
+    {
+      "technique": "T1136.001",
+      "guid": "6657864e-0323-4206-9344-ac9cd7265a4f",
+      "name": "Create a new user in a command prompt",
+      "expected_rule": "Plasma Net Account Add"
+    },
+    {
+      "technique": "T1140",
+      "guid": "71abc534-3c05-4d0c-80f7-cbe93cb2aa94",
+      "name": "Certutil Rename and Decode",
+      "expected_rule": "Plasma File Delete by LOLBin"
+    }
+  ]
+}

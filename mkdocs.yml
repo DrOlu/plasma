@@ -57,6 +57,7 @@ nav:
       - Fleet: fleet.md
       - HTTP API (serve): serve.md
       - Operations: operations.md
+      - Atomic smoke test: atomic-smoke.md
       - Updates & signing: update-signing.md
   - Trust:
       - Compliance evidence: compliance.md

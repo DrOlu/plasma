@@ -4,6 +4,15 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.26.3 — 2026-11-21
+
+- `Plasma Encoded Cmd` now matches `powershell -e <base64>` as well as `-enc`, `-ec` and `-encodedcommand`, with a base64-length guard.
+- Added `Plasma Sensitive File Delete` (T1070.004), `Plasma Hidden File Attribute` (T1564.001) and `Plasma Registry Evasion` (T1112/T1564.001), all low/medium severity to limit noise.
+- Suppressed PowerShell `__PSScriptPolicyTest` temp artifacts at info/0.2; they were triggering public-folder and SharePoint Sigma rules on both estate hosts.
+- Extended `persistence_after_privilege` to recognise `sc.exe create` and `reg add ...\Run`, with sequenced regression cases.
+- Added a six-case Atomic Red Team smoke suite: `sensors/atomic-smoke.json`, `tests/test_atomic_fixes.py`, `docs/atomic-smoke.md`.
+- 955 tests collected; full suite and `-W error` pass.
+
 ## 1.26.2 — 2026-11-21
 
 - `PlasmaWatch`, `PlasmaWhidsWatchdog` and `PlasmaCanaryShield` now register both an `AtStartup` trigger and `StartWhenAvailable`, so enforcement resumes immediately after a reboot or a missed timer run.
