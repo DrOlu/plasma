@@ -360,7 +360,9 @@ The listener runs at boot as SYSTEM and restarts on failure. A client that
 *connects* to the decoy pipe is identified with
 `GetNamedPipeClientProcessId`; a scanner that only enumerates pipes is not
 touched. Protected processes are refused, Plasma/Defender/backup/system are
-trusted, and a dry-run listener records without killing.
+trusted, and a dry-run listener records without killing. Each decision is
+written to `canary-pipe-journal.jsonl`; `canary pipe status` reports the live
+connection and kill counters, so you do not have to wait for the task to stop.
 
 A pipe is a stronger trigger than a file canary in one respect — the client
 must actively connect — but it also carries a higher operational risk:

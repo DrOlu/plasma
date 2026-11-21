@@ -3352,6 +3352,7 @@ to the event store and the pipe journal.""",
     safety=LOCAL_WRITE,
     notes=["Blocks by design; the installed task runs it at startup.",
            "A --reason is mandatory with --apply.",
+           "Decisions go to canary-pipe-journal.jsonl; status reads live counters.",
            "The listener is user-mode; remote access depends on SMB/pipe ACLs."],
     see_also=["canary pipe install", "canary pipe status"],
 ))
@@ -3379,8 +3380,8 @@ _add("canary pipe uninstall", _c(
 ))
 
 _add("canary pipe status", _c(
-    "pipe task and last listener state",
-    "Report task state, pipe count, last connections and last kills.",
+    "pipe task and live listener state",
+    "Report task state, pipe count, and live connection/kill counters.",
     [("Status", "plasma canary pipe status")],
     safety=READ_ONLY,
     see_also=["canary pipe install", "canary pipe serve"],

@@ -13,7 +13,7 @@
 - **Shield hardening from estate drills:** scheduled-task argument quoting,
   fresh-root Sysmon backup, case-preserving Sysmon conditions, journal ids,
   DTD/entity refusal.
-- 941 tests collected; full suite and `-W error` pass.
+- 943 tests collected; full suite and `-W error` pass.
 
 ## 1.25.0 — 2026-11-21
 

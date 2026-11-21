@@ -175,7 +175,7 @@ plasma canary shield sweep [--since-minutes N] [--apply --reason TEXT] [--max-ki
 plasma canary pipe deploy [--count N]
 plasma canary pipe list
 plasma canary pipe remove ID
-plasma canary pipe serve [--apply --reason TEXT] [--max-connections N]
+plasma canary pipe serve [--apply --reason TEXT] [--max-kills N] [--max-connections N]
 plasma canary pipe install [--apply --plan ID --reason TEXT]
 plasma canary pipe uninstall [--apply --plan ID --reason TEXT]
 plasma canary pipe status
@@ -202,7 +202,10 @@ decision. Reads do not trigger; a pure in-place overwrite is detected by
 Named-pipe canaries are decoy pipes. `canary pipe install` registers a
 SYSTEM listener at boot; a client that connects is identified by PID and
 killed after the same protected/trusted checks. Enumeration alone is not a
-connection and is not killed. The listener is user-mode, not a driver.
+connection and is not killed. Decisions are written to
+`<root>/canary-pipe-journal.jsonl`; `canary pipe status` reports live
+connection and kill counters while the task runs. The listener is user-mode,
+not a driver.
 
 ### intercept
 

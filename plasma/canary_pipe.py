@@ -451,16 +451,27 @@ def serve(root, apply: bool = False, reason=None, max_kills: int = 5,
         _debug(root, f"listener start pipe={name}")
         while not stop.is_set():
             _debug(root, f"listener loop pipe={name}")
-            handle = k32.CreateNamedPipeW(
-                name, PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE
-                | PIPE_WAIT, PIPE_UNLIMITED_INSTANCES, 4096, 4096, 0, None)
+            try:
+                handle = k32.CreateNamedPipeW(
+                    name, PIPE_ACCESS_DUPLEX,
+                    PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+                    PIPE_UNLIMITED_INSTANCES, 4096, 4096, 0, None)
+            except (OSError, ValueError) as exc:
+                _debug(root, f"create exception pipe={name} {exc!r}")
+                time.sleep(1)
+                continue
             if handle == INVALID_HANDLE_VALUE:
                 _debug(root, f"create failed err={ctypes.get_last_error()} "
                              f"pipe={name}")
                 time.sleep(1)
                 continue
             try:
-                ok = k32.ConnectNamedPipe(handle, None)
+                try:
+                    ok = k32.ConnectNamedPipe(handle, None)
+                except (OSError, ValueError) as exc:
+                    _debug(root, f"connect exception pipe={name} {exc!r}")
+                    time.sleep(0.2)
+                    continue
                 _debug(root, f"connect ok={ok} err={ctypes.get_last_error()} "
                              f"pipe={name}")
                 # ERROR_PIPE_CONNECTED is normal when the client connected

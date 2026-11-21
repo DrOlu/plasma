@@ -215,7 +215,7 @@ plasma canary shield sweep --since-minutes 10    # dry-run
 plasma canary shield status
 plasma canary shield uninstall --apply --plan 5 --reason "change window"
 plasma canary pipe install --apply --plan 6 --reason "pipe pilot"
-plasma canary pipe status
+plasma canary pipe status        # task state + live connections/kills
 ```
 
 The shield adds a narrow Sysmon `FileCreate`/`FileDelete`/`RegistryEvent`
