@@ -272,8 +272,13 @@ def shield_config(root, file_canaries=None, registry_canaries=None) -> dict:
     """Return a Sysmon XML config with narrow canary includes."""
     root = Path(root)
     text = _base_xml(root)
+    if len(text) > (8 << 20):
+        raise ValueError("base Sysmon config is larger than 8 MiB")
+    low = text.lower()
+    if "<!doctype" in low or "<!entity" in low:
+        raise ValueError("base Sysmon config must not contain DTD/entity input")
     try:
-        tree = ET.fromstring(text)
+        tree = ET.fromstring(text)  # nosec B314 - local config, DTD refused
     except ET.ParseError as exc:
         raise ValueError(f"base Sysmon config is not valid XML: {exc}") from exc
     filtering = tree.find("EventFiltering")
