@@ -71,6 +71,12 @@ def test_handle_client_kills_unknown_pipe_client(tmp_path, monkeypatch):
             (root / "data/events.jsonl").read_text().splitlines()]
     assert rows[-1]["source"] == "canary"
     assert rows[-1]["action"] == "blocked"
+    journal = [json.loads(l) for l in
+               (root / "canary-pipe-journal.jsonl").read_text().splitlines()]
+    assert journal[-1]["pipe"] == entry["name"]
+    assert journal[-1]["decision"] == "killed"
+    assert journal[-1]["pid"] == 1234
+    assert journal[-1]["id"] == 1
 
 
 def test_handle_client_skips_trusted_and_protected(tmp_path, monkeypatch):

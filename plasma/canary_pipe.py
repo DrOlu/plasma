@@ -80,6 +80,26 @@ def plan_path(root) -> Path:
     return Path(root) / PLAN_NAME
 
 
+def _journal(root, entry: dict) -> dict:
+    path = journal_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    entry = dict(entry)
+    entry.setdefault("ts", _now())
+    with agentstate.lock(path.parent / ".canary-pipe-journal.lock", stale=300):
+        rows = 0
+        if path.exists():
+            try:
+                rows = sum(1 for line in path.read_text(
+                    encoding="utf-8", errors="replace").splitlines()
+                    if line.strip())
+            except OSError:
+                rows = 0
+        entry.setdefault("id", rows + 1)
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry, sort_keys=True) + "\n")
+    return entry
+
+
 def _load_pipes(root) -> list[dict]:
     path = pipes_path(root)
     if not path.exists():
@@ -235,7 +255,6 @@ def _task_script(root, exe=None) -> str:
 def install(root, apply: bool = False, plan=None, reason=None) -> dict:
     root = Path(root)
     rows = _load_pipes(root)
-    _debug(root, f"serve start pipes={len(rows)} apply={bool(apply)}")
     if not rows:
         return {"error": "no pipe canaries; run canary pipe deploy first",
                 "code": "NO_PIPES"}
@@ -265,7 +284,7 @@ def install(root, apply: bool = False, plan=None, reason=None) -> dict:
     if rc != 0:
         return {"error": "pipe task registration failed", "detail": out[:500],
                 "code": "FAILED"}
-    entry = canary_shield._journal(root, {
+    entry = _journal(root, {
         "kind": "pipe-install", "status": "applied", "plan": plan,
         "reason": reason, "task": TASK_NAME, "pipes": len(rows),
     })
@@ -300,7 +319,7 @@ def uninstall(root, apply: bool = False, plan=None, reason=None) -> dict:
     if rc != 0:
         return {"error": "pipe task removal failed", "detail": out[:400],
                 "code": "FAILED"}
-    entry = canary_shield._journal(root, {
+    entry = _journal(root, {
         "kind": "pipe-uninstall", "status": "applied", "plan": plan,
         "reason": reason, "task": TASK_NAME,
     })
@@ -377,7 +396,7 @@ def _handle_client(root, entry, pid, apply, reason, max_kills, kill_count) -> di
             kill_count[0] += 1
         else:
             decision = "kill failed"
-    row = canary_shield._journal(root, {
+    row = _journal(root, {
         "kind": "pipe", "pipe": entry.get("name"), "path": entry.get("path"),
         "pid": pid, "image": image, "decision": decision, "result": result,
         "reason": reason,
