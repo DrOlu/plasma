@@ -26,6 +26,7 @@ from . import (
     assurance,
     autoupdate,
     canary,
+    canary_shield,
     canary_tokens,
     chain,
     coverage,
@@ -1794,6 +1795,51 @@ def cmd_canary_hits(args) -> int:
     return 0
 
 
+def cmd_canary_shield_status(args) -> int:
+    _emit(canary_shield.status(args.root))
+    return 0
+
+
+def cmd_canary_shield_install(args) -> int:
+    result = canary_shield.install(
+        args.root, apply=args.apply, plan=args.plan, reason=args.reason)
+    _emit(result)
+    return 0 if "error" not in result else 2
+
+
+def cmd_canary_shield_uninstall(args) -> int:
+    result = canary_shield.uninstall(
+        args.root, apply=args.apply, plan=args.plan, reason=args.reason)
+    _emit(result)
+    return 0 if "error" not in result else 2
+
+
+def cmd_canary_shield_sweep(args) -> int:
+    result = canary_shield.sweep(
+        args.root, since_minutes=args.since_minutes, apply=args.apply,
+        reason=args.reason, max_kills=args.max_kills)
+    _emit(result)
+    return 0 if "error" not in result else 2
+
+
+def cmd_canary_registry_deploy(args) -> int:
+    result = canary_shield.registry_deploy(
+        args.root, hive=args.hive, count=args.count)
+    _emit(result)
+    return 0 if "error" not in result else 2
+
+
+def cmd_canary_registry_list(args) -> int:
+    _emit(canary_shield.registry_list(args.root))
+    return 0
+
+
+def cmd_canary_registry_remove(args) -> int:
+    result = canary_shield.registry_remove(args.root, args.canary_id)
+    _emit(result)
+    return 0 if "error" not in result else 2
+
+
 def cmd_canary_sysmon(args) -> int:
     try:
         domains = list(args.domain or canary_tokens.dns_domains(args.root))
@@ -3168,6 +3214,49 @@ def build_parser() -> argparse.ArgumentParser:
     cnsy.add_argument("--apply", action="store_true",
                       help="hot-reload the generated config through Sysmon64.exe -c")
     cnsy.set_defaults(func=cmd_canary_sysmon)
+
+    csh = cns.add_parser("shield",
+                         help="active canary shield: kill the process that writes/deletes a canary")
+    cshs = csh.add_subparsers(dest="shield_action", required=True)
+    cshst = cshs.add_parser("status", help="shield task, canary counts and last sweep")
+    cshst.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cshst.set_defaults(func=cmd_canary_shield_status)
+    cshi = cshs.add_parser("install", help="preview/apply narrow Sysmon includes + SYSTEM task")
+    cshi.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cshi.add_argument("--apply", action="store_true")
+    cshi.add_argument("--plan", type=int, default=None)
+    cshi.add_argument("--reason", default=None)
+    cshi.set_defaults(func=cmd_canary_shield_install)
+    cshu = cshs.add_parser("uninstall", help="remove the task and restore the prior Sysmon config")
+    cshu.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cshu.add_argument("--apply", action="store_true")
+    cshu.add_argument("--plan", type=int, default=None)
+    cshu.add_argument("--reason", default=None)
+    cshu.set_defaults(func=cmd_canary_shield_uninstall)
+    cshw = cshs.add_parser("sweep", help="read canary events; dry-run or kill accessing processes")
+    cshw.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cshw.add_argument("--since-minutes", dest="since_minutes", type=int,
+                      default=canary_shield.DEFAULT_SINCE_MINUTES)
+    cshw.add_argument("--apply", action="store_true")
+    cshw.add_argument("--reason", default=None)
+    cshw.add_argument("--max-kills", dest="max_kills", type=int,
+                      default=canary_shield.MAX_KILLS)
+    cshw.set_defaults(func=cmd_canary_shield_sweep)
+
+    creg = cns.add_parser("registry", help="decoy registry keys for the active shield")
+    cregs = creg.add_subparsers(dest="registry_action", required=True)
+    cregd = cregs.add_parser("deploy", help="create decoy registry keys")
+    cregd.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cregd.add_argument("--hive", choices=["HKCU", "HKLM"], default="HKCU")
+    cregd.add_argument("--count", type=int, default=1)
+    cregd.set_defaults(func=cmd_canary_registry_deploy)
+    cregl = cregs.add_parser("list", help="list decoy registry keys")
+    cregl.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cregl.set_defaults(func=cmd_canary_registry_list)
+    cregr = cregs.add_parser("remove", help="remove a decoy registry key")
+    cregr.add_argument("canary_id")
+    cregr.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cregr.set_defaults(func=cmd_canary_registry_remove)
 
     it = sub.add_parser("intercept",
                         help="deterministic policy at native interception points")

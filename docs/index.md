@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.24.1</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.25.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.24.1</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.25.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">921 tests</span>
+<span class="raft-badge">931 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -115,6 +115,21 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    prevent (AppLocker, egress, ASR, LSA, CFA, Network Protection) ·
                    intercept (NTFS ACL, firewall, agent gateway)
 ```
+
+## What's new in 1.25.0
+
+- **Active canary shield.** File and registry canaries can now kill the
+  process that writes or deletes them. A narrow Sysmon include feeds a
+  one-minute SYSTEM sweep; the sweep verifies the live PID and image, refuses
+  protected/trusted processes, then kills and journals.
+- **No read false positives.** Merely opening or reading a canary does not
+  trigger. Explorer, Plasma, Defender and common backup/system processes are
+  skipped; the boundary is explicit.
+- **Registry canaries.** `canary registry deploy|list|remove` adds decoy
+  registry keys watched by the same narrow RegistryEvent include.
+- **Enterprise deployment guide.** A new AD-domain installation,
+  configuration, GPO/SCCM/Intune, fleet, canary-shield and operations guide.
+- **931 tests**, full suite and `-W error` pass.
 
 ## What's new in 1.24.1
 

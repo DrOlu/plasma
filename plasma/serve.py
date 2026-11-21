@@ -205,6 +205,11 @@ MUTATING = (
     "case seal",
     "canary token create",
     "canary token remove",
+    "canary shield install",
+    "canary shield uninstall",
+    "canary shield sweep",
+    "canary registry deploy",
+    "canary registry remove",
     "canary collect",
     "canary sysmon",
     "intercept rules add",
@@ -347,6 +352,9 @@ def is_mutating(argv: list[str], path: str | None = None,
     if path == "intercept evaluate" and not _argv_value(argv, "--out"):
         return False
     if path == "query" and not _argv_value(argv, "--out"):
+        return False
+    if path in ("canary shield install", "canary shield uninstall",
+                "canary shield sweep") and "--apply" not in argv:
         return False
     if path == "manifest" and parsed is not None:
         return getattr(parsed, "action", "") == "create"

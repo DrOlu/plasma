@@ -3166,4 +3166,122 @@ is fully effective.""",
     see_also=["prevent posture", "prevent rollback"],
 ))
 
+_add("canary shield", _c(
+    "active canary shield: kill the process that writes or deletes a canary",
+    """Turn the canary from a detector into a narrow active defence.
+
+A `canary shield install` dry-run adds Sysmon `FileCreate`/`FileDelete`
+includes for the deployed canary basenames, adds `RegistryEvent` includes
+for decoy registry keys, and registers a SYSTEM task that runs
+`canary shield sweep --apply` every minute. The sweep proves the accessing
+process still exists and still matches the recorded image, refuses protected
+and trusted processes, then kills the process and journals the decision.
+
+Only create/overwrite/delete and registry writes trigger. Merely opening or
+reading a canary does not. Explorer and common backup/AV/system processes
+are skipped; the false-positive boundary is explicit, not implied.""",
+    [
+        ("Status", "plasma canary shield status"),
+        ("Preview install", "plasma canary shield install"),
+        ("Arm after review", "plasma canary shield install --apply --plan 4 --reason \"IR-42 shield\""),
+        ("Dry-run one sweep", "plasma canary shield sweep --since-minutes 10"),
+        ("Kill on a live sweep", "plasma canary shield sweep --apply --reason \"canary tripped\""),
+        ("Disarm", "plasma canary shield uninstall --apply --plan 5 --reason \"change window\""),
+    ],
+    safety=PLAN_GATED,
+    notes=["Requires Sysmon and a canonical <root>\\\\bin\\\\plasma.exe.",
+           "Kills are capped per sweep and refused for protected processes.",
+           "The task runs every minute; the kill is near-real-time, not in-kernel."],
+    see_also=["canary deploy", "canary registry deploy", "canary shield status",
+              "watch once", "actuate"],
+))
+
+_add("canary shield status", _c(
+    "shield task, canary counts and last sweep",
+    "Report whether the shield task is installed, how many file and registry canaries exist, whether the Sysmon config contains the narrow includes, and the last sweep result.",
+    [("Status", "plasma canary shield status")],
+    safety=READ_ONLY,
+    see_also=["canary shield", "canary shield sweep"],
+))
+
+_add("canary shield install", _c(
+    "preview or apply the narrow Sysmon includes and SYSTEM task",
+    """Render the exact Sysmon config and task command. Apply requires the
+plan id from the dry-run and a reason. The prior Sysmon config is backed up;
+uninstall restores it.""",
+    [
+        ("Preview", "plasma canary shield install"),
+        ("Apply", "plasma canary shield install --apply --plan 4 --reason \"pilot\""),
+    ],
+    safety=PLAN_GATED,
+    notes=["The config adds only canary basenames and registry fragments.",
+           "Sysmon is reloaded with -c; a rejected config restores the backup."],
+    see_also=["canary shield", "canary shield uninstall", "canary shield status"],
+))
+
+_add("canary shield uninstall", _c(
+    "remove the shield task and restore the prior Sysmon config",
+    "Preview or apply removal of the SYSTEM task and restoration of the backed-up Sysmon configuration.",
+    [
+        ("Preview", "plasma canary shield uninstall"),
+        ("Apply", "plasma canary shield uninstall --apply --plan 5 --reason \"change window\""),
+    ],
+    safety=PLAN_GATED,
+    see_also=["canary shield install", "canary shield status"],
+))
+
+_add("canary shield sweep", _c(
+    "read canary events; dry-run or kill accessing processes",
+    """Read Sysmon FileCreate/FileDelete and RegistryEvent rows in the
+window, match them against the recorded file/registry canaries, verify the
+live process, and either report the plan (default) or kill the process
+(`--apply`). Protected and trusted processes are refused and journaled.""",
+    [
+        ("Dry-run", "plasma canary shield sweep --since-minutes 10"),
+        ("Kill", "plasma canary shield sweep --apply --reason \"canary tripped\""),
+        ("Narrow window", "plasma canary shield sweep --since-minutes 2 --max-kills 2"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["A kill requires --reason; the kill switch is also enforced.",
+           "The scheduled task runs this with --apply every minute.",
+           "Only write/delete/registry events count; reads do not."],
+    see_also=["canary shield install", "canary shield status", "actuate actions"],
+))
+
+_add("canary registry", _c(
+    "decoy registry keys for the active shield",
+    "Create, list or remove decoy registry keys that no legitimate software should write. The shield's narrow Sysmon RegistryEvent include watches those keys and can kill the writing process.",
+    [
+        ("Deploy HKCU key", "plasma canary registry deploy --hive HKCU --count 1"),
+        ("List", "plasma canary registry list"),
+        ("Remove", "plasma canary registry remove <id>"),
+    ],
+    safety=LOCAL_WRITE,
+    see_also=["canary shield", "canary deploy"],
+))
+
+_add("canary registry deploy", _c(
+    "create decoy registry keys",
+    "Create random keys under Software\\PlasmaDecoy in HKCU or HKLM and record them for the shield.",
+    [("One HKCU key", "plasma canary registry deploy --hive HKCU --count 1")],
+    safety=LOCAL_WRITE,
+    see_also=["canary registry list", "canary shield install"],
+))
+
+_add("canary registry list", _c(
+    "list decoy registry keys",
+    "List the recorded registry canaries and their key fragments.",
+    [("List", "plasma canary registry list")],
+    safety=READ_ONLY,
+    see_also=["canary registry deploy", "canary shield status"],
+))
+
+_add("canary registry remove", _c(
+    "remove a decoy registry key",
+    "Delete the recorded key and remove it from the registry canary file.",
+    [("Remove", "plasma canary registry remove 1a2b3c4d5e6f")],
+    safety=LOCAL_WRITE,
+    see_also=["canary registry list"],
+))
+
 # END_OF_HELP_SOURCE

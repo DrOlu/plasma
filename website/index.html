@@ -343,7 +343,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <a class="skip" href="#main">Skip to content</a>
 
 <div class="announce">
-  <b>v1.24.1 is out</b> &nbsp;·&nbsp; Opt-in rollbackable CFA, Network Protection and driver blocklist, plus detection regression tests &nbsp;·&nbsp;
+  <b>v1.25.0 is out</b> &nbsp;·&nbsp; Active canary shield, registry canaries and an enterprise AD deployment guide &nbsp;·&nbsp;
   <a href="https://drolu.github.io/plasma/changelog/">read the changelog</a>
 </div>
 
@@ -351,7 +351,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
   <div class="wrap header-inner">
     <a class="brand" href="#top" aria-label="Plasma home">
       <span class="brand-mark" aria-hidden="true">P</span>
-      <span>Plasma</span><em>v1.24.1</em>
+      <span>Plasma</span><em>v1.25.0</em>
     </a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
       <a href="#architecture">Architecture</a>
@@ -387,7 +387,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <section class="hero">
   <div class="wrap hero-grid">
     <div class="reveal">
-      <span class="pill"><i></i> Windows EDR · on-device · v1.24.1</span>
+      <span class="pill"><i></i> Windows EDR · on-device · v1.25.0</span>
       <h1>No log lake.<br>No cloud.<br><span class="hl">No blind trust.</span></h1>
       <p class="sub">
         <strong>Detects always. Contains only when armed. Blocks only through Microsoft's own
@@ -449,7 +449,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <div class="stat"><div class="num"><span data-count="13">0</span></div><div class="lbl">reversible actions</div></div>
       <div class="stat"><div class="num"><span data-count="11">0</span></div><div class="lbl">typed agent tools</div></div>
       <div class="stat"><div class="num"><span data-count="2">0</span></div><div class="lbl">prevention tiers</div></div>
-      <div class="stat"><div class="num"><span data-count="921">0</span></div><div class="lbl">tests passing</div></div>
+      <div class="stat"><div class="num"><span data-count="931">0</span></div><div class="lbl">tests passing</div></div>
     </div>
   </div>
 </section>
@@ -637,7 +637,7 @@ plasma control audit verify</pre>
         <div class="cap"><span>Event parse</span><b>100%</b></div>
         <h3>Contract clean</h3>
         <p>DTrace, WHIDS storm rows and long command lines now validate. Both estate hosts parse every event in the store.</p>
-        <div class="tags"><span>WS1 + WS2</span><span>1.24.1</span></div>
+        <div class="tags"><span>WS1 + WS2</span><span>1.25.0</span></div>
       </article>
     </div>
 
@@ -751,10 +751,10 @@ python orchestrate.py undo 35</pre>
     <div class="section-head reveal">
       <span class="kicker">Canaries</span>
       <h2>Tripwires that should never be touched.</h2>
-      <p class="lede">Three native token types, one evidence path. No container, no external callback, no telemetry endpoint.</p>
+      <p class="lede">Four native canary types, one evidence path, and an optional shield that kills the process that writes or deletes a canary. No container, no external callback, no telemetry endpoint.</p>
     </div>
 
-    <div class="grid c3">
+    <div class="grid c4">
       <article class="card c-coral reveal">
         <div class="cap"><span>File canaries</span><b>score 10</b></div>
         <h3>Believable decoys</h3>
@@ -775,10 +775,17 @@ python orchestrate.py undo 35</pre>
         <p>A plausible Windows <code>.url</code> shortcut pointing at <code>plasma canary serve</code>. Loopback-first, GET/HEAD only, 1×1 GIF, no file serving, no redirects.</p>
         <div class="tags"><span>.url</span><span>loopback</span><span>no Docker</span></div>
       </article>
+
+      <article class="card c-pink reveal">
+        <div class="cap"><span>Active shield</span><b>kill</b></div>
+        <h3>Touch it, lose the process</h3>
+        <p>A narrow Sysmon include watches only the canary files and registry keys. A one-minute SYSTEM sweep verifies the live PID and image, refuses protected/trusted processes, then kills. Reads do not trigger.</p>
+        <div class="tags"><span>Sysmon 11/23</span><span>RegistryEvent</span><span>one-minute task</span></div>
+      </article>
     </div>
 
     <div class="note reveal" style="margin-top:18px">
-      DNS and HTTP hits become <code>source="canary"</code> alert rows, deduplicated across sweeps. <code>watch</code> surfaces them, <code>fleet</code> adds <code>canary_token_hit</code>, and enforcement maps canary findings to approval-gated isolation. Configured canary accounts are checked on every sweep.
+      DNS and HTTP hits become <code>source="canary"</code> alert rows, deduplicated across sweeps. <code>watch</code> surfaces them, <code>fleet</code> adds <code>canary_token_hit</code>, and enforcement maps canary findings to approval-gated isolation. The active shield adds file and registry kills with a protected/trusted allowlist. Configured canary accounts are checked on every sweep.
     </div>
   </div>
 </section>
@@ -1382,7 +1389,7 @@ POST /v1/exec        run one CLI argv</pre>
       <div class="card c-lime">
         <h3>Tested on a live estate</h3>
         <p>Two Windows Server hosts: signed updates, 259 Sigma rules, Sysmon FileDelete, canaries, fleet correlation, AppLocker/egress apply-and-rollback drills, MSI install and DTrace runs — plus the field WHIDS dump-tree hang, recovered and permanently bounded.</p>
-        <div class="mini">921 unit tests · 21 skipped</div>
+        <div class="mini">931 unit tests · 21 skipped</div>
       </div>
       <div class="card c-orange">
         <h3>Known limits</h3>
@@ -1454,13 +1461,13 @@ POST /v1/exec        run one CLI argv</pre>
       <div class="card c-lime">
         <div class="cap"><span>Product Guide</span><b>PDF · 21 pages</b></div>
         <h3>What it is and what it does</h3>
-        <p>Architecture, detection, coverage, prevention, response, neuralOSd orchestration, the HTTP API and the honest limits. Version 1.24.1.</p>
+        <p>Architecture, detection, coverage, prevention, response, neuralOSd orchestration, the HTTP API and the honest limits. Version 1.25.0.</p>
         <div class="mini"><a class="btn dark" href="https://drolu.github.io/plasma/Plasma_Product_Guide.pdf">Download the Product Guide</a></div>
       </div>
       <div class="card c-lav">
         <div class="cap"><span>Operations Guide</span><b>PDF · 19 pages</b></div>
         <h3>Install, operate, respond</h3>
-        <p>Install, configuration, daily operations, the prevention runbook, fleet, neuralOSd orchestration, the HTTP API, troubleshooting and cheat sheet. Version 1.24.1.</p>
+        <p>Install, configuration, daily operations, the prevention runbook, fleet, neuralOSd orchestration, the HTTP API, troubleshooting and cheat sheet. Version 1.25.0.</p>
         <div class="mini"><a class="btn dark" href="https://drolu.github.io/plasma/Plasma_Operations_Guide.pdf">Download the Operations Guide</a></div>
       </div>
     </div>
@@ -1475,7 +1482,7 @@ POST /v1/exec        run one CLI argv</pre>
       <p>Install the signed release, point the harness at the MCP server, and let the policy engine decide what the model is allowed to do.</p>
     </div>
     <div class="cta-actions">
-      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.24.1</a>
+      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.25.0</a>
       <a class="btn pink" href="https://drolu.github.io/plasma/getting-started/">Read the docs</a>
     </div>
   </div>

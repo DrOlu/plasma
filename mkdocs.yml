@@ -34,6 +34,7 @@ nav:
   - Home: index.md
   - Start:
       - Getting started: getting-started.md
+      - Enterprise deployment (AD): enterprise-deployment.md
       - Deployment (MSI/GPO): deployment.md
       - Concepts: concepts.md
   - Agent:
