@@ -12,8 +12,8 @@ bounded event tails from endpoints only when asked.
 
 ## Reference architecture
 
-<figure markdown="0" style="margin: 1.4rem 0;">
-  <img src="assets/enterprise-architecture.svg" alt="Plasma enterprise Active Directory architecture: a hardened jump host pulls bounded event tails over WinRM HTTPS from domain-joined endpoints; Group Policy, SCCM or Intune configures the endpoints; events stay in local JSONL stores, with optional SIEM forwarding." style="width:100%;height:auto;border:1px solid #D8D2C4;border-radius:12px;background:#FFFDF7;">
+<figure style="margin: 1.4rem 0;">
+  <img src="../assets/enterprise-architecture.svg" alt="Plasma enterprise Active Directory architecture: a hardened jump host pulls bounded event tails over WinRM HTTPS from domain-joined endpoints; Group Policy, SCCM or Intune configures the endpoints; events stay in local JSONL stores, with optional SIEM forwarding." style="width:100%;height:auto;border:1px solid #D8D2C4;border-radius:12px;background:#FFFDF7;">
   <figcaption style="font-size:0.86rem;color:#555552;margin-top:0.5rem;">Plasma in an Active Directory domain: local detection, pull-based management, no required central lake.</figcaption>
 </figure>
 
