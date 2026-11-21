@@ -12,7 +12,7 @@ The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">941 tests</span>
+<span class="raft-badge">943 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -132,7 +132,7 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
   real SVG illustration instead of ASCII art.
 - **Enterprise guide expanded** with pipe-canary rollout, scanner caveats and
   disarm steps.
-- **941 tests**, full suite and `-W error` pass.
+- **943 tests**, full suite and `-W error` pass.
 
 ## What's new in 1.25.0
 
