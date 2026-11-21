@@ -48,13 +48,14 @@ PIPE_WAIT = 0x00000000
 PIPE_UNLIMITED_INSTANCES = 255
 ERROR_PIPE_CONNECTED = 535
 INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+_DEBUG_LOCK = threading.Lock()
 
 
 def _debug(root, message: str) -> None:
     try:
         path = Path(root) / "canary-pipe-debug.log"
         path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as fh:
+        with _DEBUG_LOCK, path.open("a", encoding="utf-8") as fh:
             fh.write(f"{_now()} {message}\n")
     except OSError:
         pass
@@ -406,6 +407,14 @@ def _handle_client(root, entry, pid, apply, reason, max_kills, kill_count) -> di
             "decision": decision, "journal": row.get("id")}
 
 
+def _write_state(root, rows, counter, kills, apply) -> None:
+    agentstate.write_json(state_path(root), {
+        "last_run": _now(), "pipes": len(rows),
+        "connections": counter["connections"], "killed": kills[0],
+        "apply": bool(apply),
+    })
+
+
 def serve(root, apply: bool = False, reason=None, max_kills: int = 5,
           max_connections: int = 0) -> int:
     """Block and listen on every deployed pipe canary."""
@@ -430,6 +439,7 @@ def serve(root, apply: bool = False, reason=None, max_kills: int = 5,
     except OSError as exc:
         print(json.dumps({"error": str(exc), "code": "UNSUPPORTED"}))
         return 1
+    _write_state(root, rows, {"connections": 0}, [0], apply)
 
     counter = {"connections": 0}
     kills = [0]
@@ -470,6 +480,7 @@ def serve(root, apply: bool = False, reason=None, max_kills: int = 5,
                     result = _handle_client(root, entry, int(pid.value),
                                             apply, reason, max_kills, kills)
                     print(json.dumps(result, default=str), flush=True)
+                    _write_state(root, rows, counter, kills, apply)
                     if max_connections and counter["connections"] >= max_connections:
                         stop.set()
             finally:
@@ -490,11 +501,7 @@ def serve(root, apply: bool = False, reason=None, max_kills: int = 5,
                 break
     except KeyboardInterrupt:
         stop.set()
-    state = {
-        "last_run": _now(), "pipes": len(rows), "connections": counter["connections"],
-        "killed": kills[0], "apply": bool(apply),
-    }
-    agentstate.write_json(state_path(root), state)
+    _write_state(root, rows, counter, kills, apply)
     return 0 if counter["connections"] >= 0 else 1
 
 

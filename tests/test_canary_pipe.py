@@ -117,3 +117,27 @@ def test_serve_unsupported_without_windows(tmp_path, monkeypatch):
                         lambda: (_ for _ in ()).throw(OSError("no Windows")))
     rc = canary_pipe.serve(root)
     assert rc == 1
+
+
+def test_status_reports_live_listener_counts(tmp_path):
+    root = _root(tmp_path)
+    canary_pipe.deploy(root)
+    rows = canary_pipe.list_pipes(root)["pipes"]
+    canary_pipe._write_state(root, rows, {"connections": 3}, [2], True)
+    out = canary_pipe.status(root)
+    assert out["pipes"] == 1
+    assert out["last_connections"] == 3
+    assert out["last_killed"] == 2
+
+
+def test_install_and_uninstall_use_pipe_journal(tmp_path, monkeypatch):
+    root = _root(tmp_path)
+    canary_pipe.deploy(root)
+    monkeypatch.setattr(canary_shield, "_ps",
+                        lambda s, timeout=120: (0, '{"ok":true}'))
+    dry = canary_pipe.install(root)
+    canary_pipe.install(root, apply=True, plan=dry["plan"], reason="pilot")
+    rows = [json.loads(l) for l in
+            (root / "canary-pipe-journal.jsonl").read_text().splitlines()]
+    assert rows[-1]["kind"] == "pipe-install"
+    assert rows[-1]["status"] == "applied"
