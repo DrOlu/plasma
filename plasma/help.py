@@ -789,10 +789,11 @@ do not trigger it.""",
         ("Create an HTTP token", "plasma canary token create --kind http --base-url http://collector:8088"),
         ("Start the local collector", "plasma canary serve --host 127.0.0.1 --port 8088"),
         ("Create a registry canary", "plasma canary registry deploy --hive HKCU --count 1"),
+        ("Create a pipe canary", "plasma canary pipe deploy --count 1"),
         ("Preview the active shield", "plasma canary shield install"),
     ],
     safety=LOCAL_WRITE,
-    see_also=["fim", "watch", "canary shield", "canary registry", "canary token"],
+    see_also=["fim", "watch", "canary shield", "canary registry", "canary pipe", "canary token"],
 ))
 
 _add("canary deploy", _c(
@@ -2509,8 +2510,8 @@ ROOT_DESCRIPTION = """Plasma is a lake-less, agent-native Windows EDR.
 
 Detection is local: Sysmon/WHIDS alerts, Security-channel audit events, an
 ETW tap, DTrace on demand, file integrity, canary files, native DNS/HTTP
-tokens, on-demand memory scanning and an active file/registry canary shield
-are normalized into one JSONL store. Investigation is local too: typed queries, explicit process lineage, bounded
+tokens, on-demand memory scanning and an active file/registry/pipe canary
+shield are normalized into one JSONL store. Investigation is local too: typed queries, explicit process lineage, bounded
 summaries and sealed case directories. Prevention is opt-in: AppLocker,
 egress, ASR, LSA, Controlled Folder Access, Network Protection and the
 driver blocklist are previewed, plan-gated and reversible; WDAC is read-only.
@@ -3287,6 +3288,102 @@ _add("canary registry remove", _c(
     [("Remove", "plasma canary registry remove 1a2b3c4d5e6f")],
     safety=LOCAL_WRITE,
     see_also=["canary registry list"],
+))
+
+_add("canary pipe", _c(
+    "named-pipe canaries that kill the client that connects",
+    """Deploy a randomly named decoy named pipe and run a listener. Nothing
+legitimate should connect to it; a client that does is identified with
+GetNamedPipeClientProcessId, verified, and killed unless it is protected or
+trusted.
+
+Enumeration alone is not a connection and is not killed. The listener is a
+user-mode SYSTEM task, not a kernel driver. Reads/writes over the pipe are
+not needed: the connection itself is the tripwire.""",
+    [
+        ("Deploy", "plasma canary pipe deploy --count 1"),
+        ("Preview task", "plasma canary pipe install"),
+        ("Arm", "plasma canary pipe install --apply --plan 3 --reason \"IR-42\""),
+        ("Run a bounded test", "plasma canary pipe serve --apply --reason \"drill\" --max-connections 1"),
+        ("Status", "plasma canary pipe status"),
+    ],
+    safety=PLAN_GATED,
+    notes=["Windows only; the listener blocks while running.",
+           "A scanner that enumerates pipes is not touched; a client that connects is.",
+           "Protected processes are refused; Plasma/Defender/backup are trusted."],
+    see_also=["canary pipe deploy", "canary pipe serve", "canary shield status"],
+))
+
+_add("canary pipe deploy", _c(
+    "create decoy named-pipe names",
+    "Create random, plausible pipe names and record them for the listener.",
+    [("One pipe", "plasma canary pipe deploy --count 1")],
+    safety=LOCAL_WRITE,
+    see_also=["canary pipe list", "canary pipe install"],
+))
+
+_add("canary pipe list", _c(
+    "list decoy pipes",
+    "Show the recorded pipe names and paths.",
+    [("List", "plasma canary pipe list")],
+    safety=READ_ONLY,
+    see_also=["canary pipe deploy"],
+))
+
+_add("canary pipe remove", _c(
+    "remove a decoy pipe",
+    "Remove one pipe from the registry; the listener picks it up on restart.",
+    [("Remove", "plasma canary pipe remove 1a2b3c4d5e6f")],
+    safety=LOCAL_WRITE,
+    see_also=["canary pipe list"],
+))
+
+_add("canary pipe serve", _c(
+    "listen on decoy pipes and kill connecting processes",
+    """Block and listen on every deployed pipe. On a connection, get the
+client PID, verify the live image, refuse protected/trusted processes, and
+kill unless the listener is in dry-run mode. The connection is also written
+to the event store and the pipe journal.""",
+    [
+        ("Bounded dry-run", "plasma canary pipe serve --max-connections 1"),
+        ("Bounded kill", "plasma canary pipe serve --apply --reason \"drill\" --max-connections 1"),
+        ("Run until stopped", "plasma canary pipe serve --apply --reason \"scheduled\""),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["Blocks by design; the installed task runs it at startup.",
+           "A --reason is mandatory with --apply.",
+           "The listener is user-mode; remote access depends on SMB/pipe ACLs."],
+    see_also=["canary pipe install", "canary pipe status"],
+))
+
+_add("canary pipe install", _c(
+    "preview/apply the SYSTEM pipe listener task",
+    "Preview or register a SYSTEM task that starts the pipe listener at boot and restarts it on failure.",
+    [
+        ("Preview", "plasma canary pipe install"),
+        ("Apply", "plasma canary pipe install --apply --plan 3 --reason \"pilot\""),
+    ],
+    safety=PLAN_GATED,
+    see_also=["canary pipe serve", "canary pipe uninstall"],
+))
+
+_add("canary pipe uninstall", _c(
+    "remove the pipe listener task",
+    "Preview or stop and unregister the SYSTEM task.",
+    [
+        ("Preview", "plasma canary pipe uninstall"),
+        ("Apply", "plasma canary pipe uninstall --apply --plan 4 --reason \"change window\""),
+    ],
+    safety=PLAN_GATED,
+    see_also=["canary pipe install"],
+))
+
+_add("canary pipe status", _c(
+    "pipe task and last listener state",
+    "Report task state, pipe count, last connections and last kills.",
+    [("Status", "plasma canary pipe status")],
+    safety=READ_ONLY,
+    see_also=["canary pipe install", "canary pipe serve"],
 ))
 
 # END_OF_HELP_SOURCE

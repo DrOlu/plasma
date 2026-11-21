@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="650" viewBox="0 0 1120 650" role="img" aria-labelledby="title desc">
+  <title id="title">Plasma enterprise Active Directory deployment</title>
+  <desc id="desc">A management VLAN jump host pulls bounded event tails over WinRM HTTPS from domain-joined servers and workstations. Group Policy, SCCM or Intune configures the endpoints. Events stay in local JSONL stores; an optional SIEM receives forwarded events.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#141111"/>
+    </marker>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0E7490"/>
+    </marker>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#141111" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .box { fill: #FFFAEF; stroke: #141111; stroke-width: 2; rx: 14; }
+      .box-yellow { fill: #FFD440; stroke: #141111; stroke-width: 2; rx: 14; }
+      .box-cyan { fill: #E6F6FA; stroke: #0E7490; stroke-width: 2; rx: 14; }
+      .box-pink { fill: #FDE8EE; stroke: #B4235A; stroke-width: 2; rx: 14; }
+      .box-lime { fill: #EDF7D8; stroke: #4D7C0F; stroke-width: 2; rx: 14; }
+      .title { font: 700 19px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #141111; }
+      .h { font: 700 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #141111; }
+      .body { font: 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #3A3735; }
+      .small { font: 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #555552; }
+      .mono { font: 11.5px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #141111; }
+      .link { stroke: #141111; stroke-width: 2.2; fill: none; }
+      .link-cyan { stroke: #0E7490; stroke-width: 2.2; fill: none; stroke-dasharray: 7 5; }
+      .label { font: 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #555552; }
+    </style>
+  </defs>
+
+  <rect width="1120" height="650" fill="#FFFDF7"/>
+
+  <!-- Management VLAN -->
+  <rect x="40" y="36" width="1040" height="154" rx="18" fill="#FFF7DB" stroke="#E5C43A" stroke-width="1.5"/>
+  <text x="62" y="66" class="title">Management VLAN</text>
+  <text x="62" y="86" class="small">No inbound Plasma service on endpoints. The desk pulls only when asked.</text>
+
+  <g filter="url(#shadow)">
+    <rect x="70" y="104" width="330" height="62" class="box-yellow"/>
+    <text x="90" y="130" class="h">Hardened jump host</text>
+    <text x="90" y="150" class="body">plasma fleet · case · evidence · query</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="432" y="104" width="250" height="62" class="box"/>
+    <text x="452" y="130" class="h">Optional serve API</text>
+    <text x="452" y="150" class="body">TLS, loopback / mgmt VLAN</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="714" y="104" width="336" height="62" class="box"/>
+    <text x="734" y="130" class="h">Optional SIEM / WEC</text>
+    <text x="734" y="150" class="body">forward events · no required lake</text>
+  </g>
+
+  <!-- Identity / policy plane -->
+  <g filter="url(#shadow)">
+    <rect x="70" y="236" width="330" height="84" class="box-cyan"/>
+    <text x="90" y="264" class="h">Active Directory</text>
+    <text x="90" y="284" class="body">OUs · groups · time / DNS</text>
+    <text x="90" y="303" class="mono">GPO · SCCM · Intune</text>
+  </g>
+
+  <!-- Endpoint estate -->
+  <rect x="432" y="222" width="618" height="332" rx="18" fill="#F7F4EA" stroke="#141111" stroke-width="1.5"/>
+  <text x="456" y="252" class="title">Domain-joined endpoints</text>
+  <text x="456" y="272" class="small">Windows 10/11 · Server 2019/2022/2025 · optional domain controllers</text>
+
+  <g filter="url(#shadow)">
+    <rect x="456" y="294" width="558" height="58" class="box-lime"/>
+    <text x="476" y="318" class="h">Plasma agent</text>
+    <text x="476" y="337" class="body">install · health · prevent · response · case</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="456" y="368" width="266" height="70" class="box"/>
+    <text x="476" y="394" class="h">Sysmon + WHIDS</text>
+    <text x="476" y="414" class="body">gene rules · ETW · identity</text>
+    <text x="476" y="430" class="mono">detect-only sensor plane</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="748" y="368" width="266" height="70" class="box-pink"/>
+    <text x="768" y="394" class="h">Canary shield</text>
+    <text x="768" y="414" class="body">files · registry · named pipes</text>
+    <text x="768" y="430" class="mono">one-minute / local SYSTEM task</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="456" y="458" width="558" height="66" class="box-cyan"/>
+    <text x="476" y="484" class="h">Local JSONL event store</text>
+    <text x="476" y="504" class="body">bounded · append-only · on the box · no central lake required</text>
+  </g>
+
+  <!-- Links -->
+  <path d="M 235 166 L 235 236" class="link" marker-end="url(#arrow)"/>
+  <text x="247" y="205" class="label">WinRM 5986 (HTTPS)</text>
+
+  <path d="M 400 278 L 456 278" class="link" marker-end="url(#arrow)"/>
+  <text x="402" y="268" class="label">GPO / SCCM / Intune</text>
+
+  <path d="M 400 160 L 456 160 L 456 294" class="link-cyan" marker-end="url(#arrowCyan)"/>
+  <text x="466" y="182" class="label">pull bounded tails (WinRM 5986)</text>
+  <text x="466" y="198" class="label">no standing collector</text>
+
+  <path d="M 714 166 L 714 368" class="link-cyan" marker-end="url(#arrowCyan)"/>
+  <text x="724" y="214" class="label">optional forwarding</text>
+  <text x="724" y="230" class="label">events / alerts</text>
+
+  <!-- Footer -->
+  <text x="40" y="604" class="body">Design rule: detect on the endpoint, pull small answers on demand, keep response plan-gated and reversible.</text>
+  <text x="40" y="626" class="small">Plasma 1.26 · no kernel driver · WDAC remains read-only · canary shield is user-mode and opt-in</text>
+</svg>

@@ -26,6 +26,7 @@ from . import (
     assurance,
     autoupdate,
     canary,
+    canary_pipe,
     canary_shield,
     canary_tokens,
     chain,
@@ -1795,6 +1796,48 @@ def cmd_canary_hits(args) -> int:
     return 0
 
 
+def cmd_canary_pipe_deploy(args) -> int:
+    result = canary_pipe.deploy(args.root, count=args.count)
+    _emit(result)
+    return 0 if "error" not in result else 2
+
+
+def cmd_canary_pipe_list(args) -> int:
+    _emit(canary_pipe.list_pipes(args.root))
+    return 0
+
+
+def cmd_canary_pipe_remove(args) -> int:
+    result = canary_pipe.remove(args.root, args.pipe_id)
+    _emit(result)
+    return 0 if "error" not in result else 2
+
+
+def cmd_canary_pipe_serve(args) -> int:
+    return canary_pipe.serve(
+        args.root, apply=args.apply, reason=args.reason,
+        max_kills=args.max_kills, max_connections=args.max_connections)
+
+
+def cmd_canary_pipe_install(args) -> int:
+    result = canary_pipe.install(
+        args.root, apply=args.apply, plan=args.plan, reason=args.reason)
+    _emit(result)
+    return 0 if "error" not in result else 2
+
+
+def cmd_canary_pipe_uninstall(args) -> int:
+    result = canary_pipe.uninstall(
+        args.root, apply=args.apply, plan=args.plan, reason=args.reason)
+    _emit(result)
+    return 0 if "error" not in result else 2
+
+
+def cmd_canary_pipe_status(args) -> int:
+    _emit(canary_pipe.status(args.root))
+    return 0
+
+
 def cmd_canary_shield_status(args) -> int:
     _emit(canary_shield.status(args.root))
     return 0
@@ -3214,6 +3257,43 @@ def build_parser() -> argparse.ArgumentParser:
     cnsy.add_argument("--apply", action="store_true",
                       help="hot-reload the generated config through Sysmon64.exe -c")
     cnsy.set_defaults(func=cmd_canary_sysmon)
+
+    cpipe = cns.add_parser("pipe",
+                           help="named-pipe canaries that kill the client that connects")
+    cps = cpipe.add_subparsers(dest="pipe_action", required=True)
+    cpd = cps.add_parser("deploy", help="create decoy pipe names")
+    cpd.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpd.add_argument("--count", type=int, default=1)
+    cpd.set_defaults(func=cmd_canary_pipe_deploy)
+    cpl = cps.add_parser("list", help="list decoy pipes")
+    cpl.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpl.set_defaults(func=cmd_canary_pipe_list)
+    cpr = cps.add_parser("remove", help="remove a decoy pipe")
+    cpr.add_argument("pipe_id")
+    cpr.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpr.set_defaults(func=cmd_canary_pipe_remove)
+    cpsv = cps.add_parser("serve", help="listen and kill connecting processes (blocks)")
+    cpsv.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpsv.add_argument("--apply", action="store_true")
+    cpsv.add_argument("--reason", default=None)
+    cpsv.add_argument("--max-kills", dest="max_kills", type=int, default=5)
+    cpsv.add_argument("--max-connections", dest="max_connections", type=int, default=0)
+    cpsv.set_defaults(func=cmd_canary_pipe_serve)
+    cpi = cps.add_parser("install", help="preview/apply the SYSTEM pipe listener task")
+    cpi.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpi.add_argument("--apply", action="store_true")
+    cpi.add_argument("--plan", type=int, default=None)
+    cpi.add_argument("--reason", default=None)
+    cpi.set_defaults(func=cmd_canary_pipe_install)
+    cpu = cps.add_parser("uninstall", help="remove the pipe listener task")
+    cpu.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpu.add_argument("--apply", action="store_true")
+    cpu.add_argument("--plan", type=int, default=None)
+    cpu.add_argument("--reason", default=None)
+    cpu.set_defaults(func=cmd_canary_pipe_uninstall)
+    cpst = cps.add_parser("status", help="pipe task and last listener state")
+    cpst.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
+    cpst.set_defaults(func=cmd_canary_pipe_status)
 
     csh = cns.add_parser("shield",
                          help="active canary shield: kill the process that writes/deletes a canary")

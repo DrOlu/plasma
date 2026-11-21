@@ -172,6 +172,13 @@ plasma canary shield status
 plasma canary shield install [--apply --plan ID --reason TEXT]
 plasma canary shield uninstall [--apply --plan ID --reason TEXT]
 plasma canary shield sweep [--since-minutes N] [--apply --reason TEXT] [--max-kills N]
+plasma canary pipe deploy [--count N]
+plasma canary pipe list
+plasma canary pipe remove ID
+plasma canary pipe serve [--apply --reason TEXT] [--max-connections N]
+plasma canary pipe install [--apply --plan ID --reason TEXT]
+plasma canary pipe uninstall [--apply --plan ID --reason TEXT]
+plasma canary pipe status
 ```
 
 File canaries are realistic decoys with randomized subdirectories and names
@@ -191,6 +198,11 @@ verifies the live PID/image, refuses protected/trusted processes, kills a
 process that creates/deletes/registry-writes a canary, and journals the
 decision. Reads do not trigger; a pure in-place overwrite is detected by
 `canary verify` as a hash change without process attribution.
+
+Named-pipe canaries are decoy pipes. `canary pipe install` registers a
+SYSTEM listener at boot; a client that connects is identified by PID and
+killed after the same protected/trusted checks. Enumeration alone is not a
+connection and is not killed. The listener is user-mode, not a driver.
 
 ### intercept
 

@@ -4,6 +4,21 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.26.0 — 2026-11-21
+
+- **Named-pipe canaries.** `canary pipe deploy|list|remove|serve|install|uninstall`
+  creates decoy pipes and a SYSTEM listener. A client that connects is
+  identified with `GetNamedPipeClientProcessId`, verified, and killed unless
+  protected/trusted. Enumeration alone does not trigger.
+- **Proper architecture diagram.** The enterprise AD page now uses a real SVG
+  illustration instead of ASCII art, with a PNG companion for the PDF.
+- **Enterprise guide expanded** with pipe-canary rollout, scanner caveats and
+  disarm steps.
+- **Shield hardening from estate drills:** scheduled-task argument quoting,
+  fresh-root Sysmon backup, case-preserving Sysmon conditions, journal ids,
+  DTD/entity refusal.
+- 941 tests collected; full suite and `-W error` pass.
+
 ## 1.25.0 — 2026-11-21
 
 - **Active canary shield.** New `plasma canary shield` previews/installs a

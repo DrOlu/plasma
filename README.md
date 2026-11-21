@@ -208,11 +208,14 @@ Docker, cloud callback or external service is required.
 ```bash
 plasma canary registry deploy --hive HKCU --count 1
 plasma canary registry deploy --hive HKLM --count 1
+plasma canary pipe deploy --count 1
 plasma canary shield install                  # preview the Sysmon includes + task
 plasma canary shield install --apply --plan 4 --reason "IR-2026-042"
 plasma canary shield sweep --since-minutes 10    # dry-run
 plasma canary shield status
 plasma canary shield uninstall --apply --plan 5 --reason "change window"
+plasma canary pipe install --apply --plan 6 --reason "pipe pilot"
+plasma canary pipe status
 ```
 
 The shield adds a narrow Sysmon `FileCreate`/`FileDelete`/`RegistryEvent`
@@ -223,6 +226,11 @@ trusted processes, then kills the process and journals the decision. Reads
 do not trigger. A pure in-place overwrite has no Sysmon write event; it is
 still caught by `canary verify` as a hash change, without process
 attribution.
+
+Named-pipe canaries are decoy pipes. The listener runs at boot as SYSTEM; a
+client that connects is identified with `GetNamedPipeClientProcessId` and
+killed after the same protected/trusted checks. A scanner that only
+enumerates pipes is not touched.
 
 ## Memory scanning
 

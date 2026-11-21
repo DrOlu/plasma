@@ -152,6 +152,7 @@ LONG_RUNNING = (
     "mcp serve",
     "watch loop",
     "canary serve",
+    "canary pipe serve",
     "_bridge",
 )
 
@@ -210,6 +211,10 @@ MUTATING = (
     "canary shield sweep",
     "canary registry deploy",
     "canary registry remove",
+    "canary pipe deploy",
+    "canary pipe remove",
+    "canary pipe install",
+    "canary pipe uninstall",
     "canary collect",
     "canary sysmon",
     "intercept rules add",
@@ -354,7 +359,8 @@ def is_mutating(argv: list[str], path: str | None = None,
     if path == "query" and not _argv_value(argv, "--out"):
         return False
     if path in ("canary shield install", "canary shield uninstall",
-                "canary shield sweep") and "--apply" not in argv:
+                "canary shield sweep", "canary pipe install",
+                "canary pipe uninstall") and "--apply" not in argv:
         return False
     if path == "manifest" and parsed is not None:
         return getattr(parsed, "action", "") == "create"

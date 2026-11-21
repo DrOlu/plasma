@@ -12,24 +12,10 @@ bounded event tails from endpoints only when asked.
 
 ## Reference architecture
 
-```text
-                         ┌─────────────────────────────────────┐
-                         │  Management VLAN / jump host        │
-                         │  plasma fleet · case · evidence     │
-                         │  optional plasma serve (TLS)        │
-                         └───────────────┬─────────────────────┘
-                                         │ WinRM 5986 (HTTPS)
-              ┌──────────────────────────┼──────────────────────────┐
-              │                          │                          │
-      ┌───────▼────────┐        ┌────────▼───────┐        ┌─────────▼───────┐
-      │ Member server  │        │ Member server  │        │ Workstations    │
-      │ Plasma agent   │        │ Plasma agent   │        │ Plasma agent    │
-      │ Sysmon + WHIDS │        │ Sysmon + WHIDS │        │ Sysmon + WHIDS  │
-      │ local JSONL    │        │ local JSONL    │        │ local JSONL     │
-      └───────┬────────┘        └────────┬───────┘        └─────────┬───────┘
-              │                          │                          │
-              └──────────── local event stores, no lake ────────────┘
-```
+<figure markdown="0" style="margin: 1.4rem 0;">
+  <img src="assets/enterprise-architecture.svg" alt="Plasma enterprise Active Directory architecture: a hardened jump host pulls bounded event tails over WinRM HTTPS from domain-joined endpoints; Group Policy, SCCM or Intune configures the endpoints; events stay in local JSONL stores, with optional SIEM forwarding." style="width:100%;height:auto;border:1px solid #D8D2C4;border-radius:12px;background:#FFFDF7;">
+  <figcaption style="font-size:0.86rem;color:#555552;margin-top:0.5rem;">Plasma in an Active Directory domain: local detection, pull-based management, no required central lake.</figcaption>
+</figure>
 
 Domain controllers are supported as endpoints, but Kerberos events
 (4768/4769/4770/4771) exist only on a KDC. A member server reporting zero
@@ -46,6 +32,7 @@ Kerberos events is not broken; it is not a KDC.
 | Event retention | 7–30 days, size-capped | Bounded local store, not a lake |
 | Canary placement | User-data shares and Documents | Impact detection where ransomware acts |
 | Canary shield | Pilot OU first, audit/dry-run before arm | Active kill needs a controlled pilot |
+| Pipe canaries | One per user/server ring, pilot first | A connecting client is a strong signal, but scanners need allowlisting |
 | Prevention | Audit first, then enforce per control | A bad AppLocker/CFA policy can break a business app |
 | Central SIEM | Optional forwarding of local JSONL | Plasma does not require one |
 
@@ -295,7 +282,9 @@ the case directory.
 
 The shield turns file and registry canaries into a narrow active defence:
 a process that creates, deletes or registry-writes a canary is identified
-from Sysmon and killed after verification. A pure in-place overwrite with no
+from Sysmon and killed after verification. Named-pipe canaries add a local
+listener: a client that connects to the decoy pipe is identified by PID and
+killed after the same verification. A pure in-place overwrite with no
 create/delete has no Sysmon write event; `canary verify` still records the
 hash change, but without process attribution. Plan the shield around
 ransomware behaviour (create encrypted copy, delete original) and registry
@@ -307,6 +296,7 @@ tamper, not around every possible file edit.
 plasma canary deploy --dir D:\Shares\Finance --dir D:\Shares\HR
 plasma canary registry deploy --hive HKCU --count 1
 plasma canary registry deploy --hive HKLM --count 1
+plasma canary pipe deploy --count 1
 plasma canary verify
 ```
 
@@ -357,13 +347,35 @@ the kill with the canary path, PID, image and verification result. A read
 (`Get-Content $canary`) must produce no kill; an Explorer delete must be
 skipped as trusted.
 
-### 7.5 Disarm
+### 7.5 Named-pipe canary
+
+```powershell
+plasma canary pipe deploy --count 1
+plasma canary pipe install
+plasma canary pipe install --apply --plan 6 --reason "IR-2026-042 pipe pilot"
+plasma canary pipe status
+```
+
+The listener runs at boot as SYSTEM and restarts on failure. A client that
+*connects* to the decoy pipe is identified with
+`GetNamedPipeClientProcessId`; a scanner that only enumerates pipes is not
+touched. Protected processes are refused, Plasma/Defender/backup/system are
+trusted, and a dry-run listener records without killing.
+
+A pipe is a stronger trigger than a file canary in one respect — the client
+must actively connect — but it also carries a higher operational risk:
+security scanners and some management agents probe pipes. Pilot it in a
+small ring, watch the journal for skips, and allowlist your own tooling
+before arming broadly.
+
+### 7.6 Disarm
 
 ```powershell
 plasma canary shield uninstall --apply --plan 5 --reason "change window"
+plasma canary pipe uninstall --apply --plan 7 --reason "change window"
 ```
 
-This unregisters the task and restores the previous Sysmon config.
+This unregisters the tasks and restores the previous Sysmon config.
 
 ## 8. Post-install validation
 
