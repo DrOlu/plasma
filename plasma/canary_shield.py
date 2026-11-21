@@ -28,6 +28,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -74,6 +75,10 @@ def _file_canaries(root) -> list[dict]:
 
 def _base(value) -> str:
     return str(value or "").replace("\\", "/").rsplit("/", 1)[-1].lower()
+
+
+def _basename(value) -> str:
+    return str(value or "").replace("\\", "/").rsplit("/", 1)[-1]
 
 
 def _norm_path(value) -> str:
@@ -284,7 +289,7 @@ def shield_config(root, file_canaries=None, registry_canaries=None) -> dict:
         file_create = ET.SubElement(filtering, "FileCreate")
     _include(file_create)
     for entry in file_canaries:
-        name = _base(entry.get("path") or entry.get("name"))
+        name = _basename(entry.get("path") or entry.get("name"))
         if name:
             _add_condition(file_create, "TargetFilename", "end with", "\\" + name)
 
@@ -293,7 +298,7 @@ def shield_config(root, file_canaries=None, registry_canaries=None) -> dict:
         file_delete = ET.SubElement(filtering, "FileDelete")
     _include(file_delete)
     for entry in file_canaries:
-        name = _base(entry.get("path") or entry.get("name"))
+        name = _basename(entry.get("path") or entry.get("name"))
         if name:
             _add_condition(file_delete, "TargetFilename", "end with", "\\" + name)
 
@@ -385,9 +390,17 @@ def _journal(root, entry: dict) -> dict:
     path = journal_path(root)
     path.parent.mkdir(parents=True, exist_ok=True)
     entry.setdefault("ts", _now())
-    with agentstate.lock(path.parent / ".canary-shield-journal.lock", stale=300), \
-            path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(entry, sort_keys=True) + "\n")
+    with agentstate.lock(path.parent / ".canary-shield-journal.lock", stale=300):
+        rows = 0
+        if path.exists():
+            try:
+                rows = sum(1 for line in path.read_text(
+                    encoding="utf-8", errors="replace").splitlines() if line.strip())
+            except OSError:
+                rows = 0
+        entry.setdefault("id", rows + 1)
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(entry, sort_keys=True) + "\n")
     return entry
 
 
@@ -395,12 +408,25 @@ def _journal(root, entry: dict) -> dict:
 # Install / uninstall
 # ---------------------------------------------------------------------------
 
-def _task_script(root) -> str:
-    exe = Path(root) / "bin" / "plasma.exe"
+def _canonical_exe(root) -> Path:
+    root = Path(root)
+    candidates = [root / "bin" / "plasma.exe",
+                  root.parent / "bin" / "plasma.exe"]
+    me = Path(sys.executable) if sys.executable else None
+    if me is not None:
+        candidates.append(me)
+    for path in candidates:
+        if path.exists() and path.name.lower().endswith(".exe"):
+            return path
+    return candidates[0]
+
+
+def _task_script(root, exe=None) -> str:
+    exe = Path(exe) if exe else _canonical_exe(root)
     exe_q = str(exe).replace("'", "''")
-    root_q = str(root).replace("'", "''")
-    argument = (f"canary shield sweep --root '{root_q}' --apply "
-                f"--reason \"scheduled canary shield\" --max-kills 5")
+    argument = (f'canary shield sweep --root "{root}" --apply '
+                f'--reason "scheduled canary shield" --max-kills 5')
+    argument = argument.replace("'", "''")
     return (
         "$ErrorActionPreference='Stop'\n"
         f"$a=New-ScheduledTaskAction -Execute '{exe_q}' -Argument '{argument}'\n"
@@ -424,10 +450,10 @@ def install(root, apply: bool = False, plan=None, reason=None) -> dict:
         return {"error": "no canary files or registry canaries to shield; "
                          "run canary deploy or canary registry deploy first",
                 "code": "NO_CANARIES"}
-    exe = Path(root) / "bin" / "plasma.exe"
+    exe = _canonical_exe(root)
     payload = (
         "Write alive. This string is only the plan digest marker.\n"
-        + cfg["xml"] + "\n" + _task_script(root))
+        + cfg["xml"] + "\n" + _task_script(root, exe))
     digest = _sha(payload)
     if not apply:
         entry = _append_plan(root, {
@@ -459,8 +485,14 @@ def install(root, apply: bool = False, plan=None, reason=None) -> dict:
     cfg_path = _config_file(root)
     backup = Path(root) / "tools" / SYSMON_BACKUP
     cfg_path.parent.mkdir(parents=True, exist_ok=True)
-    if cfg_path.exists() and not backup.exists():
-        shutil.copy2(cfg_path, backup)
+    if not backup.exists():
+        if cfg_path.exists():
+            shutil.copy2(cfg_path, backup)
+        else:
+            # A test/alternate root may have no materialized config yet.
+            # Back up the exact baseline so uninstall can restore something
+            # valid instead of leaving the shield includes behind.
+            backup.write_text(_base_xml(root), encoding="utf-8")
     cfg_path.write_text(cfg["xml"], encoding="utf-8")
     reload_exe = next((Path(os.environ.get("SystemRoot", r"C:\Windows")) / n
                        for n in ("Sysmon64.exe", "Sysmon.exe")
@@ -478,7 +510,7 @@ def install(root, apply: bool = False, plan=None, reason=None) -> dict:
             shutil.copy2(backup, cfg_path)
         return {"error": "Sysmon rejected the canary shield config",
                 "detail": out[:500], "code": "FAILED"}
-    rc, out = _ps(_task_script(root), timeout=120)
+    rc, out = _ps(_task_script(root, exe), timeout=120)
     if rc != 0:
         if backup.exists():
             shutil.copy2(backup, cfg_path)
@@ -604,10 +636,6 @@ def _matches_file(target, canaries) -> dict | None:
         if text == path:
             return entry
         if parent and text.endswith(f"\\{parent}\\{name}"):
-            return entry
-        if text.endswith(f"\\{name}") and path.endswith(f"\\{name}"):
-            # Device-path variants lose the drive, but the random canary
-            # basename is unique; the parent check above is preferred.
             return entry
     return None
 

@@ -33,7 +33,7 @@ def _manifest_path(root):
 
 def test_shield_config_adds_only_canary_conditions(tmp_path):
     root = _root(tmp_path)
-    name = Path(_manifest_path(root)).name.lower()
+    name = Path(_manifest_path(root)).name
     cfg = canary_shield.shield_config(root)
     assert "FileCreate" in cfg["xml"] and 'onmatch="include"' in cfg["xml"]
     assert f"\\{name}" in cfg["xml"]
@@ -152,3 +152,29 @@ def test_install_without_canaries_is_refused(tmp_path):
     (root / "tools").mkdir(parents=True)
     out = canary_shield.install(root)
     assert out["code"] == "NO_CANARIES"
+
+
+def test_task_action_quotes_root_path(tmp_path):
+    root = tmp_path / "plasma root"
+    script = canary_shield._task_script(root)
+    assert '--root \"' in script
+    assert '-Argument' in script and "scheduled canary shield" in script
+
+
+def test_install_without_existing_config_still_has_a_backup(tmp_path, monkeypatch):
+    root = tmp_path / "plasma"
+    (root / "bin").mkdir(parents=True)
+    (root / "bin" / "plasma.exe").write_bytes(b"stub")
+    (root / "tools").mkdir()
+    canary.deploy(root, randomize=False, subdir="Finance")
+    sysroot = tmp_path / "Windows"
+    sysroot.mkdir()
+    (sysroot / "Sysmon64.exe").write_bytes(b"stub")
+    monkeypatch.setenv("SystemRoot", str(sysroot))
+    monkeypatch.setattr(canary_shield, "_ps",
+                        lambda s, timeout=120: (0, '{"ok":true}'))
+    dry = canary_shield.install(root)
+    canary_shield.install(root, apply=True, plan=dry["plan"], reason="pilot")
+    backup = root / "tools" / "plasma-sysmon-pre-shield.xml"
+    assert backup.exists()
+    assert '<FileCreate onmatch="exclude"' in backup.read_text()

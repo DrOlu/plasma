@@ -294,8 +294,12 @@ the case directory.
 ## 7. Deploy the active canary shield
 
 The shield turns file and registry canaries into a narrow active defence:
-a process that writes or deletes a canary is identified from Sysmon and
-killed after verification.
+a process that creates, deletes or registry-writes a canary is identified
+from Sysmon and killed after verification. A pure in-place overwrite with no
+create/delete has no Sysmon write event; `canary verify` still records the
+hash change, but without process attribution. Plan the shield around
+ransomware behaviour (create encrypted copy, delete original) and registry
+tamper, not around every possible file edit.
 
 ### 7.1 Deploy canaries
 

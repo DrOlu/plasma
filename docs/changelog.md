@@ -4,6 +4,24 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.25.0 — 2026-11-21
+
+- **Active canary shield.** New `plasma canary shield` previews/installs a
+  narrow Sysmon FileCreate/FileDelete/RegistryEvent include and a
+  one-minute SYSTEM task. When a process creates, deletes or registry-writes
+  a canary, the sweep verifies the live PID/image, refuses protected/trusted
+  processes and kills the process.
+- **Registry canaries.** `canary registry deploy|list|remove` adds decoy
+  keys under `Software\PlasmaDecoy` in HKCU or HKLM.
+- **False-positive boundary.** Reads do not trigger; Explorer, Plasma,
+  Defender, backup and system processes are skipped; protected processes are
+  refused. A pure in-place overwrite is still caught by `canary verify` as a
+  hash change, without process attribution.
+- **Enterprise AD deployment guide.** Detailed installation, configuration,
+  GPO/SCCM/Intune rollout, fleet, canary shield, SIEM, operations, rollback
+  and troubleshooting for a domain network.
+- 933 tests collected; full suite and `-W error` pass.
+
 ## 1.24.1 — 2026-11-20
 
 - **ACL intercept refuses without a canary.** `plasma intercept apply` on an

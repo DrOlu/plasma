@@ -110,6 +110,8 @@ tests/             pytest suite (models, bridge, menu, manifest, bundle, selecti
 .github/workflows/ CI (ubuntu + windows) and release packaging
 ```
 
+Enterprise AD deployment: [docs/enterprise-deployment.md](docs/enterprise-deployment.md).
+
 ## Quickstart
 
 ```bash
@@ -200,6 +202,27 @@ served by a local collector. Both become `source="canary"` alerts and are
 deduplicated across `watch` sweeps. Configure canary accounts with
 `{"canary": {"accounts": ["svc-print-archive"]}}` in `config.json`. No
 Docker, cloud callback or external service is required.
+
+### Active canary shield
+
+```bash
+plasma canary registry deploy --hive HKCU --count 1
+plasma canary registry deploy --hive HKLM --count 1
+plasma canary shield install                  # preview the Sysmon includes + task
+plasma canary shield install --apply --plan 4 --reason "IR-2026-042"
+plasma canary shield sweep --since-minutes 10    # dry-run
+plasma canary shield status
+plasma canary shield uninstall --apply --plan 5 --reason "change window"
+```
+
+The shield adds a narrow Sysmon `FileCreate`/`FileDelete`/`RegistryEvent`
+include for the recorded canaries and registers `PlasmaCanaryShield` as a
+SYSTEM task every minute. When a process creates, deletes or registry-writes
+a canary, the sweep verifies the live PID and image, refuses protected and
+trusted processes, then kills the process and journals the decision. Reads
+do not trigger. A pure in-place overwrite has no Sysmon write event; it is
+still caught by `canary verify` as a hash change, without process
+attribution.
 
 ## Memory scanning
 

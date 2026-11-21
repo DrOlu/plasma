@@ -767,27 +767,32 @@ produces the gene file and a summary of converted and skipped rules.""",
 ))
 
 _add("canary", _c(
-    "decoy files and native DNS/HTTP token tripwires",
+    "decoy files, registry keys, DNS/HTTP tokens and an active shield",
     """Canaries answer the questions heuristics answer late: did something
 enumerate and destroy user documents, and did something use an artifact
 that no legitimate workflow should touch?
 
 File canaries are hash-verified decoys. DNS tokens are unique hostnames
 whose queries are observed through a narrow Sysmon EID 22 include. HTTP
-tokens are `.url` shortcuts served by a local Plasma collector. All three
-produce the same `source="canary"` alert rows in the event store, so
-`watch`, `fleet` and the response policy see one evidence path.
+tokens are `.url` shortcuts served by a local Plasma collector. Registry
+keys are decoys watched by the shield. File and registry canaries can be
+wrapped by the active shield, which kills a process that creates, deletes or
+registry-writes them after verifying the live PID and image.
 
-Canaries detect; they do not replace file integrity monitoring, backups or
-the prevention layer.""",
+All passive hits produce the same `source="canary"` alert rows in the event
+store, so `watch`, `fleet` and the response policy see one evidence path.
+The shield adds a narrow active response; it is not a kernel driver and reads
+do not trigger it.""",
     [
         ("Deploy believable file decoys", "plasma canary deploy --dir D:\\Shares\\Finance"),
         ("Create a DNS token", "plasma canary token create --kind dns --domain assets.internal"),
         ("Create an HTTP token", "plasma canary token create --kind http --base-url http://collector:8088"),
         ("Start the local collector", "plasma canary serve --host 127.0.0.1 --port 8088"),
+        ("Create a registry canary", "plasma canary registry deploy --hive HKCU --count 1"),
+        ("Preview the active shield", "plasma canary shield install"),
     ],
     safety=LOCAL_WRITE,
-    see_also=["fim", "watch", "observe", "canary token"],
+    see_also=["fim", "watch", "canary shield", "canary registry", "canary token"],
 ))
 
 _add("canary deploy", _c(
@@ -2504,8 +2509,8 @@ ROOT_DESCRIPTION = """Plasma is a lake-less, agent-native Windows EDR.
 
 Detection is local: Sysmon/WHIDS alerts, Security-channel audit events, an
 ETW tap, DTrace on demand, file integrity, canary files, native DNS/HTTP
-tokens and on-demand memory scanning are normalized into one JSONL store.
-Investigation is local too: typed queries, explicit process lineage, bounded
+tokens, on-demand memory scanning and an active file/registry canary shield
+are normalized into one JSONL store. Investigation is local too: typed queries, explicit process lineage, bounded
 summaries and sealed case directories. Prevention is opt-in: AppLocker,
 egress, ASR, LSA, Controlled Folder Access, Network Protection and the
 driver blocklist are previewed, plan-gated and reversible; WDAC is read-only.

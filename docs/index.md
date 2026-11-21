@@ -12,7 +12,7 @@ The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">931 tests</span>
+<span class="raft-badge">933 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -65,6 +65,12 @@ plasma query --kind alert --min-score 0.7 --since 24h
 
 Every command prints JSON and uses meaningful exit codes, so it composes
 with Task Scheduler, cron or another agent.
+
+## Enterprise deployment
+
+Planning an AD-domain rollout? Start with [Enterprise deployment](enterprise-deployment.md):
+prerequisites, GPO/SCCM/Intune install, configuration, fleet desk, canary shield,
+validation, operations and troubleshooting.
 
 ## PDF guides
 
@@ -129,7 +135,7 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
   registry keys watched by the same narrow RegistryEvent include.
 - **Enterprise deployment guide.** A new AD-domain installation,
   configuration, GPO/SCCM/Intune, fleet, canary-shield and operations guide.
-- **931 tests**, full suite and `-W error` pass.
+- **933 tests**, full suite and `-W error` pass.
 
 ## What's new in 1.24.1
 
