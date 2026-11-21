@@ -50,6 +50,16 @@ ERROR_PIPE_CONNECTED = 535
 INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 
 
+def _debug(root, message: str) -> None:
+    try:
+        path = Path(root) / "canary-pipe-debug.log"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write(f"{_now()} {message}\n")
+    except OSError:
+        pass
+
+
 def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
@@ -412,17 +422,24 @@ def serve(root, apply: bool = False, reason=None, max_kills: int = 5,
                 name, PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE
                 | PIPE_WAIT, PIPE_UNLIMITED_INSTANCES, 4096, 4096, 0, None)
             if handle == INVALID_HANDLE_VALUE:
+                _debug(root, f"create failed err={ctypes.get_last_error()} "
+                             f"pipe={name}")
                 time.sleep(1)
                 continue
             try:
-                k32.ConnectNamedPipe(handle, None)
+                ok = k32.ConnectNamedPipe(handle, None)
+                _debug(root, f"connect ok={ok} err={ctypes.get_last_error()} "
+                             f"pipe={name}")
                 # ERROR_PIPE_CONNECTED is normal when the client connected
                 # before ConnectNamedPipe was called. Some Windows builds do
                 # not surface it through get_last_error(), so do not gate on
                 # the return code: ask for the client PID and decide from that.
                 pid = wintypes.ULONG(0)
-                if not k32.GetNamedPipeClientProcessId(handle,
-                                                       ctypes.byref(pid)):
+                got = k32.GetNamedPipeClientProcessId(handle,
+                                                      ctypes.byref(pid))
+                _debug(root, f"client_pid ok={got} pid={pid.value} "
+                             f"err={ctypes.get_last_error()} pipe={name}")
+                if not got:
                     time.sleep(0.2)
                     continue
                 with lock:
