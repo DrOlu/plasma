@@ -415,13 +415,15 @@ def serve(root, apply: bool = False, reason=None, max_kills: int = 5,
                 time.sleep(1)
                 continue
             try:
-                ok = k32.ConnectNamedPipe(handle, None)
-                if not ok and ctypes.get_last_error() != ERROR_PIPE_CONNECTED:
-                    time.sleep(0.2)
-                    continue
+                k32.ConnectNamedPipe(handle, None)
+                # ERROR_PIPE_CONNECTED is normal when the client connected
+                # before ConnectNamedPipe was called. Some Windows builds do
+                # not surface it through get_last_error(), so do not gate on
+                # the return code: ask for the client PID and decide from that.
                 pid = wintypes.ULONG(0)
                 if not k32.GetNamedPipeClientProcessId(handle,
                                                        ctypes.byref(pid)):
+                    time.sleep(0.2)
                     continue
                 with lock:
                     counter["connections"] += 1
