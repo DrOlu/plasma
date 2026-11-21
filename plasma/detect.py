@@ -80,6 +80,12 @@ def load_rules(path) -> list[dict]:
     return rules
 
 
+# WHIDS forwards alerts strictly above this criticality (sensors/whids.toml,
+# `criticality-treshold = 5`). A gene at or below it is compiled by the engine
+# but never written to the alert log, so Plasma never sees the detection.
+MIN_FORWARDED_CRITICALITY = 5
+
+
 def validate(rules_path) -> dict:
     """Compile regexes and check condition variables without a sensor."""
     rules = load_rules(rules_path)
@@ -88,6 +94,18 @@ def validate(rules_path) -> dict:
     for index, rule in enumerate(rules, 1):
         name = _name(rule, index)
         names.setdefault(name, []).append(index)
+        meta = rule.get("Meta")
+        if isinstance(meta, dict):
+            criticality = meta.get("Criticality")
+            if (isinstance(criticality, int)
+                    and criticality <= MIN_FORWARDED_CRITICALITY):
+                warnings.append({
+                    "rule": name,
+                    "warning": f"criticality {criticality} is at or below "
+                               f"WHIDS criticality-treshold "
+                               f"{MIN_FORWARDED_CRITICALITY}; the alert will "
+                               "not be logged",
+                })
         matches = rule.get("Matches")
         if not isinstance(matches, list) or not matches:
             errors.append({"rule": name, "error": "missing Matches list"})

@@ -48,3 +48,16 @@ def test_atomic_smoke_manifest_is_complete():
     for case in cases:
         assert case["technique"].startswith("T")
         assert case["expected_rule"] in names, case
+
+
+def test_every_baseline_rule_is_above_the_whids_forwarding_threshold():
+    """A gene at or below criticality-treshold is loaded but never logged.
+
+    Estate testing caught the first cut of the new rules at 4 and 5: WHIDS
+    compiled them (281 rules loaded) and then silently dropped every alert
+    because sensors/whids.toml forwards only criticality > 5.
+    """
+    rules = [json.loads(line) for line in BASELINE.read_text().splitlines() if line.strip()]
+    offenders = [(r["Name"], r["Meta"]["Criticality"]) for r in rules
+                 if r["Meta"]["Criticality"] <= 5]
+    assert offenders == []

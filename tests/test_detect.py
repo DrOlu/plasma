@@ -39,6 +39,14 @@ def test_validate_reports_bad_regex_and_unknown_variable(tmp_path):
     assert any("unknown variable" in row["warning"] for row in out["warnings"])
 
 
+def test_validate_warns_when_criticality_is_below_whids_threshold(tmp_path):
+    rule = _rule(name="Quiet")
+    rule["Meta"]["Criticality"] = 5
+    out = detect.validate(_write(tmp_path, "rules.gen", [rule]))
+    assert out["ok"] is True
+    assert any("criticality-treshold" in row["warning"] for row in out["warnings"])
+
+
 def test_validate_reports_missing_matches(tmp_path):
     path = tmp_path / "rules.gen"
     path.write_text(json.dumps({"Name": "No matches"}) + "\n")

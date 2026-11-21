@@ -1,9 +1,15 @@
 # Changelog
 
+## 1.26.4 — 2026-11-21
+
+- **Estate-caught fix.** `Plasma Sensitive File Delete`, `Plasma Hidden File Attribute` and `Plasma Registry Evasion` were first cut at criticality 4-5. WHIDS loaded them (281 genes) and then silently dropped every alert, because `sensors/whids.toml` forwards only criticality > 5. All three now sit at 6.
+- `plasma detect validate` warns when a gene's criticality is at or below the WHIDS forwarding threshold, so a rule that can never reach the alert log is visible before deployment.
+- Added regression tests for the threshold and the rule set; 957 tests collected.
+
 ## 1.26.3 — 2026-11-21
 
 - `Plasma Encoded Cmd` now matches `powershell -e <base64>` as well as `-enc`, `-ec` and `-encodedcommand`, with a base64-length guard.
-- Added `Plasma Sensitive File Delete` (T1070.004), `Plasma Hidden File Attribute` (T1564.001) and `Plasma Registry Evasion` (T1112/T1564.001), all low/medium severity to limit noise.
+- Added `Plasma Sensitive File Delete` (T1070.004), `Plasma Hidden File Attribute` (T1564.001) and `Plasma Registry Evasion` (T1112/T1564.001). Their criticality was raised to 6 in 1.26.4 after estate testing showed WHIDS drops anything at or below its forwarding threshold of 5.
 - Suppressed PowerShell `__PSScriptPolicyTest` temp artifacts at info/0.2; they were triggering public-folder and SharePoint Sigma rules on both estate hosts.
 - Extended `persistence_after_privilege` to recognise `sc.exe create` and `reg add ...\Run`, with sequenced regression cases.
 - Added a six-case Atomic Red Team smoke suite: `sensors/atomic-smoke.json`, `tests/test_atomic_fixes.py`, `docs/atomic-smoke.md`.
