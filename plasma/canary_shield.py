@@ -438,10 +438,15 @@ def _task_script(root, exe=None) -> str:
         "$t=New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) "
         "-RepetitionInterval (New-TimeSpan -Minutes 1) "
         "-RepetitionDuration (New-TimeSpan -Days 3650)\n"
+        "$b=New-ScheduledTaskTrigger -AtStartup\n"
         "$p=New-ScheduledTaskPrincipal -UserId 'SYSTEM' "
         "-LogonType ServiceAccount -RunLevel Highest\n"
+        "$s=New-ScheduledTaskSettingsSet -StartWhenAvailable "
+        "-RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) "
+        "-ExecutionTimeLimit (New-TimeSpan -Minutes 15) "
+        "-MultipleInstances IgnoreNew\n"
         f"Register-ScheduledTask -TaskName '{TASK_NAME}' -Action $a "
-        "-Trigger $t -Principal $p -Force | Out-Null\n"
+        "-Trigger @($t,$b) -Principal $p -Settings $s -Force | Out-Null\n"
         "[pscustomobject]@{ok=$true} | ConvertTo-Json -Compress")
 
 

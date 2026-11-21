@@ -101,8 +101,12 @@ plasma prevent rollback --id 7 --apply # undo an applied prevention control
 Containment ships armed but narrow: `snapshot` + `kill_process` at score
 9+, 2 actions per run, 30-minute cooldown. Isolation and every other action
 require approval. The installer registers `PlasmaWatch`, which runs
-`watch once --enforce` every 5 minutes; `--no-autoprotect` removes it and
-installs the old dry-run posture.
+`watch once --enforce` at boot and every 5 minutes; `--no-autoprotect`
+removes it and installs the old dry-run posture. `PlasmaWatch`,
+`PlasmaWhidsWatchdog` and `PlasmaCanaryShield` carry both an `AtStartup`
+trigger and `StartWhenAvailable`, so a reboot or a missed timer run is
+picked up immediately. `PlasmaUpdate` deliberately keeps its daily
+maintenance-window trigger and does not run at boot.
 
 `enforce-journal.jsonl` records every decision (including refusals and
 cooldowns); `prevent-journal.jsonl` records every control change with its

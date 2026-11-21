@@ -165,6 +165,7 @@ verdict with per-check detail, not a stream of speculative warnings.
     ],
     notes=["Exit 1 when a required check fails; inspect checks[].ok and "
            "checks[].detail.",
+           "Also reports present Plasma tasks that lack an AtStartup trigger.",
            "Use `watch once` for health plus drift, alerts and chains."],
     see_also=["watch", "whids", "tap"],
 ))
@@ -267,10 +268,14 @@ FULL versus MINIMAL based on what the host can actually run, provisions
 Sysmon and WHIDS when feasible, writes the configuration and ACLs, flips
 the current junction, and registers the SYSTEM tasks:
 
-* PlasmaWatch - measured enforcement sweep every 5 minutes;
-* PlasmaWhidsWatchdog - heal a hung WHIDS every 2 minutes;
+* PlasmaWatch - measured enforcement sweep at boot and every 5 minutes;
+* PlasmaWhidsWatchdog - heal a hung WHIDS at boot and every 2 minutes;
 * PlasmaIdentityPull - Security-channel collection every 15 minutes;
 * PlasmaUpdate - signed self-update once a day.
+
+The watch and watchdog tasks carry both an AtStartup trigger and
+StartWhenAvailable, so they resume immediately after a reboot or a missed
+run instead of waiting for the next timer tick.
 
 Re-running with --force is the supported repair path. Existing policy,
 approvals, ledgers and event stores are preserved where possible.

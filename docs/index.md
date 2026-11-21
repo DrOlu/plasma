@@ -1,18 +1,18 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.26.1</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.26.2</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.26.1</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.26.2</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
-<span class="raft-badge">943 tests</span>
+<span class="raft-badge">949 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -121,6 +121,12 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    prevent (AppLocker, egress, ASR, LSA, CFA, Network Protection) ·
                    intercept (NTFS ACL, firewall, agent gateway)
 ```
+
+## What's new in 1.26.2
+
+- **Boot-time enforcement.** `PlasmaWatch`, `PlasmaWhidsWatchdog` and `PlasmaCanaryShield` now carry both an `AtStartup` trigger and `StartWhenAvailable`. A reboot or missed timer run no longer waits for the next interval.
+- **Bounded task runs.** Restart-on-failure, non-overlapping execution and execution time limits stop a hung sweep from wedging the schedule.
+- **Health drift detection.** `plasma health` reports present Plasma tasks that lack an `AtStartup` trigger.
 
 ## What's new in 1.26.1
 

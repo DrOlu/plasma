@@ -36,6 +36,29 @@ def _service_state(name: str) -> str:
     return out or "Absent"
 
 
+def _task_boot_state() -> list[dict]:
+    """Return present Plasma tasks and whether each has an AtStartup trigger."""
+    out = _ps(
+        "$o=@(); "
+        "foreach($n in @('PlasmaWatch','PlasmaWhidsWatchdog',"
+        "'PlasmaCanaryShield','PlasmaCanaryPipe')){ "
+        "$t=Get-ScheduledTask -TaskName $n -ErrorAction SilentlyContinue; "
+        "if($t){ $b=@($t.Triggers | Where-Object { "
+        "$_.CimClass.CimClassName -eq 'MSFT_TaskBootTrigger' }).Count; "
+        "$o += [pscustomobject]@{name=$n; boot=([bool]$b); "
+        "state=[string]$t.State} } }; "
+        "ConvertTo-Json -Compress -InputObject @($o)", timeout=30)
+    try:
+        data = json.loads(out)
+    except (TypeError, json.JSONDecodeError):
+        return []
+    if isinstance(data, dict):
+        data = [data]
+    if not isinstance(data, list):
+        return []
+    return [row for row in data if isinstance(row, dict) and row.get("name")]
+
+
 def _newest_event_age_minutes(channel: str) -> float | None:
     out = _ps(
         "$e = Get-WinEvent -FilterHashtable @{LogName='" + channel +
@@ -146,6 +169,21 @@ def checks(root) -> list[dict]:
             state = _service_state("Sysmon")
         results.append({"check": "sysmon_service", "ok": state == "Running",
                         "detail": f"service {state}"})
+
+    # Boot triggers: a task that only runs on a timer leaves a gap after
+    # reboot. Surface drift instead of assuming the installer's current
+    # definition is still present.
+    if is_windows:
+        tasks = _task_boot_state()
+        if tasks:
+            missing = [str(t["name"]) for t in tasks if not t.get("boot")]
+            results.append({
+                "check": "task_boot_triggers",
+                "ok": not missing,
+                "detail": ("all present tasks have an AtStartup trigger"
+                           if not missing else
+                           "missing AtStartup trigger: " + ", ".join(missing)),
+            })
 
     # tap sidecar present? (windows endpoints only)
     if is_windows:

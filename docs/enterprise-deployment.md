@@ -119,6 +119,9 @@ The installer:
 - writes `C:\ProgramData\Plasma\config.json`;
 - registers `PlasmaWatch`, `PlasmaUpdate`, the WHIDS watchdog and the
   identity-pull task;
+- adds `AtStartup` and `StartWhenAvailable` to `PlasmaWatch`,
+  `PlasmaWhidsWatchdog` and, when armed, `PlasmaCanaryShield`, so protection
+  resumes immediately after reboot;
 - flips the `current` junction.
 
 ### Domain rollout with Group Policy

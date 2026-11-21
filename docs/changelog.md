@@ -4,6 +4,14 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.26.2 — 2026-11-21
+
+- `PlasmaWatch`, `PlasmaWhidsWatchdog` and `PlasmaCanaryShield` now register both an `AtStartup` trigger and `StartWhenAvailable`, so enforcement resumes immediately after a reboot or a missed timer run.
+- Added restart-on-failure, `MultipleInstances IgnoreNew` and execution time limits to the scheduled tasks; a hung sweep can no longer wedge the schedule.
+- `PlasmaUpdate` remains a daily maintenance-window task; it gains overlap protection and a bounded runtime, not a boot trigger.
+- `plasma health` now reports present Plasma tasks that lack an `AtStartup` trigger.
+- 949 tests collected; full suite and `-W error` pass.
+
 ## 1.26.1 — 2026-11-21
 
 - Fixed overlapping labels and link paths in the enterprise architecture SVG/PNG; regenerated the product and operations PDFs.

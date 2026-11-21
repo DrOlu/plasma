@@ -52,6 +52,13 @@ degraded decision fail with exit 3. `--rotate` (used by the MSI) swaps
 `bin\plasma.exe` and restarts the registered tasks after staging, so the
 running node matches the package; a failed rotation exits 4.
 
+The installer registers `PlasmaWatch` and `PlasmaWhidsWatchdog` with both
+an `AtStartup` trigger and `StartWhenAvailable`; `PlasmaCanaryShield` gets
+the same pair when armed. A reboot or a missed timer run is picked up
+immediately. `PlasmaUpdate` deliberately stays on its daily maintenance
+window. `health` reports any present Plasma task that lacks an `AtStartup`
+trigger.
+
 ### health / status / probe / ask
 
 ```text
@@ -61,7 +68,8 @@ plasma probe --tool NAME --events FILE
 plasma ask --prompt "..." --events FILE
 ```
 
-`health` = checks + verdict. `status` = bundle identity + probe menu.
+`health` = checks + verdict, including whether present Plasma tasks carry
+an `AtStartup` trigger. `status` = bundle identity + probe menu.
 `probe`/`ask` = run one named probe, or let the on-device model choose one.
 Refusals are structured, never guesses.
 
@@ -352,8 +360,8 @@ Tier 0 prevention: findings become allowlisted, reversible containment.
 Armed by default but narrow: `snapshot` + `kill_process` at score 9+, a
 2-action per-run cap and a 30-minute cooldown; isolation and every other
 action require approval. The policy still gates each action. The installer
-registers `PlasmaWatch`, which runs `plasma watch once --enforce` every
-5 minutes.
+registers `PlasmaWatch`, which runs `plasma watch once --enforce` at boot
+and every 5 minutes.
 
 ### protect
 

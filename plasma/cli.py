@@ -587,8 +587,10 @@ def _register_update(bin_exe: Path, root: Path, start_hour: int = 3) -> dict:
         f"$t = New-ScheduledTaskTrigger -Daily -At $at; "
         f"$p = New-ScheduledTaskPrincipal -UserId 'SYSTEM' "
         f"-LogonType ServiceAccount -RunLevel Highest; "
+        f"$s = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew "
+        f"-ExecutionTimeLimit (New-TimeSpan -Hours 1); "
         f"Register-ScheduledTask -TaskName '{UPDATE_TASK}' -Action $a "
-        f"-Trigger $t -Principal $p -Force | Out-Null"
+        f"-Trigger $t -Principal $p -Settings $s -Force | Out-Null"
     )
     rc, out = whids._ps(script, timeout=120)
     return {"ok": rc == 0, "task": UPDATE_TASK, "detail": out[:200]}
@@ -619,10 +621,15 @@ def _register_watch(bin_exe: Path, root: Path,
         f"$t = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) "
         f"-RepetitionInterval (New-TimeSpan -Minutes {minutes}) "
         f"-RepetitionDuration (New-TimeSpan -Days 3650); "
+        f"$b = New-ScheduledTaskTrigger -AtStartup; "
         f"$p = New-ScheduledTaskPrincipal -UserId 'SYSTEM' "
         f"-LogonType ServiceAccount -RunLevel Highest; "
+        f"$s = New-ScheduledTaskSettingsSet -StartWhenAvailable "
+        f"-RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) "
+        f"-ExecutionTimeLimit (New-TimeSpan -Minutes 15) "
+        f"-MultipleInstances IgnoreNew; "
         f"Register-ScheduledTask -TaskName '{WATCH_TASK}' -Action $a "
-        f"-Trigger $t -Principal $p -Force | Out-Null"
+        f"-Trigger @($t,$b) -Principal $p -Settings $s -Force | Out-Null"
     )
     rc, out = whids._ps(script, timeout=120)
     return {"ok": rc == 0, "task": WATCH_TASK, "every_minutes": minutes,
@@ -644,10 +651,15 @@ def _register_whids_watchdog(bin_exe: Path, root: Path) -> dict:
         f"$t = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) "
         f"-RepetitionInterval (New-TimeSpan -Minutes 2) "
         f"-RepetitionDuration (New-TimeSpan -Days 3650); "
+        f"$b = New-ScheduledTaskTrigger -AtStartup; "
         f"$p = New-ScheduledTaskPrincipal -UserId 'SYSTEM' "
         f"-LogonType ServiceAccount -RunLevel Highest; "
+        f"$s = New-ScheduledTaskSettingsSet -StartWhenAvailable "
+        f"-RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) "
+        f"-ExecutionTimeLimit (New-TimeSpan -Minutes 5) "
+        f"-MultipleInstances IgnoreNew; "
         f"Register-ScheduledTask -TaskName '{WATCHDOG_TASK}' -Action $a "
-        f"-Trigger $t -Principal $p -Force | Out-Null"
+        f"-Trigger @($t,$b) -Principal $p -Settings $s -Force | Out-Null"
     )
     rc, out = whids._ps(script, timeout=120)
     return {"ok": rc == 0, "task": WATCHDOG_TASK, "detail": out[:200]}
