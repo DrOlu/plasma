@@ -104,8 +104,10 @@ def test_handle_client_dry_run_does_not_kill(tmp_path, monkeypatch):
     assert called == []
 
 
-def test_serve_unsupported_without_windows(tmp_path):
+def test_serve_unsupported_without_windows(tmp_path, monkeypatch):
     root = _root(tmp_path)
     canary_pipe.deploy(root)
+    monkeypatch.setattr(canary_pipe, "_kernel32",
+                        lambda: (_ for _ in ()).throw(OSError("no Windows")))
     rc = canary_pipe.serve(root)
     assert rc == 1
