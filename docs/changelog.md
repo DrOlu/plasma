@@ -4,6 +4,11 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.26.6 — 2026-11-21
+
+- **Two more chain false positives closed.** `persistence_after_privilege` matched any `schtasks` invocation, so a cleanup `schtasks /delete` completed the chain; it now requires `/create`. It also matched Plasma's own scheduled-task registration; events whose parent is a `plasma*.exe` binary are excluded from that step. Both have regression cases.
+- 957 tests collected; full suite and `-W error` pass.
+
 ## 1.26.5 — 2026-11-21
 
 - **Chain false positive fixed.** `persistence_after_privilege` matched the bare substring `sched`, so a read-only `Get-ScheduledTask` query completed the chain after an unrelated account change and scored 9 — the automatic-containment band. The step now requires `schtasks`, and a regression case pins the miss.

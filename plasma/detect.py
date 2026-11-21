@@ -297,6 +297,29 @@ BUILTIN_CASES = [
         ],
     },
     {
+        "name": "account change then schtasks delete misses",
+        "chain": "persistence_after_privilege",
+        "expect": "miss",
+        "events": [
+            _row("2026-11-20T10:00:00Z", kind="process",
+                 description="net localgroup administrators svc /add"),
+            _row("2026-11-20T10:05:00Z", kind="process", process="schtasks.exe",
+                 description="schtasks /delete /tn spawn /f"),
+        ],
+    },
+    {
+        "name": "plasma task registration after account change misses",
+        "chain": "persistence_after_privilege",
+        "expect": "miss",
+        "events": [
+            _row("2026-11-20T10:00:00Z", kind="process",
+                 description="net localgroup administrators svc /add"),
+            _row("2026-11-20T10:05:00Z", kind="process", process="powershell.exe",
+                 parent="plasma-1.26.6.exe",
+                 description="powershell.exe -Command Register-ScheduledTask"),
+        ],
+    },
+    {
         "name": "account creation then privileged group hits",
         "chain": "account_creation_privilege",
         "expect": "hit",

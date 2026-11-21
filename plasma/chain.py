@@ -23,7 +23,8 @@ DEFAULT_MAX_ROWS = 5000      # scan tail size, bounded like every probe
 
 # step matcher fields:
 #   any of: kind, process (regex on basename-ish field), user (regex),
-#           event_id, description (regex), dest_ip present?
+#           event_id, description (regex), dest_ip present?;
+#           exclude_parent (regex) drops events spawned by a matching parent.
 # each built-in chain: name, score, gap_seconds, steps in time order;
 # bind_user / bind_process require every step to share one identity or image.
 
@@ -75,7 +76,8 @@ BUILTIN_CHAINS = [
         "detail": "account/admin change followed by a persistence-shaped alert",
         "steps": [
             {"description": r"(?i)(net1? .*(user|localgroup).*(/add| add)|add-localgroupmember|new-localuser)"},
-            {"description": r"(?i)(schtasks|new-service|register-scheduledtask|run ?key|eventfilter|bindversion|sc(?:\.exe)?\s+create|reg(?:\.exe)?\s+add.*\\run)"},
+            {"description": r"(?i)(schtasks(?:\.exe)?[^|]*?/create|new-service|register-scheduledtask|run ?key|eventfilter|bindversion|sc(?:\.exe)?\s+create|reg(?:\.exe)?\s+add.*\\run)",
+             "exclude_parent": r"(?i)^plasma[^\\]*\.exe$"},
         ],
     },
     {
@@ -183,6 +185,14 @@ def _match_step(step: dict, row: dict) -> bool:
             if int(row.get("event_id") or 0) != int(eid):
                 return False
         except (TypeError, ValueError):
+            return False
+    excluded_parent = step.get("exclude_parent")
+    if excluded_parent:
+        parent = str(row.get("parent") or "")
+        try:
+            if parent and re.search(excluded_parent, parent):
+                return False
+        except re.error:
             return False
     for field in ("process", "user", "description"):
         if field in step:
