@@ -267,3 +267,15 @@ def test_children_of_plasma_are_damped(tmp_path):
     }
     result = anomaly.score_row(row, built)
     assert result["damping"]["reason"] == "Plasma's own process tree"
+
+
+def test_estate_scoring_ignores_incomplete_identity_pairs(tmp_path):
+    built, _path = _build(tmp_path, _benign())
+    estate = profile.merge([built])
+    row = {
+        "ts": "2026-11-07T10:00:00Z", "host": "WS1", "kind": "auth",
+        "event_id": 4624, "user": "CORP\\olu",
+    }
+    result = anomaly.score_row(row, built, estate=estate)
+    assert result["score"] is None
+    assert result["cold_start"] is True

@@ -188,11 +188,16 @@ def score_row(row: dict, profile: dict, estate: dict | None = None,
                 })
 
     if estate:
-        estate_keys = [("image", image), ("edge", f"{parent}>{image}"),
-                       ("user_image", f"{user}>{image}")]
+        # Only complete pairs: an auth row has a user but no image, and
+        # "user>" is a first-seen key that would score itself 10/10.
+        estate_keys = []
+        if image:
+            estate_keys.append(("image", image))
+        if parent and image:
+            estate_keys.append(("edge", f"{parent}>{image}"))
+        if user and image:
+            estate_keys.append(("user_image", f"{user}>{image}"))
         for table, key in estate_keys:
-            if not key or key.startswith(">"):
-                continue
             found = rarity(estate, table, key)
             if found is not None:
                 components.append(_component(
