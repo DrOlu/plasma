@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://drolu.github.io/plasma/schemas/plugin-envelope.schema.json",
+  "title": "Plasma plugin NDJSON envelope",
+  "type": "object",
+  "required": ["v", "type"],
+  "properties": {
+    "v": {"const": 1},
+    "type": {"enum": ["event", "finding", "health", "log"]},
+    "plugin": {"type": "string"},
+    "seq": {"type": "integer", "minimum": 0},
+    "event": {"type": "object"},
+    "finding": {
+      "type": "object",
+      "required": ["description", "score"],
+      "properties": {
+        "description": {"type": "string", "maxLength": 2048},
+        "score": {"type": "number", "minimum": 0, "maximum": 1},
+        "technique": {"type": "string", "pattern": "^T\\d{4}(\\.\\d{3})?$"},
+        "evidence": {"type": "array", "maxItems": 10, "items": {"type": "string", "maxLength": 200}}
+      }
+    },
+    "status": {"type": "string"}
+  }
+}

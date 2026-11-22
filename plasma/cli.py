@@ -49,6 +49,11 @@ from . import (
     notify,
     observatory,
     playbooks,
+    plugin_actions,
+    plugin_api,
+    plugin_host,
+    plugin_io,
+    plugins,
     prevent,
     profile,
     protect,
@@ -2171,6 +2176,194 @@ def _load_profile_arg(args):
         return None, path
 
 
+def _plugin_error(exc) -> int:
+    _emit({"ok": False, "error": str(exc)[:500]})
+    return 1
+
+
+def _secret(args):
+    if getattr(args, "secret_env", None):
+        return os.environ.get(args.secret_env)
+    return getattr(args, "secret", None)
+
+
+def cmd_ingest_jsonl(args) -> int:
+    _emit(plugin_io.ingest_jsonl(
+        args.path, args.events or _events_path(args.root),
+        max_events=args.max_events, host=args.host))
+    return 0
+
+
+def cmd_ingest_evtx(args) -> int:
+    result = plugin_io.ingest_evtx(
+        args.channel, args.events or _events_path(args.root),
+        since_minutes=args.since, max_events=args.max_events,
+        host=args.host)
+    _emit(result)
+    return 0 if result.get("ok") else 2
+
+
+def cmd_ingest_webhook(args) -> int:
+    secret = _secret(args)
+    _emit(plugin_io.serve_webhook(
+        args.bind, args.port, args.path, secret,
+        args.events or _events_path(args.root), max_events=args.max_events,
+        seconds=args.seconds, once=args.once, host=args.host))
+    return 0
+
+
+def cmd_export_webhook(args) -> int:
+    secret = _secret(args)
+    result = plugin_io.export_webhook(
+        args.url, args.events or _events_path(args.root), args.root,
+        secret=secret, since=args.since, max_events=args.max_events,
+        batch_size=args.batch_size)
+    _emit(result)
+    return 0 if result.get("ok") else 2
+
+
+def cmd_export_syslog(args) -> int:
+    result = plugin_io.export_syslog(
+        args.host, args.port, args.protocol,
+        args.events or _events_path(args.root),
+        since=args.since, max_events=args.max_events)
+    _emit(result)
+    return 0 if result.get("ok") else 2
+
+
+def cmd_plugin_actions(args) -> int:
+    _emit(plugin_actions.list_actions(args.root))
+    return 0
+
+
+def cmd_plugin_act(args) -> int:
+    try:
+        payload = json.loads(args.args or "{}")
+    except json.JSONDecodeError as exc:
+        _emit({"ok": False, "error": f"--args is not JSON: {exc}"})
+        return 1
+    try:
+        if args.apply:
+            result = plugin_actions.apply(
+                args.root, args.name, payload, args.plan, args.reason or "")
+        else:
+            result = plugin_actions.preview(args.root, args.name, payload)
+    except (plugin_api.PluginError, OSError) as exc:
+        return _plugin_error(exc)
+    _emit(result)
+    return 0 if result.get("ok") else 2
+
+
+def cmd_plugin_undo(args) -> int:
+    try:
+        result = plugin_actions.undo(args.root, args.journal_id,
+                                     args.reason or "")
+    except (plugin_api.PluginError, OSError) as exc:
+        return _plugin_error(exc)
+    _emit(result)
+    return 0 if result.get("ok") else 2
+
+
+def cmd_plugin_list(args) -> int:
+    _emit(plugins.list_plugins(args.root))
+    return 0
+
+
+def cmd_plugin_install(args) -> int:
+    try:
+        _emit(plugins.install(
+            args.root, args.path, allow_unsigned=args.allow_unsigned,
+            trust_key=args.pubkey, force=args.force, enable=args.enable))
+    except (plugin_api.PluginError, OSError) as exc:
+        return _plugin_error(exc)
+    return 0
+
+
+def cmd_plugin_verify(args) -> int:
+    try:
+        result = plugins.verify(args.root, args.name, trust_key=args.pubkey)
+    except (plugin_api.PluginError, OSError) as exc:
+        return _plugin_error(exc)
+    _emit(result)
+    return 0 if result.get("ok") else 2
+
+
+def cmd_plugin_remove(args) -> int:
+    try:
+        _emit(plugins.uninstall(args.root, args.name))
+    except (plugin_api.PluginError, OSError) as exc:
+        return _plugin_error(exc)
+    return 0
+
+
+def cmd_plugin_enable(args) -> int:
+    try:
+        _emit(plugins.set_enabled(args.root, args.name, True))
+    except (plugin_api.PluginError, OSError) as exc:
+        return _plugin_error(exc)
+    return 0
+
+
+def cmd_plugin_disable(args) -> int:
+    try:
+        _emit(plugins.set_enabled(args.root, args.name, False))
+    except (plugin_api.PluginError, OSError) as exc:
+        return _plugin_error(exc)
+    return 0
+
+
+def cmd_plugin_run(args) -> int:
+    try:
+        _entry, manifest, _base = plugins.load_installed(args.root, args.name)
+        if manifest.get("kind") == "detector":
+            result = plugin_host.run_detector(
+                args.root, args.name, out_events=args.events,
+                since=args.since, max_rows=args.max_rows,
+                timeout_seconds=args.timeout)
+        else:
+            result = plugin_host.run_sensor(
+                args.root, args.name, out_events=args.events,
+                max_events=args.max_events, timeout_seconds=args.timeout,
+                force=args.force)
+    except (plugin_api.PluginError, OSError) as exc:
+        return _plugin_error(exc)
+    _emit(result)
+    return 0 if result.get("ok") else 2
+
+
+def cmd_plugin_health(args) -> int:
+    try:
+        result = plugins.health(args.root, args.name)
+    except (plugin_api.PluginError, OSError) as exc:
+        return _plugin_error(exc)
+    _emit(result)
+    return 0 if result.get("ok") else 2
+
+
+def cmd_plugin_new(args) -> int:
+    try:
+        _emit(plugins.scaffold(args.out, args.name, args.kind))
+    except (plugin_api.PluginError, OSError) as exc:
+        return _plugin_error(exc)
+    return 0
+
+
+def cmd_plugin_keygen(args) -> int:
+    try:
+        _emit(plugin_api.keygen(args.out))
+    except (plugin_api.PluginError, OSError, ImportError) as exc:
+        return _plugin_error(exc)
+    return 0
+
+
+def cmd_plugin_sign(args) -> int:
+    try:
+        _emit(plugin_api.sign(args.plugin, args.key))
+    except (plugin_api.PluginError, OSError, ImportError) as exc:
+        return _plugin_error(exc)
+    return 0
+
+
 def cmd_profile_build(args) -> int:
     try:
         built = profile.build(
@@ -3827,6 +4020,165 @@ def build_parser() -> argparse.ArgumentParser:
     acu.add_argument("--root", default="C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma")
     acu.add_argument("--timeout", type=int, default=60)
     acu.set_defaults(func=cmd_actuate_undo)
+
+    ing = sub.add_parser(
+        "ingest", help="bounded event ingest adapters (jsonl, evtx, webhook)")
+    ings = ing.add_subparsers(dest="ingest_action", required=True)
+    _ingest_root = "C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma"
+
+    ingj = ings.add_parser("jsonl", help="ingest a bounded JSONL file")
+    ingj.add_argument("path")
+    ingj.add_argument("--events", default=None)
+    ingj.add_argument("--root", default=_ingest_root)
+    ingj.add_argument("--max-events", dest="max_events", type=int,
+                      default=plugin_io.DEFAULT_MAX_EVENTS)
+    ingj.add_argument("--host", default=None)
+    ingj.set_defaults(func=cmd_ingest_jsonl)
+
+    inge = ings.add_parser("evtx", help="read a Windows Event Log channel")
+    inge.add_argument("--channel", required=True)
+    inge.add_argument("--events", default=None)
+    inge.add_argument("--root", default=_ingest_root)
+    inge.add_argument("--since", type=int, default=15,
+                      help="minutes of history")
+    inge.add_argument("--max-events", dest="max_events", type=int,
+                      default=plugin_io.DEFAULT_MAX_EVENTS)
+    inge.add_argument("--host", default=None)
+    inge.set_defaults(func=cmd_ingest_evtx)
+
+    ingw = ings.add_parser("webhook", help="receive bounded JSON events over HTTP")
+    ingw.add_argument("--bind", default="127.0.0.1")
+    ingw.add_argument("--port", type=int, default=8787)
+    ingw.add_argument("--path", default="/ingest")
+    ingw.add_argument("--secret", default=None)
+    ingw.add_argument("--secret-env", dest="secret_env", default=None)
+    ingw.add_argument("--events", default=None)
+    ingw.add_argument("--root", default=_ingest_root)
+    ingw.add_argument("--max-events", dest="max_events", type=int,
+                      default=plugin_io.DEFAULT_MAX_EVENTS)
+    ingw.add_argument("--seconds", type=int, default=30)
+    ingw.add_argument("--once", action="store_true")
+    ingw.add_argument("--host", default=None)
+    ingw.set_defaults(func=cmd_ingest_webhook)
+
+    exp = sub.add_parser(
+        "export", help="bounded exporters (webhook, syslog)")
+    exps = exp.add_subparsers(dest="export_action", required=True)
+    _export_root = "C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma"
+
+    expw = exps.add_parser("webhook", help="POST a bounded event batch")
+    expw.add_argument("--url", required=True)
+    expw.add_argument("--secret", default=None)
+    expw.add_argument("--secret-env", dest="secret_env", default=None)
+    expw.add_argument("--events", default=None)
+    expw.add_argument("--root", default=_export_root)
+    expw.add_argument("--since", default=None)
+    expw.add_argument("--max-events", dest="max_events", type=int,
+                      default=plugin_io.DEFAULT_MAX_EVENTS)
+    expw.add_argument("--batch-size", dest="batch_size", type=int, default=100)
+    expw.set_defaults(func=cmd_export_webhook)
+
+    expsl = exps.add_parser("syslog", help="send events over syslog UDP/TCP")
+    expsl.add_argument("--host", required=True)
+    expsl.add_argument("--port", type=int, default=514)
+    expsl.add_argument("--protocol", choices=["udp", "tcp"], default="udp")
+    expsl.add_argument("--events", default=None)
+    expsl.add_argument("--root", default=_export_root)
+    expsl.add_argument("--since", default=None)
+    expsl.add_argument("--max-events", dest="max_events", type=int,
+                       default=plugin_io.DEFAULT_MAX_EVENTS)
+    expsl.set_defaults(func=cmd_export_syslog)
+
+    plg = sub.add_parser(
+        "plugin",
+        help="install, verify and run bounded external plugins")
+    plgs = plg.add_subparsers(dest="plugin_action", required=True)
+    _plugin_root = "C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma"
+
+    pla = plgs.add_parser("actions", help="list responder actions")
+    pla.add_argument("--root", default=_plugin_root)
+    pla.set_defaults(func=cmd_plugin_actions)
+
+    plact = plgs.add_parser("act", help="preview or apply a responder action")
+    plact.add_argument("name")
+    plact.add_argument("--args", default="{}", help="JSON argument object")
+    plact.add_argument("--apply", action="store_true")
+    plact.add_argument("--plan", default=None, help="id from a prior preview")
+    plact.add_argument("--reason", default=None)
+    plact.add_argument("--root", default=_plugin_root)
+    plact.set_defaults(func=cmd_plugin_act)
+
+    plu = plgs.add_parser("undo", help="run a journaled action's rollback")
+    plu.add_argument("journal_id")
+    plu.add_argument("--reason", default=None)
+    plu.add_argument("--root", default=_plugin_root)
+    plu.set_defaults(func=cmd_plugin_undo)
+
+    plgl = plgs.add_parser("list", help="installed plugins and enable state")
+    plgl.add_argument("--root", default=_plugin_root)
+    plgl.set_defaults(func=cmd_plugin_list)
+
+    plgi = plgs.add_parser("install", help="verify and install a plugin directory")
+    plgi.add_argument("path")
+    plgi.add_argument("--root", default=_plugin_root)
+    plgi.add_argument("--allow-unsigned", action="store_true")
+    plgi.add_argument("--pubkey", default=None, help="trusted Ed25519 public key")
+    plgi.add_argument("--force", action="store_true")
+    plgi.add_argument("--enable", action="store_true")
+    plgi.set_defaults(func=cmd_plugin_install)
+
+    plgv = plgs.add_parser("verify", help="recompute payload hash and signature")
+    plgv.add_argument("name")
+    plgv.add_argument("--root", default=_plugin_root)
+    plgv.add_argument("--pubkey", default=None)
+    plgv.set_defaults(func=cmd_plugin_verify)
+
+    plgr = plgs.add_parser("remove", help="stop tracking and delete a plugin")
+    plgr.add_argument("name")
+    plgr.add_argument("--root", default=_plugin_root)
+    plgr.set_defaults(func=cmd_plugin_remove)
+
+    plge = plgs.add_parser("enable", help="allow a plugin to run")
+    plge.add_argument("name")
+    plge.add_argument("--root", default=_plugin_root)
+    plge.set_defaults(func=cmd_plugin_enable)
+
+    plgd = plgs.add_parser("disable", help="block a plugin from running")
+    plgd.add_argument("name")
+    plgd.add_argument("--root", default=_plugin_root)
+    plgd.set_defaults(func=cmd_plugin_disable)
+
+    plgrun = plgs.add_parser("run", help="run a sensor or detector once, bounded")
+    plgrun.add_argument("name")
+    plgrun.add_argument("--root", default=_plugin_root)
+    plgrun.add_argument("--events", default=None)
+    plgrun.add_argument("--max-events", dest="max_events", type=int, default=1000)
+    plgrun.add_argument("--max-rows", dest="max_rows", type=int, default=5000)
+    plgrun.add_argument("--since", default=None)
+    plgrun.add_argument("--timeout", type=int, default=60)
+    plgrun.add_argument("--force", action="store_true")
+    plgrun.set_defaults(func=cmd_plugin_run)
+
+    plgh = plgs.add_parser("health", help="run the plugin health check")
+    plgh.add_argument("name")
+    plgh.add_argument("--root", default=_plugin_root)
+    plgh.set_defaults(func=cmd_plugin_health)
+
+    plgn = plgs.add_parser("new", help="scaffold a plugin directory")
+    plgn.add_argument("name")
+    plgn.add_argument("--out", default="examples/plugins")
+    plgn.add_argument("--kind", default="sensor",
+                      choices=sorted(plugin_api.KINDS))
+    plgn.set_defaults(func=cmd_plugin_new)
+
+    plgk = plgs.add_parser("keygen", help="create an Ed25519 plugin keypair")
+    plgk.add_argument("--out", required=True)
+    plgk.set_defaults(func=cmd_plugin_keygen)
+
+    plgsign = plgs.add_parser("sign", help="sign a plugin payload")
+    plgsign.add_argument("--plugin", required=True)
+    plgsign.add_argument("--key", required=True)
+    plgsign.set_defaults(func=cmd_plugin_sign)
 
     pf = sub.add_parser(
         "profile",

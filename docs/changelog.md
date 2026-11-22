@@ -4,6 +4,16 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.28.0 — 2026-11-22
+
+- **Plugin ABI.** Four plugin kinds — sensor, detector, responder, exporter — as bounded external processes with a signed manifest, NDJSON contract, per-record validation, quarantine and dedupe. Plugins never write the store directly.
+- **Sensor and detector host.** `plasma plugin run` streams events or findings with a hard timeout, line cap, event cap and stderr log; ten invalid records stop the run.
+- **Responder actions.** `plugin act` previews exact argv and returns a plan id; apply requires that id and a reason, checks the kill switch and the plugin's enabled state, verifies, journals and supports undo. Paths are checked against declared roots.
+- **Ingest and export.** JSONL, Windows Event Log and HMAC webhook ingest; batched webhook and syslog export with bounded spooling on failure.
+- **Signing and scaffolding.** Ed25519 keygen/sign/verify, pinned trust keys, and `plugin new` for all three plugin kinds.
+- **Docs and schemas.** `docs/plugin-api.md` plus manifest and envelope JSON schemas.
+- 1035 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.27.7 — 2026-11-22
 
 - **TTPForge-driven coverage.** Four new baseline rules close the gaps the ForgeArmory run exposed: masqueraded system binaries (T1036.005), PowerShell download via 4104 (`WebClient`/`DownloadFile`/`Invoke-WebRequest`, T1105), WMI reconnaissance via 4104 (`Get-WmiObject`/`Get-CimInstance` over Win32_ classes, T1047/T1082) and `wmic` query reconnaissance (T1047/T1082). Rule count 21 → 25.

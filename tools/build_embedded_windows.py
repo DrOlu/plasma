@@ -149,6 +149,7 @@ def build(out: Path, dist: Path, name: str) -> Path:
         "--collect-all", "pydantic_core",
         "--collect-all", "pywinrm",
         "--collect-all", "requests_ntlm",
+        "--collect-all", "cryptography",
         "--distpath", str(dist),
         "--workpath", str(ROOT / "build" / "pyinstaller"),
         "--specpath", str(ROOT / "build"),

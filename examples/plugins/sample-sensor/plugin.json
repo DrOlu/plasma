@@ -1,0 +1,18 @@
+{
+ "api_version": "1.0",
+ "name": "sample-sensor",
+ "version": "0.1.0",
+ "kind": "sensor",
+ "description": "sample sensor plugin",
+ "entrypoint": "sensor.py",
+ "runtime": "python",
+ "protocol": "ndjson-stdio",
+ "capabilities": [
+  "event.process"
+ ],
+ "limits": {
+  "max_events": 1000,
+  "max_line_bytes": 65536,
+  "timeout_seconds": 60
+ }
+}

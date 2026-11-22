@@ -107,5 +107,5 @@
 
   <!-- Footer -->
   <text x="40" y="604" class="body">Design rule: detect on the endpoint, pull small answers on demand, keep response plan-gated and reversible.</text>
-  <text x="40" y="626" class="small">Plasma 1.27.7 · no kernel driver · WDAC remains read-only · canary shield is user-mode and opt-in</text>
+  <text x="40" y="626" class="small">Plasma 1.28.0 · no kernel driver · WDAC remains read-only · canary shield is user-mode and opt-in</text>
 </svg>

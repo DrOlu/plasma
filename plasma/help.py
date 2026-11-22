@@ -3544,4 +3544,222 @@ No event rows are shipped. This is the estate tier of the profile spine.""",
     see_also=["profile merge", "anomaly score", "fleet pull"],
 ))
 
+
+_add("plugin", _c(
+    "bounded external plugins: sensors, detectors, responders",
+    """Install, verify, enable and run plugins without rebuilding Plasma.
+
+A plugin is a process with a manifest, not an import. Sensors and detectors
+emit newline-delimited JSON; the core validates every record, stamps the
+source and appends to the store. Responders register named actions that
+still go through a plan. Nothing is auto-enabled and nothing unsigned is
+installed without an explicit flag.""",
+    [
+        ("List", "plasma plugin list"),
+        ("Install signed", "plasma plugin install .\\my-plugin --pubkey publisher.pem --enable"),
+        ("Run a sensor", "plasma plugin run my-sensor --max-events 50"),
+        ("Verify", "plasma plugin verify my-sensor"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["Plugins never write the event store directly; the host validates and dedupes.",
+           "Runtime limits are declared in the manifest and enforced by the host.",
+           "Unsigned plugins require --allow-unsigned; signed installs can pin a key."],
+    see_also=["plugin install", "plugin run", "anomaly score"],
+))
+
+_add("plugin list", _c(
+    "installed plugins and enable state",
+    "Print the registry: name, version, kind, signed state, digest, enabled flag and last status.",
+    [("List", "plasma plugin list")],
+    safety=READ_ONLY,
+    see_also=["plugin verify"],
+))
+
+_add("plugin install", _c(
+    "verify and install a plugin directory",
+    "Validate plugin.json, verify the Ed25519 signature when present, copy the payload under <root>/plugins and register it. Installation does not enable it.",
+    [
+        ("Signed", "plasma plugin install .\\plugins\\acme --pubkey acme.pem"),
+        ("Enable at install", "plasma plugin install .\\plugins\\acme --pubkey acme.pem --enable"),
+        ("Unsigned lab", "plasma plugin install .\\plugins\\lab --allow-unsigned"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["Refuses path escapes, missing entrypoints and unreadable manifests.",
+           "Use --force to replace an installed plugin."],
+    see_also=["plugin sign", "plugin verify"],
+))
+
+_add("plugin verify", _c(
+    "recompute payload hash and signature",
+    "Recompute the payload digest and verify SIGNATURE against the embedded key or a pinned --pubkey. Exit 2 on mismatch or tamper.",
+    [("Verify", "plasma plugin verify acme"),
+     ("Pin the publisher", "plasma plugin verify acme --pubkey acme.pem")],
+    safety=READ_ONLY,
+    see_also=["plugin install"],
+))
+
+_add("plugin remove", _c(
+    "stop tracking and delete a plugin",
+    "Remove the plugin directory and its registry entry. Disable it first if a run is in flight.",
+    [("Remove", "plasma plugin remove acme")],
+    safety=LOCAL_WRITE,
+))
+
+_add("plugin enable", _c(
+    "allow a plugin to run",
+    "Set the enabled flag in the registry. A disabled plugin refuses `plugin run` unless --force is passed.",
+    [("Enable", "plasma plugin enable acme")],
+    safety=LOCAL_WRITE,
+    see_also=["plugin disable", "plugin run"],
+))
+
+_add("plugin disable", _c(
+    "block a plugin from running",
+    "Clear the enabled flag. This is the quickest containment for a misbehaving plugin; it does not delete it.",
+    [("Disable", "plasma plugin disable acme")],
+    safety=LOCAL_WRITE,
+))
+
+_add("plugin run", _c(
+    "run a sensor or detector once, bounded",
+    "Run one plugin with a hard timeout, line cap and event cap. Sensors append normalised events; detectors append findings as plugin alerts.",
+    [
+        ("Sensor", "plasma plugin run acme --max-events 100"),
+        ("Detector", "plasma plugin run acme-detector --since 1h"),
+        ("Force a disabled plugin", "plasma plugin run acme --force --max-events 10"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["Invalid records are quarantined; ten bad records stop the run.",
+           "Stderr goes to <root>/logs/plugin-<name>.log, never to stdout."],
+    see_also=["plugin health", "plugin install"],
+))
+
+_add("plugin health", _c(
+    "run the plugin health check",
+    "Execute the manifest health command with a timeout, or report registry status when the manifest declares none.",
+    [("Health", "plasma plugin health acme")],
+    safety=READ_ONLY,
+))
+
+_add("plugin new", _c(
+    "scaffold a plugin directory",
+    "Create a manifest, entrypoint and README for a sensor, detector or responder plugin.",
+    [("Sensor", "plasma plugin new acme --kind sensor"),
+     ("Responder", "plasma plugin new acme-actions --kind responder")],
+    safety=LOCAL_WRITE,
+))
+
+_add("plugin keygen", _c(
+    "create an Ed25519 plugin keypair",
+    "Generate plugin-private.pem and plugin-public.pem. Keep the private key offline; distribute the public key as the pinned trust key.",
+    [("Keypair", "plasma plugin keygen --out keys")],
+    safety=LOCAL_WRITE,
+    see_also=["plugin sign"],
+))
+
+_add("plugin sign", _c(
+    "sign a plugin payload",
+    "Sign the payload digest with an Ed25519 private key and write SIGNATURE. The signature covers every file except SIGNATURE itself.",
+    [("Sign", "plasma plugin sign --plugin .\\plugins\\acme --key keys/plugin-private.pem")],
+    safety=LOCAL_WRITE,
+    see_also=["plugin keygen", "plugin verify"],
+))
+
+
+_add("ingest", _c(
+    "bounded event ingest adapters",
+    """Bring an external source into the local store without a collector
+daemon. Every adapter has a hard row cap, validates each record and appends
+with dedupe. EVTX reads are read-only; webhook bodies are HMAC-verified.""",
+    [
+        ("JSONL file", "plasma ingest jsonl .\\export.jsonl --max-events 500"),
+        ("Event log", "plasma ingest evtx --channel Microsoft-Windows-Sysmon/Operational --since 15"),
+        ("Webhook", "plasma ingest webhook --port 8787 --secret-env PLASMA_INGEST_SECRET --once"),
+    ],
+    safety=LOCAL_WRITE,
+    see_also=["ingest jsonl", "export webhook"],
+))
+
+_add("ingest jsonl", _c(
+    "ingest a bounded JSONL file",
+    "Read at most --max-events lines, normalise each event (or v1 envelope) and append with dedupe.",
+    [("Ingest", "plasma ingest jsonl events.jsonl --max-events 500")],
+    safety=LOCAL_WRITE,
+))
+
+_add("ingest evtx", _c(
+    "read a Windows Event Log channel",
+    "Read a bounded window from one channel through Get-WinEvent. Events are stored as generic alerts with the channel id, level and message.",
+    [("Sysmon", "plasma ingest evtx --channel Microsoft-Windows-Sysmon/Operational --since 15 --max-events 500")],
+    safety=READ_ONLY,
+    notes=["Windows-only; the read is read-only and capped by --since and --max-events.",
+           "For rich Sysmon fields use the WHIDS sensor; this adapter is for breadth."],
+))
+
+_add("ingest webhook", _c(
+    "receive bounded JSON events over HTTP",
+    "Run a minimal HTTP receiver. POST one event, an array, or an object with an events list. If a secret is set, X-Plasma-Signature must be sha256=<hmac>.",
+    [
+        ("One request", "plasma ingest webhook --port 8787 --secret-env PLASMA_INGEST_SECRET --once"),
+        ("Thirty seconds", "plasma ingest webhook --port 8787 --seconds 30 --max-events 500"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["Body cap 2 MiB; invalid records are rejected and counted.",
+           "Bind loopback unless the network path is authenticated."],
+))
+
+_add("export", _c(
+    "bounded exporters",
+    "Send a bounded tail to another system. Failures spool to <root>/export-spool with a hard line cap; nothing is queued without limit.",
+    [("Webhook", "plasma export webhook --url https://siem.example/ingest --since 1h"),
+     ("Syslog", "plasma export syslog --host 192.0.2.10 --port 514 --protocol udp")],
+    safety=NETWORK,
+    see_also=["export webhook", "export syslog"],
+))
+
+_add("export webhook", _c(
+    "POST a bounded event batch",
+    "POST JSON batches as an events array with an optional HMAC. Retries transient failures; on failure the unsent tail is spooled with a cap.",
+    [("Export", "plasma export webhook --url https://siem.example/ingest --secret-env PLASMA_EXPORT_SECRET --since 1h")],
+    safety=NETWORK,
+))
+
+_add("export syslog", _c(
+    "send events over syslog UDP/TCP",
+    "Send one RFC5424-shaped line per event, with the full event as JSON in the message field. Capped by --max-events.",
+    [("UDP", "plasma export syslog --host 192.0.2.10 --port 514 --protocol udp --since 1h")],
+    safety=NETWORK,
+))
+
+
+_add("plugin actions", _c(
+    "list responder actions",
+    "List every action contributed by installed responder plugins, with its argument schema and whether it is reversible.",
+    [("List", "plasma plugin actions")],
+    safety=READ_ONLY,
+))
+
+_add("plugin act", _c(
+    "preview or apply a responder action",
+    """Preview renders the exact argv and stores a plan id. Applying requires
+that id and a reason; the plugin must be enabled, the kill switch is checked,
+and the run is journaled with its rollback argv.""",
+    [
+        ("Preview", "plasma plugin act sample-responder.touch --args '{\"path\":\"C:\\\\ProgramData\\\\Plasma\\\\plugin-samples\\\\x.txt\"}'"),
+        ("Apply", "plasma plugin act sample-responder.touch --args '{...}' --apply --plan 1a2b3c4d5e6f7788 --reason \"pilot\""),
+    ],
+    safety=PLAN_GATED,
+    notes=["No shell: only the action's declared argv runs.",
+           "Plans expire after 24 hours; preview again after changes."],
+    see_also=["plugin actions", "plugin undo"],
+))
+
+_add("plugin undo", _c(
+    "run a journaled action's rollback",
+    "Look up an applied action by journal id and run its declared rollback argv. Requires a reason and checks the kill switch.",
+    [("Undo", "plasma plugin undo 1a2b3c4d5e6f --reason \"rollback\"")],
+    safety=PLAN_GATED,
+    see_also=["plugin act"],
+))
+
 # END_OF_HELP_SOURCE

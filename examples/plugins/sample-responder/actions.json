@@ -1,0 +1,44 @@
+{
+ "actions": [
+  {
+   "name": "sample-responder.touch",
+   "description": "create and remove a sample file",
+   "args_schema": {
+    "type": "object",
+    "properties": {
+     "path": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "path"
+    ]
+   },
+   "preview": [
+    "python",
+    "action.py",
+    "preview",
+    "{{path}}"
+   ],
+   "apply": [
+    "python",
+    "action.py",
+    "apply",
+    "{{path}}"
+   ],
+   "verify": [
+    "python",
+    "action.py",
+    "verify",
+    "{{path}}"
+   ],
+   "rollback": [
+    "python",
+    "action.py",
+    "rollback",
+    "{{path}}"
+   ],
+   "reversible": true
+  }
+ ]
+}

@@ -1,0 +1,16 @@
+{
+ "api_version": "1.0",
+ "name": "sample-detector",
+ "version": "0.1.0",
+ "kind": "detector",
+ "description": "sample detector plugin",
+ "entrypoint": "detector.py",
+ "runtime": "python",
+ "protocol": "ndjson-stdio",
+ "capabilities": [],
+ "limits": {
+  "max_events": 1000,
+  "max_line_bytes": 65536,
+  "timeout_seconds": 60
+ }
+}
