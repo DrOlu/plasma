@@ -46,6 +46,16 @@ WEIGHTS = {
     "estate": 1.5,
 }
 
+# Routine Windows servicing spawns rare children from a small set of signed
+# service hosts. Novelty there is real but low-signal; damp it so a patched
+# server does not read as critical while still surfacing at triage level.
+BENIGN_SERVICE_PARENTS = {
+    "services.exe", "svchost.exe", "wininit.exe", "winlogon.exe",
+    "taskhostw.exe", "wuauclt.exe", "usoclient.exe", "sihclient.exe",
+    "upfc.exe", "compattelrunner.exe", "msiexec.exe",
+}
+SERVICE_PARENT_DAMPING = 0.55
+
 TRACE_GAP_SECONDS = 1800
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 200
@@ -186,7 +196,13 @@ def score_row(row: dict, profile: dict, estate: dict | None = None,
     weight_sum = sum(component["weight"] for component in usable)
     raw = sum(component["weight"] * component["value"]
               for component in usable)
-    score = round(10.0 * raw / weight_sum, 1) if weight_sum else 0.0
+    score = 10.0 * raw / weight_sum if weight_sum else 0.0
+    damping = None
+    if parent in BENIGN_SERVICE_PARENTS:
+        damping = {"parent": parent, "factor": SERVICE_PARENT_DAMPING,
+                   "reason": "routine Windows service parent"}
+        score *= SERVICE_PARENT_DAMPING
+    score = round(score, 1)
     reasons = [_reason(component) for component in
                sorted(usable, key=lambda item: -(item["weight"] * item["value"]))
                if component["value"] >= 0.6][:4]
@@ -204,6 +220,7 @@ def score_row(row: dict, profile: dict, estate: dict | None = None,
         "components": sorted(usable,
                              key=lambda item: -(item["weight"] * item["value"])),
         "reasons": reasons,
+        "damping": damping,
     }
 
 
@@ -268,11 +285,11 @@ def _bands(rows: list[dict]) -> dict:
     bands = {"critical": 0, "high": 0, "medium": 0, "low": 0}
     for row in rows:
         score = float(row.get("score") or 0)
-        if score >= 9:
+        if score >= 9.5:
             bands["critical"] += 1
-        elif score >= 7:
+        elif score >= 8.0:
             bands["high"] += 1
-        elif score >= 4:
+        elif score >= 6.0:
             bands["medium"] += 1
         else:
             bands["low"] += 1

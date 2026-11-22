@@ -60,6 +60,11 @@ Each component reports `count`/`total`, `first_seen`, and the key that
 produced it. The score is the weighted mean of the components that could be
 computed. Nothing is learned online and no opaque model sits in the path.
 
+Routine Windows servicing (`services.exe`, `svchost.exe`, `wuauclt.exe` and
+similar) is damped by 0.55. A rare child of a service host still appears, at
+triage level, instead of turning a patched server red. Bands are critical at
+9.5+, high at 8.0+, medium at 6.0+.
+
 **Cold start is explicit.** Below 50 observations, or when no table has
 data, the score is `null` with `cold_start: true`. Plasma would rather say
 "I do not know yet" than manufacture confidence.

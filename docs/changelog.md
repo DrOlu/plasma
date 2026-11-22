@@ -4,6 +4,12 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.27.1 — 2026-11-22
+
+- **Estate calibration.** First-run scoring on WS1/WS2 ranked routine servicing (`devicecensus.exe`, `upfc.exe`, `usoclient.exe` and friends) as critical novelty. Children of a small signed service-parent set are now damped by 0.55, and the critical band starts at 9.5 instead of 9.0. Novelty from `svchost.exe` still surfaces, at triage level rather than red.
+- No raw-data or profile-format change.
+- 984 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.27.0 — 2026-11-22
 
 - **Behavioural profiles.** `plasma profile build` reduces the bounded local store to counts — images, parent→child edges, identity pairs, destination/registry/file families, command-line shapes and robust hourly volume. Tens of kilobytes, no event rows, no raw command lines, SHA-256 integrity.

@@ -191,3 +191,23 @@ def test_traces_command_is_bounded_and_serialisable(tmp_path):
     json.dumps(result)
     assert result["ok"] is True
     assert result["returned"] <= 3
+
+
+def test_service_parents_are_damped_but_not_hidden(tmp_path):
+    built, _path = _build(tmp_path, _benign())
+    row = {
+        "ts": "2026-11-07T06:00:00Z", "host": "WS1", "kind": "process",
+        "event_id": 1, "process": "neverseen.exe", "parent": "svchost.exe",
+        "user": "CORP\\SYSTEM", "cmdline": "neverseen.exe -run",
+    }
+    damped = anomaly.score_row(row, built)
+    undamped = anomaly.score_row({**row, "parent": "explorer.exe"}, built)
+    assert damped["damping"]["factor"] == anomaly.SERVICE_PARENT_DAMPING
+    assert damped["score"] < undamped["score"]
+    assert damped["score"] > 0
+
+
+def test_bands_reserve_critical_for_multi_signal_novelty():
+    rows = [{"score": 9.4}, {"score": 9.6}, {"score": 8.0}, {"score": 6.0}]
+    assert anomaly._bands(rows) == {
+        "critical": 1, "high": 2, "medium": 1, "low": 0}
