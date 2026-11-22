@@ -137,3 +137,12 @@ MIT. Repository: [DrOlu/plasma](https://github.com/DrOlu/plasma).
 Open a GitHub issue for non-sensitive reports. For sensitive ones, contact
 the maintainer through the address on the repository profile rather than
 posting details publicly.
+
+### Can I extend Plasma with my own sensor or action?
+
+Yes. Plugins are bounded external processes with a signed manifest:
+`sensor`, `detector`, `responder`, and the reserved `exporter` kind. Write
+one in any language, sign it with `plasma plugin keygen` and `plugin sign`,
+install it with a pinned public key, and enable it explicitly. The core still
+validates every record, owns the event store and gates response actions.
+See [Plugins](plugin-api.md).

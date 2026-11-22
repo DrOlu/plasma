@@ -464,7 +464,26 @@ a hope, not a control.
 - [ ] Update ring and rollback tested.
 - [ ] Blind spots accepted and documented.
 
-## 13. Limits
+## 13. Plugin distribution
+
+Treat plugins like any other signed software:
+
+1. Build and sign in a controlled pipeline; keep the private key offline.
+2. Publish the payload plus `plugin.json`, `SIGNATURE` and the publisher's
+   public key.
+3. Install with `plasma plugin install ... --pubkey publisher.pem --enable`
+   from the same GPO/SCCM/Intune workflow that installs Plasma.
+4. Pin the publisher key in the deployment script; do not accept an embedded
+   key without a pinned expectation.
+5. Roll out to the pilot OU first. `plugin verify` and `plugin health` are the
+   post-install checks.
+6. Disable a misbehaving plugin with `plasma plugin disable`; remove it with
+   `plasma plugin remove`.
+
+Responder plugins add actions; they do not bypass the plan/approval gate.
+Review each action's argv and `permissions.filesystem` before enabling it.
+
+## 14. Limits
 
 - No kernel driver: kernel malware, malicious drivers and direct syscalls are
   outside the claim.

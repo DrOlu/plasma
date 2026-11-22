@@ -78,6 +78,23 @@ Terms used consistently in this documentation:
 | **Enforcement** | A policy that maps findings to allowlisted actions automatically (`enforce`) |
 | **Prevention control** | A Windows enforcement point configured by Plasma: AppLocker, firewall egress, Defender ASR, LSA protection (`prevent`) |
 
+## Plugins are processes
+
+A plugin is **not imported** into Plasma. It is an external process with a
+manifest, a bounded output stream and a declared kind — the same shape as the
+Sysmon and WHIDS integrations. That choice is deliberate:
+
+- a plugin crash, hang or memory bug cannot take down `watch`, `serve` or the CLI;
+- the core validates every record and owns the append, so a plugin cannot forge
+  another source or corrupt the store;
+- a signed manifest and payload hash are checked before install;
+- limits (line size, event count, timeout) are enforced by the host, not trusted
+  from the plugin.
+
+The record contract is newline-delimited JSON with `v`, `type` and either an
+`event` or `finding` object. See [Plugins](plugin-api.md) for the manifest,
+envelope, lifecycle and security model.
+
 ## The on-device brain
 
 Plasma embeds a frozen neuralOS instance: a 121M-parameter, ~35 MB,

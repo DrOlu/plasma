@@ -129,6 +129,22 @@ To arm containment, set `enforcement.enabled` and `mode: "enforce"` in
 `allowed_actions: ["kill_process"]` and leave isolation behind approval.
 The full safety model is in [Prevention and blocking](prevention.md).
 
+## Install a plugin (optional)
+
+Plugins are not required for normal operation. To try the signed flow:
+
+```powershell
+plasma plugin new acme --kind sensor --out C:\build
+plasma plugin keygen --out C:\build\keys
+plasma plugin sign --plugin C:\build\acme --key C:\build\keys\plugin-private.pem
+plasma plugin install C:\build\acme --pubkey C:\build\keys\plugin-public.pem --enable
+plasma plugin run acme --max-events 5
+```
+
+The sample sensor writes five normalised events to the store. `plugin list`
+shows the enabled state; `plugin disable acme` stops it. See
+[Plugins](plugin-api.md) before installing third-party code.
+
 ## Upgrade
 
 ```powershell

@@ -36,6 +36,28 @@ apply workflow. With a topic, prints the same detailed page as
 `plasma <topic> --help`. `--json` returns the catalog, or one command when a
 topic is supplied. An unknown topic exits 1 with a structured error.
 
+## Plugins, ingest and export
+
+```text
+plasma plugin list|install|verify|remove|enable|disable
+plasma plugin run <name> [--events PATH] [--max-events N] [--timeout S]
+plasma plugin health <name>
+plasma plugin new <name> [--kind sensor|detector|responder] [--out DIR]
+plasma plugin keygen --out DIR
+plasma plugin sign --plugin DIR --key PRIVATE.pem
+plasma plugin actions
+plasma plugin act <name> [--args JSON | --args-file FILE] [--apply --plan ID --reason R]
+plasma plugin undo <journal-id> --reason R
+plasma ingest jsonl PATH --max-events N
+plasma ingest evtx --channel NAME --since MINUTES --max-events N
+plasma ingest webhook --port N [--secret | --secret-env NAME] [--once]
+plasma export webhook --url URL [--since DUR] [--max-events N]
+plasma export syslog --host HOST --port N --protocol udp|tcp
+```
+
+`plasma help plugin`, `plasma help ingest` and `plasma help export` return the
+full agent-facing pages. See [Plugins](plugin-api.md) for the ABI.
+
 ## Endpoint commands
 
 ### install

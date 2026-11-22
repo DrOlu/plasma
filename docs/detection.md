@@ -42,6 +42,26 @@ assembly loads and more. They only exist while `plasma tap run` is alive.
 Rules are rendered into the 7-field pipe format the C++ tap consumes, with
 fields validated against pipes and newlines.
 
+## Detector plugins
+
+A detector plugin runs over a bounded event tail and prints findings:
+
+```powershell
+plasma plugin run acme-detector --since 1h --max-rows 5000
+```
+
+Findings become `kind=alert` rows with `alert_id=plugin:<name>`, a clamped
+score, the technique and bounded evidence. The runner enforces a timeout and
+the manifest's `max_score`. Declarative gene/Sigma packs are validated with the
+existing harness:
+
+```powershell
+plasma detect validate --rules C:\plugins\acme\rules\pack.gen
+```
+
+Plugin findings enter the same store, so chains, query and the anomaly scorer
+see them without a second pipeline. They do not drive automatic containment.
+
 ## Identity — standing pulls
 
 The shipped product registers a SYSTEM task (`PlasmaIdentityPull`) that runs

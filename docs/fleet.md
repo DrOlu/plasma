@@ -82,6 +82,13 @@ Notes:
 - The report is Markdown, deterministic, and sized for pasting into a
   ticket.
 
+## Plugin events
+
+Plugin sensor events and detector findings are ordinary rows in the local
+store, so `fleet pull` carries them like any other event. A plugin finding is
+an `alert` row with `alert_id=plugin:<name>`; fleet correlation does not need
+to know the plugin existed.
+
 ## Example finding
 
 ```text

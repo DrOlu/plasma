@@ -186,3 +186,126 @@ separation, limits and signature verification.
 
 `examples/plugins/` contains a sensor, a detector and a responder scaffolded
 by `plasma plugin new`, used by the unit tests and the estate drill.
+
+## Lifecycle
+
+| State | Meaning | How it changes |
+|---|---|---|
+| installed | verified and copied, not enabled | `plugin install` |
+| enabled | may run | `plugin enable` |
+| disabled | `plugin run` refuses unless `--force` | `plugin disable` |
+| running | a bounded run is in flight | `plugin run` |
+| ok | last run completed inside its caps | registry `last_result` |
+| quarantined | ten invalid records stopped the run | fix the emitter, then run again |
+| timeout | the manifest deadline was reached | bound the plugin or raise the limit |
+| broken | manifest or entrypoint no longer validates | reinstall or remove |
+| removed | payload and registry entry deleted | `plugin remove` |
+
+`plugin list` reports the state, signature, digest, last run and last result.
+`plugin health` runs the manifest health command; a plugin without one reports
+its registry state.
+
+## Manifest reference
+
+| Field | Required | Meaning |
+|---|---|---|
+| `api_version` | yes | `1.0`; unknown majors are refused |
+| `name` | yes | lowercase id, 1–64 chars |
+| `version` | yes | semver-like |
+| `kind` | yes | `sensor`, `detector`, `responder`, `exporter` |
+| `entrypoint` | yes | relative path inside the plugin directory |
+| `runtime` | yes | `native`, `python`, `powershell` |
+| `protocol` | yes | `ndjson-stdio` |
+| `description` | no | shown by `plugin list` |
+| `capabilities` | no | declared event families |
+| `permissions` | no | `filesystem`, `registry`, `network` lists |
+| `limits` | no | `max_events`, `max_line_bytes` (≤ 65536), `timeout_seconds`, `max_score` |
+| `health` | no | `{ "command": [...] }` |
+| `actions` | responders | path to `actions.json` |
+| `rules` | detectors | path to a declarative pack |
+| `min_core` | no | refuse an older core |
+
+## Record reference
+
+| Type | Required | Notes |
+|---|---|---|
+| `event` | `event` object with a timestamp or a usable signal | mapped onto the strict PlasmaEvent contract |
+| `finding` | `description`, `score` (0–1) | becomes a plugin alert; `technique` and `evidence` optional |
+| `health` | `status` | surfaced in the run summary |
+| `log` | any | ignored; stderr is the log |
+
+Every record needs `v: 1` and `type`. A record larger than `max_line_bytes`,
+an unknown version or an unknown type is rejected and counted.
+
+## Responder reference
+
+Actions are argv arrays with `{{placeholder}}` substitution:
+
+- `preview` — required; rendered and returned by a dry-run.
+- `apply` — required; runs only after a matching plan id and reason.
+- `verify` — optional; runs after apply and must exit 0.
+- `rollback` — optional; required for `reversible: true`.
+- `args_schema` — JSON Schema subset: object, string/integer/boolean, required,
+  no unknown keys.
+- `permissions.filesystem` — path arguments must resolve under one of these
+  roots; `${root}` expands to the Plasma root.
+
+`--args-file` is the reliable way to pass JSON on Windows. Plans expire after
+24 hours. Every apply and undo is a JSONL journal entry with the argv, result,
+verify result and rollback argv.
+
+## Ingest and export reference
+
+| Adapter | Direction | Caps |
+|---|---|---|
+| `ingest jsonl` | inbound file | `--max-events`, validation, dedupe |
+| `ingest evtx` | inbound channel | `--since` minutes, `--max-events` |
+| `ingest webhook` | inbound HTTP | 2 MiB body, HMAC, `--max-events`, `--seconds`/`--once` |
+| `export webhook` | outbound | batches, retries, 5,000-line spool |
+| `export syslog` | outbound UDP/TCP | `--max-events`, 8 KiB line cap |
+
+Export URLs must be `http` or `https`; other schemes are refused before any
+request.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `install: refusing unsigned` | no `SIGNATURE` or wrong key | sign it, or `--allow-unsigned` in a lab |
+| `verify` exits 2 | payload changed after install | review, then `install --force` |
+| `run: quarantined` | ten invalid records | read `<root>\logs\plugin-<name>.log` |
+| `run: timeout` | manifest deadline | raise `limits.timeout_seconds` or bound the plugin |
+| `act: outside permitted roots` | path escaped permissions | use a declared root |
+| `act: kill switch is engaged` | switch on | `plasma control killswitch status` |
+| webhook 401 | bad HMAC | sign the body with the configured secret |
+| webhook 413 | body over 2 MiB | batch smaller |
+
+## Versioning
+
+`api_version` is a major.minor contract. The core supports the current major
+and refuses unknown ones; `min_core` lets a plugin require a newer Plasma.
+Record fields are additive: unknown event keys land in `attributes`, unknown
+top-level record types are rejected. Plugin-defined `kind` values are not
+consumed by chains or profiles until registered in core.
+
+## Testing a plugin
+
+```powershell
+plasma plugin new acme-test --kind sensor --out C:\build
+# implement, then:
+plasma plugin sign --plugin C:\build\acme-test --key keys\plugin-private.pem
+plasma plugin install C:\build\acme-test --pubkey keys\plugin-public.pem --enable
+plasma plugin run acme-test --events C:\temp\events.jsonl --max-events 3
+plasma query --events C:\temp\events.jsonl --source plugin:acme-test
+```
+
+For responders, preview first and inspect the exact argv; apply against a
+disposable target; undo and confirm the journal. For detectors, seed a store
+with a known row and check `alert_id=plugin:<name>`.
+
+## Distribution
+
+Ship the plugin directory, its `SIGNATURE`, and the publisher's public key.
+Install with a pinned key from the same GPO/SCCM/Intune workflow that installs
+Plasma. Keep the private key offline. Treat a plugin update as a new signed
+artifact: verify, install, then enable.

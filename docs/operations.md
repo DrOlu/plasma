@@ -113,6 +113,53 @@ cooldowns); `prevent-journal.jsonl` records every control change with its
 undo recipe. Prevention backups live in `prevent-backups/`. Neither file is
 rotated automatically — they are audit records.
 
+## Plugins
+
+Plugins are installed once, verified, enabled explicitly and then run on a
+cadence or on demand.
+
+```powershell
+plasma plugin list
+plasma plugin verify acme --pubkey acme.pem
+plasma plugin health acme
+plasma plugin run acme --max-events 100
+plasma plugin run acme-detector --since 1h
+plasma plugin disable acme
+```
+
+`install` verifies the manifest, entrypoint, payload digest and Ed25519
+signature, then copies the payload under `<root>\plugins\<name>`; it does not
+enable it. `disable` is the quick containment. Sensor runs enforce the
+manifest's `max_events`, `max_line_bytes` and `timeout_seconds`, log stderr to
+`<root>\logs\plugin-<name>.log`, and quarantine a plugin after ten invalid
+records.
+
+**Ingest and export** are bounded adapters, not collectors:
+
+```powershell
+plasma ingest jsonl .\events.jsonl --max-events 500
+plasma ingest evtx --channel System --since 15 --max-events 200
+plasma ingest webhook --port 8787 --secret-env PLASMA_INGEST_SECRET --once
+plasma export webhook --url https://siem.example/ingest --since 1h
+plasma export syslog --host 192.0.2.10 --port 514 --protocol udp
+```
+
+A failed export spools the unsent tail under `<root>\export-spool` with a
+5,000-line cap. Drain and retry; do not raise the cap indefinitely.
+
+**Responder actions** stay plan-gated:
+
+```powershell
+plasma plugin actions
+plasma plugin act acme.restart_agent --args-file args.json
+plasma plugin act acme.restart_agent --args-file args.json --apply --plan <id> --reason "change window"
+plasma plugin undo <journal-id> --reason "rollback"
+```
+
+Apply checks the kill switch and the enabled flag, runs only the declared argv,
+verifies and journals the rollback. Paths must sit under the plugin's declared
+filesystem roots.
+
 ## Updates
 
 ```powershell

@@ -105,6 +105,7 @@ without sending its diary anywhere?**
 ```text
 SENSORS            Sysmon · WHIDS gene rules · Security-log identity ·
                    ETW tap · deep persistence probe · canary tokens · memory scan
+EXTENSIONS         plugin sensors · detectors · responders (signed process ABI)
         │
         ▼  one strict event contract (events.jsonl, on the box)
 ON-DEVICE BRAIN    frozen neuralOS instance — 10 probes, refuse-if-unknown
@@ -122,6 +123,53 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    prevent (AppLocker, egress, ASR, LSA, CFA, Network Protection) ·
                    intercept (NTFS ACL, firewall, agent gateway)
 ```
+
+## Plugins
+
+Plasma plugins are **bounded external processes with a signed manifest and an
+NDJSON contract** — the same pattern already used for Sysmon, WHIDS, the ETW
+tap and DTrace. They can be written in any language and installed without
+rebuilding Plasma.
+
+| Kind | What it contributes | Command |
+|---|---|---|
+| Sensor | PlasmaEvents from an app, log or agent | `plasma plugin run` |
+| Detector | Findings over a bounded event tail | `plasma plugin run` |
+| Responder | Named actions with preview/apply/rollback | `plasma plugin act` |
+| Exporter | Reserved for plugin-driven outbound sinks | — |
+
+The core validates every record, stamps the source, quarantines garbage and
+keeps ownership of the event store and the response plan gate. Plugins never
+write `events.jsonl` directly and never get a shell.
+
+```powershell
+plasma plugin new acme --kind sensor --out C:\build
+plasma plugin keygen --out keys
+plasma plugin sign --plugin C:\build\acme --key keys\plugin-private.pem
+plasma plugin install C:\build\acme --pubkey keys\plugin-public.pem --enable
+plasma plugin run acme --max-events 100
+```
+
+Inbound adapters bring other systems in: `plasma ingest jsonl|evtx|webhook`.
+Outbound adapters push bounded batches: `plasma export webhook|syslog`.
+See [Plugins](plugin-api.md) for the manifest, protocol, lifecycle, security
+model and schemas.
+
+## What's new in 1.28.1
+
+- **Responder arguments from a file.** `plasma plugin act --args-file` avoids Windows native-argument quoting when an action takes a path.
+
+## What's new in 1.28.0
+
+- **Plugin ABI.** Sensors, detectors, responders and exporters run as bounded external processes with signed manifests and an NDJSON contract. Validation, quarantine, dedupe and the store stay core-owned.
+- **Plan-gated responders.** `plugin act` previews exact argv; apply needs the plan id and a reason, checks the kill switch and journals the rollback.
+- **Two-way integration.** `ingest` covers JSONL, Event Log and HMAC webhooks; `export` covers webhook and syslog with a capped spool.
+- **Signed and scaffolded.** Ed25519 keygen/sign/verify, pinned keys and `plugin new`.
+
+## What's new in 1.27.7
+
+- **TTPForge-driven coverage.** Masqueraded system binaries, PowerShell `WebClient`/`Invoke-WebRequest` downloads, WMI reconnaissance over 4104, and `wmic` query reconnaissance.
+- **Query self-match fixed.** `plasma query --contains` no longer returns the query process itself.
 
 ## What's new in 1.27.1
 

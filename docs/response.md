@@ -96,6 +96,24 @@ Each entry: `id`, `ts`, `action`, `target`, `reason`, `mode`
 (`dry-run`/`applied`), `payload_sha256`, `result` (rc + bounded output),
 `verification`, `undo`, and for playbooks `steps[]` / `aborted_at`.
 
+## Plugin actions
+
+Responder plugins contribute named actions to the same gate. They do not get a
+shell and they do not bypass the plan:
+
+```powershell
+plasma plugin actions
+plasma plugin act acme.restart_agent --args-file args.json
+plasma plugin act acme.restart_agent --args-file args.json --apply --plan <id> --reason "change window"
+plasma plugin undo <journal-id> --reason "rollback"
+```
+
+Preview renders the exact argv and stores a plan id. Apply requires that id and
+a reason, checks the kill switch and the plugin's enabled state, runs only the
+declared argv, verifies and journals the rollback. Path arguments must resolve
+under the plugin's `permissions.filesystem` roots. See
+[Plugins](plugin-api.md).
+
 ## Safety rules of thumb
 
 1. **Snapshot before containment.** `plasma actuate apply snapshot` costs

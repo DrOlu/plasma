@@ -55,6 +55,30 @@ to a marketing page.
 | Telemetry provenance | `sysmon-config.xml` → coverage `telemetry` | claiming coverage from rules that cannot fire |
 | Refusal gate (`GATE_VERSION 1`) | frozen instance | the model guessing instead of refusing |
 
+## Plugin trust model
+
+A plugin is code you chose to run. Plasma reduces the blast radius but does not
+make an untrusted plugin safe.
+
+- **Signature and digest.** Install verifies the payload digest and an Ed25519
+  signature against an embedded key; pass `--pubkey` to pin a publisher.
+  `plugin verify` recomputes the digest and exits 2 on any change. Unsigned
+  installs require `--allow-unsigned`.
+- **No store write.** Plugins emit records; the host validates, stamps the
+  source, dedupes and appends. A plugin cannot forge another sensor.
+- **No shell.** Responders declare argv arrays. Plasma owns the plan id, the
+  reason requirement, the kill switch, the journal and the rollback.
+- **Declared roots.** Path arguments in responder actions are confined to
+  `permissions.filesystem`.
+- **Resource caps.** Line size, event count, timeout and stderr size are
+  enforced; ten invalid records quarantine the run.
+- **Process isolation.** A plugin runs as a child process with its own working
+  directory. Job Objects/AppContainer isolation is the next hardening step.
+- **Secrets.** Injected as environment variables at start; never written to the
+  manifest, registry or logs.
+- **No core mutation.** Plugins cannot change config, rules, baselines or
+  services. A compromised plugin can emit false data; it cannot disable Plasma.
+
 ## Threat model boundaries
 
 **In scope for detection:**

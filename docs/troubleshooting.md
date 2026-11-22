@@ -156,6 +156,22 @@ security (VBS) is enabled; Server 2025 ships the built-in build. A driver
 that is loaded but exposes no providers usually needs one clean restart
 after the MSI.
 
+## Plugins
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `install: refusing unsigned` | no `SIGNATURE` or wrong key | sign the plugin, or use `--allow-unsigned` in a lab |
+| `verify` exits 2 | payload changed after install | review, then reinstall `--force` |
+| `run: quarantined` | ten invalid records | read `<root>\logs\plugin-<name>.log` |
+| `run: timeout` | manifest timeout reached | bound the plugin or raise `limits.timeout_seconds` |
+| `act: outside permitted roots` | path escaped `permissions.filesystem` | use a declared root or update the manifest |
+| `act: kill switch is engaged` | global/host switch on | `plasma control killswitch status` |
+| webhook 401 | missing or bad HMAC | sign the body with the configured secret |
+
+The plugin registry is `<root>\plugins\registry.json`; action plans live in
+`<root>\plugin-action-plans` and the journal in
+`<root>\plugin-actions-journal.jsonl`.
+
 ## Exit codes
 
 | Code | Meaning |

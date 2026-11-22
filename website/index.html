@@ -1070,27 +1070,114 @@ python orchestrate.py undo 35</pre>
     <div class="section-head reveal">
       <span class="kicker">Plugins</span>
       <h2>Extend it without forking it.</h2>
-      <p class="lede">Sensors, detectors and responders are processes with a manifest and a strict record contract — the same pattern Sysmon and WHIDS already use. Write one in any language, sign it, install it, and the core still owns validation, the store and the plan gate.</p>
+      <p class="lede">Sensors, detectors and responders are bounded external processes with a signed manifest and an NDJSON contract — the same pattern Sysmon and WHIDS already use. Write one in any language, sign it, install it, and the core still owns validation, the event store and the plan gate.</p>
     </div>
+
     <div class="grid c3 reveal">
       <div class="card">
+        <h3>Four kinds</h3>
+        <p><b>Sensor</b> emits events. <b>Detector</b> emits findings over a bounded tail. <b>Responder</b> declares named actions. <b>Exporter</b> is reserved for plugin-driven sinks.</p>
+        <div class="tags"><span>sensor</span><span>detector</span><span>responder</span></div>
+      </div>
+      <div class="card">
         <h3>Manifest, not import</h3>
-        <p>Validate one <code>plugin.json</code>, verify the payload hash and Ed25519 signature, copy it under the plugin root. Nothing is auto-enabled and entrypoints cannot escape their directory.</p>
-        <div class="tags"><span>signed</span><span>bounded</span><span>any language</span></div>
+        <p>One <code>plugin.json</code>, a payload hash and an Ed25519 signature. Entrypoints cannot escape the plugin directory; nothing is auto-enabled.</p>
+        <div class="mini">signed · hashed · any language</div>
       </div>
       <div class="card">
-        <h3>Records the core validates</h3>
-        <p>NDJSON events and findings are typed, capped, redacted and stamped with the plugin identity. Invalid lines are quarantined; the plugin never writes the store directly.</p>
-        <div class="mini">line cap · event cap · hard timeout</div>
-      </div>
-      <div class="card">
-        <h3>Response stays gated</h3>
-        <p>Responders declare argv, not shell. Preview returns a plan id; apply needs that id and a reason, checks the kill switch and journals the rollback.</p>
-        <div class="mini">preview → apply → undo</div>
+        <h3>Core-owned guarantees</h3>
+        <p>Records are typed, capped, redacted, stamped with the plugin identity and deduplicated. Ten invalid records quarantine the run. The plugin never writes the store.</p>
+        <div class="mini">line cap · event cap · timeout</div>
       </div>
     </div>
-    <div class="note" style="margin-top:16px">
-      <strong>And the doors are open both ways.</strong> <code>plasma ingest</code> accepts JSONL, Event Log channels and signed webhooks; <code>plasma export</code> pushes bounded batches to a webhook or syslog target. Failures spool with a hard cap.
+
+    <div class="grid c2 reveal" style="margin-top:18px;align-items:start">
+      <div>
+        <div class="term">
+          <div class="term-bar"><i></i><i></i><i></i><span class="path">plugin.json</span><button class="copy" type="button">Copy</button></div>
+<pre>{
+  "api_version": "1.0",
+  "name": "acme-bridge",
+  "version": "0.3.1",
+  "kind": "sensor",
+  "entrypoint": "acme-bridge.exe",
+  "runtime": "native",
+  "protocol": "ndjson-stdio",
+  "capabilities": ["event.process"],
+  "permissions": {
+    "filesystem": ["C:\\ProgramData\\Acme\\**"],
+    "network": ["https://acme.example/*"]
+  },
+  "limits": {
+    "max_events": 1000,
+    "max_line_bytes": 65536,
+    "timeout_seconds": 60
+  }
+}</pre>
+        </div>
+      </div>
+      <div>
+        <div class="term">
+          <div class="term-bar"><i></i><i></i><i></i><span class="path">stdout · ndjson</span><button class="copy" type="button">Copy</button></div>
+<pre>{"v":1,"type":"event","plugin":"acme",
+ "event":{"ts":"...","kind":"process",
+          "process":"cmd.exe","pid":1234,
+          "parent":"explorer.exe","score":0.2}}
+
+{"v":1,"type":"finding","plugin":"acme-det",
+ "finding":{"description":"encoded shell",
+            "score":0.8,"technique":"T1059.001"}}
+
+{"v":1,"type":"health","status":"ok"}</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid c2 reveal" style="margin-top:18px;align-items:start">
+      <div>
+        <h3 style="margin-top:0">Lifecycle</h3>
+        <div class="term">
+          <div class="term-bar"><i></i><i></i><i></i><span class="path">sign · install · run</span><button class="copy" type="button">Copy</button></div>
+<pre>plasma plugin new acme --kind sensor --out C:\build
+plasma plugin keygen --out C:\keys
+plasma plugin sign --plugin C:\build\acme \
+  --key C:\keys\plugin-private.pem
+plasma plugin install C:\build\acme \
+  --pubkey C:\keys\plugin-public.pem --enable
+plasma plugin verify acme --pubkey C:\keys\plugin-public.pem
+plasma plugin run acme --max-events 100
+plasma plugin disable acme</pre>
+        </div>
+      </div>
+      <div>
+        <h3 style="margin-top:0">Response stays gated</h3>
+        <div class="term">
+          <div class="term-bar"><i></i><i></i><i></i><span class="path">preview · apply · undo</span><button class="copy" type="button">Copy</button></div>
+<pre>plasma plugin actions
+plasma plugin act acme.restart_agent \
+  --args-file args.json
+plasma plugin act acme.restart_agent \
+  --args-file args.json --apply \
+  --plan &lt;id&gt; --reason "change window"
+plasma plugin undo &lt;journal-id&gt; --reason "rollback"</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid c3 reveal" style="margin-top:18px">
+      <div class="card">
+        <h3>No shell, declared roots</h3>
+        <p>Responders run only their declared argv. Paths must resolve under <code>permissions.filesystem</code>; the kill switch and enabled flag are checked before apply.</p>
+      </div>
+      <div class="card">
+        <h3>Both directions</h3>
+        <p><code>plasma ingest</code> takes JSONL, Event Log channels and HMAC webhooks. <code>plasma export</code> pushes bounded batches to webhook or syslog; failures spool with a hard cap.</p>
+      </div>
+      <div class="card">
+        <h3>Read the ABI</h3>
+        <p>Manifest fields, record reference, lifecycle states, trust model and JSON schemas.</p>
+        <div class="actions" style="margin-top:12px"><a class="btn dark" href="https://drolu.github.io/plasma/plugin-api/">Plugin documentation</a></div>
+      </div>
     </div>
   </div>
 </section>
