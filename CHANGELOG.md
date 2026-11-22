@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.27.3 — 2026-11-22
+
+- **Self-detection tightened.** Only the shipped `plasma.exe`, `plasma-<version>-windows-x64.exe` and the updater are treated as Plasma's own; a payload called `plasma-anything.exe` is scored like any other image. Children of Plasma's process tree are damped like other service parents.
+- Second estate pass also confirmed that the injection markers must not be named `plasma-*` to be visible; that was a test-harness artefact, not a detector rule.
+- 988 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.27.2 — 2026-11-22
 
 - **Operational self-noise removed.** Rows and traces rooted in a `plasma*.exe` binary are skipped by default, so an upgrade cannot dominate its own anomaly ranking. `--include-self` restores them.

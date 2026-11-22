@@ -217,21 +217,21 @@ def test_plasma_self_noise_is_skipped_unless_requested(tmp_path):
     built, path = _build(tmp_path, _benign())
     _append(path, {
         "ts": "2026-11-07T07:00:00Z", "host": "WS1", "kind": "process",
-        "event_id": 1, "process": "plasma-1.27.1.exe", "parent": "powershell.exe",
+        "event_id": 1, "process": "plasma-1.27.1-windows-x64.exe", "parent": "powershell.exe",
         "user": "CORP\\olu", "cmdline": "plasma-1.27.1.exe install --force",
     })
     default = anomaly.rank(path, built, limit=20)
-    assert all(event["process"] != "plasma-1.27.1.exe"
+    assert all(event["process"] != "plasma-1.27.1-windows-x64.exe"
                for event in default["events"])
     included = anomaly.rank(path, built, limit=20, include_self=True)
-    assert any(event["process"] == "plasma-1.27.1.exe"
+    assert any(event["process"] == "plasma-1.27.1-windows-x64.exe"
                for event in included["events"])
 
 
 def test_trace_listing_skips_plasma_rooted_trees(tmp_path):
     rows = [
         {"ts": "2026-11-07T08:00:00Z", "host": "WS1", "kind": "process",
-         "event_id": 1, "process": "plasma-1.27.1.exe", "pid": 10, "ppid": 4},
+         "event_id": 1, "process": "plasma-1.27.1-windows-x64.exe", "pid": 10, "ppid": 4},
         {"ts": "2026-11-07T08:00:01Z", "host": "WS1", "kind": "process",
          "event_id": 1, "process": "whoami.exe", "pid": 11, "ppid": 10},
     ]
@@ -247,3 +247,22 @@ def _write_rows(tmp_path, rows, name="t.jsonl"):
     path = tmp_path / name
     path.write_text("".join(json.dumps(row) + "\n" for row in rows))
     return path
+
+
+def test_self_detection_does_not_swallow_lookalike_names():
+    assert anomaly._is_self("plasma-1.27.2-windows-x64.exe") is True
+    assert anomaly._is_self("plasma.exe") is True
+    assert anomaly._is_self("plasma-rare-deadbeef.exe") is False
+    assert anomaly._is_self("plasmaloader.exe") is False
+
+
+def test_children_of_plasma_are_damped(tmp_path):
+    built, _path = _build(tmp_path, _benign())
+    row = {
+        "ts": "2026-11-07T09:30:00Z", "host": "WS1", "kind": "process",
+        "event_id": 1, "process": "icacls.exe",
+        "parent": "plasma-1.27.2-windows-x64.exe", "user": "CORP\\olu",
+        "cmdline": "icacls C:\\ProgramData\\Plasma /grant *S-1-5-18:F",
+    }
+    result = anomaly.score_row(row, built)
+    assert result["damping"]["reason"] == "Plasma's own process tree"

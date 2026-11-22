@@ -58,9 +58,16 @@ SERVICE_PARENT_DAMPING = 0.55
 
 
 def _is_self(image) -> bool:
-    """Plasma's own binaries are operations, not threat novelty."""
+    """Plasma's own binaries are operations, not threat novelty.
+
+    Match the shipped names only (``plasma.exe``, the versioned release
+    binary, the updater's staged copy), not every image that happens to
+    start with "plasma" — an attacker can name a payload anything.
+    """
     name = str(image or "").lower()
-    return name.startswith("plasma") and name.endswith(".exe")
+    return (name == "plasma.exe"
+            or name.startswith("plasma-update")
+            or (name.startswith("plasma-") and name.endswith("-windows-x64.exe")))
 
 TRACE_GAP_SECONDS = 1800
 DEFAULT_LIMIT = 20
@@ -204,9 +211,12 @@ def score_row(row: dict, profile: dict, estate: dict | None = None,
               for component in usable)
     score = 10.0 * raw / weight_sum if weight_sum else 0.0
     damping = None
-    if parent in BENIGN_SERVICE_PARENTS:
-        damping = {"parent": parent, "factor": SERVICE_PARENT_DAMPING,
-                   "reason": "routine Windows service parent"}
+    if parent in BENIGN_SERVICE_PARENTS or _is_self(parent):
+        damping = {
+            "parent": parent, "factor": SERVICE_PARENT_DAMPING,
+            "reason": ("Plasma's own process tree" if _is_self(parent)
+                       else "routine Windows service parent"),
+        }
         score *= SERVICE_PARENT_DAMPING
     score = round(score, 1)
     reasons = [_reason(component) for component in
