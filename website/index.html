@@ -108,7 +108,7 @@ h1 .hl::after{content:"";position:absolute;left:-2%;right:-2%;bottom:4%;height:3
 
 /* ---------- stats ---------- */
 .stats{padding:26px 0 42px}
-.stats-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .stat{background:var(--paper);border:2px solid var(--ink);border-radius:10px;padding:14px 14px 12px;box-shadow:var(--shadow-sm)}
 .stat .num{font-size:27px;font-weight:700;letter-spacing:-.05em;line-height:1}
 .stat .num small{font-size:.55em;margin-left:1px}
@@ -343,7 +343,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <a class="skip" href="#main">Skip to content</a>
 
 <div class="announce">
-  <b>v1.27.7 is out</b> &nbsp;·&nbsp; Behavioural profiles, explainable anomaly scores and causal process traces — still no log lake &nbsp;·&nbsp;
+  <b>v1.27.7 is out</b> &nbsp;·&nbsp; Behavioural profiles, explainable anomaly scores, causal traces and TTPForge-validated detection — still no log lake &nbsp;·&nbsp;
   <a href="https://drolu.github.io/plasma/changelog/">read the changelog</a>
 </div>
 
@@ -363,6 +363,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <a href="#investigation">Investigation</a>
       <a href="#intercept">Intercept</a>
       <a href="#detection">Detection</a>
+      <a href="#profiles">Profiles</a>
       <a href="#response">Response</a>
       <a href="#prevention">Prevention</a>
       <a href="#fleet">Fleet</a>
@@ -449,7 +450,8 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <div class="stat"><div class="num"><span data-count="13">0</span></div><div class="lbl">reversible actions</div></div>
       <div class="stat"><div class="num"><span data-count="11">0</span></div><div class="lbl">typed agent tools</div></div>
       <div class="stat"><div class="num"><span data-count="2">0</span></div><div class="lbl">prevention tiers</div></div>
-      <div class="stat"><div class="num"><span data-count="957">0</span></div><div class="lbl">tests passing</div></div>
+      <div class="stat"><div class="num"><span data-count="25">0</span></div><div class="lbl">baseline rules</div></div>
+      <div class="stat"><div class="num"><span data-count="995">0</span></div><div class="lbl">tests passing</div></div>
     </div>
   </div>
 </section>
@@ -934,7 +936,7 @@ python orchestrate.py undo 35</pre>
     <div class="section-head reveal">
       <span class="kicker">Detection</span>
       <h2>Written suspicion, not a black box.</h2>
-      <p class="lede">Rules and chains are deterministic. The model selects probes; it never decides guilt. Every finding carries a score you can argue with.</p>
+      <p class="lede">Twenty-five baseline gene rules, 259 Sigma rules and written chains. Deterministic, explainable, and bounded — the model selects probes; it never decides guilt. Every finding carries a score you can argue with.</p>
     </div>
 
     <div class="grid c2 reveal" style="align-items:start">
@@ -1025,6 +1027,37 @@ python orchestrate.py undo 35</pre>
           The two remaining gaps are named on purpose. A rule whose event IDs the config does not enable is inventory, not coverage — the telemetry axis makes that explicit.
         </p>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- BASELINE -->
+<section class="block alt" id="profiles">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Baseline</span>
+      <h2>Learn the host. Ship counts, not logs.</h2>
+      <p class="lede">A profile is what one host knows about its own normal — images, parent→child edges, identity pairs, registry and file families, command shapes, and robust hourly volume. Tens of kilobytes. No event rows, no raw command lines.</p>
+    </div>
+    <div class="grid c3 reveal">
+      <div class="card">
+        <h3>Compact by construction</h3>
+        <p>Top-K tables and 24 robust statistics per entity. A thousand hosts is megabytes at the desk, not a lake. Every profile carries a SHA-256 integrity hash.</p>
+        <div class="mini">~150 KB per host · integrity verified</div>
+      </div>
+      <div class="card">
+        <h3>Scores you can argue with</h3>
+        <p>Edge rarity, first-seen keys, robust daily volume and optional estate rarity fuse into 0–10, with the observed and total counts behind every component. A cold profile returns no score.</p>
+        <div class="tags"><span>edge 1.5</span><span>volume 1.2</span><span>estate 1.5</span></div>
+      </div>
+      <div class="card">
+        <h3>Causal traces</h3>
+        <p>PID/PPID spans rebuild one host's process trees, with PID-reuse handling and optional edge-rarity scoring. RDP and SMB hops start a new tree by design.</p>
+        <div class="mini">host-scoped · bounded spans</div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:16px">
+      <strong>Two tiers, one promise.</strong> <code>plasma profile build</code> stays on the host; <code>plasma fleet profiles</code> moves only the profile. The estate baseline is a merge of counts — the diary never leaves the endpoint.
     </div>
   </div>
 </section>
@@ -1341,7 +1374,7 @@ curl -H <span class="b">"Authorization: Bearer &lt;key&gt;"</span> \
           <div class="term-bar"><i></i><i></i><i></i><span class="path">routes</span><button class="copy" type="button">Copy</button></div>
 <pre>GET  /healthz        liveness (no auth)
 GET  /v1/version     version + runtime
-GET  /v1/commands    full CLI tree (134 commands + root, with help metadata)
+GET  /v1/commands    full CLI tree (207 commands + root, with help metadata)
 POST /v1/exec        run one CLI argv</pre>
         </div>
         <div class="note" style="margin-top:12px">
@@ -1395,7 +1428,7 @@ POST /v1/exec        run one CLI argv</pre>
     <div class="grid c3 reveal" style="margin-top:16px">
       <div class="card c-lime">
         <h3>Tested on a live estate</h3>
-        <p>Two Windows Server hosts: signed updates, 259 Sigma rules, Sysmon FileDelete, canaries, fleet correlation, AppLocker/egress apply-and-rollback drills, MSI install and DTrace runs — plus the field WHIDS dump-tree hang, recovered and permanently bounded.</p>
+        <p>Two Windows Server hosts: signed updates, 25 baseline + 259 Sigma rules, behavioural profiles, Sysmon FileDelete, canaries, fleet correlation, AppLocker/egress apply-and-rollback drills, DTrace runs, Atomic Red Team and TTPForge/ForgeArmory simulations — plus the field WHIDS dump-tree hang, recovered and permanently bounded.</p>
         <div class="mini">995 unit tests · 21 skipped</div>
       </div>
       <div class="card c-orange">

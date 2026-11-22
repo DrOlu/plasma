@@ -12,6 +12,7 @@ The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
+<span class="raft-badge">25 baseline rules</span>
 <span class="raft-badge">995 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
