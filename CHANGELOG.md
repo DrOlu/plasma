@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.27.2 — 2026-11-22
+
+- **Operational self-noise removed.** Rows and traces rooted in a `plasma*.exe` binary are skipped by default, so an upgrade cannot dominate its own anomaly ranking. `--include-self` restores them.
+- **Critical band at 9.0.** With service parents damped, genuine first-seen binaries land at 9.1-9.7 again; the band now starts at 9.0 (high 7.5, medium 6.0).
+- 986 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.27.1 — 2026-11-22
 
 - **Estate calibration.** First-run scoring on WS1/WS2 ranked routine servicing (`devicecensus.exe`, `upfc.exe`, `usoclient.exe` and friends) as critical novelty. Children of a small signed service-parent set are now damped by 0.55, and the critical band starts at 9.5 instead of 9.0. Novelty from `svchost.exe` still surfaces, at triage level rather than red.

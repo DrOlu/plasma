@@ -2253,7 +2253,8 @@ def cmd_anomaly_score(args) -> int:
         result = anomaly.rank(
             args.events or _events_path(args.root), loaded, estate=estate,
             since=args.since, max_rows=args.max_rows, limit=args.limit,
-            include_suppressed=args.include_suppressed)
+            include_suppressed=args.include_suppressed,
+            include_self=args.include_self)
     except (OSError, ValueError) as exc:
         _emit({"ok": False, "error": str(exc)[:500]})
         return 1
@@ -2294,7 +2295,8 @@ def cmd_anomaly_trace(args) -> int:
         result = anomaly.traces(
             args.events or _events_path(args.root), loaded, since=args.since,
             max_rows=args.max_rows, limit=args.limit,
-            min_spans=args.min_spans, gap_seconds=args.gap)
+            min_spans=args.min_spans, gap_seconds=args.gap,
+            include_self=args.include_self)
     except (OSError, ValueError) as exc:
         _emit({"ok": False, "error": str(exc)[:500]})
         return 1
@@ -3882,6 +3884,9 @@ def build_parser() -> argparse.ArgumentParser:
     ansco.add_argument("--limit", type=int, default=anomaly.DEFAULT_LIMIT)
     ansco.add_argument("--max-rows", dest="max_rows", type=int, default=5000)
     ansco.add_argument("--include-suppressed", action="store_true")
+    ansco.add_argument("--include-self", dest="include_self",
+                       action="store_true",
+                       help="include Plasma's own binaries in the ranking")
     ansco.set_defaults(func=cmd_anomaly_score)
 
     ansex = ans.add_parser("explain", help="why did the top row score?")
@@ -3905,6 +3910,9 @@ def build_parser() -> argparse.ArgumentParser:
     anstr.add_argument("--limit", type=int, default=anomaly.DEFAULT_LIMIT)
     anstr.add_argument("--max-rows", dest="max_rows", type=int, default=5000)
     anstr.add_argument("--min-spans", dest="min_spans", type=int, default=2)
+    anstr.add_argument("--include-self", dest="include_self",
+                       action="store_true",
+                       help="include traces rooted in Plasma's own binaries")
     anstr.add_argument("--gap", type=int, default=anomaly.TRACE_GAP_SECONDS,
                        help="max seconds between a parent and its child")
     anstr.set_defaults(func=cmd_anomaly_trace)

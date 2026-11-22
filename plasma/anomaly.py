@@ -56,6 +56,12 @@ BENIGN_SERVICE_PARENTS = {
 }
 SERVICE_PARENT_DAMPING = 0.55
 
+
+def _is_self(image) -> bool:
+    """Plasma's own binaries are operations, not threat novelty."""
+    name = str(image or "").lower()
+    return name.startswith("plasma") and name.endswith(".exe")
+
 TRACE_GAP_SECONDS = 1800
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 200
@@ -227,6 +233,7 @@ def score_row(row: dict, profile: dict, estate: dict | None = None,
 def rank(events_path, profile: dict, estate: dict | None = None,
          since=None, max_rows: int = 5000, limit: int = DEFAULT_LIMIT,
          include_suppressed: bool = False,
+         include_self: bool = False,
          per_behaviour: int = 3) -> dict:
     """Score the tail and return the highest-scoring behaviours."""
     from .query import _load_rows, parse_time
@@ -241,6 +248,8 @@ def rank(events_path, profile: dict, estate: dict | None = None,
         if since_dt is not None and stamp < since_dt:
             continue
         if not include_suppressed and row.get("suppressed"):
+            continue
+        if not include_self and _is_self(_image(row)):
             continue
         kept.append(row)
     batch = _batch_counts(kept)
@@ -285,9 +294,9 @@ def _bands(rows: list[dict]) -> dict:
     bands = {"critical": 0, "high": 0, "medium": 0, "low": 0}
     for row in rows:
         score = float(row.get("score") or 0)
-        if score >= 9.5:
+        if score >= 9.0:
             bands["critical"] += 1
-        elif score >= 8.0:
+        elif score >= 7.5:
             bands["high"] += 1
         elif score >= 6.0:
             bands["medium"] += 1
@@ -476,7 +485,8 @@ def trace_score(trace: dict, profile: dict) -> dict:
 
 def traces(events_path, profile: dict | None = None, since=None,
            max_rows: int = 5000, limit: int = DEFAULT_LIMIT,
-           min_spans: int = 2, gap_seconds: int = TRACE_GAP_SECONDS) -> dict:
+           min_spans: int = 2, gap_seconds: int = TRACE_GAP_SECONDS,
+           include_self: bool = False) -> dict:
     from .query import _load_rows, parse_time
 
     rows = _load_rows(events_path, max_rows=max_rows)
@@ -487,6 +497,8 @@ def traces(events_path, profile: dict | None = None, since=None,
     built = build_traces(rows, gap_seconds=gap_seconds, min_spans=min_spans)
     scored = []
     for trace in built:
+        if not include_self and _is_self(trace.get("root_process")):
+            continue
         if profile:
             trace = {**trace, **trace_score(trace, profile)}
         scored.append(trace)

@@ -3485,6 +3485,7 @@ Scores are advisory. They do not drive automatic containment.""",
     ],
     safety=READ_ONLY,
     notes=["Every score is a weighted mean of named components with counts.",
+           "Routine service parents are damped; Plasma's own binaries are skipped unless --include-self is set.",
            "Scores are for triage; response stays plan-gated and explicit."],
     see_also=["profile", "chain score", "query"],
 ))

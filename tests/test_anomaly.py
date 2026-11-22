@@ -210,4 +210,40 @@ def test_service_parents_are_damped_but_not_hidden(tmp_path):
 def test_bands_reserve_critical_for_multi_signal_novelty():
     rows = [{"score": 9.4}, {"score": 9.6}, {"score": 8.0}, {"score": 6.0}]
     assert anomaly._bands(rows) == {
-        "critical": 1, "high": 2, "medium": 1, "low": 0}
+        "critical": 2, "high": 1, "medium": 1, "low": 0}
+
+
+def test_plasma_self_noise_is_skipped_unless_requested(tmp_path):
+    built, path = _build(tmp_path, _benign())
+    _append(path, {
+        "ts": "2026-11-07T07:00:00Z", "host": "WS1", "kind": "process",
+        "event_id": 1, "process": "plasma-1.27.1.exe", "parent": "powershell.exe",
+        "user": "CORP\\olu", "cmdline": "plasma-1.27.1.exe install --force",
+    })
+    default = anomaly.rank(path, built, limit=20)
+    assert all(event["process"] != "plasma-1.27.1.exe"
+               for event in default["events"])
+    included = anomaly.rank(path, built, limit=20, include_self=True)
+    assert any(event["process"] == "plasma-1.27.1.exe"
+               for event in included["events"])
+
+
+def test_trace_listing_skips_plasma_rooted_trees(tmp_path):
+    rows = [
+        {"ts": "2026-11-07T08:00:00Z", "host": "WS1", "kind": "process",
+         "event_id": 1, "process": "plasma-1.27.1.exe", "pid": 10, "ppid": 4},
+        {"ts": "2026-11-07T08:00:01Z", "host": "WS1", "kind": "process",
+         "event_id": 1, "process": "whoami.exe", "pid": 11, "ppid": 10},
+    ]
+    assert anomaly.build_traces(rows, min_spans=2)
+    result = anomaly.traces(_write_rows(tmp_path, rows), None, min_spans=2)
+    assert result["count"] == 0
+    included = anomaly.traces(_write_rows(tmp_path, rows, "b.jsonl"), None,
+                              min_spans=2, include_self=True)
+    assert included["count"] == 1
+
+
+def _write_rows(tmp_path, rows, name="t.jsonl"):
+    path = tmp_path / name
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    return path
