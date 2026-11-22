@@ -29,7 +29,7 @@ DNS and file telemetry.
 
 [WHIDS 1.7.0](https://github.com/0xrawsec/whids) reads Sysmon and applies
 **gene rules** — written expressions with an ATT&CK technique and a
-criticality of 0–10. Plasma ships eighteen baseline rules:
+criticality of 0–10. Plasma ships twenty-five baseline rules:
 
 | Rule | Score | Looks for |
 |---|---|---|
@@ -51,6 +51,10 @@ criticality of 0–10. Plasma ships eighteen baseline rules:
 | LSASS Access | 9 | Sysmon 10 — a process opening LSASS with credential-dump access |
 | Unsigned Driver Load | 8 | Sysmon 6 — driver from a user-writable path, signature missing/invalid |
 | Suspicious Named Pipe | 8 | Sysmon 17/18 — PsExec/Cobalt-shaped pipe names |
+| Masqueraded System Binary | 9 | svchost/lsass/csrss/… running from outside System32/SysWOW64/WinSxS |
+| PowerShell Download | 7 | 4104 script block using WebClient/DownloadFile/Invoke-WebRequest |
+| WMI Recon | 6 | 4104 script block querying Win32_ system classes |
+| Wmic Recon | 6 | `wmic … get/list/where` for os/account/service/disk information |
 
 WHIDS runs **detect-only**: every action band is configured to `report`.
 The v1.7.0 engine has no response verbs at all; Plasma keeps it that way on

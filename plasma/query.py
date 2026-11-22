@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import os
 import re
+import sys
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -247,6 +249,36 @@ def _matches(row: dict, spec: dict) -> bool:
     return True
 
 
+def _own_process_names() -> set[str]:
+    names = {"plasma.exe"}
+    try:
+        names.add(Path(sys.executable).name.lower())
+    except (AttributeError, TypeError):
+        pass
+    return names
+
+
+def _is_query_self(row: dict, now: datetime) -> bool:
+    """True for the row describing this very `plasma query` invocation.
+
+    The query's own command line contains the search string, so searching
+    for a literal returns the query process itself. The PID plus the image
+    name plus a five-minute guard keeps a recycled PID from hiding history.
+    """
+    try:
+        pid = int(row.get("pid"))
+    except (TypeError, ValueError):
+        return False
+    if pid != os.getpid():
+        return False
+    if _basename(row.get("process")).lower() not in _own_process_names():
+        return False
+    stamp = _row_time(row)
+    if stamp is None:
+        return False
+    return abs((now - stamp).total_seconds()) <= 300
+
+
 def _sort_rows(rows: list[dict], order: str) -> list[dict]:
     def key(row):
         stamp = _row_time(row)
@@ -260,7 +292,9 @@ def query(events_path, spec: dict | None = None,
     clean = _validate(spec or {})
     rows = _load_rows(events_path,
                       max_rows=int(clean.pop("max_rows", max_rows)))
-    matched = [row for row in rows if _matches(row, clean)]
+    now = datetime.now(timezone.utc)
+    matched = [row for row in rows
+               if _matches(row, clean) and not _is_query_self(row, now)]
     ordered = _sort_rows(matched, clean["order"])
     limit = int(clean.get("limit", DEFAULT_LIMIT))
     result = {

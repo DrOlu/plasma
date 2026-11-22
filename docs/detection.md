@@ -26,7 +26,7 @@ delivers alerts when the score crosses `min_score` (default 7) in
 
 ## Gene rules (always-on, WHIDS)
 
-Fifteen baseline rules with ATT&CK tags, criticality 6–9. See
+Twenty-five baseline rules with ATT&CK tags, criticality 6–9. See
 [Sensors](sensors.md) for the table. They run on every Sysmon event, cost
 almost nothing, and produce alert rows with a criticality that becomes the
 event `score`.

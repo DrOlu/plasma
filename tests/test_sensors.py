@@ -52,7 +52,7 @@ def _rule_by_name(rules, name):
 
 def test_baseline_every_line_is_valid_json_with_compileable_regex():
     rules = _baseline_rules()
-    assert len(rules) == 21
+    assert len(rules) == 25
     for obj in rules:
         assert obj["Meta"]["Schema"] == "1.0.0"
         assert obj["Meta"]["EventIDs"], obj["Name"]
@@ -242,3 +242,52 @@ def test_registry_evasion_rule():
     assert reg.search(r"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\HideFileExt")
     assert reg.search(r"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\ShowSuperHidden")
     assert not reg.search(r"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced\TaskbarGlomLevel")
+
+# ---------------------------------------------------------------------------
+# TTPForge-driven coverage: masquerade, PowerShell download, WMI recon
+# ---------------------------------------------------------------------------
+
+def _masquerade(rule, image: str) -> bool:
+    img = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$img"))
+    ok = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$ok"))
+    return bool(img.search(image)) and not ok.search(image)
+
+
+def test_masqueraded_system_binary_fires_outside_system32():
+    rule = _rule_by_name(_baseline_rules(), "Plasma Masqueraded System Binary")
+    assert _masquerade(rule, r"C:\Windows\Temp\svchost.exe") is True
+    assert _masquerade(rule, r"C:\Users\Public\lsass.exe") is True
+    assert _masquerade(rule, r"C:\Program Files\Acme\services.exe") is True
+    assert _masquerade(rule, r"C:\Windows\System32\svchost.exe") is False
+    assert _masquerade(rule, r"C:\Windows\SysWOW64\conhost.exe") is False
+    assert _masquerade(rule, r"C:\Windows\WinSxS\x86_microsoft\services.exe") is False
+    assert _masquerade(rule, r"C:\Windows\System32\notepad.exe") is False
+
+
+def test_powershell_download_rule_matches_webclient_and_webrequest():
+    rule = _rule_by_name(_baseline_rules(), "Plasma PowerShell Download")
+    expr = _match_expr(rule["Matches"][0])
+    assert expr.search("(New-Object System.Net.WebClient).DownloadFile('http://x','y')")
+    assert expr.search("Invoke-WebRequest -Uri https://example.invalid/a")
+    assert expr.search("$c.DownloadString($url)")
+    assert not expr.search("Get-ChildItem C:\\Users")
+
+
+def test_wmi_recon_rule_matches_system_classes_only():
+    rule = _rule_by_name(_baseline_rules(), "Plasma WMI Recon")
+    expr = _match_expr(rule["Matches"][0])
+    assert expr.search("Get-WmiObject -Class Win32_ComputerSystem")
+    assert expr.search("Get-CimInstance -ClassName Win32_OperatingSystem")
+    assert expr.search("Get-CimInstance Win32_UserAccount")
+    assert not expr.search("Get-CimInstance -ClassName Custom_AppSettings")
+
+
+def test_wmic_recon_rule_matches_queries_not_process_create():
+    rule = _rule_by_name(_baseline_rules(), "Plasma Wmic Recon")
+    img = _match_expr(rule["Matches"][0])
+    query = _match_expr(rule["Matches"][1])
+    assert img.search(r"C:\Windows\System32\wmic.exe")
+    assert query.search("wmic os get Caption")
+    assert query.search("wmic useraccount list full")
+    assert not query.search("wmic process call create calc.exe")
+

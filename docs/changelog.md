@@ -4,6 +4,13 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.27.7 — 2026-11-22
+
+- **TTPForge-driven coverage.** Four new baseline rules close the gaps the ForgeArmory run exposed: masqueraded system binaries (T1036.005), PowerShell download via 4104 (`WebClient`/`DownloadFile`/`Invoke-WebRequest`, T1105), WMI reconnaissance via 4104 (`Get-WmiObject`/`Get-CimInstance` over Win32_ classes, T1047/T1082) and `wmic` query reconnaissance (T1047/T1082). Rule count 21 → 25.
+- **Query self-match fixed.** `plasma query --contains X` no longer returns the query process's own command line; the current PID is excluded when the image name matches and the row is under five minutes old.
+- **Docs corrected** to the real baseline count.
+- 995 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.27.6 — 2026-11-22
 
 - **Defender and ngen parents damped.** A final estate pass showed `mpcmdrun.exe` (Defender) and `ngentask.exe` scoring at the top for genuinely rare but routine shapes. They join the benign service-parent set.

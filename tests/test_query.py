@@ -124,3 +124,28 @@ def test_tree_missing_pid_is_empty(tmp_path):
 def test_tree_rejects_bad_pid(tmp_path):
     with pytest.raises(query.QueryError):
         query.tree(_write(tmp_path), pid="not-a-pid")
+
+
+def test_query_excludes_its_own_process_row(tmp_path, monkeypatch):
+    import os
+    import sys
+
+    rows = _rows()
+    rows.append({
+        "ts": _ts(0), "host": "WS1", "kind": "process", "event_id": 1,
+        "process": os.path.basename(sys.executable), "pid": 4242,
+        "cmdline": f"{sys.executable} query --contains needle",
+        "description": "the query itself",
+    })
+    rows.append({
+        "ts": _ts(0), "host": "WS1", "kind": "process", "event_id": 1,
+        "process": "other.exe", "pid": 4242,
+        "cmdline": "other.exe query --contains needle",
+    })
+    path = tmp_path / "events.jsonl"
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    monkeypatch.setattr(query.os, "getpid", lambda: 4242)
+    result = query.query(str(path), {"contains": "needle", "limit": 10})
+    processes = [row["process"] for row in result["events"]]
+    assert os.path.basename(sys.executable) not in processes
+    assert "other.exe" in processes
