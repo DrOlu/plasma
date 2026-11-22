@@ -23,6 +23,7 @@ from . import (
     __version__,
     actuate,
     agentstate,
+    anomaly,
     assurance,
     autoupdate,
     canary,
@@ -49,6 +50,7 @@ from . import (
     observatory,
     playbooks,
     prevent,
+    profile,
     protect,
     rings,
     sigma,
@@ -2150,6 +2152,156 @@ def cmd_summarize(args) -> int:
     return 0
 
 
+def _profile_path(args) -> str:
+    if getattr(args, "profile", None):
+        return args.profile
+    return str(Path(args.root or profile_root()) / "profile.json")
+
+
+def profile_root() -> str:
+    return "C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma"
+
+
+def _load_profile_arg(args):
+    path = _profile_path(args)
+    try:
+        return profile.load(path), path
+    except (OSError, ValueError, TypeError) as exc:
+        _emit({"ok": False, "error": f"cannot read profile {path}: {exc}"})
+        return None, path
+
+
+def cmd_profile_build(args) -> int:
+    try:
+        built = profile.build(
+            args.events or _events_path(args.root), host=args.host,
+            role=args.role, max_rows=args.max_rows, since=args.since)
+    except (OSError, ValueError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    if args.out:
+        saved = profile.save(args.out, built)
+        summary = profile.summary(built)
+        payload = {"ok": True, **saved, "summary": summary}
+        if args.full:
+            payload["profile"] = built
+        _emit(payload)
+        return 0
+    _emit(profile.summary(built) if not args.full else built)
+    return 0
+
+
+def cmd_profile_show(args) -> int:
+    loaded, path = _load_profile_arg(args)
+    if loaded is None:
+        return 1
+    if args.full:
+        _emit(loaded)
+    else:
+        _emit({"path": path, **profile.summary(loaded)})
+    return 0
+
+
+def cmd_profile_diff(args) -> int:
+    try:
+        old = profile.load(args.old)
+        new = profile.load(args.new)
+    except (OSError, ValueError, TypeError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    result = profile.diff(old, new, limit=args.limit)
+    _emit(result)
+    return 0
+
+
+def cmd_profile_merge(args) -> int:
+    try:
+        loaded = [profile.load(path) for path in args.profiles]
+        merged = profile.merge(loaded, name=args.name)
+    except (OSError, ValueError, TypeError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    saved = profile.save(args.out, merged)
+    _emit({"ok": True, **saved, "hosts": merged["hosts"],
+           "n": merged["n"]})
+    return 0
+
+
+def cmd_profile_verify(args) -> int:
+    try:
+        loaded = profile.load(_profile_path(args))
+    except (OSError, ValueError, TypeError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    verdict = profile.verify(loaded)
+    _emit({"host": loaded.get("host"), **verdict})
+    return 0 if verdict.get("ok") else 2
+
+
+def cmd_anomaly_score(args) -> int:
+    loaded, path = _load_profile_arg(args)
+    if loaded is None:
+        return 1
+    estate = None
+    if args.estate:
+        try:
+            estate = profile.load(args.estate)
+        except (OSError, ValueError, TypeError) as exc:
+            _emit({"ok": False, "error": f"cannot read estate profile: {exc}"})
+            return 1
+    try:
+        result = anomaly.rank(
+            args.events or _events_path(args.root), loaded, estate=estate,
+            since=args.since, max_rows=args.max_rows, limit=args.limit,
+            include_suppressed=args.include_suppressed)
+    except (OSError, ValueError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit({"profile_path": path, **result})
+    return 0
+
+
+def cmd_anomaly_explain(args) -> int:
+    loaded, path = _load_profile_arg(args)
+    if loaded is None:
+        return 1
+    estate = None
+    if args.estate:
+        try:
+            estate = profile.load(args.estate)
+        except (OSError, ValueError, TypeError) as exc:
+            _emit({"ok": False, "error": f"cannot read estate profile: {exc}"})
+            return 1
+    try:
+        result = anomaly.explain(
+            args.events or _events_path(args.root), loaded,
+            contains=args.contains, ts=args.ts, estate=estate,
+            since=args.since, max_rows=args.max_rows)
+    except (OSError, ValueError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit({"profile_path": path, **result})
+    return 0 if result.get("ok") else 2
+
+
+def cmd_anomaly_trace(args) -> int:
+    loaded = None
+    if args.profile:
+        loaded, _path = _load_profile_arg(args)
+        if loaded is None:
+            return 1
+    try:
+        result = anomaly.traces(
+            args.events or _events_path(args.root), loaded, since=args.since,
+            max_rows=args.max_rows, limit=args.limit,
+            min_spans=args.min_spans, gap_seconds=args.gap)
+    except (OSError, ValueError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit(result)
+    return 0
+
+
 def cmd_case_open(args) -> int:
     try:
         result = case_mod.open_case(
@@ -2760,6 +2912,14 @@ def cmd_fleet_pull(args) -> int:
         return 2
     print(json.dumps(result, indent=2, default=str))
     return 0 if result.get("pulled") == result.get("hosts") else 1
+
+
+def cmd_fleet_profiles(args) -> int:
+    result = fleet.pull_profiles(
+        args.inventory, args.out_dir, max_rows=args.max_rows,
+        role=args.role, baseline=args.baseline)
+    _emit(result)
+    return 0 if result.get("ok") else 2
 
 
 def cmd_fleet_correlate(args) -> int:
@@ -3666,6 +3826,89 @@ def build_parser() -> argparse.ArgumentParser:
     acu.add_argument("--timeout", type=int, default=60)
     acu.set_defaults(func=cmd_actuate_undo)
 
+    pf = sub.add_parser(
+        "profile",
+        help="bounded behavioural baselines: build, inspect, diff, merge")
+    pfs = pf.add_subparsers(dest="profile_action", required=True)
+    _profile_root = "C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma"
+    pfb = pfs.add_parser("build", help="build a compact profile from the event tail")
+    pfb.add_argument("--events", default=None)
+    pfb.add_argument("--root", default=_profile_root)
+    pfb.add_argument("--host", default=None)
+    pfb.add_argument("--role", default="unknown",
+                     help="dc, member, workstation, jump (labels the baseline)")
+    pfb.add_argument("--max-rows", dest="max_rows", type=int,
+                     default=profile.DEFAULT_MAX_ROWS)
+    pfb.add_argument("--since", default=None,
+                     help="ISO timestamp or duration such as 7d")
+    pfb.add_argument("--out", default=None, help="write the profile here")
+    pfb.add_argument("--full", action="store_true",
+                     help="print the whole profile, not just the summary")
+    pfb.set_defaults(func=cmd_profile_build)
+
+    pfw = pfs.add_parser("show", help="inspect one profile")
+    pfw.add_argument("--profile", required=True)
+    pfw.add_argument("--full", action="store_true")
+    pfw.set_defaults(func=cmd_profile_show)
+
+    pfd = pfs.add_parser("diff", help="what changed between two profiles")
+    pfd.add_argument("--old", required=True)
+    pfd.add_argument("--new", required=True)
+    pfd.add_argument("--limit", type=int, default=50)
+    pfd.set_defaults(func=cmd_profile_diff)
+
+    pfm = pfs.add_parser("merge", help="merge host profiles into an estate profile")
+    pfm.add_argument("--profiles", nargs="+", required=True)
+    pfm.add_argument("--out", required=True)
+    pfm.add_argument("--name", default="estate")
+    pfm.set_defaults(func=cmd_profile_merge)
+
+    pfv = pfs.add_parser("verify", help="recompute the profile integrity hash")
+    pfv.add_argument("--profile", required=True)
+    pfv.set_defaults(func=cmd_profile_verify)
+
+    an = sub.add_parser(
+        "anomaly",
+        help="explainable local anomaly scores and causal process traces")
+    ans = an.add_subparsers(dest="anomaly_action", required=True)
+    ansco = ans.add_parser("score", help="rank behaviours against a profile")
+    ansco.add_argument("--events", default=None)
+    ansco.add_argument("--root", default=_profile_root)
+    ansco.add_argument("--profile", default=None,
+                       help="profile path (default: <root>/profile.json)")
+    ansco.add_argument("--estate", default=None,
+                       help="optional merged estate profile for cross-host rarity")
+    ansco.add_argument("--since", default=None)
+    ansco.add_argument("--limit", type=int, default=anomaly.DEFAULT_LIMIT)
+    ansco.add_argument("--max-rows", dest="max_rows", type=int, default=5000)
+    ansco.add_argument("--include-suppressed", action="store_true")
+    ansco.set_defaults(func=cmd_anomaly_score)
+
+    ansex = ans.add_parser("explain", help="why did the top row score?")
+    ansex.add_argument("--events", default=None)
+    ansex.add_argument("--root", default=_profile_root)
+    ansex.add_argument("--profile", default=None)
+    ansex.add_argument("--estate", default=None)
+    ansex.add_argument("--contains", default=None,
+                       help="only consider rows whose process/parent matches")
+    ansex.add_argument("--ts", default=None, help="exact timestamp")
+    ansex.add_argument("--since", default=None)
+    ansex.add_argument("--max-rows", dest="max_rows", type=int, default=5000)
+    ansex.set_defaults(func=cmd_anomaly_explain)
+
+    anstr = ans.add_parser("trace", help="rebuild causal process trees")
+    anstr.add_argument("--events", default=None)
+    anstr.add_argument("--root", default=_profile_root)
+    anstr.add_argument("--profile", default=None,
+                       help="optional profile used to score trace edges")
+    anstr.add_argument("--since", default=None)
+    anstr.add_argument("--limit", type=int, default=anomaly.DEFAULT_LIMIT)
+    anstr.add_argument("--max-rows", dest="max_rows", type=int, default=5000)
+    anstr.add_argument("--min-spans", dest="min_spans", type=int, default=2)
+    anstr.add_argument("--gap", type=int, default=anomaly.TRACE_GAP_SECONDS,
+                       help="max seconds between a parent and its child")
+    anstr.set_defaults(func=cmd_anomaly_trace)
+
     chs = sub.add_parser("chain", help="deterministic story detection over the events store")
     chsp = chs.add_subparsers(dest="chain_action", required=True)
     chsc = chsp.add_parser("score", help="scan the events tail for chain matches")
@@ -3764,6 +4007,18 @@ def build_parser() -> argparse.ArgumentParser:
                      help="correlation window in seconds")
     flp.add_argument("--canary", nargs="*", default=None)
     flp.set_defaults(func=cmd_fleet_pull)
+    flpf = fls.add_parser(
+        "profiles",
+        help="pull compact host profiles and merge an estate baseline")
+    flpf.add_argument("--inventory", required=True, help="fleet inventory JSON")
+    flpf.add_argument("--out-dir", dest="out_dir", required=True,
+                      help="directory for host profiles and estate.json")
+    flpf.add_argument("--max-rows", dest="max_rows", type=int,
+                      default=profile.DEFAULT_MAX_ROWS)
+    flpf.add_argument("--role", default="member")
+    flpf.add_argument("--baseline", default=None,
+                      help="previous estate profile to diff against")
+    flpf.set_defaults(func=cmd_fleet_profiles)
     flc = fls.add_parser("correlate", help="join pulled digests into deterministic findings")
     flc.add_argument("--case", required=True)
     flc.add_argument("--root", default=_fleet_root)

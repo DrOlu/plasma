@@ -45,6 +45,7 @@ nav:
   - Detect:
       - Sensors: sensors.md
       - Detection: detection.md
+      - Profiles and anomaly scores: profile-anomaly.md
       - File integrity (FIM): fim.md
       - Sigma conversion: sigma.md
       - Memory scanning: memory.md

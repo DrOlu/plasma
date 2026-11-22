@@ -549,3 +549,121 @@ def report(root, case) -> dict:
     (cd / "report.md").write_text(text, encoding="utf-8")
     return {"report": str(cd / "report.md"), "verdict": data["verdict"],
             "findings": data["findings_total"], "markdown": text}
+
+# ---------------------------------------------------------------------------
+# profiles: move the baseline, never the diary
+# ---------------------------------------------------------------------------
+
+def _ps_quote(value) -> str:
+    return str(value).replace("'", "''")
+
+
+def _profile_from_winrm(entry, max_rows: int, role: str) -> dict:
+    """Build a profile on the remote host and return only the profile.
+
+    The endpoint runs its own `plasma profile build`, so no event rows leave
+    the host — the wire carries tens of kilobytes of counts, not telemetry.
+    """
+    try:
+        import winrm  # optional desk-side dependency
+    except ImportError:
+        return {"error": "pywinrm not installed (pip install 'plasma-edr[desk]')"}
+    password = os.environ.get(entry["password_env"], "")
+    if not password:
+        return {"error": f"environment variable {entry['password_env']} is not set"}
+    exe = entry.get("plasma_exe") or r"C:\ProgramData\Plasma\bin\plasma.exe"
+    events = entry.get("events_path") or r"C:\ProgramData\Plasma\data\events.jsonl"
+    tmp = r"C:\Windows\Temp\plasma-profile-pull.json"
+    script = (
+        "$ErrorActionPreference='Stop';"
+        f"& '{_ps_quote(exe)}' profile build --events '{_ps_quote(events)}' "
+        f"--host '{_ps_quote(entry['name'])}' --role '{_ps_quote(role)}' "
+        f"--max-rows {int(max_rows)} --out '{_ps_quote(tmp)}' | Out-Null; "
+        f"[Convert]::ToBase64String([IO.File]::ReadAllBytes('{_ps_quote(tmp)}'));"
+        f"Remove-Item '{_ps_quote(tmp)}' -Force"
+    )
+    try:
+        sess = winrm.Session(entry["endpoint"],
+                             auth=(entry.get("username", "Administrator"), password),
+                             transport="ntlm", read_timeout_sec=240)
+        res = sess.run_ps(script)
+        if res.status_code != 0:
+            return {"error": (res.std_err.decode(errors="replace")
+                              or f"remote exit {res.status_code}")[:300]}
+        for token in res.std_out.decode(errors="replace").split():
+            try:
+                blob = base64.b64decode(token, validate=True)
+                profile = json.loads(blob.decode("utf-8"))
+            except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            if isinstance(profile, dict):
+                return profile
+        return {"error": "remote returned no profile JSON"}
+    except Exception as exc:  # noqa: BLE001 — endpoint failures are data
+        return {"error": f"winrm failed: {str(exc)[:300]}"}
+
+
+def pull_profiles(inventory_path, out_dir, max_rows: int = 20000,
+                  role: str = "member", baseline=None) -> dict:
+    """Pull compact profiles from every inventory host and merge them.
+
+    File transport builds locally from events_path. WinRM transport runs the
+    build on the endpoint and returns only the profile. Nothing here ships
+    raw events to the desk.
+    """
+    from . import profile as profile_mod
+
+    try:
+        entries = load_inventory(inventory_path)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        return {"ok": False, "error": str(exc)[:300]}
+    out = Path(out_dir)
+    hosts_dir = out / "hosts"
+    hosts_dir.mkdir(parents=True, exist_ok=True)
+
+    pulled, built, failures = [], [], []
+    for entry in entries:
+        name = entry["name"]
+        transport = entry.get("transport", "file")
+        if transport == "file":
+            try:
+                profile = profile_mod.build(
+                    entry["events_path"], host=name, role=role,
+                    max_rows=max_rows)
+            except (OSError, ValueError) as exc:
+                failures.append({"host": name, "error": str(exc)[:300]})
+                continue
+        else:
+            profile = _profile_from_winrm(entry, max_rows, role)
+            if "error" in profile:
+                failures.append({"host": name, "error": profile["error"]})
+                continue
+        saved = profile_mod.save(hosts_dir / f"{name}.json", profile)
+        built.append(profile)
+        pulled.append({"host": name, "transport": transport,
+                       "n": profile.get("n"), "bytes": saved["bytes"],
+                       "path": saved["profile"]})
+
+    if not built:
+        return {"ok": False, "error": "no host profile could be built",
+                "hosts": pulled, "failures": failures}
+
+    merged = profile_mod.merge(built, name="estate")
+    saved = profile_mod.save(out / "estate.json", merged)
+    result = {
+        "ok": True,
+        "out_dir": str(out),
+        "hosts": pulled,
+        "failures": failures,
+        "estate": {"path": saved["profile"], "bytes": saved["bytes"],
+                   "hosts": merged["hosts"], "n": merged["n"]},
+    }
+    if baseline:
+        try:
+            previous = profile_mod.load(baseline)
+        except (OSError, ValueError, TypeError) as exc:
+            result["baseline_error"] = str(exc)[:300]
+        else:
+            result["drift"] = profile_mod.diff(previous, merged)
+    return result
+

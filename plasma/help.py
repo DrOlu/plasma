@@ -3392,4 +3392,155 @@ _add("canary pipe status", _c(
     see_also=["canary pipe install", "canary pipe serve"],
 ))
 
+
+_add("profile", _c(
+    "bounded behavioural baselines that stay on the host",
+    """Build, inspect, diff, merge and verify a host behaviour profile.
+
+A profile is what one host knows about its own normal: image counts,
+parent→child edges, identity-to-image pairs, destination and registry/file
+families, command-line shapes, and robust hourly volume per entity. It
+stores counts, never the event stream, never a full command line and never
+a file path. A profile is tens of kilobytes, so a fleet of profiles is
+megabytes — no log lake.
+
+Profiles carry a SHA-256 integrity hash. Merge host profiles into one estate
+profile to score cross-host rarity without shipping endpoint telemetry.""",
+    [
+        ("Build from the local store", "plasma profile build --events C:\\ProgramData\\Plasma\\data\\events.jsonl --role member --out C:\\ProgramData\\Plasma\\profile.json"),
+        ("Inspect", "plasma profile show --profile C:\\ProgramData\\Plasma\\profile.json"),
+        ("What changed", "plasma profile diff --old old.json --new profile.json"),
+        ("Estate profile", "plasma profile merge --profiles ws1.json ws2.json --out estate.json"),
+        ("Check integrity", "plasma profile verify --profile estate.json"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["Profiles are bounded by design: top-K tables and 24 hourly statistics per entity.",
+           "Rebuild after a role change or a long patch window; a stale baseline is worse than a cold one.",
+           "The profile never contains raw command lines, file paths or event rows."],
+    see_also=["anomaly score", "anomaly trace", "trust"],
+))
+
+_add("profile build", _c(
+    "build a compact profile from the event tail",
+    "Read a bounded tail of the JSONL store and write a profile. Tables are capped; hourly statistics are robust median/MAD per entity and hour of day. Use --since 7d to learn from a week.",
+    [
+        ("Daily build", "plasma profile build --events events.jsonl --role member --out profile.json"),
+        ("Seven-day window", "plasma profile build --events events.jsonl --since 7d --out profile.json"),
+        ("Print only", "plasma profile build --events events.jsonl"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["Requires at least 50 observations before anomaly scoring is allowed.",
+           "Command lines are reduced to shapes (paths, URLs, GUIDs and numbers collapse)."],
+    see_also=["profile", "anomaly score"],
+))
+
+_add("profile show", _c(
+    "inspect one profile",
+    "Print a bounded summary of a profile: table sizes, top images and edges, integrity verdict and estimated bytes. Use --full for the whole profile JSON.",
+    [("Summary", "plasma profile show --profile profile.json"),
+     ("Full", "plasma profile show --profile profile.json --full")],
+    safety=READ_ONLY,
+    see_also=["profile verify"],
+))
+
+_add("profile diff", _c(
+    "what changed between two profiles",
+    "Compare two profiles table by table: new and removed keys, volume changes, and a 0-10 drift score weighted toward new parent/child edges.",
+    [("Diff", "plasma profile diff --old last-week.json --new profile.json")],
+    safety=READ_ONLY,
+    see_also=["profile build"],
+))
+
+_add("profile merge", _c(
+    "merge host profiles into an estate profile",
+    "Add host profiles' counts exactly and write one estate profile for cross-host rarity. Hourly robust statistics are not merged (they need raw days); the result is marked rarity-only.",
+    [("Merge", "plasma profile merge --profiles ws1.json ws2.json --out estate.json")],
+    safety=LOCAL_WRITE,
+    see_also=["fleet profiles", "anomaly score"],
+))
+
+_add("profile verify", _c(
+    "recompute the profile integrity hash",
+    "Recompute the SHA-256 over the profile body and compare it with the stored value. Exit 2 on a mismatch.",
+    [("Verify", "plasma profile verify --profile estate.json")],
+    safety=READ_ONLY,
+))
+
+_add("anomaly", _c(
+    "explainable local anomaly scores and causal traces",
+    """Score recent behaviour against a host profile and rebuild process traces.
+
+Four families, all explainable: categorical rarity, first-seen keys, robust
+hourly volume, and sequence rarity over parent→child edges. Every result
+carries the observed/expected counts that produced it. A profile below the
+observation floor returns no score at all — cold start, never false
+confidence.
+
+Scores are advisory. They do not drive automatic containment.""",
+    [
+        ("Rank the store", "plasma anomaly score --events events.jsonl --profile profile.json"),
+        ("Cross-host rarity", "plasma anomaly score --events events.jsonl --profile profile.json --estate estate.json"),
+        ("Explain", "plasma anomaly explain --events events.jsonl --profile profile.json --contains powershell"),
+        ("Traces", "plasma anomaly trace --events events.jsonl --profile profile.json --since 1h"),
+    ],
+    safety=READ_ONLY,
+    notes=["Every score is a weighted mean of named components with counts.",
+           "Scores are for triage; response stays plan-gated and explicit."],
+    see_also=["profile", "chain score", "query"],
+))
+
+_add("anomaly score", _c(
+    "rank behaviours against a profile",
+    "Score a bounded tail and return the highest-scoring behaviours with components, reasons and bands. Rows are capped per behaviour so one noisy actor cannot fill the page.",
+    [
+        ("Last hour", "plasma anomaly score --events events.jsonl --profile profile.json --since 1h"),
+        ("With estate", "plasma anomaly score --events events.jsonl --profile profile.json --estate estate.json --limit 30"),
+    ],
+    safety=READ_ONLY,
+    see_also=["anomaly explain", "profile"],
+))
+
+_add("anomaly explain", _c(
+    "why did the top row score?",
+    "Return the highest-scoring event with its full component breakdown and a plain-language reading. Filter with --contains or --ts.",
+    [("Explain", "plasma anomaly explain --events events.jsonl --profile profile.json"),
+     ("One process", "plasma anomaly explain --events events.jsonl --profile profile.json --contains cmd.exe")],
+    safety=READ_ONLY,
+    see_also=["anomaly score"],
+))
+
+_add("anomaly trace", _c(
+    "rebuild causal process trees",
+    "Join process spans into trees using PID/PPID within one host. Optionally score each trace by the rarity of its parent→child edges. Process IDs are host-scoped, so traces never cross hosts.",
+    [
+        ("Recent traces", "plasma anomaly trace --events events.jsonl --since 1h"),
+        ("Scored", "plasma anomaly trace --events events.jsonl --profile profile.json --min-spans 3"),
+    ],
+    safety=READ_ONLY,
+    notes=["A parent link is the most recent earlier span with that PID on the same host.",
+           "RDP or SMB hops create a new logon and therefore a new tree."],
+    see_also=["anomaly score", "tree"],
+))
+
+
+_add("fleet profiles", _c(
+    "pull compact host profiles and merge an estate baseline",
+    """For each inventory host, build its behaviour profile where the data
+already lives and bring back only the profile. File transport builds on the
+desk from a mounted path; WinRM transport runs `plasma profile build` on the
+endpoint and returns the JSON over the wire. The result is a per-host file
+plus a merged estate profile for cross-host rarity.
+
+No event rows are shipped. This is the estate tier of the profile spine.""",
+    [
+        ("Pull and merge", "plasma fleet profiles --inventory hosts.json --out-dir .plasma/estate"),
+        ("Diff since last week", "plasma fleet profiles --inventory hosts.json --out-dir .plasma/estate --baseline .plasma/estate/estate.json"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["WinRM endpoints must be https unless allow_insecure_winrm is set for a lab.",
+           "Passwords come from password_env; they are never written to disk.",
+           "Merged hourly statistics are dropped; the estate profile is for rarity only."],
+    see_also=["profile merge", "anomaly score", "fleet pull"],
+))
+
 # END_OF_HELP_SOURCE

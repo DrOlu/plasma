@@ -4,6 +4,15 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.27.0 — 2026-11-22
+
+- **Behavioural profiles.** `plasma profile build` reduces the bounded local store to counts — images, parent→child edges, identity pairs, destination/registry/file families, command-line shapes and robust hourly volume. Tens of kilobytes, no event rows, no raw command lines, SHA-256 integrity.
+- **Explainable anomaly scores.** `plasma anomaly score|explain` fuse categorical rarity, first-seen keys, robust daily volume and optional estate rarity into a 0–10 score with per-component counts. Cold profiles return no score.
+- **Causal traces.** `plasma anomaly trace` joins process spans by PID/PPID within one host, handles PID reuse, and scores traces by edge rarity. Traces never cross hosts.
+- **Estate tier.** `plasma fleet profiles` builds each host's profile where the data lives and returns only the profile, then merges an estate baseline for cross-host rarity.
+- **Credential-safe shapes.** `net user <name> <password>`, `--password=...` and similar values collapse to `<cred>` before counting.
+- 982 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.26.6 — 2026-11-21
 
 - **Two more chain false positives closed.** `persistence_after_privilege` matched any `schtasks` invocation, so a cleanup `schtasks /delete` completed the chain; it now requires `/create`. It also matched Plasma's own scheduled-task registration; events whose parent is a `plasma*.exe` binary are excluded from that step. Both have regression cases.
