@@ -2238,9 +2238,13 @@ def cmd_plugin_actions(args) -> int:
 
 def cmd_plugin_act(args) -> int:
     try:
-        payload = json.loads(args.args or "{}")
-    except json.JSONDecodeError as exc:
-        _emit({"ok": False, "error": f"--args is not JSON: {exc}"})
+        if getattr(args, "args_file", None):
+            payload = json.loads(
+                Path(args.args_file).read_text(encoding="utf-8-sig"))
+        else:
+            payload = json.loads(args.args or "{}")
+    except (OSError, json.JSONDecodeError) as exc:
+        _emit({"ok": False, "error": f"--args is not readable JSON: {exc}"})
         return 1
     try:
         if args.apply:
@@ -3198,7 +3202,7 @@ def cmd_control_policy_simulate(args) -> int:
     try:
         payload = json.loads(text)
     except json.JSONDecodeError as exc:
-        _emit({"ok": False, "error": f"--args is not JSON: {exc}"})
+        _emit({"ok": False, "error": f"--args is not readable JSON: {exc}"})
         return 1
     if not isinstance(payload, dict):
         _emit({"ok": False, "error": "--args must be a JSON object"})
@@ -4102,6 +4106,8 @@ def build_parser() -> argparse.ArgumentParser:
     plact = plgs.add_parser("act", help="preview or apply a responder action")
     plact.add_argument("name")
     plact.add_argument("--args", default="{}", help="JSON argument object")
+    plact.add_argument("--args-file", dest="args_file", default=None,
+                       help="read the JSON argument object from a file")
     plact.add_argument("--apply", action="store_true")
     plact.add_argument("--plan", default=None, help="id from a prior preview")
     plact.add_argument("--reason", default=None)

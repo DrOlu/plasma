@@ -106,3 +106,17 @@ def test_actions_are_listed_with_schema(tmp_path):
     assert listing["ok"] is True
     assert listing["actions"][0]["name"] == ACTION
     assert "path" in listing["actions"][0]["args_schema"]["properties"]
+
+
+def test_cli_act_accepts_args_file(tmp_path, capsys):
+    import json as _json
+    from plasma import cli
+
+    root, _ = _install(tmp_path)
+    args_file = tmp_path / "args.json"
+    args_file.write_text(_json.dumps(_args(root)))
+    code = cli.main(["plugin", "act", ACTION, "--args-file", str(args_file),
+                     "--root", str(root)])
+    assert code == 0
+    preview = _json.loads(capsys.readouterr().out)
+    assert preview["ok"] is True and preview["plan_id"]

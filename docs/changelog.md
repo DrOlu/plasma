@@ -4,6 +4,11 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.28.1 — 2026-11-22
+
+- **Responder args from a file.** `plasma plugin act --args-file` reads the JSON argument object from disk, avoiding Windows native-argument quoting when the action takes paths.
+- 1036 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.28.0 — 2026-11-22
 
 - **Plugin ABI.** Four plugin kinds — sensor, detector, responder, exporter — as bounded external processes with a signed manifest, NDJSON contract, per-record validation, quarantine and dedupe. Plugins never write the store directly.
