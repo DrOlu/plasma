@@ -4,6 +4,11 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.27.6 — 2026-11-22
+
+- **Defender and ngen parents damped.** A final estate pass showed `mpcmdrun.exe` (Defender) and `ngentask.exe` scoring at the top for genuinely rare but routine shapes. They join the benign service-parent set.
+- 990 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.27.5 — 2026-11-22
 
 - **Estate scoring ignores incomplete pairs.** An authentication row has a user but no image; the estate component built `user>` and scored it as first-seen, so 4624 rows topped the ranking at 10.0. Estate components now require a complete image edge or identity pair.

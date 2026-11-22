@@ -249,6 +249,11 @@ def _write_rows(tmp_path, rows, name="t.jsonl"):
     return path
 
 
+def test_defender_and_ngen_parents_are_benign():
+    assert {"mpcmdrun.exe", "msmpeng.exe", "ngentask.exe"} <= (
+        anomaly.BENIGN_SERVICE_PARENTS)
+
+
 def test_self_detection_does_not_swallow_lookalike_names():
     assert anomaly._is_self("plasma-1.27.2-windows-x64.exe") is True
     assert anomaly._is_self("plasma-1.27.3.exe") is True

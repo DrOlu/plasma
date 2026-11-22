@@ -53,7 +53,8 @@ WEIGHTS = {
 BENIGN_SERVICE_PARENTS = {
     "services.exe", "svchost.exe", "wininit.exe", "winlogon.exe",
     "taskhostw.exe", "wuauclt.exe", "usoclient.exe", "sihclient.exe",
-    "upfc.exe", "compattelrunner.exe", "msiexec.exe",
+    "upfc.exe", "compattelrunner.exe", "msiexec.exe", "mpcmdrun.exe",
+    "msmpeng.exe", "ngentask.exe", "mrt.exe",
 }
 SERVICE_PARENT_DAMPING = 0.55
 
