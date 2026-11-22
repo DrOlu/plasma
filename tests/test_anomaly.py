@@ -251,6 +251,7 @@ def _write_rows(tmp_path, rows, name="t.jsonl"):
 
 def test_self_detection_does_not_swallow_lookalike_names():
     assert anomaly._is_self("plasma-1.27.2-windows-x64.exe") is True
+    assert anomaly._is_self("plasma-1.27.3.exe") is True
     assert anomaly._is_self("plasma.exe") is True
     assert anomaly._is_self("plasma-rare-deadbeef.exe") is False
     assert anomaly._is_self("plasmaloader.exe") is False

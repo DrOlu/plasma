@@ -18,6 +18,7 @@ belong to the fleet layer and are labelled as such when used.
 from __future__ import annotations
 
 import hashlib
+import re
 from collections import Counter, defaultdict
 
 from .profile import (
@@ -65,9 +66,12 @@ def _is_self(image) -> bool:
     start with "plasma" — an attacker can name a payload anything.
     """
     name = str(image or "").lower()
-    return (name == "plasma.exe"
-            or name.startswith("plasma-update")
-            or (name.startswith("plasma-") and name.endswith("-windows-x64.exe")))
+    if name == "plasma.exe" or name.startswith("plasma-update"):
+        return True
+    if name.startswith("plasma-") and name.endswith("-windows-x64.exe"):
+        return True
+    # The installer is often staged as plasma-<version>.exe in Temp.
+    return bool(re.fullmatch(r"plasma-\d+\.\d+\.\d+(?:-[a-z0-9.]+)?\.exe", name))
 
 TRACE_GAP_SECONDS = 1800
 DEFAULT_LIMIT = 20

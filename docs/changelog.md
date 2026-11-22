@@ -4,6 +4,11 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.27.4 — 2026-11-22
+
+- **Staged installer recognised.** The second estate pass showed the release downloaded as `plasma-1.27.3.exe` in Temp still topping WS2's ranking. The self-filter now also matches `plasma-<semver>[-suffix].exe`, while look-alike payload names remain scorable.
+- 988 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.27.3 — 2026-11-22
 
 - **Self-detection tightened.** Only the shipped `plasma.exe`, `plasma-<version>-windows-x64.exe` and the updater are treated as Plasma's own; a payload called `plasma-anything.exe` is scored like any other image. Children of Plasma's process tree are damped like other service parents.
