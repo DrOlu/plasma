@@ -56,6 +56,14 @@ code{font-family:var(--mono);font-size:.84em;background:var(--paper);border:1.5p
 .nav-links{display:flex;align-items:center;gap:19px;margin-left:auto}
 .nav-links a{font-family:var(--mono);font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;padding:4px 0;border-bottom:2px solid transparent}
 .nav-links a:hover,.nav-links a.active{border-bottom-color:var(--ink)}
+.nav-group{position:relative}
+.nav-trigger{font-family:var(--mono);font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;padding:4px 0;border:0;border-bottom:2px solid transparent;background:none;color:var(--ink);cursor:pointer}
+.nav-trigger:hover,.nav-group.open .nav-trigger,.nav-group.has-active .nav-trigger{border-bottom-color:var(--ink)}
+.nav-menu{position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%);min-width:190px;display:none;flex-direction:column;gap:1px;padding:8px;background:var(--paper);border:2px solid var(--ink);box-shadow:5px 5px 0 var(--ink);z-index:60}
+.nav-group.open .nav-menu{display:flex}
+.nav-menu a{font-size:11px;letter-spacing:.01em;text-transform:none;padding:6px 8px;border-bottom:0;white-space:nowrap}
+.nav-menu a:hover,.nav-menu a.active{background:var(--yellow);border-bottom:0}
+@media (min-width:1151px) and (hover:hover){.nav-group:hover .nav-menu{display:flex}}
 .header-actions{display:flex;align-items:center;gap:9px;flex:0 0 auto}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-family:var(--sans);font-weight:700;font-size:13.8px;line-height:1.2;padding:10px 16px;border:2px solid var(--ink);border-radius:8px;background:var(--paper);color:var(--ink);box-shadow:var(--shadow-sm);cursor:pointer;transition:transform .14s ease,box-shadow .14s ease,background .14s ease}
 .btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink);background:var(--yellow)}
@@ -313,6 +321,11 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
   .nav-links{position:absolute;top:100%;left:0;right:0;background:var(--yellow);border-bottom:2px solid var(--ink);flex-direction:column;align-items:flex-start;gap:2px;padding:10px 20px 16px;display:none}
   .nav-links.open{display:flex}
   .nav-links a{font-size:13px;padding:7px 0;width:100%}
+  .nav-group{width:100%}
+  .nav-trigger{width:100%;text-align:left;font-size:13px;padding:9px 0;border-bottom:1px solid rgba(22,20,19,.16)}
+  .nav-menu{position:static;transform:none;min-width:0;display:flex;border:0;box-shadow:none;background:transparent;padding:2px 0 6px 12px}
+  .nav-menu a{font-size:13px;padding:6px 0;white-space:normal}
+  .nav-menu a:hover,.nav-menu a.active{background:transparent;text-decoration:underline;text-underline-offset:3px}
   .menu-btn{display:flex}
   .header-actions .btn.docs{display:none}
   .hero{padding:44px 0 46px}
@@ -355,24 +368,44 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
     </a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
       <a href="#architecture">Architecture</a>
-      <a href="#agent-layer">Agent layer</a>
-      <a href="#neuralosd">Orchestration</a>
-      <a href="#sensors">Sensors</a>
-      <a href="#canaries">Canaries</a>
-      <a href="#memory">Memory</a>
-      <a href="#investigation">Investigation</a>
-      <a href="#intercept">Intercept</a>
-      <a href="#detection">Detection</a>
-      <a href="#profiles">Profiles</a>
-      <a href="#plugins">Plugins</a>
-      <a href="#response">Response</a>
-      <a href="#prevention">Prevention</a>
-      <a href="#fleet">Fleet</a>
-      <a href="#deploy">Deploy</a>
-      <a href="#dtrace">DTrace</a>
-      <a href="#cli">CLI</a>
-      <a href="#serve">HTTP API</a>
-      <a href="#pdfs">PDFs</a>
+      <div class="nav-group">
+        <button class="nav-trigger" type="button" aria-haspopup="true" aria-expanded="false">Detect</button>
+        <div class="nav-menu">
+          <a href="#sensors">Sensors</a>
+          <a href="#canaries">Canaries</a>
+          <a href="#memory">Memory scanning</a>
+          <a href="#investigation">Investigation</a>
+          <a href="#intercept">Interception</a>
+          <a href="#detection">Detection</a>
+          <a href="#profiles">Profiles</a>
+          <a href="#plugins">Plugins</a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <button class="nav-trigger" type="button" aria-haspopup="true" aria-expanded="false">Respond</button>
+        <div class="nav-menu">
+          <a href="#response">Response</a>
+          <a href="#prevention">Prevention</a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <button class="nav-trigger" type="button" aria-haspopup="true" aria-expanded="false">Operate</button>
+        <div class="nav-menu">
+          <a href="#fleet">Fleet</a>
+          <a href="#deploy">Deploy</a>
+          <a href="#dtrace">DTrace</a>
+          <a href="#cli">CLI</a>
+          <a href="#serve">HTTP API</a>
+          <a href="#pdfs">PDFs</a>
+        </div>
+      </div>
+      <div class="nav-group">
+        <button class="nav-trigger" type="button" aria-haspopup="true" aria-expanded="false">Agent</button>
+        <div class="nav-menu">
+          <a href="#agent-layer">Agent layer</a>
+          <a href="#neuralosd">Orchestration</a>
+        </div>
+      </div>
       <a href="#security">Security</a>
     </nav>
     <div class="header-actions">
@@ -1717,6 +1750,40 @@ POST /v1/exec        run one CLI argv</pre>
     });
   });
 
+  // ---------- dropdown groups ----------
+  var groups = Array.prototype.slice.call(document.querySelectorAll(".nav-group"));
+  groups.forEach(function (group) {
+    var trigger = group.querySelector(".nav-trigger");
+    trigger.addEventListener("click", function (event) {
+      event.stopPropagation();
+      var open = !group.classList.contains("open");
+      groups.forEach(function (other) {
+        other.classList.remove("open");
+        other.querySelector(".nav-trigger").setAttribute("aria-expanded", "false");
+      });
+      group.classList.toggle("open", open);
+      trigger.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    group.querySelectorAll(".nav-menu a").forEach(function (a) {
+      a.addEventListener("click", function () {
+        groups.forEach(function (other) { other.classList.remove("open"); });
+        trigger.setAttribute("aria-expanded", "false");
+      });
+    });
+  });
+  document.addEventListener("click", function () {
+    groups.forEach(function (group) {
+      group.classList.remove("open");
+      group.querySelector(".nav-trigger").setAttribute("aria-expanded", "false");
+    });
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    groups.forEach(function (group) { group.classList.remove("open"); });
+    navLinks.classList.remove("open");
+    menuBtn.setAttribute("aria-expanded", "false");
+  });
+
   // ---------- reveal ----------
   if ("IntersectionObserver" in window) {
     var io = new IntersectionObserver(function (entries) {
@@ -1812,6 +1879,9 @@ POST /v1/exec        run one CLI argv</pre>
         var id = entry.target.getAttribute("id");
         links.forEach(function (a) {
           a.classList.toggle("active", a.getAttribute("href") === "#" + id);
+        });
+        groups.forEach(function (group) {
+          group.classList.toggle("has-active", !!group.querySelector("a.active"));
         });
       });
     }, { rootMargin: "-35% 0px -55% 0px" });
