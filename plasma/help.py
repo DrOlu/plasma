@@ -3763,4 +3763,71 @@ _add("plugin undo", _c(
     see_also=["plugin act"],
 ))
 
+
+_add("estate", _c(
+    "compact cross-host edge ledgers and estate-wide correlation",
+    """Each host reduces its own recent store to a small identity ledger:
+users, hosts, source addresses, logon types, a few process pairs and file
+hashes. Counts only — no command lines, paths or raw events. The desk pulls
+one ledger per host, replaces the previous copy, merges them and answers
+questions no single box can: one account on fifty hosts, one source across a
+subnet, a host that stopped reporting.""",
+    [
+        ("Build on a host", "plasma estate build --events C:\\ProgramData\\Plasma\\data\\events.jsonl --window 60 --out ledger.json"),
+        ("Merge", "plasma estate merge --dir estate\\hosts --out estate\\estate.json"),
+        ("Findings", "plasma estate findings --ledger estate\\estate.json --threshold 5"),
+        ("Sync the estate", "plasma estate sync --inventory fleet.json --out-dir estate"),
+    ],
+    safety=LOCAL_WRITE,
+    notes=["Ledgers are capped and integrity-hashed; hosts with old ledgers are flagged stale.",
+           "Sync is concurrent and idempotent; each cycle replaces the host ledger.",
+           "No raw telemetry leaves the endpoint — only counts."],
+    see_also=["fleet pull", "estate sync", "anomaly score"],
+))
+
+_add("estate build", _c(
+    "reduce one host's store to a ledger",
+    "Read a bounded window of the local store and write the compact identity ledger used for estate correlation.",
+    [("One hour", "plasma estate build --events events.jsonl --window 60 --out ledger.json")],
+    safety=LOCAL_WRITE,
+    notes=["Caps users, sources, process pairs and hashes; trims hashes if the ledger exceeds 256 KB.",
+           "Includes a SHA-256 integrity hash over the body."],
+    see_also=["estate merge"],
+))
+
+_add("estate merge", _c(
+    "merge host ledgers into an estate ledger",
+    "Load signed host ledgers, keep the newest copy per host, merge users/hosts/sources and flag stale hosts.",
+    [("Merge a directory", "plasma estate merge --dir estate\\hosts --out estate\\estate.json")],
+    safety=LOCAL_WRITE,
+))
+
+_add("estate findings", _c(
+    "correlate the estate ledger",
+    "Report account fan-out (a user on many hosts), source-address fan-out, stale hosts and new user/host edges against an optional baseline.",
+    [("Fan-out", "plasma estate findings --ledger estate.json --threshold 5"),
+     ("Against a baseline", "plasma estate findings --ledger estate.json --baseline baseline.json")],
+    safety=READ_ONLY,
+    notes=["A same-name pattern without a shared source scores 7 and says to verify; a linked source scores 9.",
+           "Stale host ledger scores 8."],
+))
+
+_add("estate sync", _c(
+    "pull, merge and correlate the estate",
+    "Concurrently build or pull one ledger per inventory host, replace the host copy, merge the estate ledger and write findings.json. Use --loop for continuous operation.",
+    [("One cycle", "plasma estate sync --inventory fleet.json --out-dir estate"),
+     ("Every five minutes", "plasma estate sync --inventory fleet.json --out-dir estate --loop --interval 300")],
+    safety=LOCAL_WRITE,
+    notes=["File transport builds locally; WinRM runs estate build on the endpoint and returns only the ledger.",
+           "Workers default to 8; failures are reported per host and do not abort the cycle."],
+    see_also=["fleet pull", "estate findings"],
+))
+
+_add("estate status", _c(
+    "estate ledger summary",
+    "Show host count, stale hosts, user/process/hash counts, size and integrity verdict.",
+    [("Status", "plasma estate status --ledger estate.json")],
+    safety=READ_ONLY,
+))
+
 # END_OF_HELP_SOURCE

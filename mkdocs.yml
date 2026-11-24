@@ -57,6 +57,7 @@ nav:
       - Prevention and blocking: prevention.md
       - Interception: intercept.md
       - Fleet: fleet.md
+      - Estate edge ledger: estate-ledger.md
       - HTTP API (serve): serve.md
       - Operations: operations.md
       - Atomic smoke test: atomic-smoke.md

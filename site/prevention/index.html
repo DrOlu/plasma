@@ -1,0 +1,2476 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A lake-less Windows EDR: on-box sensors, on-device questions, and human-gated, reversible response. No log lake, no cloud, no blind trust.">
+      
+      
+      
+        <link rel="canonical" href="https://drolu.github.io/plasma/prevention/">
+      
+      
+        <link rel="prev" href="../response/">
+      
+      
+        <link rel="next" href="../intercept/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Prevention and blocking - Plasma</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/raft.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#prevention-and-blocking" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Plasma" class="md-header__button md-logo" aria-label="Plasma" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Plasma
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Prevention and blocking
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/DrOlu/plasma" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DrOlu/plasma
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+  
+  Start
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../agent-native/" class="md-tabs__link">
+          
+  
+  
+  Agent
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../sensors/" class="md-tabs__link">
+          
+  
+  
+  Detect
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../response/" class="md-tabs__link">
+          
+  
+  
+  Operate
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../compliance/" class="md-tabs__link">
+          
+  
+  
+  Trust
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cli/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Plasma" class="md-nav__button md-logo" aria-label="Plasma" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Plasma
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DrOlu/plasma" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DrOlu/plasma
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Start
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enterprise-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enterprise deployment (AD)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment (MSI/GPO)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Agent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent-native/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent-native operation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neuralosd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    neuralOSd orchestrator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../control-plane/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control plane
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state-machines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State machines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detect
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Detect
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sensors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../detection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profile-anomaly/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles and anomaly scores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fim/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File integrity (FIM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sigma/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma conversion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory scanning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../investigate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DTrace tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../response/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Response
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prevention and blocking
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prevention and blocking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#measured-default-1170" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measured default (1.17.0+)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tier-0-policy-gated-containment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 0 — policy-gated containment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tier-1-windows-enforcement-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 1 — Windows enforcement points
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tier 1 — Windows enforcement points">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#applocker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AppLocker
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#firewall-egress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Firewall egress
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#defender-asr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defender ASR
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lsa-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LSA protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this is not
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#posture-and-defender-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Posture and Defender controls
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Posture and Defender controls">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#controlled-folder-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Controlled Folder Access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#network-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network Protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vulnerable-driver-blocklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vulnerable driver blocklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#posture-and-rollback-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Posture and rollback safety
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intercept/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interception
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fleet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fleet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../estate-ledger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estate edge ledger
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serve/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP API (serve)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../atomic-smoke/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atomic smoke test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../update-signing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates & signing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trust
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Trust
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compliance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compliance evidence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assurance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assurance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-audit-1.24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security audit 1.24
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#measured-default-1170" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measured default (1.17.0+)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tier-0-policy-gated-containment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 0 — policy-gated containment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tier-1-windows-enforcement-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 1 — Windows enforcement points
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tier 1 — Windows enforcement points">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#applocker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AppLocker
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#firewall-egress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Firewall egress
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#defender-asr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defender ASR
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lsa-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LSA protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this is not
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#posture-and-defender-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Posture and Defender controls
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Posture and Defender controls">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#controlled-folder-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Controlled Folder Access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#network-protection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network Protection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#vulnerable-driver-blocklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vulnerable driver blocklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#posture-and-rollback-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Posture and rollback safety
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="prevention-and-blocking">Prevention and blocking<a class="headerlink" href="#prevention-and-blocking" title="Permanent link">&para;</a></h1>
+<p>Plasma has two prevention tiers, and they are deliberately different things.</p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Mechanism</th>
+<th>Blocks first execution?</th>
+<th>Latency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>0 — Containment</strong></td>
+<td><code>plasma enforce</code> turns findings into allowlisted, reversible actions</td>
+<td>No</td>
+<td>seconds to minutes</td>
+</tr>
+<tr>
+<td><strong>1 — Enforcement points</strong></td>
+<td><code>plasma prevent</code> configures AppLocker, Windows Firewall, Defender ASR, LSA, Controlled Folder Access, Network Protection and the driver blocklist</td>
+<td><strong>Yes</strong></td>
+<td>at execution / connection</td>
+</tr>
+</tbody>
+</table>
+<p>Plasma does <strong>not</strong> ship a kernel driver. Inline blocking at the file,
+process and network boundary belongs to Microsoft's signed components;
+Plasma generates, applies, verifies and rolls back their policy. That is a
+deliberate trade: policy you can roll back beats a driver you cannot
+crash-test.</p>
+<h2 id="measured-default-1170">Measured default (1.17.0+)<a class="headerlink" href="#measured-default-1170" title="Permanent link">&para;</a></h2>
+<p>Containment is <strong>armed by default, but narrow</strong>:</p>
+<ul>
+<li>automatic actions: <code>snapshot</code>, then <code>kill_process</code>;</li>
+<li>score floor: <strong>9</strong>;</li>
+<li>per-run cap: <strong>2</strong>;</li>
+<li>per-target cooldown: <strong>30 minutes</strong>;</li>
+<li>everything else — isolation, quarantine, disabling users, removing
+  admins, stopping services, credential rotation, task/Run-key/WMI removal
+  and IP blocking — <strong>requires human approval</strong>;</li>
+<li>the installer registers <code>PlasmaWatch</code>, a SYSTEM task that runs
+  <code>watch once --enforce</code> every 5 minutes.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">protect</span> <span class="n">status</span>
+<span class="n">plasma</span> <span class="n">protect</span> <span class="n">protected</span>
+<span class="n">plasma</span> <span class="n">protect</span> <span class="n">disarm</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"change window"</span>
+<span class="n">plasma</span> <span class="n">protect</span> <span class="n">arm</span>
+<span class="n">plasma</span> <span class="n">protect</span> <span class="n">arm</span> <span class="p">-</span><span class="n">-apply-prevention</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"pilot AppLocker audit"</span>
+</code></pre></div>
+<p><code>--no-autoprotect</code> installs the old dry-run posture and removes the
+<code>PlasmaWatch</code> task. Upgrades replace exactly the pre-1.17 <code>enabled: false</code>
+block; a custom operator block is preserved.</p>
+<h2 id="tier-0-policy-gated-containment">Tier 0 — policy-gated containment<a class="headerlink" href="#tier-0-policy-gated-containment" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">protect</span> <span class="n">status</span>
+<span class="n">plasma</span> <span class="n">enforce</span> <span class="n">status</span>
+<span class="n">plasma</span> <span class="n">enforce</span> <span class="n">run</span>                 <span class="c"># dry-run: proposals only</span>
+<span class="n">plasma</span> <span class="n">enforce</span> <span class="n">run</span> <span class="p">-</span><span class="n">-apply</span>         <span class="c"># policy still gates each action</span>
+<span class="n">plasma</span> <span class="n">enforce</span> <span class="n">pending</span>
+<span class="n">plasma</span> <span class="n">enforce</span> <span class="n">approve</span> <span class="p">-</span><span class="n">-id</span> <span class="n">4</span>      <span class="c"># dry-run of the stored request</span>
+<span class="n">plasma</span> <span class="n">enforce</span> <span class="n">approve</span> <span class="p">-</span><span class="n">-id</span> <span class="n">4</span> <span class="p">-</span><span class="n">-apply</span>
+<span class="n">plasma</span> <span class="n">enforce</span> <span class="n">run</span> <span class="p">-</span><span class="n">-findings</span> <span class="n">findings</span><span class="p">.</span><span class="n">json</span>   <span class="c"># evaluate supplied findings</span>
+</code></pre></div>
+<p>Findings map to actions:</p>
+<table>
+<thead>
+<tr>
+<th>Finding</th>
+<th>Action</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>injection technique (T1055 family) with a PID</td>
+<td><code>snapshot</code>, then <code>kill_process</code></td>
+<td>automatic when armed</td>
+</tr>
+<tr>
+<td><code>chain_injection_chain</code> / <code>chain_injection_apc_chain</code></td>
+<td><code>snapshot</code>, then <code>kill_process</code> on the image PID</td>
+<td>automatic when armed</td>
+</tr>
+<tr>
+<td><code>canary_tripped</code>, <code>canary_dns_tripped</code>, <code>canary_http_tripped</code>, <code>canary_account_tripped</code></td>
+<td><code>isolate_host</code></td>
+<td>approval required</td>
+</tr>
+<tr>
+<td><code>intercept</code> ACL/firewall rule</td>
+<td>native deny + journal</td>
+<td>plan-gated; dry-run first</td>
+</tr>
+</tbody>
+</table>
+<p>Policy lives in <code>config.json</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"enforcement"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"enabled"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"mode"</span><span class="p">:</span><span class="w"> </span><span class="s2">"enforce"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"min_score"</span><span class="p">:</span><span class="w"> </span><span class="mi">9</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"allowed_actions"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"snapshot"</span><span class="p">,</span><span class="w"> </span><span class="s2">"kill_process"</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">"require_approval"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">      </span><span class="s2">"isolate_host"</span><span class="p">,</span><span class="w"> </span><span class="s2">"quarantine_file"</span><span class="p">,</span><span class="w"> </span><span class="s2">"disable_user"</span><span class="p">,</span><span class="w"> </span><span class="s2">"remove_admin"</span><span class="p">,</span>
+<span class="w">      </span><span class="s2">"stop_service"</span><span class="p">,</span><span class="w"> </span><span class="s2">"rotate_credential"</span><span class="p">,</span><span class="w"> </span><span class="s2">"delete_task"</span><span class="p">,</span><span class="w"> </span><span class="s2">"disable_task"</span><span class="p">,</span>
+<span class="w">      </span><span class="s2">"remove_run_key"</span><span class="p">,</span><span class="w"> </span><span class="s2">"disable_wmi_sub"</span><span class="p">,</span><span class="w"> </span><span class="s2">"block_ip"</span>
+<span class="w">    </span><span class="p">],</span>
+<span class="w">    </span><span class="nt">"cooldown_minutes"</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"max_actions_per_run"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"watch_task"</span><span class="p">:</span><span class="w"> </span><span class="s2">"PlasmaWatch"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"watch_every_minutes"</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>Evidence before containment.</strong> A kill destroys the in-memory artifact the
+injection detection exists to surface. Before the first automatic kill in a
+run, Plasma writes one host-state snapshot through the same dry-run + plan
+gate. The snapshot is a read-only export (users, admins, services, tasks,
+firewall, audit policy) — it does not capture process memory. If the
+snapshot fails, containment still proceeds and the journal records
+<code>capture: failed</code>.</p>
+<p>Operators who want forensics ahead of speed can either:</p>
+<ul>
+<li>remove <code>"snapshot"</code> from <code>allowed_actions</code> to skip the capture, or</li>
+<li>move <code>"kill_process"</code> into <code>require_approval</code> so every kill is
+  human-gated and the capture can be examined first.</li>
+</ul>
+<p>Guardrails are code, not convention:</p>
+<ul>
+<li><strong>Armed by default, narrow</strong> — only <code>snapshot</code> + <code>kill_process</code> at score
+  9+, with a per-run cap and cooldown.</li>
+<li><strong>Allowlist</strong> — a finding cannot select an action outside the policy lists.</li>
+<li><strong>Approval gate</strong> — high/critical actions queue as pending; nothing runs
+  until a human approves.</li>
+<li><strong>Blast radius</strong> — score floor, per-run cap, per-action+target cooldown.</li>
+<li><strong>Kill switch</strong> — actuate's kill switch still blocks every apply.</li>
+<li><strong>Journal</strong> — <code>enforce-journal.jsonl</code> records the finding digest, decision,
+  reasons, plan id and verification.</li>
+</ul>
+<p>Every apply still goes through actuate: dry-run first, plan id required,
+undo recipe recorded. The installer registers <code>PlasmaWatch</code>, which runs
+<code>plasma watch once --enforce</code> every 5 minutes as SYSTEM. Run it manually
+with <code>plasma watch once --enforce</code>, or remove the task with
+<code>--no-autoprotect</code> and use <code>plasma protect disarm</code>.</p>
+<h2 id="tier-1-windows-enforcement-points">Tier 1 — Windows enforcement points<a class="headerlink" href="#tier-1-windows-enforcement-points" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">prevent</span> <span class="n">status</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">applocker</span> <span class="p">-</span><span class="n">-mode</span> <span class="n">audit</span>                     <span class="c"># plan only</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">applocker</span> <span class="p">-</span><span class="n">-mode</span> <span class="n">audit</span> <span class="p">-</span><span class="n">-apply</span> <span class="p">-</span><span class="n">-plan</span> <span class="n">3</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"pilot"</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">egress</span> <span class="p">-</span><span class="n">-allow</span> <span class="n">10</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">0</span><span class="p">/</span><span class="n">8</span> <span class="p">-</span><span class="n">-allow</span> <span class="n">1</span><span class="p">.</span><span class="n">2</span><span class="p">.</span><span class="n">3</span><span class="p">.</span><span class="n">4</span><span class="p">:</span><span class="n">443</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">asr</span> <span class="p">-</span><span class="n">-ids</span> <span class="p">&lt;</span><span class="n">GUID</span><span class="p">&gt;</span> <span class="p">-</span><span class="n">-action</span> <span class="n">Audit</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">lsa</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">rollback</span> <span class="p">-</span><span class="n">-id</span> <span class="n">7</span> <span class="p">-</span><span class="n">-apply</span>
+</code></pre></div>
+<p>All controls are <strong>dry-run first and plan-gated</strong>: the apply requires the id
+of a dry-run whose rendered payload digest still matches, plus a reason.</p>
+<h3 id="applocker">AppLocker<a class="headerlink" href="#applocker" title="Permanent link">&para;</a></h3>
+<p>Generates an Exe policy with allow rules for <code>%WINDIR%</code>, Program Files
+(both), optional <code>--allow-path</code> entries, and a permanent Administrators
+path rule so an enforcement mistake cannot lock the operator out of their
+own tooling. Default mode is <strong>audit</strong>; <code>--mode enforce</code> turns it into
+blocking. Rollback restores the previous effective policy, or clears the
+local SrpV2 policy when there was none.</p>
+<p>AppLocker controls execution, not scripts; pair it with PowerShell logging
+and constrained language mode where appropriate.</p>
+<h3 id="firewall-egress">Firewall egress<a class="headerlink" href="#firewall-egress" title="Permanent link">&para;</a></h3>
+<p>Creates <code>PlasmaPrevent-Egress-*</code> rules: one allow per destination, then a
+default-block outbound rule (Windows gives explicit allows precedence). An
+an allowlist is mandatory — blocking all egress without DNS and update
+destinations locks the host out of patching. Plasma warns when no port-53
+destination is present, but it does not guess your DNS servers; add them
+explicitly. Rollback removes the prefix rules.</p>
+<p>Blocking <strong>outbound</strong> does not affect inbound WinRM/RDP, but it will break
+anything that needs the internet; pilot it and keep the allowlist current.</p>
+<h3 id="defender-asr">Defender ASR<a class="headerlink" href="#defender-asr" title="Permanent link">&para;</a></h3>
+<p>Applies attack-surface-reduction rule GUIDs in <code>Audit</code>, <code>Enabled</code> (block)
+or <code>Disabled</code> mode. Requires Defender to be present and not fully managed
+by policy that overrides local settings. Rollback restores each rule's
+previous action.</p>
+<h3 id="lsa-protection">LSA protection<a class="headerlink" href="#lsa-protection" title="Permanent link">&para;</a></h3>
+<p>Sets <code>RunAsPPL=1</code> under <code>HKLM\SYSTEM\CurrentControlSet\Control\Lsa</code>.
+Takes effect after a reboot. Rollback removes the value. Check third-party
+LSA plugins before enabling it in production.</p>
+<h2 id="what-this-is-not">What this is not<a class="headerlink" href="#what-this-is-not" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Not a driver.</strong> Plasma has no kernel component. File-write and network
+  blocking are delegated to Defender's Controlled Folder Access and Network
+  Protection; execution blocking is AppLocker. There is no Plasma-owned
+  pre-execution veto or packet filter.</li>
+<li><strong>Not agentless prevention.</strong> AppLocker, ASR, CFA and Network Protection
+  are endpoint-local controls; a host that is offline from management still
+  enforces its own policy.</li>
+<li><strong>Not a substitute for backups.</strong> Every control here is reversible, and
+  the journal is the audit trail that proves what changed.</li>
+</ul>
+<h2 id="posture-and-defender-controls">Posture and Defender controls<a class="headerlink" href="#posture-and-defender-controls" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">prevent</span> <span class="n">posture</span>
+</code></pre></div>
+<p>Inventory of the signed enforcement points Plasma delegates to: active WDAC
+policy files, Defender Controlled Folder Access, Network Protection, the
+Microsoft vulnerable driver blocklist, ASR rule counts, real-time protection
+and tamper protection. Each row says whether Plasma can apply it and names
+the preview command. Gaps come with recommendations.</p>
+<p>WDAC stays <strong>read-only</strong>: a bad code-integrity policy can stop a host
+booting, and recovery may need offline action. CFA, Network Protection and
+the driver blocklist are opt-in, plan-gated and reversible.</p>
+<h3 id="controlled-folder-access">Controlled Folder Access<a class="headerlink" href="#controlled-folder-access" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">prevent</span> <span class="n">cfa</span> <span class="p">-</span><span class="n">-mode</span> <span class="n">audit</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">cfa</span> <span class="p">-</span><span class="n">-mode</span> <span class="n">audit</span> <span class="p">-</span><span class="n">-apply</span> <span class="p">-</span><span class="n">-plan</span> <span class="n">7</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"pilot"</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">cfa</span> <span class="p">-</span><span class="n">-mode</span> <span class="n">block</span> <span class="p">-</span><span class="n">-apply</span> <span class="p">-</span><span class="n">-plan</span> <span class="n">8</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"enforce"</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">rollback</span> <span class="p">-</span><span class="n">-id</span> <span class="n">8</span>
+</code></pre></div>
+<p>Modes are <code>off</code>, <code>audit</code> and <code>block</code>; the default is <code>audit</code>. Apply captures
+the current value before writing, verifies the resulting value, and journals
+the previous value for rollback. A policy-managed host may ignore the local
+setting; that is reported as a failed apply, not a false success.</p>
+<h3 id="network-protection">Network Protection<a class="headerlink" href="#network-protection" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">prevent</span> <span class="n">network</span> <span class="p">-</span><span class="n">-mode</span> <span class="n">audit</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">network</span> <span class="p">-</span><span class="n">-mode</span> <span class="n">audit</span> <span class="p">-</span><span class="n">-apply</span> <span class="p">-</span><span class="n">-plan</span> <span class="n">9</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"pilot"</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">network</span> <span class="p">-</span><span class="n">-mode</span> <span class="n">block</span> <span class="p">-</span><span class="n">-apply</span> <span class="p">-</span><span class="n">-plan</span> <span class="n">10</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"enforce"</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">rollback</span> <span class="p">-</span><span class="n">-id</span> <span class="n">10</span>
+</code></pre></div>
+<p>Same discipline as CFA. Network Protection can affect browsers, updaters
+and telemetry endpoints; pilot in audit first.</p>
+<h3 id="vulnerable-driver-blocklist">Vulnerable driver blocklist<a class="headerlink" href="#vulnerable-driver-blocklist" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">prevent</span> <span class="n">driver-blocklist</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">driver-blocklist</span> <span class="p">-</span><span class="n">-apply</span> <span class="p">-</span><span class="n">-plan</span> <span class="n">11</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"baseline"</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">driver-blocklist</span> <span class="p">-</span><span class="n">-off</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">rollback</span> <span class="p">-</span><span class="n">-id</span> <span class="n">11</span>
+</code></pre></div>
+<p>Writes <code>VulnerableDriverBlocklistEnable</code> under the Code Integrity config key
+and captures the previous value. A reboot may be required before the change
+is fully effective. Plasma never reboots the host.</p>
+<h3 id="posture-and-rollback-safety">Posture and rollback safety<a class="headerlink" href="#posture-and-rollback-safety" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Every apply is dry-run first, single-use, payload-bound and reason-gated.</li>
+<li>The kill switch blocks applies while leaving previews available.</li>
+<li>Rollback verifies the restored value, not just that PowerShell returned.</li>
+<li>The journal records the control, mode, previous value, plan, reason and
+  verification result.</li>
+</ul>
+<p>This is deliberately an inventory first: a control that is off is reported
+as off. CFA and Network Protection can be changed through Plasma, but only
+as an explicit, previewed, plan-gated action. Both can break line-of-business
+applications if applied without a pilot, so audit mode is the default.</p>
+<h2 id="verification">Verification<a class="headerlink" href="#verification" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">prevent</span> <span class="n">status</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">posture</span>
+<span class="n">plasma</span> <span class="n">enforce</span> <span class="n">status</span>
+<span class="nb">Get-NetFirewallRule</span> <span class="n">-DisplayName</span> <span class="s1">'PlasmaPrevent-*'</span>
+<span class="nb">Get-AppLockerPolicy</span> <span class="n">-Effective</span> <span class="p">|</span> <span class="nb">Select-Object</span> <span class="n">-ExpandProperty</span> <span class="n">RuleCollections</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/DrOlu/plasma" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["search.suggest", "search.highlight", "navigation.tabs", "navigation.sections", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

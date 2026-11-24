@@ -110,6 +110,7 @@ def test_actions_are_listed_with_schema(tmp_path):
 
 def test_cli_act_accepts_args_file(tmp_path, capsys):
     import json as _json
+
     from plasma import cli
 
     root, _ = _install(tmp_path)

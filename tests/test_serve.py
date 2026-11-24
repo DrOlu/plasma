@@ -405,11 +405,11 @@ def test_openapi_and_docs_are_unauthenticated(running):
 # command tree completeness
 # ---------------------------------------------------------------------------
 
-def test_commands_have_root_and_229_commands(running):
+def test_commands_have_root_and_235_commands(running):
     _, key, base = running
     _, body = _request(base, "/v1/commands", key=key)
     assert body["root"]["path"] == []
-    assert len(body["commands"]) == 229
+    assert len(body["commands"]) == 235
     assert all(row["path"] for row in body["commands"])
 
 

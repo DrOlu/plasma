@@ -1,19 +1,19 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.28.1</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.29.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.28.1</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.29.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
 <span class="raft-badge">25 baseline rules</span>
-<span class="raft-badge">1036 tests</span>
+<span class="raft-badge">1051 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -124,6 +124,27 @@ PROTECTION         enforce (snapshot + kill at 9+, approval for the rest) ·
                    intercept (NTFS ACL, firewall, agent gateway)
 ```
 
+## Estate-wide correlation
+
+The estate edge ledger is the standing counterpart to fleet cases: hosts ship
+hash-sealed counts, the desk merges and correlates them, and no event diary moves.
+
+| Finding | Score | Rule |
+|---|---|---|
+| `estate_user_fanout` | 9 | one account on many hosts, with a source address shared across at least two |
+| `estate_user_fanout` | 7 | same-name pattern without a shared source — verify |
+| `estate_source_fanout` | 9 | one source address across many hosts |
+| `estate_stale_host` | 8 | ledger older than `--max-age` |
+| `estate_hash_fanout` | 8 | the same file hash on many hosts |
+| `estate_new_host_edge` | 7 | user/host pair absent from the baseline |
+
+```powershell
+plasma estate sync --inventory inventory.json --out-dir C:\PlasmaEstate --loop
+plasma estate findings --ledger C:\PlasmaEstate\estate.json
+```
+
+See [Estate edge ledger](estate-ledger.md).
+
 ## Plugins
 
 Plasma plugins are **bounded external processes with a signed manifest and an
@@ -154,6 +175,13 @@ Inbound adapters bring other systems in: `plasma ingest jsonl|evtx|webhook`.
 Outbound adapters push bounded batches: `plasma export webhook|syslog`.
 See [Plugins](plugin-api.md) for the manifest, protocol, lifecycle, security
 model and schemas.
+
+## What's new in 1.29.0
+
+- **Estate edge ledger.** Each host reduces its own store to a small hash-sealed count ledger — users, sources, `user>process` pairs and hashes, never command lines or file paths. The desk replaces the newest ledger per host, merges and correlates.
+- **Continuous sync.** `plasma estate sync` pulls in parallel over WinRM or files, writes `estate.json` and `findings.json`, survives a failed host, and runs on a cadence with `--loop`.
+- **Five cross-host findings.** User fan-out (9 when a shared source links the appearances, 7 for a same-name pattern), source fan-out, shared file hashes, stale hosts and new host edges against a baseline.
+- **Bounded at scale.** 200 users and 256 KiB per host ledger; 5,000 identities on the desk. A 1,000-host, 10,000-identity estate merges and correlates in seconds. SHA-256 integrity on every ledger.
 
 ## What's new in 1.28.1
 

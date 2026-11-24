@@ -355,6 +355,23 @@ plasma fleet report    --case NAME
 
 Correlates lateral hops, shared indicators, canaries and blind hosts.
 
+### estate
+
+```text
+plasma estate build    --events FILE [--out FILE] [--window MIN] [--max-rows N] [--host NAME] [--role ROLE]
+plasma estate merge    (--ledgers FILE... | --dir DIR) --out FILE [--max-age MIN]
+plasma estate findings --ledger FILE [--threshold N] [--baseline FILE]
+plasma estate sync     --inventory FILE --out-dir DIR [--window MIN] [--workers N]
+                       [--threshold N] [--max-age MIN] [--role ROLE]
+                       [--baseline FILE] [--loop] [--interval SECONDS]
+plasma estate status   --ledger FILE
+```
+
+The estate edge ledger: each host reduces its own store to a small signed
+identity ledger, the desk merges the newest ledger per host and correlates
+user/source fan-out, stale hosts and new host edges. `sync` is the continuous
+form; `--loop` runs until stopped. See [Estate edge ledger](estate-ledger.md).
+
 ### actuate / playbook
 
 ```text

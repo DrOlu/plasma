@@ -1,0 +1,3160 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A lake-less Windows EDR: on-box sensors, on-device questions, and human-gated, reversible response. No log lake, no cloud, no blind trust.">
+      
+      
+      
+        <link rel="canonical" href="https://drolu.github.io/plasma/cli/">
+      
+      
+        <link rel="prev" href="../security-audit-1.24/">
+      
+      
+        <link rel="next" href="../troubleshooting/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>CLI reference - Plasma</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/raft.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#cli-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Plasma" class="md-header__button md-logo" aria-label="Plasma" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Plasma
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              CLI reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/DrOlu/plasma" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DrOlu/plasma
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+  
+  Start
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../agent-native/" class="md-tabs__link">
+          
+  
+  
+  Agent
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../sensors/" class="md-tabs__link">
+          
+  
+  
+  Detect
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../response/" class="md-tabs__link">
+          
+  
+  
+  Operate
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../compliance/" class="md-tabs__link">
+          
+  
+  
+  Trust
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Plasma" class="md-nav__button md-logo" aria-label="Plasma" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Plasma
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DrOlu/plasma" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DrOlu/plasma
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Start
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enterprise-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enterprise deployment (AD)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment (MSI/GPO)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Agent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent-native/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent-native operation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neuralosd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    neuralOSd orchestrator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../control-plane/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control plane
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state-machines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State machines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detect
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Detect
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sensors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../detection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profile-anomaly/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles and anomaly scores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fim/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File integrity (FIM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sigma/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma conversion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory scanning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../investigate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DTrace tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../response/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Response
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prevention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prevention and blocking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intercept/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interception
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fleet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fleet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../estate-ledger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estate edge ledger
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serve/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP API (serve)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../atomic-smoke/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atomic smoke test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../update-signing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates & signing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trust
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Trust
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compliance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compliance evidence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assurance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assurance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-audit-1.24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security audit 1.24
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#help-and-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Help and discovery
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Help and discovery">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        help
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugins-ingest-and-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugins, ingest and export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#endpoint-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Endpoint commands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Endpoint commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        install
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#health-status-probe-ask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        health / status / probe / ask
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        identity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        whids
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        trace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deep" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        deep
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#watch-notify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        watch / notify
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        canary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#intercept" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        intercept
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        memory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#investigate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        investigate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        drift
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chain-store-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        chain / store / coverage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#observe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        observe
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#desk-side-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Desk-side commands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Desk-side commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fleet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fleet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#estate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actuate-playbook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        actuate / playbook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enforce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        enforce
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#protect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        protect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prevent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        prevent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        update
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control-agent-trust-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        control (agent trust layer)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mcp
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#serve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        serve
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        evidence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#assurance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        assurance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deployment-rings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment rings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Deployment rings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manifest-bundle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        manifest / bundle
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common environment variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#help-and-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Help and discovery
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Help and discovery">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#help" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        help
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugins-ingest-and-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugins, ingest and export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#endpoint-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Endpoint commands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Endpoint commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        install
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#health-status-probe-ask" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        health / status / probe / ask
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        identity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#whids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        whids
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        trace
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#deep" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        deep
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#watch-notify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        watch / notify
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#canary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        canary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#intercept" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        intercept
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        memory
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#investigate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        investigate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        drift
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chain-store-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        chain / store / coverage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#observe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        observe
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#desk-side-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Desk-side commands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Desk-side commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fleet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        fleet
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#estate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        estate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#actuate-playbook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        actuate / playbook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enforce" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        enforce
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#protect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        protect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prevent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        prevent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        update
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#control-agent-trust-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        control (agent trust layer)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mcp
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#serve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        serve
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        evidence
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#assurance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        assurance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deployment-rings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment rings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Deployment rings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#manifest-bundle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        manifest / bundle
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common environment variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="cli-reference">CLI reference<a class="headerlink" href="#cli-reference" title="Permanent link">&para;</a></h1>
+<p>Every command prints JSON. Exit codes are part of the contract:
+<code>0</code> success/clean, <code>1</code> data or input error, <code>2</code> refused/attention needed,
+<code>3</code> execution or verification failure.</p>
+<h2 id="help-and-discovery">Help and discovery<a class="headerlink" href="#help-and-discovery" title="Permanent link">&para;</a></h2>
+<p>Every command has a detailed help page with a description, working examples,
+notes, a safety classification and related commands. This is the surface an
+orchestrating agent should use instead of guessing flags.</p>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="p">-</span><span class="n">-help</span>                      <span class="c"># root overview + agent workflow</span>
+<span class="n">plasma</span> <span class="n">help</span>                        <span class="c"># command map, grouped</span>
+<span class="n">plasma</span> <span class="n">help</span> <span class="n">control</span> <span class="n">approvals</span> <span class="n">approve</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">asr</span> <span class="p">-</span><span class="n">-help</span>          <span class="c"># argparse syntax + examples</span>
+<span class="n">plasma</span> <span class="n">help</span> <span class="p">-</span><span class="n">-json</span>                 <span class="c"># complete machine-readable catalog</span>
+<span class="n">plasma</span> <span class="n">help</span> <span class="n">actuate</span> <span class="n">apply</span> <span class="p">-</span><span class="n">-json</span>   <span class="c"># one command as JSON</span>
+</code></pre></div>
+<p><code>plasma help --json</code> returns schema <code>plasma.help/1</code>: every command path,
+summary, full description, usage, arguments (required, default, choices),
+examples, safety class, output and related commands. The same help metadata
+is included in <code>GET /v1/commands</code> on the HTTP API; an agent can also run
+<code>POST /v1/exec {"argv": ["help", "--json"]}</code>.</p>
+<h3 id="help">help<a class="headerlink" href="#help" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma help [topic ...] [--json]
+</code></pre></div>
+<p>With no topic, prints the grouped command map and the dry-run → plan →
+apply workflow. With a topic, prints the same detailed page as
+<code>plasma &lt;topic&gt; --help</code>. <code>--json</code> returns the catalog, or one command when a
+topic is supplied. An unknown topic exits 1 with a structured error.</p>
+<h2 id="plugins-ingest-and-export">Plugins, ingest and export<a class="headerlink" href="#plugins-ingest-and-export" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>plasma plugin list|install|verify|remove|enable|disable
+plasma plugin run &lt;name&gt; [--events PATH] [--max-events N] [--timeout S]
+plasma plugin health &lt;name&gt;
+plasma plugin new &lt;name&gt; [--kind sensor|detector|responder] [--out DIR]
+plasma plugin keygen --out DIR
+plasma plugin sign --plugin DIR --key PRIVATE.pem
+plasma plugin actions
+plasma plugin act &lt;name&gt; [--args JSON | --args-file FILE] [--apply --plan ID --reason R]
+plasma plugin undo &lt;journal-id&gt; --reason R
+plasma ingest jsonl PATH --max-events N
+plasma ingest evtx --channel NAME --since MINUTES --max-events N
+plasma ingest webhook --port N [--secret | --secret-env NAME] [--once]
+plasma export webhook --url URL [--since DUR] [--max-events N]
+plasma export syslog --host HOST --port N --protocol udp|tcp
+</code></pre></div>
+<p><code>plasma help plugin</code>, <code>plasma help ingest</code> and <code>plasma help export</code> return the
+full agent-facing pages. See <a href="../plugin-api/">Plugins</a> for the ABI.</p>
+<h2 id="endpoint-commands">Endpoint commands<a class="headerlink" href="#endpoint-commands" title="Permanent link">&para;</a></h2>
+<h3 id="install">install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma install [--dry-run] [--force] [--root PATH] [--skip-whids]
+              [--skip-sysmon-check] [--require-whids] [--rotate]
+</code></pre></div>
+<p>Intelligent installer: verifies the payload manifest, decides FULL/MINIMAL,
+installs Sysmon when possible, provisions WHIDS, writes <code>config.json</code>, flips
+the <code>current</code> junction, and reports the decision. <code>--require-whids</code> makes a
+degraded decision fail with exit 3. <code>--rotate</code> (used by the MSI) swaps
+<code>bin\plasma.exe</code> and restarts the registered tasks after staging, so the
+running node matches the package; a failed rotation exits 4.</p>
+<p>The installer registers <code>PlasmaWatch</code> and <code>PlasmaWhidsWatchdog</code> with both
+an <code>AtStartup</code> trigger and <code>StartWhenAvailable</code>; <code>PlasmaCanaryShield</code> gets
+the same pair when armed. A reboot or a missed timer run is picked up
+immediately. <code>PlasmaUpdate</code> deliberately stays on its daily maintenance
+window. <code>health</code> reports any present Plasma task that lacks an <code>AtStartup</code>
+trigger.</p>
+<h3 id="health-status-probe-ask">health / status / probe / ask<a class="headerlink" href="#health-status-probe-ask" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma health [--root PATH]
+plasma status [--events FILE]
+plasma probe --tool NAME --events FILE
+plasma ask --prompt "..." --events FILE
+</code></pre></div>
+<p><code>health</code> = checks + verdict, including whether present Plasma tasks carry
+an <code>AtStartup</code> trigger. <code>status</code> = bundle identity + probe menu.
+<code>probe</code>/<code>ask</code> = run one named probe, or let the on-device model choose one.
+Refusals are structured, never guesses.</p>
+<h3 id="identity">identity<a class="headerlink" href="#identity" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma identity pull --events FILE [--host NAME] [--since MINUTES]
+                     [--ids LIST] [--max-events N]
+</code></pre></div>
+<p>Reads the Security channel through the Event Log API, UTC-normalized,
+deduped and bounded (<code>--max-events</code>, default 2000).</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Kind</th>
+<th>What it gives you</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4624 / 4625</td>
+<td><code>auth</code></td>
+<td>logon success / failure, type, source, workstation</td>
+</tr>
+<tr>
+<td>4768 / 4769 / 4770 / 4771</td>
+<td><code>auth</code></td>
+<td>Kerberos TGT, service ticket, renewal, pre-auth failure (KDC only — zero on a member server, reported as zero)</td>
+</tr>
+<tr>
+<td>4776</td>
+<td><code>auth</code></td>
+<td>NTLM credential validation</td>
+</tr>
+<tr>
+<td>4688</td>
+<td><code>process</code></td>
+<td>process creation with creator subject, parent image and command line (when audit policy records it)</td>
+</tr>
+</tbody>
+</table>
+<p><code>--ids</code> takes a comma list from that set and is allowlisted: anything else is
+rejected before PowerShell is invoked.</p>
+<h3 id="whids">whids<a class="headerlink" href="#whids" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma whids pull    --root DIR --out FILE
+plasma whids push    --events FILE [--min-confidence N] [--max-indicators N] [--apply] [--reason TEXT]
+plasma whids status  --root DIR --events FILE
+plasma whids diagnose [--root DIR]
+plasma whids ensure  [--root DIR] [--wait SECONDS]
+</code></pre></div>
+<p><code>push</code> is dry-run by default; <code>--apply</code> replaces <code>plasma-iocs.gen</code>
+atomically. Default confidence is 8 on the gene 0–10 scale.</p>
+<p><code>ensure</code> is the watchdog body: Running is a no-op; a hung <code>StartPending</code> is
+force-stopped and restarted; a stopped service is started. Actions are
+appended to <code>logs/whids-watchdog.log</code>. The installer registers
+<code>PlasmaWhidsWatchdog</code> (SYSTEM, every 2 minutes) to run it.</p>
+<h3 id="trace">trace<a class="headerlink" href="#trace" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma trace list
+plasma trace check
+plasma trace selftest [--root DIR]
+plasma trace run &lt;script&gt; --events FILE [--for 5s] [--max-rows N] [--out FILE]
+plasma trace provision
+</code></pre></div>
+<p>Reviewed, bounded DTrace runs normalized into the event store.
+<code>provision</code> installs the Microsoft package (direct MSI when winget is
+absent), enables <code>bcdedit /set dtrace on</code>, and reports
+<code>reboot_required: true</code>. Installed + enabled is ready; versions are not
+chased. Scripts emit <code>tid</code> for estate portability.</p>
+<h3 id="tap">tap<a class="headerlink" href="#tap" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma tap list
+plasma tap selftest [--rules FILE] [--tap-exe PATH]
+plasma tap run [--providers LIST] [--for DURATION] [--max-matches N] [--out-dir DIR]
+</code></pre></div>
+<p>Bounded live ETW window. Exit 3 = the session could not start.</p>
+<h3 id="deep">deep<a class="headerlink" href="#deep" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma deep persistence [--json-out FILE] [--cap N]
+</code></pre></div>
+<p>One bounded pass over every auto-start location with Authenticode status.</p>
+<h3 id="watch-notify">watch / notify<a class="headerlink" href="#watch-notify" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma watch once [--canary-account ACCOUNT...]
+plasma watch loop --every SECONDS [--canary-account ACCOUNT...]
+plasma notify show [--root PATH]
+plasma notify test [--root PATH] [--host NAME]
+</code></pre></div>
+<p><code>watch</code> = health + drift + canaries + new alerts + chains → verdict; exits
+non-zero when findings exist. Configured canary accounts live in
+<code>config.json</code> under <code>canary.accounts</code>; <code>--canary-account</code> overrides them for
+one invocation. <code>notify</code> validates and tests delivery channels.</p>
+<h3 id="canary">canary<a class="headerlink" href="#canary" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma canary deploy [--dir PATH] [--randomize|--no-randomize] [--subdir NAME]
+plasma canary verify
+plasma canary status
+plasma canary token create --kind dns --domain SUFFIX [--out PATH]
+plasma canary token create --kind http --base-url URL [--out PATH] [--name NAME]
+plasma canary token list
+plasma canary token remove ID [--delete-artifact]
+plasma canary serve [--host 127.0.0.1] [--port 8088] [--max-requests N]
+plasma canary collect [--since MINUTES] [--max-events N]
+plasma canary hits [--last N]
+plasma canary sysmon [--domain SUFFIX...] [--apply]
+plasma canary registry deploy [--hive HKCU|HKLM] [--count N]
+plasma canary registry list
+plasma canary registry remove ID
+plasma canary shield status
+plasma canary shield install [--apply --plan ID --reason TEXT]
+plasma canary shield uninstall [--apply --plan ID --reason TEXT]
+plasma canary shield sweep [--since-minutes N] [--apply --reason TEXT] [--max-kills N]
+plasma canary pipe deploy [--count N]
+plasma canary pipe list
+plasma canary pipe remove ID
+plasma canary pipe serve [--apply --reason TEXT] [--max-kills N] [--max-connections N]
+plasma canary pipe install [--apply --plan ID --reason TEXT]
+plasma canary pipe uninstall [--apply --plan ID --reason TEXT]
+plasma canary pipe status
+</code></pre></div>
+<p>File canaries are realistic decoys with randomized subdirectories and names
+by default; the body never identifies itself. <code>verify</code> reports missing or
+modified files at score 10. DNS tokens are unique hostnames matched from
+Sysmon EID 22; <code>canary sysmon --apply</code> writes a narrow <code>DnsQuery</code> include
+and hot-reloads it. HTTP tokens are <code>.url</code> shortcuts served by the local
+collector; hits are written to <code>&lt;root&gt;/canary-hits.jsonl</code>. <code>watch</code> (or
+<code>canary collect</code>) turns DNS/HTTP hits into <code>source="canary"</code> event-store
+alerts, deduplicated across sweeps.</p>
+<p>Registry canaries are decoy keys under <code>Software\PlasmaDecoy</code> in HKCU or
+HKLM. <code>canary shield install</code> adds only the recorded canary basenames and
+registry fragments to a narrow Sysmon <code>FileCreate</code>/<code>FileDelete</code>/
+<code>RegistryEvent</code> include, then registers a one-minute SYSTEM task. The sweep
+verifies the live PID/image, refuses protected/trusted processes, kills a
+process that creates/deletes/registry-writes a canary, and journals the
+decision. Reads do not trigger; a pure in-place overwrite is detected by
+<code>canary verify</code> as a hash change without process attribution.</p>
+<p>Named-pipe canaries are decoy pipes. <code>canary pipe install</code> registers a
+SYSTEM listener at boot; a client that connects is identified by PID and
+killed after the same protected/trusted checks. Enumeration alone is not a
+connection and is not killed. Decisions are written to
+<code>&lt;root&gt;/canary-pipe-journal.jsonl</code>; <code>canary pipe status</code> reports live
+connection and kill counters while the task runs. The listener is user-mode,
+not a driver.</p>
+<h3 id="intercept">intercept<a class="headerlink" href="#intercept" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma intercept status
+plasma intercept rules list
+plasma intercept rules add --file FILE
+plasma intercept rules remove RULE_ID
+plasma intercept evaluate [--events FILE] [--max-rows N] [--out FILE]
+plasma intercept apply RULE_ID [--apply --plan ID --reason TEXT]
+plasma intercept protect-canary [--prefix PATH] [--apply --plan ID --reason TEXT]
+plasma intercept rollback --id ID [--apply --plan ID --reason TEXT]
+</code></pre></div>
+<p>Deterministic policy at native gates. <code>evaluate</code> is the shadow phase: it
+reports <code>would_block</code> without changing the host. <code>protect-canary</code> adds an
+NTFS deny/audit ACL to the canary manifest. <code>apply</code> brokers <code>acl</code> and
+<code>firewall</code> rules. The MCP tool-call gateway evaluates <code>agent_tool_call</code>
+rules before policy and handlers. Every apply is dry-run first, plan-gated,
+payload-bound, journaled and reversible.</p>
+<p><code>acl</code> rollback restores the prior SDDL; <code>firewall</code> rollback removes the
+named rule. AppLocker and ASR remain under <code>plasma prevent</code>.</p>
+<h3 id="memory">memory<a class="headerlink" href="#memory" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma memory scan --pid PID...
+plasma memory scan --pname NAME...
+plasma memory scan --all [--timeout SECONDS]
+plasma memory scan ... [--deep] [--dump] [--scanner 64|32]
+plasma memory triage [--since-minutes N] [--min-score S] [--max-targets N] [--no-deep]
+plasma memory status
+plasma memory list
+</code></pre></div>
+<p>Bounded, on-demand HollowsHunter/PE-sieve scan for hollowed or replaced
+PEs, reflective DLLs, shellcode, code patches and IAT hooks. The scanner is
+SHA-256 pinned and refuses a mismatched binary. Findings become
+<code>source="memory"</code> alerts. <code>--dump</code> is explicit, local and refused with
+<code>--all</code>; no dumps are produced by default. Managed .NET JIT shellcode
+observations are suppressed from the alert stream. <code>triage</code> scans only PIDs
+selected by injection- or credential-shaped alerts in the recent window.</p>
+<p>Exit 0 = clean, 2 = findings, 1 = input/tool error.</p>
+<h3 id="investigate">investigate<a class="headerlink" href="#investigate" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma query [--spec JSON|FILE] [FILTERS] [--since 1h] [--count-by FIELD] [--out FILE]
+plasma tree [--pid PID | --process NAME] [--depth N] [--max-rows N]
+plasma summarize [--since 1h] [--limit N] [--rare-max N]
+
+plasma case open NAME [--host H] [--title TEXT] [--note TEXT]
+plasma case list
+plasma case add NAME [FILTERS] [--spec JSON|FILE]
+plasma case note NAME TEXT
+plasma case timeline NAME
+plasma case report NAME [--out FILE]
+plasma case seal NAME
+plasma case verify NAME
+
+plasma detect validate --rules FILE
+plasma detect test [--cases FILE]
+plasma detect diff --old FILE --new FILE
+plasma detect replay --events FILE [--rules FILE] [--max-rows N]
+</code></pre></div>
+<p>Typed, bounded investigation over the local JSONL store. <code>query</code> refuses
+unknown fields; <code>tree</code> uses only explicit <code>pid</code>/<code>ppid</code> edges; <code>summarize</code>
+returns a capped digest. A case collects selected rows and notes, renders a
+report and seals every artifact with SHA-256. <code>detect</code> compiles rule regexes,
+compares rule sets and replays chains over a capture. See
+<a href="../investigate/">Investigation</a>.</p>
+<h3 id="drift">drift<a class="headerlink" href="#drift" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma drift record QUESTION [--root PATH] [--canary ACCOUNT...]
+plasma drift score  QUESTION [--root PATH]
+plasma drift list   [--root PATH]
+</code></pre></div>
+<p><code>record</code> snapshots; <code>score</code> diffs (exit 2 on drift, 1 on collection error).</p>
+<h3 id="chain-store-coverage">chain / store / coverage<a class="headerlink" href="#chain-store-coverage" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma chain score --events FILE [--window SECONDS] [--max-rows N]
+plasma store rotate  --events FILE [--max-mb N] [--keep N]
+plasma store compact --events FILE [--out FILE]
+plasma store stats   --events FILE
+plasma coverage [--sensors DIR]
+</code></pre></div>
+<p>Chains scan the tail; store commands keep the diary bounded; coverage
+reports ATT&amp;CK coverage incl. blind spots.</p>
+<h3 id="observe">observe<a class="headerlink" href="#observe" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma observe attest|sketch|edges|explain|pslogs|attackmap|...
+</code></pre></div>
+<p>Read-only self-knowledge questions (identity surface, logon edges, network
+edges, PowerShell logs, attack map). <code>attest</code> includes the blind check.</p>
+<h2 id="desk-side-commands">Desk-side commands<a class="headerlink" href="#desk-side-commands" title="Permanent link">&para;</a></h2>
+<h3 id="fleet">fleet<a class="headerlink" href="#fleet" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma fleet pull      --inventory FILE --case NAME [--cap N] [--window SECONDS] [--canary ACCOUNT...]
+plasma fleet correlate --case NAME [--window SECONDS]
+plasma fleet report    --case NAME
+</code></pre></div>
+<p>Correlates lateral hops, shared indicators, canaries and blind hosts.</p>
+<h3 id="estate">estate<a class="headerlink" href="#estate" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma estate build    --events FILE [--out FILE] [--window MIN] [--max-rows N] [--host NAME] [--role ROLE]
+plasma estate merge    (--ledgers FILE... | --dir DIR) --out FILE [--max-age MIN]
+plasma estate findings --ledger FILE [--threshold N] [--baseline FILE]
+plasma estate sync     --inventory FILE --out-dir DIR [--window MIN] [--workers N]
+                       [--threshold N] [--max-age MIN] [--role ROLE]
+                       [--baseline FILE] [--loop] [--interval SECONDS]
+plasma estate status   --ledger FILE
+</code></pre></div>
+<p>The estate edge ledger: each host reduces its own store to a small signed
+identity ledger, the desk merges the newest ledger per host and correlates
+user/source fan-out, stale hosts and new host edges. <code>sync</code> is the continuous
+form; <code>--loop</code> runs until stopped. See <a href="../estate-ledger/">Estate edge ledger</a>.</p>
+<h3 id="actuate-playbook">actuate / playbook<a class="headerlink" href="#actuate-playbook" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma actuate apply &lt;action&gt; [--target T] --reason TEXT [--apply --plan ID]
+plasma actuate undo  --id ID [--apply]
+plasma actuate journal [--last N]
+plasma actuate apply --list
+plasma playbook list
+plasma playbook apply &lt;name&gt; [--target T] --reason TEXT [--apply --plan ID]
+plasma playbook undo  --id ID [--apply]
+</code></pre></div>
+<p><code>--apply</code> requires <code>--plan</code> from a seen dry-run of the same action + target.</p>
+<h3 id="enforce">enforce<a class="headerlink" href="#enforce" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma enforce run [--root DIR] [--apply | --dry-run]
+plasma enforce status
+plasma enforce pending
+plasma enforce approve --id ID [--apply]
+</code></pre></div>
+<p>Tier 0 prevention: findings become allowlisted, reversible containment.
+Armed by default but narrow: <code>snapshot</code> + <code>kill_process</code> at score 9+, a
+2-action per-run cap and a 30-minute cooldown; isolation and every other
+action require approval. The policy still gates each action. The installer
+registers <code>PlasmaWatch</code>, which runs <code>plasma watch once --enforce</code> at boot
+and every 5 minutes.</p>
+<h3 id="protect">protect<a class="headerlink" href="#protect" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma protect status
+plasma protect protected
+plasma protect arm [--apply-prevention --reason TEXT]
+plasma protect disarm [--reason TEXT]
+</code></pre></div>
+<p>Inspect or change the measured posture. <code>arm</code> writes the measured
+enforcement block; <code>disarm</code> sets <code>enabled: false</code> and <code>mode: "dry-run"</code>.
+<code>protected</code> lists the services, processes, accounts and paths the response
+layer refuses to touch.</p>
+<h3 id="prevent">prevent<a class="headerlink" href="#prevent" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma prevent status
+plasma prevent posture
+plasma prevent cfa [--mode off|audit|block] [--apply --plan ID --reason TEXT]
+plasma prevent network [--mode off|audit|block] [--apply --plan ID --reason TEXT]
+plasma prevent driver-blocklist [--off] [--apply --plan ID --reason TEXT]
+plasma prevent applocker [--mode audit|enforce] [--allow-path P]... [--apply --plan ID --reason TEXT]
+plasma prevent egress --allow IP[:PORT]... [--apply --plan ID --reason TEXT]
+plasma prevent asr --ids GUID[,GUID] [--action Audit|Enabled|Disabled] [--apply --plan ID --reason TEXT]
+plasma prevent lsa [--off] [--apply --plan ID --reason TEXT]
+plasma prevent rollback --id ID [--apply]
+</code></pre></div>
+<p>Tier 1 prevention through Windows enforcement points. Every control is
+dry-run first, plan-gated, verified, journaled and undoable by id.
+AppLocker defaults to audit; egress requires an explicit allowlist; ASR needs
+Defender; LSA takes effect after a reboot. <code>posture</code> is read-only and reports
+WDAC, Controlled Folder Access, Network Protection, the vulnerable driver
+blocklist, ASR counts and tamper protection. <code>cfa</code>, <code>network</code> and
+<code>driver-blocklist</code> are opt-in, plan-gated and rollbackable; WDAC stays
+read-only.</p>
+<h3 id="update">update<a class="headerlink" href="#update" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma update check [--repo OWNER/NAME] [--token-env VAR]
+plasma update apply [--bin PATH] [--root PATH] [--allow-unsigned]
+plasma update auto [--root PATH] [--ring canary|broad|rollback]
+                   [--check-only] [--force] [--allow-unsigned] [--no-notify]
+</code></pre></div>
+<p>Anonymous against the public repo; signature-pinned. <code>update auto</code> is the
+measured self-update path: it respects the deployment ring, the 02:00–05:00
+maintenance window, the 24-hour canary hold, the kill switch and one-at-a-
+time locking. The installer registers <code>PlasmaUpdate</code> to run it daily;
+<code>--no-autoupdate</code> disables it.</p>
+<h3 id="control-agent-trust-layer">control (agent trust layer)<a class="headerlink" href="#control-agent-trust-layer" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma control policy show|set
+plasma control approvals list|approve|deny
+plasma control audit tail|verify
+plasma control killswitch status|on|off
+plasma control tenants list|add|remove
+</code></pre></div>
+<p><code>policy set</code> accepts <code>--autonomy assist|supervised|autonomous</code>, <code>--deny</code>,
+<code>--allow</code>, <code>--max-actions</code>, <code>--max-hosts</code> and <code>--allow-critical</code>.
+<code>audit verify</code> exits 2 if the hash chain is broken. Approvals are single-use
+and bound to the tool and argument hash.</p>
+<h3 id="mcp">mcp<a class="headerlink" href="#mcp" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma mcp serve [--root PATH]
+</code></pre></div>
+<p>MCP over stdio. Twenty typed tools; mutating tools return a dry-run plan and
+approval reference, never an execution. See
+<a href="../agent-native/">Agent-native operation</a>.</p>
+<h3 id="serve">serve<a class="headerlink" href="#serve" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma serve [--host 127.0.0.1] [--port 9999] [--api-key KEY]
+             [--api-key-file FILE] [--root PATH] [--read-only]
+             [--tls-cert FILE --tls-key FILE] [--timeout SECONDS]
+             [--max-body BYTES] [--max-output BYTES] [--no-audit] [--quiet]
+</code></pre></div>
+<p>The full CLI over an authenticated HTTP API. <code>POST /v1/exec</code> takes an argv
+list and runs it through the real parser; <code>GET /v1/commands</code> returns the
+command tree. The default bind is loopback; a non-loopback bind refuses the
+known default key <code>plasmaplasma</code> unless <code>--allow-insecure-default-key</code> is set.
+Use <code>--api-key-file</code> or
+<code>PLASMA_SERVE_API_KEY</code> in production. <code>--read-only</code> refuses every mutating
+command. Every call is written to <code>&lt;root&gt;/serve/audit.jsonl</code>. See
+<a href="../serve/">HTTP API</a>.</p>
+<h3 id="evidence">evidence<a class="headerlink" href="#evidence" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma evidence export [--framework cbn ndpa pci iso27001] [--out FILE]
+</code></pre></div>
+<p>Writes a JSON control matrix and a Markdown companion.</p>
+<h3 id="assurance">assurance<a class="headerlink" href="#assurance" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma assurance sbom [--out FILE]
+plasma assurance safety-case [--out FILE]
+plasma assurance support-bundle [--out FILE]
+plasma assurance notices
+</code></pre></div>
+<h2 id="deployment-rings">Deployment rings<a class="headerlink" href="#deployment-rings" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>plasma ring status
+plasma ring assign HOST [--ring canary]
+plasma ring promote RING
+plasma rollback [--bin PATH]
+</code></pre></div>
+<h3 id="manifest-bundle">manifest / bundle<a class="headerlink" href="#manifest-bundle" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>plasma manifest create --dir DIR [--version X]
+plasma manifest verify --dir DIR
+plasma bundle build    [--out DIR] [--engines DIR] [--platform NAME]
+</code></pre></div>
+<p>Integrity tooling for the embedded payload.</p>
+<h2 id="common-environment-variables">Common environment variables<a class="headerlink" href="#common-environment-variables" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Used by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PLASMA_GITHUB_TOKEN</code></td>
+<td>optional token for private forks</td>
+</tr>
+<tr>
+<td><code>PLASMA_SIGNER_THUMBPRINTS</code></td>
+<td>override the pinned update signers</td>
+</tr>
+<tr>
+<td><code>PLASMA_TG_TOKEN</code></td>
+<td>Telegram alert token (via <code>notify.json</code> <code>token_env</code>)</td>
+</tr>
+<tr>
+<td><code>WS1PW</code>, <code>WS2PW</code>, …</td>
+<td>fleet inventory <code>password_env</code> values</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/DrOlu/plasma" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["search.suggest", "search.highlight", "navigation.tabs", "navigation.sections", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

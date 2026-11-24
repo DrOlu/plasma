@@ -132,6 +132,24 @@ make an untrusted plugin safe.
 - Response: `rotate_credential` prints the new password once and never
   writes it to the journal.
 
+## Estate ledger data handling
+
+`plasma estate build` runs on the endpoint and reduces a bounded window to
+counts. The ledger contains account names, first/last timestamps, bounded
+source addresses, logon types, `user>process` pairs and file hashes. It does
+**not** contain command lines, file paths, event descriptions or the event
+rows themselves. Machine and service accounts are excluded.
+
+Every ledger carries a SHA-256 over its canonical body. `plasma estate load`,
+`merge --dir` and `status` recompute it and refuse a modified ledger. This is
+an integrity check, **not a signature**: it detects corruption and casual
+edits, while the trust boundary remains the desk's filesystem ACL and the
+WinRM channel. The desk stores one current ledger per host under `hosts/` and
+replaces it on each pull; retention is an explicit copy, not an implicit
+history.
+Transport to the desk is WinRM (HTTPS recommended) or a local file for
+air-gapped estates.
+
 ## Update integrity
 
 From 1.2.0 the update path verifies **two independent anchors**: the

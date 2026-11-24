@@ -160,6 +160,29 @@ Apply checks the kill switch and the enabled flag, runs only the declared argv,
 verifies and journals the rollback. Paths must sit under the plugin's declared
 filesystem roots.
 
+## Estate ledger
+
+The estate ledger is the scheduled, estate-wide counterpart to `fleet pull`.
+Each host reduces its recent store to a hash-sealed count ledger; the desk merges
+the newest ledger per host and correlates identity fan-out and stale hosts.
+
+```powershell
+plasma estate sync --inventory inventory.json --out-dir C:\PlasmaEstate --interval 300 --loop
+plasma estate findings --ledger C:\PlasmaEstate\estate.json --threshold 5
+plasma estate status   --ledger C:\PlasmaEstate\estate.json
+```
+
+Run it on the same cadence as `watch` (typically 5–15 minutes). Check
+`failures` in each sync summary: a host that cannot build a ledger is a
+coverage problem, not a quiet host. A `stale_host` finding means the desk has
+not refreshed that host inside `--max-age`. A score-7 user fan-out is a
+same-name pattern until a shared source address proves otherwise; escalate to
+`plasma fleet pull` for the hosts involved before acting.
+
+Keep `estate.json` and `hosts/` on the desk, not on endpoints. Replace-in-place
+means the view is current, not historical — copy a snapshot into a case
+directory if it must be retained. See [Estate edge ledger](estate-ledger.md).
+
 ## Updates
 
 ```powershell

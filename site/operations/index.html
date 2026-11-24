@@ -1,0 +1,2607 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A lake-less Windows EDR: on-box sensors, on-device questions, and human-gated, reversible response. No log lake, no cloud, no blind trust.">
+      
+      
+      
+        <link rel="canonical" href="https://drolu.github.io/plasma/operations/">
+      
+      
+        <link rel="prev" href="../serve/">
+      
+      
+        <link rel="next" href="../atomic-smoke/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Operations - Plasma</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/raft.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#operations" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Plasma" class="md-header__button md-logo" aria-label="Plasma" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Plasma
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Operations
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/DrOlu/plasma" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DrOlu/plasma
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+  
+  Start
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../agent-native/" class="md-tabs__link">
+          
+  
+  
+  Agent
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../sensors/" class="md-tabs__link">
+          
+  
+  
+  Detect
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../response/" class="md-tabs__link">
+          
+  
+  
+  Operate
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../compliance/" class="md-tabs__link">
+          
+  
+  
+  Trust
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cli/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Plasma" class="md-nav__button md-logo" aria-label="Plasma" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Plasma
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DrOlu/plasma" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DrOlu/plasma
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Start
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enterprise-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enterprise deployment (AD)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment (MSI/GPO)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Agent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent-native/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent-native operation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neuralosd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    neuralOSd orchestrator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../control-plane/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control plane
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state-machines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State machines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detect
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Detect
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sensors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../detection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profile-anomaly/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles and anomaly scores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fim/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File integrity (FIM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sigma/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma conversion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory scanning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../investigate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DTrace tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../response/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Response
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prevention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prevention and blocking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intercept/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interception
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fleet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fleet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../estate-ledger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estate edge ledger
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serve/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP API (serve)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#health" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Health
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enforcement-posture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enforcement posture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#watch-the-scheduled-sweep" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Watch — the scheduled sweep
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Watch — the scheduled sweep">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enforcement-and-prevention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enforcement and prevention
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugins
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estate-ledger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estate ledger
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Updates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#store-hygiene" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Store hygiene
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#identity-pulls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Identity pulls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#drift-baselines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Drift baselines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#asking-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asking questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#observatory-self-knowledge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observatory (self-knowledge)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#canaries-and-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canaries and tokens
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory-scanning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory scanning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interception" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interception
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scheduling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scheduling
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../atomic-smoke/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atomic smoke test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../update-signing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates & signing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trust
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Trust
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compliance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compliance evidence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assurance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assurance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-audit-1.24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security audit 1.24
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#health" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Health
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enforcement-posture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enforcement posture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#watch-the-scheduled-sweep" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Watch — the scheduled sweep
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Watch — the scheduled sweep">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notifications
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enforcement-and-prevention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enforcement and prevention
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Plugins
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estate-ledger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estate ledger
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Updates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#store-hygiene" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Store hygiene
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#identity-pulls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Identity pulls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#drift-baselines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Drift baselines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#asking-questions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Asking questions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#observatory-self-knowledge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observatory (self-knowledge)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#canaries-and-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canaries and tokens
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory-scanning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory scanning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interception" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interception
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scheduling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scheduling
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="operations">Operations<a class="headerlink" href="#operations" title="Permanent link">&para;</a></h1>
+<h2 id="health">Health<a class="headerlink" href="#health" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">health</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Fails when</th>
+<th>Verdict impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>events_store</code></td>
+<td>store is not writable</td>
+<td>degraded</td>
+</tr>
+<tr>
+<td><code>whids_service</code></td>
+<td>expected but not Running</td>
+<td><strong>down</strong></td>
+</tr>
+<tr>
+<td><code>sysmon_feed</code></td>
+<td>no Sysmon event within 60 min</td>
+<td><strong>down</strong></td>
+</tr>
+<tr>
+<td><code>sysmon_service</code></td>
+<td>Sysmon expected but stopped</td>
+<td><strong>down</strong></td>
+</tr>
+<tr>
+<td><code>tap_sidecar</code></td>
+<td>tap binary missing</td>
+<td>degraded</td>
+</tr>
+<tr>
+<td><code>sensor_heartbeat</code></td>
+<td>newest store row older than 24 h</td>
+<td>degraded</td>
+</tr>
+<tr>
+<td><code>rdp_hardening_drift</code></td>
+<td>RDP disabled or security layer drifted</td>
+<td>degraded</td>
+</tr>
+<tr>
+<td><code>canary_integrity</code></td>
+<td>a deployed canary is missing or modified</td>
+<td>degraded</td>
+</tr>
+<tr>
+<td><code>blind_spot_accounting</code></td>
+<td>never — it names known gaps</td>
+<td>informational</td>
+</tr>
+<tr>
+<td><code>install_mode</code></td>
+<td>never — it documents MINIMAL mode</td>
+<td>informational</td>
+</tr>
+</tbody>
+</table>
+<p>MINIMAL-mode nodes are not penalized for lacking WHIDS: the sensor list comes
+from the install decision recorded in <code>config.json</code>.</p>
+<p>The verdict now includes a <code>blind_spots[]</code> list: skipped sensors, disabled
+Sysmon event IDs, failed feeds, an undeployed canary, and the coverage
+engine's named ATT&amp;CK gaps. A blind spot is not a service failure, but it is
+never silent either.</p>
+<h2 id="enforcement-posture">Enforcement posture<a class="headerlink" href="#enforcement-posture" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">prevent</span> <span class="n">posture</span>
+</code></pre></div>
+<p>Inventory of the signed Windows controls behind prevention: active WDAC
+policy files, Controlled Folder Access, Network Protection, the vulnerable
+driver blocklist, ASR rule counts, real-time protection and tamper
+protection. Each row says whether Plasma can apply it and gives the preview
+command. WDAC stays read-only; CFA, Network Protection and the driver
+blocklist are opt-in and plan-gated with rollback.</p>
+<h2 id="watch-the-scheduled-sweep">Watch — the scheduled sweep<a class="headerlink" href="#watch-the-scheduled-sweep" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">watch</span> <span class="n">once</span>                 <span class="c"># one sweep, JSON + exit code</span>
+<span class="n">plasma</span> <span class="n">watch</span> <span class="n">loop</span> <span class="p">-</span><span class="n">-every</span> <span class="n">3600</span>    <span class="c"># long-running; or schedule `watch once`</span>
+</code></pre></div>
+<p>A sweep gathers:</p>
+<ol>
+<li>the health verdict,</li>
+<li>drift against the <code>attest</code> baseline,</li>
+<li><strong>new</strong> WHIDS alert rows since the last sweep (growth-based, so pulled
+   rows never re-fire),</li>
+<li>chain matches over the events tail,</li>
+<li>canary-file integrity (missing/modified = score 10).</li>
+</ol>
+<p>Output: <code>findings[]</code>, <code>top_score</code>, and a verdict of <strong>clean /
+investigate / act now</strong>. <code>watch-state.json</code> records each run;
+<code>watch-alerts-state.json</code> tracks the alert-row watermark.</p>
+<h3 id="notifications">Notifications<a class="headerlink" href="#notifications" title="Permanent link">&para;</a></h3>
+<p><code>&lt;root&gt;/notify.json</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"channels"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"telegram"</span><span class="p">,</span><span class="w"> </span><span class="nt">"token_env"</span><span class="p">:</span><span class="w"> </span><span class="s2">"PLASMA_TG_TOKEN"</span><span class="p">,</span><span class="w"> </span><span class="nt">"chat_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"123456789"</span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"webhook"</span><span class="p">,</span><span class="w">  </span><span class="nt">"url"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://hooks.example.com/plasma"</span><span class="p">}</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"min_score"</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li>Secrets are <strong>only</strong> via <code>token_env</code>; inline token fields are refused.</li>
+<li>Delivery is gated by <code>min_score</code> (default 7).</li>
+<li>Alerts are <strong>throttled by the loudest finding's type</strong>: at most one
+  message per finding type per hour, and the throttle window only burns
+  when a channel actually accepted the message. A broken webhook retries
+  next sweep.</li>
+<li><code>plasma notify show</code> validates the file; <code>plasma notify test</code> sends one.</li>
+</ul>
+<h2 id="enforcement-and-prevention">Enforcement and prevention<a class="headerlink" href="#enforcement-and-prevention" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">protect</span> <span class="n">status</span>                  <span class="c"># armed? containment + prevention + protected</span>
+<span class="n">plasma</span> <span class="n">protect</span> <span class="n">protected</span>               <span class="c"># what the response layer refuses to touch</span>
+<span class="n">plasma</span> <span class="n">protect</span> <span class="n">disarm</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"change window"</span>
+<span class="n">plasma</span> <span class="n">protect</span> <span class="n">arm</span>
+<span class="n">plasma</span> <span class="n">enforce</span> <span class="n">status</span>                  <span class="c"># policy, journal counts, kill switch</span>
+<span class="n">plasma</span> <span class="n">enforce</span> <span class="n">run</span>                     <span class="c"># dry-run proposals</span>
+<span class="n">plasma</span> <span class="n">enforce</span> <span class="n">run</span> <span class="p">-</span><span class="n">-apply</span>             <span class="c"># policy still gates every action</span>
+<span class="n">plasma</span> <span class="n">enforce</span> <span class="n">pending</span>
+<span class="n">plasma</span> <span class="n">enforce</span> <span class="n">approve</span> <span class="p">-</span><span class="n">-id</span> <span class="n">4</span> <span class="p">-</span><span class="n">-apply</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">status</span>                  <span class="c"># read-only posture</span>
+<span class="n">plasma</span> <span class="n">prevent</span> <span class="n">rollback</span> <span class="p">-</span><span class="n">-id</span> <span class="n">7</span> <span class="p">-</span><span class="n">-apply</span> <span class="c"># undo an applied prevention control</span>
+</code></pre></div>
+<p>Containment ships armed but narrow: <code>snapshot</code> + <code>kill_process</code> at score
+9+, 2 actions per run, 30-minute cooldown. Isolation and every other action
+require approval. The installer registers <code>PlasmaWatch</code>, which runs
+<code>watch once --enforce</code> at boot and every 5 minutes; <code>--no-autoprotect</code>
+removes it and installs the old dry-run posture. <code>PlasmaWatch</code>,
+<code>PlasmaWhidsWatchdog</code> and <code>PlasmaCanaryShield</code> carry both an <code>AtStartup</code>
+trigger and <code>StartWhenAvailable</code>, so a reboot or a missed timer run is
+picked up immediately. <code>PlasmaUpdate</code> deliberately keeps its daily
+maintenance-window trigger and does not run at boot.</p>
+<p><code>enforce-journal.jsonl</code> records every decision (including refusals and
+cooldowns); <code>prevent-journal.jsonl</code> records every control change with its
+undo recipe. Prevention backups live in <code>prevent-backups/</code>. Neither file is
+rotated automatically — they are audit records.</p>
+<h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
+<p>Plugins are installed once, verified, enabled explicitly and then run on a
+cadence or on demand.</p>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">plugin</span> <span class="n">list</span>
+<span class="n">plasma</span> <span class="n">plugin</span> <span class="n">verify</span> <span class="n">acme</span> <span class="p">-</span><span class="n">-pubkey</span> <span class="n">acme</span><span class="p">.</span><span class="n">pem</span>
+<span class="n">plasma</span> <span class="n">plugin</span> <span class="n">health</span> <span class="n">acme</span>
+<span class="n">plasma</span> <span class="n">plugin</span> <span class="n">run</span> <span class="n">acme</span> <span class="p">-</span><span class="n">-max-events</span> <span class="n">100</span>
+<span class="n">plasma</span> <span class="n">plugin</span> <span class="n">run</span> <span class="n">acme-detector</span> <span class="p">-</span><span class="n">-since</span> <span class="n">1h</span>
+<span class="n">plasma</span> <span class="n">plugin</span> <span class="n">disable</span> <span class="n">acme</span>
+</code></pre></div>
+<p><code>install</code> verifies the manifest, entrypoint, payload digest and Ed25519
+signature, then copies the payload under <code>&lt;root&gt;\plugins\&lt;name&gt;</code>; it does not
+enable it. <code>disable</code> is the quick containment. Sensor runs enforce the
+manifest's <code>max_events</code>, <code>max_line_bytes</code> and <code>timeout_seconds</code>, log stderr to
+<code>&lt;root&gt;\logs\plugin-&lt;name&gt;.log</code>, and quarantine a plugin after ten invalid
+records.</p>
+<p><strong>Ingest and export</strong> are bounded adapters, not collectors:</p>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">ingest</span> <span class="n">jsonl</span> <span class="p">.\</span><span class="n">events</span><span class="p">.</span><span class="n">jsonl</span> <span class="p">-</span><span class="n">-max-events</span> <span class="n">500</span>
+<span class="n">plasma</span> <span class="n">ingest</span> <span class="n">evtx</span> <span class="p">-</span><span class="n">-channel</span> <span class="n">System</span> <span class="p">-</span><span class="n">-since</span> <span class="n">15</span> <span class="p">-</span><span class="n">-max-events</span> <span class="n">200</span>
+<span class="n">plasma</span> <span class="n">ingest</span> <span class="n">webhook</span> <span class="p">-</span><span class="n">-port</span> <span class="n">8787</span> <span class="p">-</span><span class="n">-secret-env</span> <span class="n">PLASMA_INGEST_SECRET</span> <span class="p">-</span><span class="n">-once</span>
+<span class="n">plasma</span> <span class="n">export</span> <span class="n">webhook</span> <span class="p">-</span><span class="n">-url</span> <span class="n">https</span><span class="p">://</span><span class="n">siem</span><span class="p">.</span><span class="n">example</span><span class="p">/</span><span class="n">ingest</span> <span class="p">-</span><span class="n">-since</span> <span class="n">1h</span>
+<span class="n">plasma</span> <span class="n">export</span> <span class="n">syslog</span> <span class="p">-</span><span class="n">-host</span> <span class="n">192</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">2</span><span class="p">.</span><span class="n">10</span> <span class="p">-</span><span class="n">-port</span> <span class="n">514</span> <span class="p">-</span><span class="n">-protocol</span> <span class="n">udp</span>
+</code></pre></div>
+<p>A failed export spools the unsent tail under <code>&lt;root&gt;\export-spool</code> with a
+5,000-line cap. Drain and retry; do not raise the cap indefinitely.</p>
+<p><strong>Responder actions</strong> stay plan-gated:</p>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">plugin</span> <span class="n">actions</span>
+<span class="n">plasma</span> <span class="n">plugin</span> <span class="n">act</span> <span class="n">acme</span><span class="p">.</span><span class="n">restart_agent</span> <span class="p">-</span><span class="n">-args</span><span class="o">-file</span> <span class="n">args</span><span class="p">.</span><span class="n">json</span>
+<span class="n">plasma</span> <span class="n">plugin</span> <span class="n">act</span> <span class="n">acme</span><span class="p">.</span><span class="n">restart_agent</span> <span class="p">-</span><span class="n">-args</span><span class="o">-file</span> <span class="n">args</span><span class="p">.</span><span class="n">json</span> <span class="p">-</span><span class="n">-apply</span> <span class="p">-</span><span class="n">-plan</span> <span class="p">&lt;</span><span class="n">id</span><span class="p">&gt;</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"change window"</span>
+<span class="n">plasma</span> <span class="n">plugin</span> <span class="n">undo</span> <span class="p">&lt;</span><span class="n">journal-id</span><span class="p">&gt;</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"rollback"</span>
+</code></pre></div>
+<p>Apply checks the kill switch and the enabled flag, runs only the declared argv,
+verifies and journals the rollback. Paths must sit under the plugin's declared
+filesystem roots.</p>
+<h2 id="estate-ledger">Estate ledger<a class="headerlink" href="#estate-ledger" title="Permanent link">&para;</a></h2>
+<p>The estate ledger is the scheduled, estate-wide counterpart to <code>fleet pull</code>.
+Each host reduces its recent store to a hash-sealed count ledger; the desk merges
+the newest ledger per host and correlates identity fan-out and stale hosts.</p>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">estate</span> <span class="n">sync</span> <span class="p">-</span><span class="n">-inventory</span> <span class="n">inventory</span><span class="p">.</span><span class="n">json</span> <span class="p">-</span><span class="n">-out-dir</span> <span class="n">C</span><span class="p">:\</span><span class="n">PlasmaEstate</span> <span class="p">-</span><span class="n">-interval</span> <span class="n">300</span> <span class="p">-</span><span class="n">-loop</span>
+<span class="n">plasma</span> <span class="n">estate</span> <span class="n">findings</span> <span class="p">-</span><span class="n">-ledger</span> <span class="n">C</span><span class="p">:\</span><span class="n">PlasmaEstate</span><span class="p">\</span><span class="n">estate</span><span class="p">.</span><span class="n">json</span> <span class="p">-</span><span class="n">-threshold</span> <span class="n">5</span>
+<span class="n">plasma</span> <span class="n">estate</span> <span class="n">status</span>   <span class="p">-</span><span class="n">-ledger</span> <span class="n">C</span><span class="p">:\</span><span class="n">PlasmaEstate</span><span class="p">\</span><span class="n">estate</span><span class="p">.</span><span class="n">json</span>
+</code></pre></div>
+<p>Run it on the same cadence as <code>watch</code> (typically 5–15 minutes). Check
+<code>failures</code> in each sync summary: a host that cannot build a ledger is a
+coverage problem, not a quiet host. A <code>stale_host</code> finding means the desk has
+not refreshed that host inside <code>--max-age</code>. A score-7 user fan-out is a
+same-name pattern until a shared source address proves otherwise; escalate to
+<code>plasma fleet pull</code> for the hosts involved before acting.</p>
+<p>Keep <code>estate.json</code> and <code>hosts/</code> on the desk, not on endpoints. Replace-in-place
+means the view is current, not historical — copy a snapshot into a case
+directory if it must be retained. See <a href="../estate-ledger/">Estate edge ledger</a>.</p>
+<h2 id="updates">Updates<a class="headerlink" href="#updates" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">update</span> <span class="n">auto</span> <span class="p">-</span><span class="n">-check-only</span>   <span class="c"># exit 2 when an update is available</span>
+<span class="n">plasma</span> <span class="n">update</span> <span class="n">auto</span>                <span class="c"># apply if due</span>
+<span class="n">plasma</span> <span class="n">update</span> <span class="n">auto</span> <span class="p">-</span><span class="n">-force</span>        <span class="c"># reinstall even if the version matches</span>
+<span class="n">plasma</span> <span class="n">update</span> <span class="n">auto</span> <span class="p">-</span><span class="n">-ring</span> <span class="n">canary</span>  <span class="c"># override the configured ring</span>
+<span class="n">plasma</span> <span class="n">update</span> <span class="n">check</span>
+<span class="n">plasma</span> <span class="n">update</span> <span class="n">apply</span>
+<span class="n">plasma</span> <span class="n">rollback</span>
+</code></pre></div>
+<p>The installer registers <code>PlasmaUpdate</code>, a daily SYSTEM task with a random
+minute inside the 02:00–05:00 maintenance window. It applies <strong>signed</strong>
+releases only, through the same SHA256 + Authenticode + install + rotate
+path as <code>update apply</code>. <code>broad</code> hosts wait 24 hours after publication;
+<code>canary</code> hosts update first; <code>rollback</code> hosts never auto-update. The kill
+switch pauses updates. A host's explicit ring assignment wins over the
+configured default. Around the swap Plasma stops the tasks that hold the
+binary (<code>PlasmaServe</code>, <code>PlasmaWatch</code>, <code>PlasmaWhidsWatchdog</code>,
+<code>PlasmaIdentityPull</code>), stops every other <code>plasma*</code> process so no child can
+keep the old image on port 9999, retries a locked image, preserves a stale
+<code>.old</code> backup, restores the previous binary if the swap fails, and restarts
+the tasks afterwards — so <code>PlasmaServe</code> serves the new version. A
+serve-launched update skips <code>PlasmaServe</code> to avoid killing its own process
+tree. The previous binary is kept, so <code>plasma rollback</code> still restores it.
+<code>update-journal.jsonl</code> and <code>update-state.json</code> record every attempt.</p>
+<p><code>--no-autoupdate</code> on install removes the task and disables automatic
+updates. See <a href="../update-signing/">Updates and signing</a>.</p>
+<h2 id="store-hygiene">Store hygiene<a class="headerlink" href="#store-hygiene" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">store</span> <span class="n">stats</span>   <span class="p">-</span><span class="n">-events</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">Plasma</span><span class="p">\</span><span class="n">data</span><span class="p">\</span><span class="n">events</span><span class="p">.</span><span class="n">jsonl</span>
+<span class="n">plasma</span> <span class="n">store</span> <span class="n">rotate</span>  <span class="p">-</span><span class="n">-events</span> <span class="p">...</span> <span class="p">-</span><span class="n">-max-mb</span> <span class="n">50</span> <span class="p">-</span><span class="n">-keep</span> <span class="n">3</span>
+<span class="n">plasma</span> <span class="n">store</span> <span class="n">compact</span> <span class="p">-</span><span class="n">-events</span> <span class="p">...</span>
+</code></pre></div>
+<ul>
+<li><strong>rotate</strong> renames the live file to <code>.1</code>, shifts <code>.k → .k+1</code>, and drops the
+  oldest beyond <code>--keep</code>. Runs are no-ops below the size limit.</li>
+<li><strong>compact</strong> drops exact duplicate rows (key-order-insensitive), preserves
+  torn/noise lines, and swaps atomically via a temp file.</li>
+<li><strong>stats</strong> reports row count, size, kind histogram and time span.</li>
+</ul>
+<p>The store stays a plain JSONL file — rotation never changes the contract.</p>
+<h2 id="identity-pulls">Identity pulls<a class="headerlink" href="#identity-pulls" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">identity</span> <span class="n">pull</span> <span class="p">-</span><span class="n">-events</span> <span class="p">&lt;</span><span class="n">store</span><span class="p">&gt;</span> <span class="p">-</span><span class="n">-since</span> <span class="n">60</span> <span class="p">[-</span><span class="n">-host</span> <span class="n">NAME</span><span class="p">]</span> <span class="p">\</span>
+                    <span class="p">[-</span><span class="n">-ids</span> <span class="n">4624</span><span class="p">,</span><span class="n">4625</span><span class="p">,</span><span class="n">4688</span><span class="p">,</span><span class="n">4768</span><span class="p">,</span><span class="n">4769</span><span class="p">,</span><span class="n">4776</span><span class="p">]</span> <span class="p">[-</span><span class="n">-max-events</span> <span class="n">2000</span><span class="p">]</span>
+</code></pre></div>
+<p>Reads the Security channel from the local host, normalizes auth and process
+records onto the event contract, and appends with dedupe. <code>--host</code> labels the
+rows when the store is shared. Kerberos IDs are only meaningful on a domain
+controller; on a member server they return zero rows by design.</p>
+<h2 id="drift-baselines">Drift baselines<a class="headerlink" href="#drift-baselines" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">drift</span> <span class="n">record</span> <span class="n">attest</span>
+<span class="n">plasma</span> <span class="n">drift</span> <span class="n">score</span>  <span class="n">attest</span>     <span class="c"># exit 0 clean / 2 drift / 1 collection error</span>
+<span class="n">plasma</span> <span class="n">drift</span> <span class="n">list</span>
+</code></pre></div>
+<p>Baselines live under <code>&lt;root&gt;/drift/</code>. Score refuses to overwrite a good
+baseline with a failed collection.</p>
+<h2 id="asking-questions">Asking questions<a class="headerlink" href="#asking-questions" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">ask</span> <span class="p">-</span><span class="n">-prompt</span> <span class="s2">"critical alerts"</span> <span class="p">-</span><span class="n">-events</span> <span class="p">&lt;</span><span class="n">store</span><span class="p">&gt;</span>
+<span class="n">plasma</span> <span class="n">ask</span> <span class="p">-</span><span class="n">-prompt</span> <span class="s2">"network connections to 203.0.113.9"</span> <span class="p">-</span><span class="n">-events</span> <span class="p">&lt;</span><span class="n">store</span><span class="p">&gt;</span>
+<span class="n">plasma</span> <span class="n">probe</span> <span class="p">-</span><span class="n">-tool</span> <span class="n">plasma_persistence</span> <span class="p">-</span><span class="n">-events</span> <span class="p">&lt;</span><span class="n">store</span><span class="p">&gt;</span>
+<span class="n">plasma</span> <span class="n">status</span> <span class="p">-</span><span class="n">-events</span> <span class="p">&lt;</span><span class="n">store</span><span class="p">&gt;</span>
+</code></pre></div>
+<p><code>status</code> shows the bundle identity and the probe menu; <code>probe</code> runs one
+named probe; <code>ask</code> lets the on-device model choose the probe. Every answer
+is JSON; refusals are structured (<code>GATE_VERSION 1</code>), never guesses.</p>
+<h2 id="observatory-self-knowledge">Observatory (self-knowledge)<a class="headerlink" href="#observatory-self-knowledge" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">observe</span> <span class="n">attest</span>
+<span class="n">plasma</span> <span class="n">observe</span> <span class="n">sketch</span>
+<span class="n">plasma</span> <span class="n">observe</span> <span class="n">edges</span>
+<span class="n">plasma</span> <span class="n">observe</span> <span class="n">attackmap</span>
+<span class="n">plasma</span> <span class="n">observe</span> <span class="n">pslogs</span>
+</code></pre></div>
+<p>These are read-only witness questions: can the box see its own logons, its
+services, its network edges? <code>attest</code> includes a <strong>blind check</strong> — a box
+that cannot see itself reports that honestly, and fleet correlation turns
+it into a <code>blind_host</code> finding.</p>
+<h2 id="canaries-and-tokens">Canaries and tokens<a class="headerlink" href="#canaries-and-tokens" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">canary</span> <span class="n">deploy</span> <span class="p">-</span><span class="n">-root</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">Plasma</span> <span class="p">[-</span><span class="n">-dir</span> <span class="n">D</span><span class="p">:\</span><span class="n">Finance</span><span class="p">]</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">verify</span> <span class="p">-</span><span class="n">-root</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">Plasma</span>   <span class="c"># exit 2 when tripped</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">status</span> <span class="p">-</span><span class="n">-root</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">Plasma</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">token</span> <span class="n">create</span> <span class="p">-</span><span class="n">-root</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">Plasma</span> <span class="p">-</span><span class="n">-kind</span> <span class="n">dns</span> <span class="p">-</span><span class="n">-domain</span> <span class="n">assets</span><span class="p">.</span><span class="n">internal</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">sysmon</span> <span class="p">-</span><span class="n">-root</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">Plasma</span> <span class="p">-</span><span class="n">-apply</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">token</span> <span class="n">create</span> <span class="p">-</span><span class="n">-root</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">Plasma</span> <span class="p">-</span><span class="n">-kind</span> <span class="n">http</span> <span class="p">-</span><span class="n">-base-url</span> <span class="n">http</span><span class="p">://</span><span class="n">collector</span><span class="p">:</span><span class="n">8088</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">serve</span> <span class="p">-</span><span class="n">-root</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">Plasma</span> <span class="p">-</span><span class="n">-host</span> <span class="n">127</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">1</span> <span class="p">-</span><span class="n">-port</span> <span class="n">8088</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">collect</span> <span class="p">-</span><span class="n">-root</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">Plasma</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">hits</span> <span class="p">-</span><span class="n">-root</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">Plasma</span>
+</code></pre></div>
+<p>Deploy file canaries once per node (and on data shares with <code>--dir</code>). The
+default layout is randomized and the content is a valid document, so the
+decoy does not announce itself. <code>watch</code> verifies them from then on.</p>
+<p>DNS tokens need a narrow Sysmon include: run <code>canary sysmon --apply</code> after
+creating them. It writes Plasma's baseline plus the token include and
+replaces the current Sysmon config, so review a custom config first. It logs
+only queries ending in a registered token suffix; ordinary DNS traffic stays
+out of the channel. HTTP tokens point at one
+local collector; bind it to loopback or a management VLAN, never the
+internet. Hits are appended to the event store by <code>watch</code> or <code>canary
+collect</code>, and deduplicated across sweeps.</p>
+<p>Add canary accounts to <code>config.json</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"canary"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"accounts"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"svc-print-archive"</span><span class="p">]}}</span>
+</code></pre></div>
+<p>A tripped canary is evidence. Snapshot and isolate before investigating;
+the enforcement policy keeps <code>isolate_host</code> behind approval.</p>
+<h2 id="memory-scanning">Memory scanning<a class="headerlink" href="#memory-scanning" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">memory</span> <span class="n">status</span>
+<span class="n">plasma</span> <span class="n">memory</span> <span class="n">scan</span> <span class="p">-</span><span class="n">-pid</span> <span class="n">4832</span>
+<span class="n">plasma</span> <span class="n">memory</span> <span class="n">scan</span> <span class="p">-</span><span class="n">-pname</span> <span class="n">powershell</span><span class="p">.</span><span class="n">exe</span><span class="p">,</span><span class="n">rundll32</span><span class="p">.</span><span class="n">exe</span> <span class="p">-</span><span class="n">-deep</span>
+<span class="n">plasma</span> <span class="n">memory</span> <span class="n">scan</span> <span class="p">-</span><span class="n">-all</span> <span class="p">-</span><span class="n">-timeout</span> <span class="n">120</span>
+<span class="n">plasma</span> <span class="n">memory</span> <span class="n">list</span>
+</code></pre></div>
+<p>HollowsHunter/PE-sieve is a pinned, on-demand probe for in-memory implants.
+Target a PID or a small name set; <code>--all</code> is explicit. No dumps are written
+by default. <code>--dump</code> is local, explicit and refused with <code>--all</code>. Findings
+land in the event store as <code>source="memory"</code> alerts; a clean scan is a
+point-in-time result, not proof of innocence.</p>
+<h2 id="interception">Interception<a class="headerlink" href="#interception" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">intercept</span> <span class="n">status</span>
+<span class="n">plasma</span> <span class="n">intercept</span> <span class="n">rules</span> <span class="n">add</span> <span class="p">-</span><span class="o">-file</span> <span class="n">rules</span><span class="p">.</span><span class="n">json</span>
+<span class="n">plasma</span> <span class="n">intercept</span> <span class="n">evaluate</span> <span class="p">-</span><span class="n">-events</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">Plasma</span><span class="p">\</span><span class="n">data</span><span class="p">\</span><span class="n">events</span><span class="p">.</span><span class="n">jsonl</span>
+<span class="n">plasma</span> <span class="n">intercept</span> <span class="nb">protect-canary</span>
+<span class="n">plasma</span> <span class="n">intercept</span> <span class="nb">protect-canary</span> <span class="p">-</span><span class="n">-apply</span> <span class="p">-</span><span class="n">-plan</span> <span class="n">7</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"canary protection"</span>
+<span class="n">plasma</span> <span class="n">intercept</span> <span class="n">apply</span> <span class="nb">block-test</span><span class="n">-net</span> <span class="p">-</span><span class="n">-apply</span> <span class="p">-</span><span class="n">-plan</span> <span class="n">12</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"IR-42"</span>
+<span class="n">plasma</span> <span class="n">intercept</span> <span class="n">rollback</span> <span class="p">-</span><span class="n">-id</span> <span class="n">12</span> <span class="p">-</span><span class="n">-apply</span> <span class="p">-</span><span class="n">-plan</span> <span class="n">15</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"test complete"</span>
+</code></pre></div>
+<p>Shadow evaluation reports would-block decisions without changing the host.
+Canary protection adds an NTFS deny ACE; normal Administrator tokens may
+not hold <code>SeSecurityPrivilege</code>, so the audit rule can be skipped while the
+deny still applies. Firewall rules are outbound blocks by destination.
+Every apply is dry-run first, single-use plan-bound, journaled and
+reversible.</p>
+<h2 id="scheduling">Scheduling<a class="headerlink" href="#scheduling" title="Permanent link">&para;</a></h2>
+<p>Task Scheduler (or cron on a desk) runs, at minimum:</p>
+<div class="highlight"><pre><span></span><code>*/15 * * * *   plasma whids pull --root "C:\Program Files\Whids" --out &lt;store&gt;
+0 * * * *      plasma identity pull --events &lt;store&gt; --since 70
+0 */6 * * *    plasma watch once
+</code></pre></div>
+<p>After every <code>watch</code>, re-arm the alert watermark by pulling; otherwise the
+watchman will (correctly) keep reporting growth.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/DrOlu/plasma" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["search.suggest", "search.highlight", "navigation.tabs", "navigation.sections", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

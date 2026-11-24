@@ -1,0 +1,2534 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A lake-less Windows EDR: on-box sensors, on-device questions, and human-gated, reversible response. No log lake, no cloud, no blind trust.">
+      
+      
+      
+        <link rel="canonical" href="https://drolu.github.io/plasma/detection/">
+      
+      
+        <link rel="prev" href="../sensors/">
+      
+      
+        <link rel="next" href="../profile-anomaly/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Detection - Plasma</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/raft.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#detection" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Plasma" class="md-header__button md-logo" aria-label="Plasma" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Plasma
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Detection
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/DrOlu/plasma" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DrOlu/plasma
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+  
+  Start
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../agent-native/" class="md-tabs__link">
+          
+  
+  
+  Agent
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../sensors/" class="md-tabs__link">
+          
+  
+  
+  Detect
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../response/" class="md-tabs__link">
+          
+  
+  
+  Operate
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../compliance/" class="md-tabs__link">
+          
+  
+  
+  Trust
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cli/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Plasma" class="md-nav__button md-logo" aria-label="Plasma" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Plasma
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DrOlu/plasma" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DrOlu/plasma
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Start
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enterprise-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enterprise deployment (AD)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment (MSI/GPO)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Agent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent-native/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent-native operation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neuralosd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    neuralOSd orchestrator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../control-plane/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control plane
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state-machines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State machines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detect
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Detect
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sensors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detection
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#scores-and-verdicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scores and verdicts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gene-rules-always-on-whids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gene rules (always-on, WHIDS)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tap-rules-live-windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tap rules (live windows)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detector-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detector plugins
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#identity-standing-pulls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Identity — standing pulls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dtrace-on-demand-syscall-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DTrace — on-demand syscall evidence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chains-stories-not-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chains — stories, not events
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#drift-what-changed-since-i-last-looked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Drift — what changed since I last looked
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detection-engineering-validate-diff-replay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detection engineering — validate, diff, replay
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coverage-knowing-your-holes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coverage — knowing your holes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Coverage — knowing your holes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-the-always-on-plane-now-reads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the always-on plane now reads
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#canaries-impact-and-access-tripwires" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canaries — impact and access tripwires
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory-scanning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory scanning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ioc-push" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IOC push
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-level-scoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event-level scoring
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profile-anomaly/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles and anomaly scores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fim/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File integrity (FIM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sigma/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma conversion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory scanning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../investigate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DTrace tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../response/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Response
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prevention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prevention and blocking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intercept/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interception
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fleet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fleet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../estate-ledger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estate edge ledger
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serve/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP API (serve)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../atomic-smoke/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atomic smoke test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../update-signing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates & signing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trust
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Trust
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compliance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compliance evidence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assurance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assurance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-audit-1.24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security audit 1.24
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#scores-and-verdicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scores and verdicts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gene-rules-always-on-whids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Gene rules (always-on, WHIDS)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tap-rules-live-windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tap rules (live windows)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detector-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detector plugins
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#identity-standing-pulls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Identity — standing pulls
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dtrace-on-demand-syscall-evidence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DTrace — on-demand syscall evidence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chains-stories-not-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chains — stories, not events
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#drift-what-changed-since-i-last-looked" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Drift — what changed since I last looked
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detection-engineering-validate-diff-replay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detection engineering — validate, diff, replay
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coverage-knowing-your-holes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coverage — knowing your holes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Coverage — knowing your holes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-the-always-on-plane-now-reads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the always-on plane now reads
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#canaries-impact-and-access-tripwires" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Canaries — impact and access tripwires
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#memory-scanning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory scanning
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ioc-push" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IOC push
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#event-level-scoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event-level scoring
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="detection">Detection<a class="headerlink" href="#detection" title="Permanent link">&para;</a></h1>
+<p>Detection in Plasma is written rules and written sequences — nothing is
+learned in the detection path. Every statement carries a fixed score and an
+ATT&amp;CK technique where one applies.</p>
+<p>Detection feeds three consumers: <code>watch</code> (operator sweep), <code>chain</code> (story
+matching) and <code>enforce</code> (policy-gated containment). Only the last can change
+a host, and only when you have enabled it. See
+<a href="../prevention/">Prevention and blocking</a>.</p>
+<h2 id="scores-and-verdicts">Scores and verdicts<a class="headerlink" href="#scores-and-verdicts" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Score</th>
+<th>Meaning</th>
+<th>Typical source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td>act now</td>
+<td>canary tripped, health down</td>
+</tr>
+<tr>
+<td>9</td>
+<td>act now</td>
+<td>lateral hop, persistence-after-privilege, phish chain</td>
+</tr>
+<tr>
+<td>8</td>
+<td>act now</td>
+<td>shared hash, blind host, office-spawn, brute-force success</td>
+</tr>
+<tr>
+<td>7</td>
+<td>investigate</td>
+<td>shared domain/IP, unusual service paths</td>
+</tr>
+<tr>
+<td>5–6</td>
+<td>investigate</td>
+<td>drift changes, new alert growth, encoded command</td>
+</tr>
+<tr>
+<td>0</td>
+<td>clean</td>
+<td>nothing crossing a threshold</td>
+</tr>
+</tbody>
+</table>
+<p><code>watch</code> maps the top score to <strong>clean / investigate / act now</strong> and only
+delivers alerts when the score crosses <code>min_score</code> (default 7) in
+<code>notify.json</code>.</p>
+<h2 id="gene-rules-always-on-whids">Gene rules (always-on, WHIDS)<a class="headerlink" href="#gene-rules-always-on-whids" title="Permanent link">&para;</a></h2>
+<p>Twenty-five baseline rules with ATT&amp;CK tags, criticality 6–9. See
+<a href="../sensors/">Sensors</a> for the table. They run on every Sysmon event, cost
+almost nothing, and produce alert rows with a criticality that becomes the
+event <code>score</code>.</p>
+<p>Adding a rule is a one-line JSON object in <code>sensors/plasma-baseline.gen</code>
+(schema 1.0.0) followed by a reinstall; regexes are validated by tests that
+compile every expression <strong>and</strong> assert positive/negative behavior.</p>
+<h2 id="tap-rules-live-windows">Tap rules (live windows)<a class="headerlink" href="#tap-rules-live-windows" title="Permanent link">&para;</a></h2>
+<p>31 rules for PowerShell script blocks, WMI persistence, DNS tunnels, .NET
+assembly loads and more. They only exist while <code>plasma tap run</code> is alive.
+Rules are rendered into the 7-field pipe format the C++ tap consumes, with
+fields validated against pipes and newlines.</p>
+<h2 id="detector-plugins">Detector plugins<a class="headerlink" href="#detector-plugins" title="Permanent link">&para;</a></h2>
+<p>A detector plugin runs over a bounded event tail and prints findings:</p>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">plugin</span> <span class="n">run</span> <span class="n">acme-detector</span> <span class="p">-</span><span class="n">-since</span> <span class="n">1h</span> <span class="p">-</span><span class="n">-max-rows</span> <span class="n">5000</span>
+</code></pre></div>
+<p>Findings become <code>kind=alert</code> rows with <code>alert_id=plugin:&lt;name&gt;</code>, a clamped
+score, the technique and bounded evidence. The runner enforces a timeout and
+the manifest's <code>max_score</code>. Declarative gene/Sigma packs are validated with the
+existing harness:</p>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">detect</span> <span class="n">validate</span> <span class="p">-</span><span class="n">-rules</span> <span class="n">C</span><span class="p">:\</span><span class="n">plugins</span><span class="p">\</span><span class="n">acme</span><span class="p">\</span><span class="n">rules</span><span class="p">\</span><span class="n">pack</span><span class="p">.</span><span class="n">gen</span>
+</code></pre></div>
+<p>Plugin findings enter the same store, so chains, query and the anomaly scorer
+see them without a second pipeline. They do not drive automatic containment.</p>
+<h2 id="identity-standing-pulls">Identity — standing pulls<a class="headerlink" href="#identity-standing-pulls" title="Permanent link">&para;</a></h2>
+<p>The shipped product registers a SYSTEM task (<code>PlasmaIdentityPull</code>) that runs
+the bounded Security-log pull every 15 minutes, so authentication and
+process-lineage events reach the store between operator sweeps: 4624/4625
+logons, 4648 explicit credentials, 4720/4722/4724 account lifecycle,
+4728/4732/4756 group membership, 4768/4769/4770/4771 Kerberos, 4776 NTLM and
+4688 process creation with parent PID. Directory-service access (4662) and
+special privileges (4672) are supported but excluded from the default pull
+because they are high-volume; ask for them explicitly with <code>--ids</code>.
+Kerberos events exist only on a KDC, so a member server reports zero of them —
+that is data, not an error. Manage the task explicitly with:</p>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">identity</span> <span class="n">schedule</span> <span class="p">-</span><span class="n">-root</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">Plasma</span> <span class="p">-</span><span class="n">-every</span> <span class="n">15</span>
+<span class="n">plasma</span> <span class="n">identity</span> <span class="n">schedule-status</span>
+<span class="n">plasma</span> <span class="n">identity</span> <span class="n">unschedule</span>
+</code></pre></div>
+<p>The task is registered by <code>install</code>/<code>update</code> and is independent of <code>watch</code>.</p>
+<h2 id="dtrace-on-demand-syscall-evidence">DTrace — on-demand syscall evidence<a class="headerlink" href="#dtrace-on-demand-syscall-evidence" title="Permanent link">&para;</a></h2>
+<p><code>plasma trace run &lt;script&gt; --for 10s</code> opens a bounded DTrace window (kernel
+syscalls, process creation, ETW) and normalizes matches into the same store
+(<code>kind: "trace"</code>). It is surgical evidence, not always-on coverage, so it is
+deliberately <strong>not</strong> counted in the ATT&amp;CK breadth number. See
+<a href="../trace/">DTrace</a>.</p>
+<h2 id="chains-stories-not-events">Chains — stories, not events<a class="headerlink" href="#chains-stories-not-events" title="Permanent link">&para;</a></h2>
+<p>A single alert says "something happened". A chain says "this, then this,
+then this". Chains are ordered matchers over the events tail with a gap
+window between adjacent steps, plus optional <strong>count</strong> steps.</p>
+<table>
+<thead>
+<tr>
+<th>Chain</th>
+<th>Score</th>
+<th>Story (in time order)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>phish_spawn_chain</code></td>
+<td>9</td>
+<td>Office app → script host (powershell/wscript/cscript/mshta) → encoded command or egress, all within 15 min</td>
+</tr>
+<tr>
+<td><code>brute_force_success</code></td>
+<td>8</td>
+<td>≥5 failed logons for one user, then a success, within 60 min</td>
+</tr>
+<tr>
+<td><code>persistence_after_privilege</code></td>
+<td>9</td>
+<td>account/group change → persistence-shaped command (schtasks, service, run key, WMI), within 60 min</td>
+</tr>
+<tr>
+<td><code>account_creation_privilege</code></td>
+<td>9</td>
+<td>a new account (4720) → privileged group membership (4728/4732/4756), within 30 min</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">chain</span> <span class="n">score</span> <span class="p">-</span><span class="n">-events</span> <span class="n">C</span><span class="p">:\</span><span class="n">ProgramData</span><span class="p">\</span><span class="n">Plasma</span><span class="p">\</span><span class="n">data</span><span class="p">\</span><span class="n">events</span><span class="p">.</span><span class="n">jsonl</span>
+<span class="n">plasma</span> <span class="n">chain</span> <span class="n">score</span> <span class="p">-</span><span class="n">-events</span> <span class="p">...</span> <span class="p">-</span><span class="n">-window</span> <span class="n">1800</span> <span class="p">-</span><span class="n">-max-rows</span> <span class="n">5000</span>
+</code></pre></div>
+<p>Semantics worth knowing:</p>
+<ul>
+<li>Matching is on <strong>timestamps</strong>, not file order; input order is irrelevant.</li>
+<li>The matcher backtracks: a dead-end candidate does not hide a later match.</li>
+<li>Each built-in chain carries its own <code>gap_seconds</code>; the <code>--window</code> flag is
+  the default for chains that do not specify one.</li>
+<li>Every match reports the span, the users involved and the matched rows.</li>
+<li>Chains also run inside every <code>watch</code> sweep.</li>
+</ul>
+<h2 id="drift-what-changed-since-i-last-looked">Drift — what changed since I last looked<a class="headerlink" href="#drift-what-changed-since-i-last-looked" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">drift</span> <span class="n">record</span> <span class="n">attest</span>    <span class="c"># snapshot today's truth</span>
+<span class="n">plasma</span> <span class="n">drift</span> <span class="n">score</span>  <span class="n">attest</span>    <span class="c"># diff now vs baseline, 0-10</span>
+<span class="n">plasma</span> <span class="n">drift</span> <span class="n">list</span>
+</code></pre></div>
+<p><code>attest</code> compares the observatory's self-view (sensor states, blind spots,
+identity/privilege surface). Score 0 means "nothing changed"; every change
+is a finding with its own score. Drift refuses to baseline on a failed
+collection — a broken baseline is worse than none.</p>
+<h2 id="detection-engineering-validate-diff-replay">Detection engineering — validate, diff, replay<a class="headerlink" href="#detection-engineering-validate-diff-replay" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">detect</span> <span class="n">validate</span> <span class="p">-</span><span class="n">-rules</span> <span class="n">sensors</span><span class="p">/</span><span class="n">plasma-baseline</span><span class="p">.</span><span class="n">gen</span>
+<span class="n">plasma</span> <span class="n">detect</span> <span class="n">test</span>
+<span class="n">plasma</span> <span class="n">detect</span> <span class="nb">diff </span><span class="p">-</span><span class="n">-old</span> <span class="n">old</span><span class="p">.</span><span class="n">gen</span> <span class="p">-</span><span class="n">-new</span> <span class="n">candidate</span><span class="p">.</span><span class="n">gen</span>
+<span class="n">plasma</span> <span class="n">detect</span> <span class="n">replay</span> <span class="p">-</span><span class="n">-events</span> <span class="n">captured</span><span class="p">.</span><span class="n">jsonl</span>
+</code></pre></div>
+<p><code>validate</code> compiles every <code>~=</code> regex, checks condition variables and names
+duplicates. <code>test</code> runs a built-in suite of positive and negative chain
+cases (phishing, brute force, Kerberos spray, privilege-to-persistence,
+account creation, injection) and exits 2 if any case breaks. <code>diff</code> compares
+rule sets by name and canonical hash, so an added, removed or silently
+changed rule is visible before promotion. <code>replay</code> runs the chain engine and
+a bounded summary over a captured store; the model is not involved.
+Promotion stays on the install/WHIDS path.</p>
+<h2 id="coverage-knowing-your-holes">Coverage — knowing your holes<a class="headerlink" href="#coverage-knowing-your-holes" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">coverage</span>
+</code></pre></div>
+<p>Diffs the shipped rules (tap + gene baseline + IOC feed + the 259-rule
+Sigma corpus) against a curated list of 37 core on-box ATT&amp;CK techniques.
+It reports:</p>
+<ul>
+<li><code>coverage_pct</code> — <strong>94.6%</strong> (35/37) with ATT&amp;CK parent rollup
+  (a parent counts when any sub-technique is covered);</li>
+<li><code>coverage_exact_pct</code> — <strong>89.2%</strong> (33/37) counting only exact tags;</li>
+<li><code>weighted_pct</code> — <strong>85.9%</strong>, discounting low/medium-fidelity rules
+  (weights 1.0 / 0.7 / 0.4), halving purely keyword-only evidence, and
+  counting only rules whose event IDs the shipped Sysmon config enables;</li>
+<li><code>weighted_all_pct</code> — the same number without the telemetry filter, for
+  comparison;</li>
+<li><code>telemetry_breakdown</code> — techniques by <code>live</code> / <code>partial</code> / <code>dormant</code> /
+  <code>unknown</code>, derived from each rule's <code>Meta.EventIDs</code> against the config;</li>
+<li><code>dormant_techniques</code> — techniques backed only by rules that cannot fire;</li>
+<li><code>covered</code> — technique → rules + per-rule fidelity + <code>evidence</code> + <code>via_subtechnique</code>;</li>
+<li><code>keyword_only</code> — the 4 techniques still backed solely by literal string
+  matches; they count for breadth but not full weight. The label is
+  derived from the rule shape (a rule whose only match key is <code>substr</code>),
+  never hand-set, so it cannot drift from the rules themselves;</li>
+<li><code>blind</code> — the two honest gaps: <strong>T1056 / T1056.001</strong> (input capture —
+  needs kernel hooks). <strong>T1486</strong> is covered by the canary capability
+  (<code>canary:verify</code>), reported with its own provenance. A rule you cannot
+  fire is inventory, not coverage: the telemetry axis makes that explicit;</li>
+<li><code>extra_coverage</code> — techniques watched outside the core list.</li>
+</ul>
+<p>Breadth is deliberately reported alongside fidelity: a report cannot reach
+100% by adding a weak rule, because the weighted number would fall, not
+rise.</p>
+<p>This is the anti-marketing page: a product that cannot list its blind spots
+is not measuring anything.</p>
+<h3 id="what-the-always-on-plane-now-reads">What the always-on plane now reads<a class="headerlink" href="#what-the-always-on-plane-now-reads" title="Permanent link">&para;</a></h3>
+<p>Beyond process creation and registry events, the gene baseline consumes
+three Sysmon events that were previously ignored:</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Rule</th>
+<th>Technique</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10 ProcessAccess</td>
+<td>LSASS opened with credential-dump access rights</td>
+<td>T1003.001</td>
+</tr>
+<tr>
+<td>6 DriverLoad</td>
+<td>unsigned driver loaded from a user-writable path</td>
+<td>T1014</td>
+</tr>
+<tr>
+<td>17/18 PipeCreated</td>
+<td>named pipe shaped like PsExec/Cobalt/Beacon</td>
+<td>T1021, T1090</td>
+</tr>
+</tbody>
+</table>
+<p>Sigma rules can be converted mechanically into the same gene format; see
+<a href="../sigma/">Sigma conversion</a>. Critical-file integrity is covered by
+<a href="../fim/">FIM</a>.</p>
+<h2 id="canaries-impact-and-access-tripwires">Canaries — impact and access tripwires<a class="headerlink" href="#canaries-impact-and-access-tripwires" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">canary</span> <span class="n">deploy</span> <span class="p">[-</span><span class="n">-dir</span> <span class="n">D</span><span class="p">:\</span><span class="n">Finance</span><span class="p">]</span>   <span class="c"># realistic decoys + hash manifest</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">verify</span>                        <span class="c"># exit 2 when a canary is touched</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">status</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">token</span> <span class="n">create</span> <span class="p">-</span><span class="n">-kind</span> <span class="n">dns</span> <span class="p">-</span><span class="n">-domain</span> <span class="n">assets</span><span class="p">.</span><span class="n">internal</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">sysmon</span> <span class="p">-</span><span class="n">-apply</span>                <span class="c"># narrow Sysmon EID 22 include</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">token</span> <span class="n">create</span> <span class="p">-</span><span class="n">-kind</span> <span class="n">http</span> <span class="p">-</span><span class="n">-base-url</span> <span class="n">http</span><span class="p">://</span><span class="n">collector</span><span class="p">:</span><span class="n">8088</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">serve</span> <span class="p">-</span><span class="n">-host</span> <span class="n">127</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">1</span> <span class="p">-</span><span class="n">-port</span> <span class="n">8088</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">collect</span>
+<span class="n">plasma</span> <span class="n">canary</span> <span class="n">hits</span>
+</code></pre></div>
+<p>File canaries are valid xlsx/csv/docx/pdf documents with random
+subdirectories and names. The body never says "canary"; the manifest is the
+only marker. <code>watch</code> verifies them on every sweep: a <strong>missing or modified
+canary is a score-10 finding</strong> (<code>canary_tripped</code>) — the honest detector for
+destructive impact that does not depend on guessing at encryption bursts.
+Deploy them to user-data shares as well as the default <code>Documents</code> folder.</p>
+<p>DNS tokens are unique hostnames. Give the suffix a matching internal DNS
+record (usually a wildcard/sinkhole) so the query reaches a resolver. A
+query is observed through a narrow Sysmon EID 22 include (only the
+configured token suffixes) or any normalized event carrying <code>dns_query</code>;
+<code>watch</code> emits <code>canary_dns_tripped</code> at score 8.
+HTTP tokens are Windows <code>.url</code> shortcuts pointing at <code>plasma canary serve</code>;
+the hit is recorded locally and becomes <code>canary_http_tripped</code> at score 8.
+No Docker, cloud service or external callback is involved.</p>
+<p>Registry canaries are decoy keys under <code>Software\PlasmaDecoy</code>. The active
+shield (<code>plasma canary shield install</code>) adds only the recorded file basenames
+and registry fragments to a narrow Sysmon FileCreate/FileDelete/RegistryEvent
+include and runs a one-minute SYSTEM sweep. It verifies the live PID and
+image, refuses protected/trusted processes, then kills a process that
+creates, deletes or registry-writes a canary. Reads do not trigger; an
+in-place overwrite is still caught by <code>canary verify</code> as a hash change,
+without process attribution.</p>
+<p>Configured canary accounts are queried on every watch sweep:
+<code>config.json</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">"canary"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"accounts"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"svc-print-archive"</span><span class="p">]}}</span>
+</code></pre></div>
+<p>A 4624/4625/4771/4776 for that account becomes
+<code>canary_account_tripped</code> at score 10. A canary hit is evidence, not an
+automatic kill: the response policy still requires approval for host
+isolation.</p>
+<h2 id="memory-scanning">Memory scanning<a class="headerlink" href="#memory-scanning" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">memory</span> <span class="n">scan</span> <span class="p">-</span><span class="n">-pid</span> <span class="n">4832</span>
+<span class="n">plasma</span> <span class="n">memory</span> <span class="n">scan</span> <span class="p">-</span><span class="n">-pname</span> <span class="n">powershell</span><span class="p">.</span><span class="n">exe</span><span class="p">,</span><span class="n">rundll32</span><span class="p">.</span><span class="n">exe</span> <span class="p">-</span><span class="n">-deep</span>
+</code></pre></div>
+<p>HollowsHunter/PE-sieve looks inside running processes for hollowing,
+implanted PEs, shellcode, code patches and IAT hooks. It is on-demand and
+bounded; the scanner is hash-pinned. Findings are <code>source="memory"</code> alerts
+with T1055/T1055.012/T1620 as appropriate. No dumps by default.</p>
+<h2 id="ioc-push">IOC push<a class="headerlink" href="#ioc-push" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">whids</span> <span class="n">pull</span> <span class="p">-</span><span class="n">-events</span> <span class="n">store</span><span class="p">.</span><span class="n">jsonl</span>                  <span class="c"># alerts → store</span>
+<span class="n">plasma</span> <span class="n">whids</span> <span class="n">push</span> <span class="p">-</span><span class="n">-events</span> <span class="n">store</span><span class="p">.</span><span class="n">jsonl</span> <span class="p">-</span><span class="n">-min-confidence</span> <span class="n">8</span>
+<span class="n">plasma</span> <span class="n">whids</span> <span class="n">push</span> <span class="p">-</span><span class="n">-events</span> <span class="n">store</span><span class="p">.</span><span class="n">jsonl</span> <span class="p">-</span><span class="n">-min-confidence</span> <span class="n">8</span> <span class="p">-</span><span class="n">-apply</span> <span class="p">-</span><span class="n">-reason</span> <span class="s2">"..."</span>
+</code></pre></div>
+<p><code>push</code> extracts high-confidence indicators (SHA-256 file hashes, public
+destinations, DNS queries, excluding private and benign domains) and
+regenerates <code>plasma-iocs.gen</code>. Dry-run first; <code>--apply</code> replaces the live
+rule file atomically. The default threshold matches the gene 0–10 scale.</p>
+<h2 id="event-level-scoring">Event-level scoring<a class="headerlink" href="#event-level-scoring" title="Permanent link">&para;</a></h2>
+<p>Raw Plasma rows carry 0–1 scores; <code>_row_score</code> maps them to the 0–10
+criticality WHIDS expects (<code>score * 10</code>, severity fallback). At the finding
+layer everything is 0–10. The scale conversion is unit-tested — a mismatch
+here once caused a default <code>push</code> to extract zero indicators.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/DrOlu/plasma" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["search.suggest", "search.highlight", "navigation.tabs", "navigation.sections", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -82,6 +82,35 @@ Notes:
 - The report is Markdown, deterministic, and sized for pasting into a
   ticket.
 
+## Continuous estate ledger
+
+`fleet` answers an incident question from a bounded event tail. The **estate
+edge ledger** answers the standing question — *who is touching how many hosts
+right now?* — at a cadence, from counts only.
+
+```powershell
+plasma estate sync --inventory inventory.json --out-dir C:\PlasmaEstate `
+  --window 60 --workers 8 --threshold 5 --interval 300 --loop
+plasma estate findings --ledger C:\PlasmaEstate\estate.json
+plasma estate status   --ledger C:\PlasmaEstate\estate.json
+```
+
+Each host reduces its own store to a small hash-sealed ledger (users, sources,
+`user>process` counts and hashes). The desk replaces that host's previous
+ledger, merges everything and raises:
+
+| Finding | Score | Meaning |
+|---|---|---|
+| `estate_user_fanout` | 9 / 7 | one account on many hosts; 9 only when a source address links at least two |
+| `estate_source_fanout` | 9 | one source address across many hosts |
+| `estate_stale_host` | 8 | a host stopped refreshing its ledger |
+| `estate_hash_fanout` | 8 | the same file hash on many hosts |
+| `estate_new_host_edge` | 7 | a user/host pair absent from `--baseline` |
+
+The event diary never leaves the box; only the counts do. See
+[Estate edge ledger](estate-ledger.md) for the schema, caps, scale and
+residency model.
+
 ## Plugin events
 
 Plugin sensor events and detector findings are ordinary rows in the local

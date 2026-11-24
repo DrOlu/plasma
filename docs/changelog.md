@@ -4,6 +4,15 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.29.0 — 2026-11-24
+
+- **Estate edge ledger.** `plasma estate build` reduces a bounded window to a small hash-sealed count ledger: users, first/last seen, bounded sources, logon types, `user>process` pairs and hashes. No command lines, file paths or event rows leave the host.
+- **Merge and correlate.** `estate merge` keeps the newest ledger per host and signs the estate view; `estate findings` raises user fan-out (9 with a shared source, 7 for a same-name pattern), source fan-out, shared file hashes, stale hosts and new host edges against a baseline.
+- **Continuous sync.** `estate sync` pulls one ledger per host in parallel over WinRM or files, saves `hosts/<name>.json`, `estate.json` and `findings.json`, records per-host failures without aborting, and supports `--loop --interval`.
+- **Bounded and verified.** 200 users, 10 sources per user, 200 process pairs and 256 KiB per host ledger; 5,000 identities on the desk. SHA-256 integrity is verified on load, merge and status.
+- **Scale tested.** A 1,000-host, 10,000-identity merge and correlation completes in seconds and stays under the estate byte bound.
+- 1051 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.28.1 — 2026-11-22
 
 - **Responder args from a file.** `plasma plugin act --args-file` reads the JSON argument object from disk, avoiding Windows native-argument quoting when the action takes paths.

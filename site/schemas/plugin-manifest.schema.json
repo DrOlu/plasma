@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://drolu.github.io/plasma/schemas/plugin-manifest.schema.json",
+  "title": "Plasma plugin manifest",
+  "type": "object",
+  "required": ["api_version", "name", "version", "kind", "entrypoint", "runtime", "protocol"],
+  "properties": {
+    "api_version": {"enum": ["1.0"]},
+    "name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"},
+    "version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][A-Za-z0-9._-]+)?$"},
+    "kind": {"enum": ["sensor", "detector", "responder", "exporter"]},
+    "description": {"type": "string"},
+    "entrypoint": {"type": "string"},
+    "runtime": {"enum": ["native", "python", "powershell"]},
+    "protocol": {"enum": ["ndjson-stdio"]},
+    "capabilities": {"type": "array", "items": {"type": "string"}},
+    "permissions": {
+      "type": "object",
+      "additionalProperties": {"type": "array", "items": {"type": "string"}}
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "max_events": {"type": "integer", "minimum": 1},
+        "max_line_bytes": {"type": "integer", "minimum": 1, "maximum": 65536},
+        "timeout_seconds": {"type": "integer", "minimum": 1},
+        "max_score": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "health": {
+      "type": "object",
+      "properties": {
+        "command": {"type": "array", "items": {"type": "string"}},
+        "interval_seconds": {"type": "integer", "minimum": 1}
+      }
+    },
+    "actions": {"type": "string"},
+    "rules": {"type": "string"},
+    "min_core": {"type": "string"}
+  }
+}

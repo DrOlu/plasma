@@ -1,0 +1,5327 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A lake-less Windows EDR: on-box sensors, on-device questions, and human-gated, reversible response. No log lake, no cloud, no blind trust.">
+      
+      
+      
+        <link rel="canonical" href="https://drolu.github.io/plasma/changelog/">
+      
+      
+        <link rel="prev" href="../faq/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
+    
+    
+      
+        <title>Changelog - Plasma</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../stylesheets/raft.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#changelog" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Plasma" class="md-header__button md-logo" aria-label="Plasma" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Plasma
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Changelog
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/DrOlu/plasma" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DrOlu/plasma
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+  
+  Start
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../agent-native/" class="md-tabs__link">
+          
+  
+  
+  Agent
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../sensors/" class="md-tabs__link">
+          
+  
+  
+  Detect
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../response/" class="md-tabs__link">
+          
+  
+  
+  Operate
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../compliance/" class="md-tabs__link">
+          
+  
+  
+  Trust
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../cli/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Plasma" class="md-nav__button md-logo" aria-label="Plasma" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Plasma
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/DrOlu/plasma" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    DrOlu/plasma
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Start
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Start
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enterprise-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enterprise deployment (AD)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deployment (MSI/GPO)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Agent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../agent-native/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent-native operation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neuralosd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    neuralOSd orchestrator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../control-plane/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Control plane
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state-machines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State machines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detect
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Detect
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sensors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../detection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profile-anomaly/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles and anomaly scores
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugin-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fim/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File integrity (FIM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sigma/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sigma conversion
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../memory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory scanning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../investigate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DTrace tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operate
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operate
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../response/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Response
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../prevention/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Prevention and blocking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../intercept/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interception
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fleet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fleet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../estate-ledger/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Estate edge ledger
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../serve/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP API (serve)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../atomic-smoke/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atomic smoke test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../update-signing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Updates & signing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trust
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Trust
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compliance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compliance evidence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../assurance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assurance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security-audit-1.24/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security audit 1.24
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1290-2026-11-24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.29.0 — 2026-11-24
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1281-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.28.1 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1280-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.28.0 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1277-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.7 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1276-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.6 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1275-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.5 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1274-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.4 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1273-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.3 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1272-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.2 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1271-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.1 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1270-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.0 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1266-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.6 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1265-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.5 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1264-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.4 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1263-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.3 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1262-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.2 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1261-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.1 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1260-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.0 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1250-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.25.0 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1241-2026-11-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.24.1 — 2026-11-20
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1240-2026-11-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.24.0 — 2026-11-20
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1230-2026-11-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.23.0 — 2026-11-20
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1220-2026-11-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.22.0 — 2026-11-20
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1210-2026-11-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.21.0 — 2026-11-19
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1201-2026-11-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.20.1 — 2026-11-19
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1200-2026-11-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.20.0 — 2026-11-19
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1193-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.19.3 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1192-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.19.2 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1191-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.19.1 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1190-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.19.0 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1186-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.6 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1185-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.5 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1184-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.4 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1183-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.3 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1182-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.2 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1181-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.1 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1180-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.0 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1171-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.17.1 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1170-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.17.0 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1163-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.16.3 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1162-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.16.2 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1161-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.16.1 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1160-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.16.0 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1159-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.9 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1158-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.8 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1157-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.7 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1156-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.6 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1155-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.5 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1154-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.4 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1153-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.3 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1152-2026-11-16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.2 — 2026-11-16
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1151-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.1 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1150-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.0 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1143-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.14.3 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1142-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.14.2 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1141-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.14.1 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1140-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.14.0 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1130-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.13.0 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1122-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.12.2 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1121-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.12.1 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1120-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.12.0 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1110-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.11.0 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1101-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.10.1 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1100-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.10.0 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#195-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.9.5 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#194-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.9.4 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#193-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.9.3 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#162-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.6.2 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#161-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.6.1 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#192-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.9.2 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#191-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.9.1 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#190-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.9.0 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#187-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.7 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#186-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.6 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#185-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.5 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#184-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.4 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#183-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.3 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#182-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.2 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#181-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.1 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#180-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.0 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#172-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.7.2 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#171-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.7.1 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#170-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.7.0 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#160-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.6.0 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1510-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.10 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#159-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.9 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#158-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.8 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#157-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.7 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#156-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.6 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#155-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.5 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#154-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.4 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#153-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.3 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#152-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.2 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#150-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.0 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#140-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4.0 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#130-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3.0 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#120-2026-11-12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2.0 — 2026-11-12
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#110-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1.0 — 2026-11-05
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#100-2026-10-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.0.0 — 2026-10-19
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#011x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.11.x
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#010x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.10.x
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#09x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.9.x
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#08x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.8.x
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#070" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.7.0
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1290-2026-11-24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.29.0 — 2026-11-24
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1281-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.28.1 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1280-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.28.0 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1277-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.7 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1276-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.6 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1275-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.5 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1274-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.4 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1273-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.3 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1272-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.2 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1271-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.1 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1270-2026-11-22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.27.0 — 2026-11-22
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1266-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.6 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1265-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.5 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1264-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.4 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1263-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.3 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1262-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.2 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1261-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.1 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1260-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.26.0 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1250-2026-11-21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.25.0 — 2026-11-21
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1241-2026-11-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.24.1 — 2026-11-20
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1240-2026-11-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.24.0 — 2026-11-20
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1230-2026-11-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.23.0 — 2026-11-20
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1220-2026-11-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.22.0 — 2026-11-20
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1210-2026-11-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.21.0 — 2026-11-19
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1201-2026-11-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.20.1 — 2026-11-19
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1200-2026-11-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.20.0 — 2026-11-19
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1193-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.19.3 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1192-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.19.2 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1191-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.19.1 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1190-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.19.0 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1186-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.6 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1185-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.5 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1184-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.4 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1183-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.3 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1182-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.2 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1181-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.1 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1180-2026-11-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.18.0 — 2026-11-18
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1171-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.17.1 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1170-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.17.0 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1163-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.16.3 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1162-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.16.2 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1161-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.16.1 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1160-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.16.0 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1159-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.9 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1158-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.8 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1157-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.7 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1156-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.6 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1155-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.5 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1154-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.4 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1153-2026-11-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.3 — 2026-11-17
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1152-2026-11-16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.2 — 2026-11-16
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1151-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.1 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1150-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.15.0 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1143-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.14.3 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1142-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.14.2 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1141-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.14.1 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1140-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.14.0 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1130-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.13.0 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1122-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.12.2 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1121-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.12.1 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1120-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.12.0 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1110-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.11.0 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1101-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.10.1 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1100-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.10.0 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#195-2026-11-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.9.5 — 2026-11-15
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#194-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.9.4 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#193-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.9.3 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#162-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.6.2 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#161-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.6.1 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#192-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.9.2 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#191-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.9.1 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#190-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.9.0 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#187-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.7 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#186-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.6 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#185-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.5 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#184-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.4 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#183-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.3 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#182-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.2 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#181-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.1 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#180-2026-11-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.8.0 — 2026-11-14
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#172-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.7.2 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#171-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.7.1 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#170-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.7.0 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#160-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.6.0 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1510-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.10 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#159-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.9 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#158-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.8 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#157-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.7 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#156-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.6 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#155-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.5 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#154-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.4 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#153-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.3 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#152-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.2 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#150-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.5.0 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#140-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.4.0 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#130-2026-11-13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3.0 — 2026-11-13
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#120-2026-11-12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2.0 — 2026-11-12
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#110-2026-11-05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1.0 — 2026-11-05
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#100-2026-10-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.0.0 — 2026-10-19
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#011x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.11.x
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#010x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.10.x
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#09x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.9.x
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#08x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.8.x
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#070" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.7.0
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
+<p>The canonical history lives in
+<a href="https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md">CHANGELOG.md</a>.
+Highlights by release:</p>
+<h2 id="1290-2026-11-24">1.29.0 — 2026-11-24<a class="headerlink" href="#1290-2026-11-24" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Estate edge ledger.</strong> <code>plasma estate build</code> reduces a bounded window to a small hash-sealed count ledger: users, first/last seen, bounded sources, logon types, <code>user&gt;process</code> pairs and hashes. No command lines, file paths or event rows leave the host.</li>
+<li><strong>Merge and correlate.</strong> <code>estate merge</code> keeps the newest ledger per host and signs the estate view; <code>estate findings</code> raises user fan-out (9 with a shared source, 7 for a same-name pattern), source fan-out, shared file hashes, stale hosts and new host edges against a baseline.</li>
+<li><strong>Continuous sync.</strong> <code>estate sync</code> pulls one ledger per host in parallel over WinRM or files, saves <code>hosts/&lt;name&gt;.json</code>, <code>estate.json</code> and <code>findings.json</code>, records per-host failures without aborting, and supports <code>--loop --interval</code>.</li>
+<li><strong>Bounded and verified.</strong> 200 users, 10 sources per user, 200 process pairs and 256 KiB per host ledger; 5,000 identities on the desk. SHA-256 integrity is verified on load, merge and status.</li>
+<li><strong>Scale tested.</strong> A 1,000-host, 10,000-identity merge and correlation completes in seconds and stays under the estate byte bound.</li>
+<li>1051 tests collected; full suite, ruff and bandit (0 medium/high) pass.</li>
+</ul>
+<h2 id="1281-2026-11-22">1.28.1 — 2026-11-22<a class="headerlink" href="#1281-2026-11-22" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Responder args from a file.</strong> <code>plasma plugin act --args-file</code> reads the JSON argument object from disk, avoiding Windows native-argument quoting when the action takes paths.</li>
+<li>1036 tests collected; full suite, ruff and bandit (0 medium/high) pass.</li>
+</ul>
+<h2 id="1280-2026-11-22">1.28.0 — 2026-11-22<a class="headerlink" href="#1280-2026-11-22" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Plugin ABI.</strong> Four plugin kinds — sensor, detector, responder, exporter — as bounded external processes with a signed manifest, NDJSON contract, per-record validation, quarantine and dedupe. Plugins never write the store directly.</li>
+<li><strong>Sensor and detector host.</strong> <code>plasma plugin run</code> streams events or findings with a hard timeout, line cap, event cap and stderr log; ten invalid records stop the run.</li>
+<li><strong>Responder actions.</strong> <code>plugin act</code> previews exact argv and returns a plan id; apply requires that id and a reason, checks the kill switch and the plugin's enabled state, verifies, journals and supports undo. Paths are checked against declared roots.</li>
+<li><strong>Ingest and export.</strong> JSONL, Windows Event Log and HMAC webhook ingest; batched webhook and syslog export with bounded spooling on failure.</li>
+<li><strong>Signing and scaffolding.</strong> Ed25519 keygen/sign/verify, pinned trust keys, and <code>plugin new</code> for all three plugin kinds.</li>
+<li><strong>Docs and schemas.</strong> <code>docs/plugin-api.md</code> plus manifest and envelope JSON schemas.</li>
+<li>1035 tests collected; full suite, ruff and bandit (0 medium/high) pass.</li>
+</ul>
+<h2 id="1277-2026-11-22">1.27.7 — 2026-11-22<a class="headerlink" href="#1277-2026-11-22" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>TTPForge-driven coverage.</strong> Four new baseline rules close the gaps the ForgeArmory run exposed: masqueraded system binaries (T1036.005), PowerShell download via 4104 (<code>WebClient</code>/<code>DownloadFile</code>/<code>Invoke-WebRequest</code>, T1105), WMI reconnaissance via 4104 (<code>Get-WmiObject</code>/<code>Get-CimInstance</code> over Win32_ classes, T1047/T1082) and <code>wmic</code> query reconnaissance (T1047/T1082). Rule count 21 → 25.</li>
+<li><strong>Query self-match fixed.</strong> <code>plasma query --contains X</code> no longer returns the query process's own command line; the current PID is excluded when the image name matches and the row is under five minutes old.</li>
+<li><strong>Docs corrected</strong> to the real baseline count.</li>
+<li>995 tests collected; full suite, ruff and bandit (0 medium/high) pass.</li>
+</ul>
+<h2 id="1276-2026-11-22">1.27.6 — 2026-11-22<a class="headerlink" href="#1276-2026-11-22" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Defender and ngen parents damped.</strong> A final estate pass showed <code>mpcmdrun.exe</code> (Defender) and <code>ngentask.exe</code> scoring at the top for genuinely rare but routine shapes. They join the benign service-parent set.</li>
+<li>990 tests collected; full suite, ruff and bandit (0 medium/high) pass.</li>
+</ul>
+<h2 id="1275-2026-11-22">1.27.5 — 2026-11-22<a class="headerlink" href="#1275-2026-11-22" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Estate scoring ignores incomplete pairs.</strong> An authentication row has a user but no image; the estate component built <code>user&gt;</code> and scored it as first-seen, so 4624 rows topped the ranking at 10.0. Estate components now require a complete image edge or identity pair.</li>
+<li>989 tests collected; full suite, ruff and bandit (0 medium/high) pass.</li>
+</ul>
+<h2 id="1274-2026-11-22">1.27.4 — 2026-11-22<a class="headerlink" href="#1274-2026-11-22" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Staged installer recognised.</strong> The second estate pass showed the release downloaded as <code>plasma-1.27.3.exe</code> in Temp still topping WS2's ranking. The self-filter now also matches <code>plasma-&lt;semver&gt;[-suffix].exe</code>, while look-alike payload names remain scorable.</li>
+<li>988 tests collected; full suite, ruff and bandit (0 medium/high) pass.</li>
+</ul>
+<h2 id="1273-2026-11-22">1.27.3 — 2026-11-22<a class="headerlink" href="#1273-2026-11-22" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Self-detection tightened.</strong> Only the shipped <code>plasma.exe</code>, <code>plasma-&lt;version&gt;-windows-x64.exe</code> and the updater are treated as Plasma's own; a payload called <code>plasma-anything.exe</code> is scored like any other image. Children of Plasma's process tree are damped like other service parents.</li>
+<li>Second estate pass also confirmed that the injection markers must not be named <code>plasma-*</code> to be visible; that was a test-harness artefact, not a detector rule.</li>
+<li>988 tests collected; full suite, ruff and bandit (0 medium/high) pass.</li>
+</ul>
+<h2 id="1272-2026-11-22">1.27.2 — 2026-11-22<a class="headerlink" href="#1272-2026-11-22" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Operational self-noise removed.</strong> Rows and traces rooted in a <code>plasma*.exe</code> binary are skipped by default, so an upgrade cannot dominate its own anomaly ranking. <code>--include-self</code> restores them.</li>
+<li><strong>Critical band at 9.0.</strong> With service parents damped, genuine first-seen binaries land at 9.1-9.7 again; the band now starts at 9.0 (high 7.5, medium 6.0).</li>
+<li>986 tests collected; full suite, ruff and bandit (0 medium/high) pass.</li>
+</ul>
+<h2 id="1271-2026-11-22">1.27.1 — 2026-11-22<a class="headerlink" href="#1271-2026-11-22" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Estate calibration.</strong> First-run scoring on WS1/WS2 ranked routine servicing (<code>devicecensus.exe</code>, <code>upfc.exe</code>, <code>usoclient.exe</code> and friends) as critical novelty. Children of a small signed service-parent set are now damped by 0.55, and the critical band starts at 9.5 instead of 9.0. Novelty from <code>svchost.exe</code> still surfaces, at triage level rather than red.</li>
+<li>No raw-data or profile-format change.</li>
+<li>984 tests collected; full suite, ruff and bandit (0 medium/high) pass.</li>
+</ul>
+<h2 id="1270-2026-11-22">1.27.0 — 2026-11-22<a class="headerlink" href="#1270-2026-11-22" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Behavioural profiles.</strong> <code>plasma profile build</code> reduces the bounded local store to counts — images, parent→child edges, identity pairs, destination/registry/file families, command-line shapes and robust hourly volume. Tens of kilobytes, no event rows, no raw command lines, SHA-256 integrity.</li>
+<li><strong>Explainable anomaly scores.</strong> <code>plasma anomaly score|explain</code> fuse categorical rarity, first-seen keys, robust daily volume and optional estate rarity into a 0–10 score with per-component counts. Cold profiles return no score.</li>
+<li><strong>Causal traces.</strong> <code>plasma anomaly trace</code> joins process spans by PID/PPID within one host, handles PID reuse, and scores traces by edge rarity. Traces never cross hosts.</li>
+<li><strong>Estate tier.</strong> <code>plasma fleet profiles</code> builds each host's profile where the data lives and returns only the profile, then merges an estate baseline for cross-host rarity.</li>
+<li><strong>Credential-safe shapes.</strong> <code>net user &lt;name&gt; &lt;password&gt;</code>, <code>--password=...</code> and similar values collapse to <code>&lt;cred&gt;</code> before counting.</li>
+<li>982 tests collected; full suite, ruff and bandit (0 medium/high) pass.</li>
+</ul>
+<h2 id="1266-2026-11-21">1.26.6 — 2026-11-21<a class="headerlink" href="#1266-2026-11-21" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Two more chain false positives closed.</strong> <code>persistence_after_privilege</code> matched any <code>schtasks</code> invocation, so a cleanup <code>schtasks /delete</code> completed the chain; it now requires <code>/create</code>. It also matched Plasma's own scheduled-task registration; events whose parent is a <code>plasma*.exe</code> binary are excluded from that step. Both have regression cases.</li>
+<li>957 tests collected; full suite and <code>-W error</code> pass.</li>
+</ul>
+<h2 id="1265-2026-11-21">1.26.5 — 2026-11-21<a class="headerlink" href="#1265-2026-11-21" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Chain false positive fixed.</strong> <code>persistence_after_privilege</code> matched the bare substring <code>sched</code>, so a read-only <code>Get-ScheduledTask</code> query completed the chain after an unrelated account change and scored 9 — the automatic-containment band. The step now requires <code>schtasks</code>, and a regression case pins the miss.</li>
+<li>957 tests collected; full suite and <code>-W error</code> pass.</li>
+</ul>
+<h2 id="1264-2026-11-21">1.26.4 — 2026-11-21<a class="headerlink" href="#1264-2026-11-21" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Estate-caught fix.</strong> <code>Plasma Sensitive File Delete</code>, <code>Plasma Hidden File Attribute</code> and <code>Plasma Registry Evasion</code> were first cut at criticality 4-5. WHIDS loaded them (281 genes) and then silently dropped every alert, because <code>sensors/whids.toml</code> forwards only criticality &gt; 5. All three now sit at 6.</li>
+<li><code>plasma detect validate</code> warns when a gene's criticality is at or below the WHIDS forwarding threshold, so a rule that can never reach the alert log is visible before deployment.</li>
+<li>Added regression tests for the threshold and the rule set; 957 tests collected.</li>
+</ul>
+<h2 id="1263-2026-11-21">1.26.3 — 2026-11-21<a class="headerlink" href="#1263-2026-11-21" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>Plasma Encoded Cmd</code> now matches <code>powershell -e &lt;base64&gt;</code> as well as <code>-enc</code>, <code>-ec</code> and <code>-encodedcommand</code>, with a base64-length guard.</li>
+<li>Added <code>Plasma Sensitive File Delete</code> (T1070.004), <code>Plasma Hidden File Attribute</code> (T1564.001) and <code>Plasma Registry Evasion</code> (T1112/T1564.001). Their criticality was raised to 6 in 1.26.4 after estate testing showed WHIDS drops anything at or below its forwarding threshold of 5.</li>
+<li>Suppressed PowerShell <code>__PSScriptPolicyTest</code> temp artifacts at info/0.2; they were triggering public-folder and SharePoint Sigma rules on both estate hosts.</li>
+<li>Extended <code>persistence_after_privilege</code> to recognise <code>sc.exe create</code> and <code>reg add ...\Run</code>, with sequenced regression cases.</li>
+<li>Added a six-case Atomic Red Team smoke suite: <code>sensors/atomic-smoke.json</code>, <code>tests/test_atomic_fixes.py</code>, <code>docs/atomic-smoke.md</code>.</li>
+<li>955 tests collected; full suite and <code>-W error</code> pass.</li>
+</ul>
+<h2 id="1262-2026-11-21">1.26.2 — 2026-11-21<a class="headerlink" href="#1262-2026-11-21" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>PlasmaWatch</code>, <code>PlasmaWhidsWatchdog</code> and <code>PlasmaCanaryShield</code> now register both an <code>AtStartup</code> trigger and <code>StartWhenAvailable</code>, so enforcement resumes immediately after a reboot or a missed timer run.</li>
+<li>Added restart-on-failure, <code>MultipleInstances IgnoreNew</code> and execution time limits to the scheduled tasks; a hung sweep can no longer wedge the schedule.</li>
+<li><code>PlasmaUpdate</code> remains a daily maintenance-window task; it gains overlap protection and a bounded runtime, not a boot trigger.</li>
+<li><code>plasma health</code> now reports present Plasma tasks that lack an <code>AtStartup</code> trigger.</li>
+<li>949 tests collected; full suite and <code>-W error</code> pass.</li>
+</ul>
+<h2 id="1261-2026-11-21">1.26.1 — 2026-11-21<a class="headerlink" href="#1261-2026-11-21" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Fixed overlapping labels and link paths in the enterprise architecture SVG/PNG; regenerated the product and operations PDFs.</li>
+<li>No runtime behavior change from 1.26.0.</li>
+<li>943 tests collected; full suite and <code>-W error</code> pass.</li>
+</ul>
+<h2 id="1260-2026-11-21">1.26.0 — 2026-11-21<a class="headerlink" href="#1260-2026-11-21" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Named-pipe canaries.</strong> <code>canary pipe deploy|list|remove|serve|install|uninstall</code>
+  creates decoy pipes and a SYSTEM listener. A client that connects is
+  identified with <code>GetNamedPipeClientProcessId</code>, verified, and killed unless
+  protected/trusted. Enumeration alone does not trigger.</li>
+<li><strong>Proper architecture diagram.</strong> The enterprise AD page now uses a real SVG
+  illustration instead of ASCII art, with a PNG companion for the PDF.</li>
+<li><strong>Enterprise guide expanded</strong> with pipe-canary rollout, scanner caveats and
+  disarm steps.</li>
+<li><strong>Shield hardening from estate drills:</strong> scheduled-task argument quoting,
+  fresh-root Sysmon backup, case-preserving Sysmon conditions, journal ids,
+  DTD/entity refusal.</li>
+<li>943 tests collected; full suite and <code>-W error</code> pass.</li>
+</ul>
+<h2 id="1250-2026-11-21">1.25.0 — 2026-11-21<a class="headerlink" href="#1250-2026-11-21" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Active canary shield.</strong> New <code>plasma canary shield</code> previews/installs a
+  narrow Sysmon FileCreate/FileDelete/RegistryEvent include and a
+  one-minute SYSTEM task. When a process creates, deletes or registry-writes
+  a canary, the sweep verifies the live PID/image, refuses protected/trusted
+  processes and kills the process.</li>
+<li><strong>Registry canaries.</strong> <code>canary registry deploy|list|remove</code> adds decoy
+  keys under <code>Software\PlasmaDecoy</code> in HKCU or HKLM.</li>
+<li><strong>False-positive boundary.</strong> Reads do not trigger; Explorer, Plasma,
+  Defender, backup and system processes are skipped; protected processes are
+  refused. A pure in-place overwrite is still caught by <code>canary verify</code> as a
+  hash change, without process attribution.</li>
+<li><strong>Enterprise AD deployment guide.</strong> Detailed installation, configuration,
+  GPO/SCCM/Intune rollout, fleet, canary shield, SIEM, operations, rollback
+  and troubleshooting for a domain network.</li>
+<li>933 tests collected; full suite and <code>-W error</code> pass.</li>
+</ul>
+<h2 id="1241-2026-11-20">1.24.1 — 2026-11-20<a class="headerlink" href="#1241-2026-11-20" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>ACL intercept refuses without a canary.</strong> <code>plasma intercept apply</code> on an
+  ACL rule with no matching canary paths now returns a structured JSON
+  refusal (<code>code: REFUSED</code>) instead of a Python traceback.</li>
+<li><strong>Invalid summary duration is structured.</strong> <code>plasma summarize --since
+  yesterday</code> now returns a JSON query error instead of a traceback.</li>
+<li>921 tests collected; full suite and <code>-W error</code> pass; bandit 0 high/medium;
+  pip-audit 0 known vulnerabilities.</li>
+</ul>
+<h2 id="1240-2026-11-20">1.24.0 — 2026-11-20<a class="headerlink" href="#1240-2026-11-20" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Opt-in Defender enforcement.</strong> New <code>prevent cfa</code>, <code>prevent network</code> and
+  <code>prevent driver-blocklist</code> controls: preview, plan-gated apply, positive
+  verification and rollback by journal id. WDAC remains read-only.</li>
+<li><strong>Rollback proves the restored value.</strong> CFA/Network Protection and the
+  driver-blocklist rollback compare the resulting value with the captured
+  previous value, not just the PowerShell exit code.</li>
+<li><strong>Actionable posture.</strong> <code>prevent posture</code> now says which controls Plasma
+  can apply, gives the preview command and emits a recommendation per gap.</li>
+<li><strong>Detection regression suite.</strong> <code>plasma detect test</code> runs deterministic
+  positive and negative chain cases; a broken expectation exits 2.</li>
+<li><strong>Security hardening.</strong> All outbound downloads are HTTPS-only with no
+  embedded credentials; Sysmon XML refuses DTD/entity input; query regex and
+  detection case files are bounded; MCP <code>get_case</code> no longer writes.</li>
+<li><strong>Agent surface.</strong> MCP adds <code>get_enforcement_posture</code> (20 tools total).</li>
+<li>919 tests collected; full suite and <code>-W error</code> pass.</li>
+</ul>
+<h2 id="1230-2026-11-20">1.23.0 — 2026-11-20<a class="headerlink" href="#1230-2026-11-20" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Typed investigation.</strong> <code>plasma query</code> adds a closed local query language
+  with exact, glob, time, score and aggregate filters. Unknown fields are
+  refused. <code>plasma tree</code> builds lineage only from explicit <code>pid</code>/<code>ppid</code>
+  edges, and <code>plasma summarize</code> reduces a bounded tail to a compact digest.</li>
+<li><strong>Case workspace.</strong> <code>plasma case</code> collects selected events and findings,
+  records notes, renders a timeline and Markdown report, and seals every
+  artifact with a SHA-256 manifest. <code>case verify</code> detects changes.</li>
+<li><strong>Triggered memory triage.</strong> <code>plasma memory triage</code> scans only PIDs
+  selected by injection- or credential-shaped alerts, deduplicated across
+  runs.</li>
+<li><strong>Identity coverage.</strong> 4720/4722/4724/4728/4732/4756/4648/4672-class
+  account, group and privilege events normalize into the event contract.
+  4662/4672 are supported but excluded from the default high-volume pull.
+  4688 now retains parent PID for lineage.</li>
+<li><strong>Detection harness.</strong> <code>plasma detect validate|diff|replay</code> compiles rule
+  regexes, compares rule sets by name and hash, and replays chains over a
+  captured store.</li>
+<li><strong>Tamper and blind-spot accounting.</strong> <code>health</code> verifies canary integrity,
+  names blind spots, and includes them in the verdict. <code>prevent posture</code>
+  reads WDAC, Controlled Folder Access, Network Protection and the
+  vulnerable driver blocklist without changing them.</li>
+<li><strong>Agent surface.</strong> MCP adds <code>query_events</code>, <code>get_process_tree</code>,
+  <code>get_summary</code>, <code>get_coverage</code>, <code>get_blind_spots</code>, <code>get_case</code>,
+  <code>scan_memory</code> and <code>simulate_policy</code>. <code>control policy simulate</code> explains a
+  decision without creating an action, approval or ledger row.</li>
+<li>900 tests collected; full suite passes.</li>
+</ul>
+<h2 id="1220-2026-11-20">1.22.0 — 2026-11-20<a class="headerlink" href="#1220-2026-11-20" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Memory scanning.</strong> New <code>plasma memory scan</code> binds HollowsHunter/PE-sieve
+  as a pinned, on-demand probe for hollowing, implanted PEs, shellcode,
+  code patches and IAT hooks. Reports are archived under <code>&lt;root&gt;/memory/</code>;
+  findings become <code>source="memory"</code> alerts.</li>
+<li><strong>No dumps by default.</strong> <code>--dump</code> is explicit and refused with <code>--all</code>;
+  the scanner is SHA-256 verified before execution.</li>
+<li><strong>JIT noise control.</strong> Managed .NET shellcode false positives are
+  suppressed from the alert stream and reported as a count.</li>
+<li><strong>Bundled and bounded.</strong> 64-bit and 32-bit scanners are fetched into the
+  Windows payload; targeted PID/name scans are the default, <code>--all</code> is
+  explicit.</li>
+<li>Estate-tested on WS1 with a real <code>powershell.exe</code> scan (3.4s deep scan;
+  managed JIT suppressed). 846 tests collected; full suite and <code>-W error</code>
+  pass.</li>
+</ul>
+<h2 id="1210-2026-11-19">1.21.0 — 2026-11-19<a class="headerlink" href="#1210-2026-11-19" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Intercept phases 0-3.</strong> New <code>plasma intercept</code> surface: shadow rule
+  evaluation over the event store, NTFS deny/audit protection for canary
+  files, a synchronous MCP tool-call gateway, and a native policy broker
+  for ACL and firewall rules.</li>
+<li><strong>Plan-gated and reversible.</strong> Every intercept apply is dry-run first,
+  payload-bound, journaled with an undo recipe, verified, and reversible.</li>
+<li><strong>No kernel driver.</strong> The broker uses gates Windows already owns: NTFS
+  ACLs, Windows Firewall, and the MCP boundary.</li>
+<li><strong>Estate-verified on WS1 and WS2:</strong> shadow matches, canary write denial,
+  ACL rollback, firewall rule apply/rollback, and an MCP <code>INTERCEPTED</code>
+  response.</li>
+<li>833 tests collected; full suite and <code>-W error</code> pass.</li>
+</ul>
+<h2 id="1201-2026-11-19">1.20.1 — 2026-11-19<a class="headerlink" href="#1201-2026-11-19" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Root help names the token model.</strong> <code>plasma --help</code> now says canary files
+  and native DNS/HTTP tokens are normalized into the event store, matching
+  the command help and the 1.20.0 feature set.</li>
+<li>No behavior change; this is a documentation/help patch on top of 1.20.0.</li>
+</ul>
+<h2 id="1200-2026-11-19">1.20.0 — 2026-11-19<a class="headerlink" href="#1200-2026-11-19" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Believable file canaries.</strong> Random subdirectories and document names by
+  default, valid xlsx/docx/pdf/csv bodies, and no self-identifying marker in
+  the file. <code>--no-randomize</code> preserves a pinned layout.</li>
+<li><strong>DNS tokens.</strong> <code>canary token create --kind dns</code> allocates a unique
+  hostname; <code>canary sysmon --apply</code> writes a narrow Sysmon EID 22 include
+  and hot-reloads it. Matches become score-8 <code>canary_dns_tripped</code> findings.</li>
+<li><strong>HTTP tokens.</strong> <code>canary token create --kind http</code> writes a plausible
+  Windows <code>.url</code> shortcut; <code>canary serve</code> is a loopback-first local
+  collector that refuses non-loopback binds without an explicit flag.</li>
+<li><strong>One evidence path.</strong> DNS/HTTP hits are appended as <code>source="canary"</code>
+  alert rows, deduplicated across sweeps; <code>watch</code> surfaces them, <code>fleet</code>
+  adds <code>canary_token_hit</code> (score 9), and enforcement maps them to
+  approval-gated isolation.</li>
+<li><strong>Canary accounts are in the sweep.</strong> <code>config.json</code> <code>canary.accounts</code> (or
+  <code>watch --canary-account</code>) queries 4624/4625/4771/4776; repeated logons are
+  deduplicated.</li>
+<li><strong>Offset fix.</strong> Short append-only logs no longer look replaced when they
+  grow, so the first hit is not re-ingested on every sweep.</li>
+<li>Field-tested on WS1 and WS2: file deploy/verify/tamper, real Sysmon EID 22
+  query, HTTP collector hit, watch findings, and a real 4625 on a disabled
+  canary account. 823 tests collected; full suite and <code>-W error</code> pass;
+  <code>ruff check</code> clean on the changed modules.</li>
+</ul>
+<h2 id="1193-2026-11-18">1.19.3 — 2026-11-18<a class="headerlink" href="#1193-2026-11-18" title="Permanent link">&para;</a></h2>
+<p>MSI upgrades now converge the running node.</p>
+<ul>
+<li><strong><code>install --rotate</code>.</strong> The MSI custom action passes <code>--rotate</code>, so after
+  staging the new version the installer swaps <code>bin\plasma.exe</code> and restarts
+  the registered tasks. Previously the package copied a versioned sibling
+  and updated <code>config.json</code>, but the running node kept executing the old
+  canonical binary — an MSI upgrade from 1.19.1 to 1.19.2 left <code>/healthz</code>
+  reporting 1.19.1.</li>
+<li><strong>Rotation is all-or-nothing.</strong> A failed canonical swap returns exit 4
+  with the rotation detail instead of reporting a successful install.</li>
+<li>Verified on WS2: silent MSI install exits 0, <code>bin\plasma.exe --version</code>
+  and <code>/healthz</code> both report 1.19.3.</li>
+<li>788 tests collected; full suite and <code>-W error</code> pass; <code>ruff check</code> clean.</li>
+</ul>
+<h2 id="1192-2026-11-18">1.19.2 — 2026-11-18<a class="headerlink" href="#1192-2026-11-18" title="Permanent link">&para;</a></h2>
+<p>Enterprise MSI packaging.</p>
+<ul>
+<li><strong>The MSI is Authenticode-signed</strong> in the release workflow, using the same
+  PFX and timestamp as the exe; <code>SHA256SUMS</code> covers the signed MSI.</li>
+<li><strong>The MSI is built with <code>-arch x64</code></strong>, so it installs under
+  <code>C:\Program Files\Plasma</code> instead of <code>Program Files (x86)</code>.</li>
+<li>Verified on WS2: silent MSI install exits 0, installed exe and <code>/healthz</code>
+  report 1.19.2.</li>
+<li>786 tests collected; full suite and <code>-W error</code> pass; <code>ruff check</code> clean.</li>
+</ul>
+<h2 id="1191-2026-11-18">1.19.1 — 2026-11-18<a class="headerlink" href="#1191-2026-11-18" title="Permanent link">&para;</a></h2>
+<p>Holistic security and correctness review.</p>
+<ul>
+<li><strong>HTTP boundary:</strong> canonical parsed command paths, complete read-only
+  coverage, loopback-only default key, TLS handshake in the worker thread,
+  request-smuggling defenses, incremental output caps, audit redaction and
+  fail-closed auditing for mutations.</li>
+<li><strong>Response/prevention:</strong> kill switch covers undo and prevention, approval
+  queue re-checks policy and is atomic, protected paths/processes/tasks are
+  hardened, plans are identity- and time-bound, capture failure gates
+  automatic kills, prevention rollback is plan-gated and verified.</li>
+<li><strong>Collection/data:</strong> tap/observatory/drift redaction, identity failure
+  reporting, malformed WHIDS/watch rows skipped, content-aware dedupe,
+  trace validation/MSI hardening, deep persistence parsing, BOM-safe store,
+  canary/fleet/health/Sigma/notify/FIM fixes.</li>
+<li><strong>Install/update:</strong> dry-run is read-only, operator config is preserved,
+  Sysmon and updates require valid signatures, ring/hold/promote logic
+  fixed, rotation/rollback/locking hardened, prerelease ordering fixed.</li>
+<li><strong>Agent trust:</strong> policy type validation, fail-closed tenants, ledger
+  truncation checkpoint, terminal denials and single-use approvals.</li>
+<li>785 tests collected; full suite and <code>-W error</code> pass; <code>ruff check</code> clean.</li>
+</ul>
+<h2 id="1190-2026-11-18">1.19.0 — 2026-11-18<a class="headerlink" href="#1190-2026-11-18" title="Permanent link">&para;</a></h2>
+<p>Agent-oriented help for every command.</p>
+<ul>
+<li><strong>Every command has a detailed help page.</strong> Description, examples,
+  notes, safety, output and see-also, not just flags. <code>-h</code> works
+  everywhere.</li>
+<li><strong><code>plasma help</code> is the discovery command.</strong> Grouped command map and the
+  dry-run → plan → apply workflow; <code>plasma help &lt;path&gt;</code> for one command.</li>
+<li><strong><code>plasma help --json</code> is the machine catalog.</strong> Schema
+  <code>plasma.help/1</code> with every path, argument, example and safety class.</li>
+<li><strong>The HTTP API carries the same metadata.</strong> <code>/v1/commands</code> rows include
+  summary, description, examples and safety; <code>help --json</code> is executable
+  through <code>/v1/exec</code>.</li>
+<li>755 tests collected; full suite passes; ruff error-level checks clean.</li>
+</ul>
+<h2 id="1186-2026-11-18">1.18.6 — 2026-11-18<a class="headerlink" href="#1186-2026-11-18" title="Permanent link">&para;</a></h2>
+<p>Manual administrator updates can clear SYSTEM-owned stale processes.</p>
+<ul>
+<li><strong>Escalate the cleanup to SYSTEM when needed.</strong> A remote Administrator
+  token often cannot terminate SYSTEM-owned <code>serve</code> processes
+  (<code>Access is denied</code>), which left the old API image on port 9999 after a
+  manual <code>update auto</code>. If any plasma process survives the direct kill and
+  the updater is not already SYSTEM, it registers a one-shot SYSTEM task to
+  finish the cleanup, waits, and removes the task. The normal
+  <code>PlasmaUpdate</code> path is already SYSTEM and skips the escalation.</li>
+<li>743 tests collected; full suite passes; ruff error-level checks clean.</li>
+</ul>
+<h2 id="1185-2026-11-18">1.18.5 — 2026-11-18<a class="headerlink" href="#1185-2026-11-18" title="Permanent link">&para;</a></h2>
+<p>Serve-process cleanup that works on hardened hosts.</p>
+<ul>
+<li><strong>Identify lingering plasma processes by image name.</strong> WS1 hides
+  <code>CommandLine</code> and <code>ExecutablePath</code> from WMI, so the command-line match
+  used in 1.18.4 found nothing and the old serve process kept port 9999.
+  The updater now walks its own ancestor chain and stops every other
+  <code>plasma*</code> process before rotation. All of them are restarted by
+  <code>_start_tasks</code> (or by their normal schedule), and the update process
+  cannot kill itself.</li>
+<li>742 tests collected; full suite passes; ruff error-level checks clean.</li>
+</ul>
+<h2 id="1184-2026-11-18">1.18.4 — 2026-11-18<a class="headerlink" href="#1184-2026-11-18" title="Permanent link">&para;</a></h2>
+<p>Ring selection and serve restart fixes found on the live estate.</p>
+<ul>
+<li><strong>An explicit host ring now wins.</strong> A host assigned to <code>canary</code> was still
+  compared against the configured default (<code>broad</code>) and skipped by the
+  <code>PlasmaUpdate</code> task. <code>update auto</code> now derives the ring from the host's
+  assignment, falling back to <code>config.json</code> only when the host is unassigned.</li>
+<li><strong>Restarting <code>PlasmaServe</code> actually restarts the API.</strong> PyInstaller's
+  one-file bootloader re-execs itself as a child; <code>schtasks /end</code> killed the
+  parent but left the child holding port 9999, so <code>/healthz</code> kept reporting
+  the old version. The updater now stops lingering <code>serve</code> processes before
+  rotation so the restarted task binds and serves the new binary.</li>
+<li>742 tests collected; full suite passes; ruff error-level checks clean.</li>
+</ul>
+<h2 id="1183-2026-11-18">1.18.3 — 2026-11-18<a class="headerlink" href="#1183-2026-11-18" title="Permanent link">&para;</a></h2>
+<p>Manual <code>update apply</code> shares the hardened rotation path.</p>
+<ul>
+<li><strong><code>update apply</code> now quiesces and restarts the scheduled tasks</strong> with the
+  same <code>rotate_running</code> helper as <code>update auto</code>, so the manual path cannot
+  hit the in-use-image failure that prompted 1.18.2.</li>
+<li>738 tests collected; full suite passes; ruff error-level checks clean.</li>
+</ul>
+<h2 id="1182-2026-11-18">1.18.2 — 2026-11-18<a class="headerlink" href="#1182-2026-11-18" title="Permanent link">&para;</a></h2>
+<p>Self-update rotation reliability on Windows.</p>
+<ul>
+<li><strong>The tasks holding the binary are quiesced around the swap.</strong>
+  <code>PlasmaServe</code>, <code>PlasmaWatch</code>, <code>PlasmaWhidsWatchdog</code> and
+  <code>PlasmaIdentityPull</code> stop before rotation and restart afterwards; a
+  serve-launched update skips <code>PlasmaServe</code> so it cannot kill itself.</li>
+<li><strong>Retries and stale-backup recovery.</strong> A locked image is retried five
+  times, a stale <code>.old</code> backup is preserved under a unique name, a
+  read-only attribute is cleared first, and a failed swap restores the
+  previous binary. <code>PlasmaServe</code> restarts after the update, so <code>/healthz</code>
+  reports the new version.</li>
+<li>737 tests collected; full suite passes; ruff error-level checks clean.</li>
+</ul>
+<h2 id="1181-2026-11-18">1.18.1 — 2026-11-18<a class="headerlink" href="#1181-2026-11-18" title="Permanent link">&para;</a></h2>
+<p>Self-update install robustness.</p>
+<ul>
+<li><strong>A locked staged exe no longer aborts the install.</strong> The installer
+  skips the <code>sys.executable</code> copy when the bytes already match and
+  tolerates a locked destination; the updater's rotation is authoritative.</li>
+<li>731 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1180-2026-11-18">1.18.0 — 2026-11-18<a class="headerlink" href="#1180-2026-11-18" title="Permanent link">&para;</a></h2>
+<p>Measured self-update.</p>
+<ul>
+<li><strong><code>plasma update auto</code></strong> checks the latest release and applies it through
+  the existing SHA256 + Authenticode + install + rotate path. Signed
+  releases only.</li>
+<li><strong><code>PlasmaUpdate</code> daily SYSTEM task</strong> with a random minute inside the
+  02:00–05:00 maintenance window. <code>--no-autoupdate</code> disables it.</li>
+<li><strong>Ring-aware:</strong> <code>broad</code> waits 24 hours; <code>canary</code> updates immediately;
+  <code>rollback</code> never auto-updates.</li>
+<li><strong>Kill-switch aware; one update at a time; previous binary kept.</strong></li>
+<li><strong>Canonical <code>plasma.exe</code> rotated</strong> and <code>PlasmaServe</code> restarted after a
+  successful update.</li>
+<li><strong><code>update-journal.jsonl</code> and <code>update-state.json</code></strong> record every attempt.</li>
+<li>731 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1171-2026-11-17">1.17.1 — 2026-11-17<a class="headerlink" href="#1171-2026-11-17" title="Permanent link">&para;</a></h2>
+<p>Critical process-guard fix.</p>
+<ul>
+<li><strong>Protected process names were not matched.</strong> <code>_g_process</code> wrapped the
+  <code>Get-CimInstance</code> assignment in parentheses, so PowerShell emitted the
+  whole CIM object as a formatted table. The guard compared table text to
+  <code>PROTECTED_PROCESSES</code>, and <code>kill_process</code> on LSASS, CSRSS, SERVICES,
+  WINLOGON, WHIDS or Sysmon minted a dry-run plan instead of refusing.
+  The assignment is now bare and the guard refuses as designed.</li>
+<li>716 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1170-2026-11-17">1.17.0 — 2026-11-17<a class="headerlink" href="#1170-2026-11-17" title="Permanent link">&para;</a></h2>
+<p>Measured protection is armed by default.</p>
+<ul>
+<li><strong>Automatic containment is on, but narrow.</strong> Default policy:
+  <code>enabled: true</code>, <code>mode: "enforce"</code>, <code>min_score: 9</code>,
+  <code>allowed_actions: ["snapshot", "kill_process"]</code>, 2 actions per run,
+  30-minute cooldown. Snapshot is written before the kill.</li>
+<li><strong>Everything else stays human-approved.</strong> Isolation, quarantine,
+  disabling users, removing admins, stopping services, credential
+  rotation, task/Run-key/WMI removal and IP blocking require approval.</li>
+<li><strong><code>PlasmaWatch</code> drives the sweep.</strong> A SYSTEM task runs
+  <code>watch once --enforce</code> every 5 minutes. <code>--no-autoprotect</code> installs the
+  old dry-run posture and removes the task.</li>
+<li><strong>Protected components stay protected in code.</strong> WinRM, RDP, WHIDS,
+  Sysmon, LSASS, BFE, MpsSvc, Administrator, SYSTEM and service accounts
+  are refused. Isolation keeps RDP/WinRM open.</li>
+<li><strong>Upgrades migrate the old default; custom blocks are preserved.</strong></li>
+<li><strong>New <code>plasma protect</code> commands:</strong> <code>status</code>, <code>arm</code>, <code>disarm</code>,
+  <code>protected</code>.</li>
+<li>715 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1163-2026-11-17">1.16.3 — 2026-11-17<a class="headerlink" href="#1163-2026-11-17" title="Permanent link">&para;</a></h2>
+<p>Command-tree type metadata.</p>
+<ul>
+<li><strong>Options and positionals carry their argparse type.</strong> <code>/v1/commands</code> now
+  reports <code>type</code> (<code>int</code>, <code>str</code>, or null) for every option and positional.
+  The OpenAPI <code>Option</code> and <code>Positional</code> schemas require the field.</li>
+<li>698 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1162-2026-11-17">1.16.2 — 2026-11-17<a class="headerlink" href="#1162-2026-11-17" title="Permanent link">&para;</a></h2>
+<p>Serve hardening, command-tree completeness and explicit lifecycles.</p>
+<ul>
+<li><strong>Serve concurrency and edge cases.</strong> Argparse validation is serialized;
+  API keys are compared as bytes; a missing <code>Content-Length</code> returns 411;
+  the handler has a socket timeout; broken pipes are ignored; child
+  processes get UTF-8 I/O, <code>stdin=DEVNULL</code>, and a process-tree kill on
+  timeout.</li>
+<li><strong>Audit reliability and redaction.</strong> Audit appends are serialized and
+  use a 30 s lock timeout; failed writes are logged. <code>--prompt</code> values and
+  credential-shaped argv items are redacted.</li>
+<li><strong>Command tree completeness.</strong> <code>/v1/commands</code> returns a separate <code>root</code>
+  and 127 commands, each with <code>positionals</code> as well as options. The
+  OpenAPI schemas describe both.</li>
+<li><strong>Explicit lifecycles.</strong> <code>plasma/lifecycle.py</code> names the serve request,
+  plan, approval, enforcement, prevention, WHIDS, FIM, canary, drift,
+  identity-schedule, capture, fleet, kill-switch, tenant and ring
+  machines, with pure classifiers used by the modules.</li>
+<li>698 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1161-2026-11-17">1.16.1 — 2026-11-17<a class="headerlink" href="#1161-2026-11-17" title="Permanent link">&para;</a></h2>
+<p>OpenAPI 3.1 for <code>plasma serve</code>.</p>
+<ul>
+<li><strong><code>GET /openapi.json</code></strong> publishes an OpenAPI 3.1 document covering the
+  four API routes, both auth schemes, the request/response envelopes and
+  the error responses. No auth required.</li>
+<li><strong><code>GET /docs</code></strong> serves a self-contained HTML reference that renders the
+  spec; no CDN, no external dependency.</li>
+<li><strong><code>plasma/openapi.py</code></strong> is the single source of truth; <code>info.version</code>
+  tracks the package version, and a unit test asserts the spec paths and
+  the server routes do not drift apart.</li>
+<li>674 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1160-2026-11-17">1.16.0 — 2026-11-17<a class="headerlink" href="#1160-2026-11-17" title="Permanent link">&para;</a></h2>
+<p><code>plasma serve</code>: the full CLI over an authenticated HTTP API.</p>
+<ul>
+<li><strong>One endpoint, the whole CLI.</strong> <code>POST /v1/exec</code> takes an argv list and
+  runs it through the real parser, so every command, flag and default is
+  available exactly as it is on the command line. <code>GET /v1/commands</code>
+  returns the full command tree with options, mutating flags and
+  long-running markers.</li>
+<li><strong>API-key auth.</strong> Bearer token or <code>X-API-Key</code>; the default is
+  <code>plasmaplasma</code> for lab use, and <code>--api-key-file</code> or
+  <code>PLASMA_SERVE_API_KEY</code> overrides it.</li>
+<li><strong>Read-only mode.</strong> <code>--read-only</code> refuses every command that changes host
+  or Plasma state, including any <code>--apply</code>.</li>
+<li><strong>Bounded execution.</strong> Each call runs in a child process with a hard
+  timeout, a 1 MiB request cap and an 8 MiB output cap.</li>
+<li><strong>Audit.</strong> Every call is appended to <code>&lt;root&gt;/serve/audit.jsonl</code>.</li>
+<li><strong>TLS.</strong> <code>--tls-cert</code> and <code>--tls-key</code> wrap the listener in HTTPS.</li>
+<li>667 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1159-2026-11-17">1.15.9 — 2026-11-17<a class="headerlink" href="#1159-2026-11-17" title="Permanent link">&para;</a></h2>
+<p>Canary collector performance.</p>
+<ul>
+<li><strong><code>observe canary</code> filters server-side.</strong> The collector pulled every
+  4624/4625 for seven days and timed out at 240 s on a busy DC. It now uses
+  a <code>FilterXPath</code> on <code>TargetUserName</code>, so only canary logons cross the wire.</li>
+<li>639 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1158-2026-11-17">1.15.8 — 2026-11-17<a class="headerlink" href="#1158-2026-11-17" title="Permanent link">&para;</a></h2>
+<p>Operational gaps from the deep drill.</p>
+<ul>
+<li><strong>Observatory collectors get 240 s.</strong> <code>observe edges</code> and <code>observe canary</code>
+  exceeded the 90 s limit on a busy domain controller. The default is now
+  240 s; the dedicated <code>canary status</code> and <code>fim verify</code> paths are unchanged.</li>
+<li><strong>Fleet pull ships in the frozen exe.</strong> <code>pywinrm</code> is now a build
+  dependency and is collected by PyInstaller, so <code>plasma fleet scan</code> works
+  from the single-file binary, not only from a Python desk install.</li>
+<li><strong>Terminal approvals leave the queue.</strong> <code>control approvals list</code> no longer
+  shows rows whose outcome is <code>approval_invalid</code>, <code>denied</code> or <code>expired</code>;
+  the audit ledger still keeps the history.</li>
+<li>638 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1157-2026-11-17">1.15.7 — 2026-11-17<a class="headerlink" href="#1157-2026-11-17" title="Permanent link">&para;</a></h2>
+<p>Run-key allowlist fix from the deep drill.</p>
+<ul>
+<li><strong><code>remove_run_key</code> accepts the canonical registry spelling.</strong> The
+  allowlist regex was case-sensitive and expected <code>SOFTWARE</code>; the real key
+  is <code>Software</code>, so every <code>HKCU:\Software\...\Run</code> target was refused.
+  The regex is now case-insensitive.</li>
+<li>637 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1156-2026-11-17">1.15.6 — 2026-11-17<a class="headerlink" href="#1156-2026-11-17" title="Permanent link">&para;</a></h2>
+<p>Final WHIDS storm field.</p>
+<ul>
+<li><strong>WHIDS <code>storm_first_ts</code> alerts validate.</strong> The strict contract carries the
+  timestamp WHIDS writes on storm alerts. WS1 parses 24,965/24,965 events;
+  WS2 90,724/90,724.</li>
+<li>636 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1155-2026-11-17">1.15.5 — 2026-11-17<a class="headerlink" href="#1155-2026-11-17" title="Permanent link">&para;</a></h2>
+<p>Last contract field from the 1.15.4 estate audit.</p>
+<ul>
+<li><strong>WHIDS <code>storm_count</code> alerts validate.</strong> The strict contract carries the
+  integer <code>storm_count</code> WHIDS writes on storm alerts. WS1 now parses
+  24,874/24,874 events; WS2 89,603/89,603.</li>
+<li>635 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1154-2026-11-17">1.15.4 — 2026-11-17<a class="headerlink" href="#1154-2026-11-17" title="Permanent link">&para;</a></h2>
+<p>Final contract edges from the 1.15.3 estate audit.</p>
+<ul>
+<li><strong>Long command lines validate.</strong> Encoded PowerShell can exceed 8 KiB;
+  <code>cmdline</code> now allows 32 KiB.</li>
+<li><strong>WHIDS <code>storm</code> alerts validate.</strong> The strict contract carries the boolean
+  <code>storm</code> field WHIDS writes on storm alerts.</li>
+<li>634 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1153-2026-11-17">1.15.3 — 2026-11-17<a class="headerlink" href="#1153-2026-11-17" title="Permanent link">&para;</a></h2>
+<p>Deeper contract audit from the same estate drill.</p>
+<ul>
+<li><strong>WHIDS <code>suppressed</code> alerts validate.</strong> The strict <code>PlasmaEvent</code> contract
+  now carries the <code>suppressed</code> reason WHIDS writes on suppressed alerts.</li>
+<li><strong><code>dest_ip</code> accepts workstation names and IPv6 zone IDs.</strong> 4776 NTLM
+  events put the calling machine in <code>dest_ip</code>; IPv6 may carry <code>%zone</code>.
+  A 10,000-event sample from each host now validates with zero failures.</li>
+<li>633 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1152-2026-11-16">1.15.2 — 2026-11-16<a class="headerlink" href="#1152-2026-11-16" title="Permanent link">&para;</a></h2>
+<p>Field-found fixes from the neuralOSd-orchestrated estate drill.</p>
+<ul>
+<li><strong>DTrace events now validate.</strong> The strict <code>PlasmaEvent</code> contract accepts
+  <code>source="dtrace"</code>, <code>kind="trace"</code>, <code>event_id=0</code> and <code>action="observed"</code>.
+  Before this, every DTrace row was counted as a parse failure: 1,419/22,818
+  events on WS1 and 765/77,950 on WS2.</li>
+<li><strong>Persistence chains read the command line.</strong> <code>description</code> matchers now
+  also search <code>cmdline</code>, so a real 4688 <code>net user /add</code> followed by
+  <code>schtasks</code> fires <code>persistence_after_privilege</code> instead of being invisible.
+  Findings now carry the matched <code>cmdline</code> as evidence.</li>
+<li><strong>Snapshot and remove-admin survive domain controllers.</strong> The
+  <code>Administrators</code> lookup uses <code>net localgroup Administrators</code> instead of
+  <code>Get-LocalGroupMember -Group 'Administrators'</code>, which fails with “group not
+  found” or Win32 error 1789 on some hosts. The same fix covers
+  <code>observatory.sketch</code>.</li>
+<li>631 tests collected; full suite passes; ruff clean.</li>
+</ul>
+<h2 id="1151-2026-11-15">1.15.1 — 2026-11-15<a class="headerlink" href="#1151-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Two field-found follow-ups to the review.</p>
+<ul>
+<li><strong>Non-terminating PowerShell errors now fail the action.</strong> <code>Disable-LocalUser</code>
+  on a missing account writes an error but leaves <code>$LASTEXITCODE</code> at 0, so
+  the action was journaled as applied. <code>actuate</code> now runs payloads with
+  <code>$ErrorActionPreference='Stop'</code>; the estate drill now records
+  <code>mode: failed</code>.</li>
+<li><strong>PowerShell BOM state files are readable.</strong> <code>Set-Content -Encoding UTF8</code>
+  writes a BOM; <code>agentstate.read_json</code> and the kill-switch reader now use
+  <code>utf-8-sig</code>. The kill-switch restore drill had left the switch engaged.</li>
+<li>605 passed / 21 skipped.</li>
+</ul>
+<h2 id="1150-2026-11-15">1.15.0 — 2026-11-15<a class="headerlink" href="#1150-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Holistic security and state-machine review.</p>
+<ul>
+<li><strong>Failed actions are no longer reported as applied.</strong> <code>actuate</code> now checks
+  the payload exit code, journals <code>mode: failed</code> with a <code>failure</code> reason,
+  and still allows undo of a partially applied action. Playbook undo marks
+  the whole reversal failed instead of claiming success.</li>
+<li><strong>Locks cover the whole operation.</strong> A shared <code>agentstate.lock</code> uses a PID
+  token and a 300 s stale window; the old 30 s window let a second process
+  steal the actuate journal lock during a 60 s apply. State machines,
+  ledger, prevention, enforcement, rings, killswitch and policy writes use
+  it.</li>
+<li><strong>Kill switch fails closed.</strong> A corrupt <code>killswitch.json</code> now reports the
+  switch engaged instead of silently disabling containment.</li>
+<li><strong>MCP is least-privilege by default.</strong> A harness that does not declare
+  <code>PLASMA_SCOPES</code> gets read-only scopes, not <code>*</code>. Policy evaluation with no
+  scopes denies instead of inheriting a wildcard.</li>
+<li><strong>Update pinning works.</strong> <code>download_and_verify</code> honours the requested tag
+  (it silently installed latest before), matches the SHA256SUMS line to the
+  actual exe asset, and <code>update apply --tag</code> exposes it.</li>
+<li><strong>Path and quoting hardening.</strong> Manifest verification rejects <code>..</code> paths;
+  the WHIDS watchdog task escapes single quotes; DTrace validation catches
+  whitespace-separated <code>system (</code>; AppLocker allow paths reject control
+  characters; WMI capture and removal use the same bounded set.</li>
+<li><strong>Enforcement approvals are single-use and policy-checked.</strong> Pending
+  requests are deduplicated, consumed on approval, and re-checked against
+  the current allowlist.</li>
+<li>602 passed / 21 skipped.</li>
+</ul>
+<h2 id="1143-2026-11-15">1.14.3 — 2026-11-15<a class="headerlink" href="#1143-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Fix the section-injection predicate.</p>
+<ul>
+<li><code>NtMapViewOfSection</code> takes <code>(SectionHandle, ProcessHandle, ...)</code>. The
+  script filtered <code>arg0</code> (the section handle) against the process
+  pseudo-handle, so the predicate was always true and fired on every
+  section map. It now filters <code>arg1</code>.</li>
+<li>Negative control on WS2: the old predicate produced 12 rows in 5 s
+  (including Sysmon mapping its own sections); the fixed predicate produced</li>
+<li>The chain still requires a remote thread from the same image.</li>
+<li>Removed the constant <code>remote</code> / <code>remote_thread</code> fields the scripts emitted
+  after the predicate had already established the distinction.</li>
+<li>The handle test is split per script instead of looping over three
+  different syscall signatures.</li>
+<li>583 passed / 21 skipped.</li>
+</ul>
+<h2 id="1142-2026-11-15">1.14.2 — 2026-11-15<a class="headerlink" href="#1142-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Enable both halves of the named-pipe rule.</p>
+<ul>
+<li>The Sysmon <code>PipeEvent</code> include filter named only <code>CreatePipe</code>, so EID 18
+  (ConnectPipe) never fired. A live pipe-connect test on WS1/WS2 returned
+  zero EID 18 events. The config now includes both types.</li>
+<li>The telemetry parser honours the <code>EventType</code> filter instead of assuming
+  the element enables 17 and 18 together.</li>
+<li>583 passed / 21 skipped.</li>
+</ul>
+<h2 id="1141-2026-11-15">1.14.1 — 2026-11-15<a class="headerlink" href="#1141-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Ship the config the telemetry axis reads.</p>
+<ul>
+<li><code>sysmon-config.xml</code> is now part of the embedded sensor payload. Without
+  it, an installed node could not derive <code>live</code>/<code>dormant</code> and reported 17
+  techniques as <code>unknown</code> (weighted 82.7 instead of 85.9). The field check
+  caught it on both hosts.</li>
+<li>581 passed / 21 skipped.</li>
+</ul>
+<h2 id="1140-2026-11-15">1.14.0 — 2026-11-15<a class="headerlink" href="#1140-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Telemetry provenance, and the injection primitives that leave no RWX flip.</p>
+<ul>
+<li><strong>Third provenance axis</strong> — coverage derives <code>live</code> / <code>partial</code> / <code>dormant</code>
+  / <code>unknown</code> per rule and technique from the shipped Sysmon config. Weighted
+  coverage counts only rules that can fire; <code>weighted_all_pct</code> keeps the
+  unfiltered number for comparison, and <code>dormant_techniques</code> names what is
+  inventory rather than coverage.</li>
+<li><strong>Dormant rules made live</strong> — the config now enables DriverLoad (6),
+  unsigned ImageLoad (7), LSASS ProcessAccess (10) and PipeEvent (17/18).
+  The LSASS, unsigned-driver and named-pipe rules from 1.10.0 are no longer
+  inventory. <code>sysmon_config</code> is a health check that names missing event IDs.</li>
+<li><strong>Config drift fixed</strong> — <code>sensors/sysmon-config.xml</code> and the installed
+  config are now the same document; the FileDelete include filter the docs
+  promised is present, and FileCreate is documented.</li>
+<li><strong>Injection depth</strong> — four new reviewed DTrace scripts: thread hijack
+  (<code>NtSetContextThread</code>), hollowing (<code>NtUnmapViewOfSection</code>), section map
+  (<code>NtMapViewOfSection</code>) and remote write (<code>NtWriteVirtualMemory</code>). Four
+  chains bind them to a remote thread from the same image; the write chain
+  covers the case with no RWX flip and no new thread of its own.</li>
+<li>580 passed / 21 skipped.</li>
+</ul>
+<h2 id="1130-2026-11-15">1.13.0 — 2026-11-15<a class="headerlink" href="#1130-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Detection breadth, finally. The pipeline existed; the corpus did not.</p>
+<ul>
+<li><strong>259-rule SigmaHQ corpus</strong> (<code>sensors/plasma-sigma.gen</code>) converted from
+  the Windows/Sysmon tree at commit <code>54967d64</code>, curated to 168 techniques.
+  Provenance in <code>sigma-sources.json</code>; the data ships under DRL 1.1 with the
+  licence text, not MIT. Rebuild with <code>tools/sync_sigma_corpus.py</code>.</li>
+<li><strong>Coverage</strong> moves to <strong>94.6% rollup (35/37), 89.2% exact (33/37), 85.9%
+  fidelity-weighted</strong>. Blind set is down to input capture: T1056,
+  T1056.001.</li>
+<li><strong>Converter correctness</strong> — gene conditions now translate Sigma <code>not</code> to
+  the gene <code>!</code> grammar. The first field load proved WHIDS rejects <code>not</code>
+  outright; 278 rules (19 baseline/IOC + 259 Sigma) now compile and load
+  with no errors. Unsupported modifiers (<code>windash</code>, <code>cidr</code>, <code>base64offset</code>,
+  <code>fieldref</code>) are refused rather than mistranslated. <code>|all</code> is implemented
+  as an AND of per-value match variables; upstream author and source file
+  are preserved for DRL attribution.</li>
+<li><strong>Containment auto-path</strong> now includes credential access (T1003 family)
+  and token manipulation (T1134 family), still behind the score-9 floor and
+  the capture-first snapshot.</li>
+<li><strong>Prevention safety</strong> surfaces <code>capture_ok</code> at run level.</li>
+<li>572 passed / 21 skipped.</li>
+</ul>
+<h2 id="1122-2026-11-15">1.12.2 — 2026-11-15<a class="headerlink" href="#1122-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Response review fixes: capture the evidence before deleting it.</p>
+<ul>
+<li><strong>Capture before containment.</strong> <code>enforce</code> now writes one host-state
+  snapshot (read-only export, through the dry-run + plan gate) before the
+  first automatic <code>kill_process</code> in a run. Killing the injecting process
+  destroys the in-memory artifact the detection exists to surface; the
+  journal records <code>capture: applied|failed|skipped</code>. Default
+  <code>allowed_actions</code> is now <code>["snapshot", "kill_process"]</code>. Operators can
+  drop snapshot for speed or move kill into <code>require_approval</code> for
+  forensics first.</li>
+<li><strong>Egress DNS warning.</strong> <code>prevent egress</code> warns when no port-53 destination
+  is in the allowlist, instead of leaving the documentation to promise a
+  guard the code did not enforce. It still refuses an empty allowlist.</li>
+<li><strong>Security-model anchors committed</strong> — enforcement and prevention
+  journals/backups are recorded in the published threat model (the edit
+  landed after the 1.12.1 tag).</li>
+<li>Website response copy no longer implies all action is manual.</li>
+<li>563 passed / 21 skipped.</li>
+</ul>
+<h2 id="1121-2026-11-15">1.12.1 — 2026-11-15<a class="headerlink" href="#1121-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Field fixes from the first prevention drill on the estate.</p>
+<ul>
+<li><strong>AppLocker verification</strong> now reads the local policy object. <code>-Effective</code>
+  lagged the local write and reported zero rules immediately after a
+  successful apply; the field drill showed <code>applied: true, rules: 0</code>.
+  Verified on WS2: apply → 4 rules, audit mode; rollback → 0 rules.</li>
+<li><strong>AppLocker rollback</strong> applies an empty policy when there was no prior
+  policy. Removing the registry key did not clear a locally-applied policy;
+  the empty-policy path does (verified on WS2).</li>
+<li><strong>Prevention status</strong> no longer reports a phantom <code>null</code> ASR rule when
+  Defender returns empty arrays.</li>
+<li>558 passed / 21 skipped.</li>
+</ul>
+<h2 id="1120-2026-11-15">1.12.0 — 2026-11-15<a class="headerlink" href="#1120-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Prevention, in two honest tiers.</p>
+<ul>
+<li><strong>Tier 0 — <code>plasma enforce</code></strong>: watch findings become policy-gated,
+  reversible containment. Injection findings and chain detections kill the
+  accessing process; a tripped canary queues host isolation for approval.
+  Off by default and dry-run unless <code>enabled</code> + <code>mode: enforce</code> are set.
+  Score floor, per-run cap, cooldown, action allowlist, approval queue,
+  kill switch and a decision journal. <code>watch once --enforce</code> wires it to a
+  sweep.</li>
+<li><strong>Tier 1 — <code>plasma prevent</code></strong>: AppLocker (audit by default), firewall
+  egress default-deny with a mandatory allowlist, Defender ASR rules and LSA
+  protection. Every control is dry-run first, plan-gated, verified, journaled
+  and rollbackable by id.</li>
+<li><strong>Still no kernel driver.</strong> Inline blocking at the file/process/network
+  boundary is delegated to Microsoft's signed enforcement points; Plasma owns
+  the policy, evidence and rollback. This is a deliberate limit, documented
+  in <code>docs/prevention.md</code>.</li>
+<li>Findings now carry structured entities (pid, user, path, technique) so
+  enforcement acts on data instead of re-parsing text.</li>
+<li>555 passed / 21 skipped.</li>
+</ul>
+<h2 id="1110-2026-11-15">1.11.0 — 2026-11-15<a class="headerlink" href="#1110-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Identity coverage beyond logons, and the lineage edge that was missing.</p>
+<ul>
+<li><strong>Kerberos and NTLM</strong> — <code>identity pull</code> now reads 4768 (TGT), 4769
+  (service ticket), 4770 (renewal), 4771 (pre-auth failure) and 4776 (NTLM
+  credential validation) in addition to 4624/4625. Kerberos IDs are
+  KDC-generated: a domain controller reports them, a member server reports
+  zero, and the result says so rather than erroring.</li>
+<li><strong>4688 process lineage</strong> — process-creation records are normalized as
+  <code>kind="process"</code> with creator subject, parent image, full image path and
+  command line (redacted). This is the creator→child edge the store did not
+  have; Sysmon EID 1 remains the richer source where installed.</li>
+<li><strong><code>kerberos_brute_force</code> chain</strong> (score 9) — five 4771 pre-auth failures
+  followed by a 4768 TGT success for the same account within 30 minutes.</li>
+<li><strong>Bounded and allowlisted</strong> — <code>--max-events</code> (default 2000) caps every
+  pull; <code>--ids</code> accepts only the supported set, rejecting anything else
+  before PowerShell runs. Machine accounts and realm-qualified UPNs are
+  normalized correctly.</li>
+<li>Field-verified on the estate: WS1 (DC) produced 4768/4769/4771/4776 and
+  4688 rows with zero normalization failures; WS2 (member) produced 4688
+  lineage and zero Kerberos, as expected.</li>
+<li>529 passed / 21 skipped.</li>
+</ul>
+<h2 id="1101-2026-11-15">1.10.1 — 2026-11-15<a class="headerlink" href="#1101-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Two claims made honest, one release after the features landed.</p>
+<ul>
+<li><strong>Evidence class is derived, not declared.</strong> A tap rule whose only match
+  key is <code>substr</code> is keyword evidence; anything structured is behavioural.
+  The label is computed from the rule at coverage time, so it cannot drift
+  from the rules. Result: 15 keyword-only techniques (was reported as 2),
+  and <code>weighted_pct</code> falls to the honest <strong>64.7%</strong> (was 80.3%). It climbs
+  back as behavioural rules land.</li>
+<li><strong>PyYAML is no longer a startup dependency.</strong> <code>import yaml</code> moved into the
+  Sigma parser; <code>plasma sigma convert</code> gives a clean message if PyYAML is
+  absent, and every other command (watch, canary, coverage, <code>--version</code>)
+  starts without it.</li>
+<li>513 passed / 21 skipped.</li>
+</ul>
+<h2 id="1100-2026-11-15">1.10.0 — 2026-11-15<a class="headerlink" href="#1100-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Detection breadth, standing authentication, and coverage honesty.</p>
+<ul>
+<li><strong>Sigma -&gt; gene converter</strong> (<code>plasma sigma convert</code>): Windows/Sysmon
+  categories, field modifiers and boolean conditions map mechanically; every
+  refused rule is reported with its reason.</li>
+<li><strong>Three Sysmon gaps closed</strong> — EventID 10 (LSASS access, T1003.001),
+  EventID 6 (unsigned driver from a user-writable path, T1014), EventID
+  17/18 (PsExec/Cobalt-shaped named pipes, T1021/T1090).</li>
+<li><strong>FIM</strong> (<code>plasma fim baseline|verify|status</code>): configurable critical paths,
+  hash/size diff, and watch findings at 8 (modified/removed) and 6 (added).
+  This is the PCI DSS 11.5.1 control, separate from canaries.</li>
+<li><strong>Standing identity pull</strong> — <code>install</code>/<code>update</code> registers the SYSTEM task
+  <code>PlasmaIdentityPull</code> (15 minutes), so 4624/4625 reach the store between
+  operator sweeps. <code>plasma identity schedule|schedule-status|unschedule</code>.</li>
+<li><strong>Coverage provenance</strong> — T1055/T1055.001 are labelled <code>keyword-only</code> and
+  discounted in <code>weighted_pct</code>. T1021 is now in the core matrix and covered
+  by the named-pipe rule. Coverage: 91.9 rollup (34/37), 75.7 exact (28/37),
+  80.3 weighted; blind T1056, T1056.001, T1112.</li>
+<li>509 passed / 21 skipped.</li>
+</ul>
+<h2 id="195-2026-11-15">1.9.5 — 2026-11-15<a class="headerlink" href="#195-2026-11-15" title="Permanent link">&para;</a></h2>
+<p>Consistency and claim corrections.</p>
+<ul>
+<li><code>inject-rwx</code> now tests the target handle with the same low-word form as
+  <code>inject-remote-thread</code> (<code>(arg0 &amp; 0xffffffff) == 0xffffffff</code>). Both scripts
+  make one platform assumption; a build that truncates 64-bit literals can
+  no longer turn self-RWX into a high-severity event.</li>
+<li><code>injection_apc_chain</code> (score 9, 30 s) escalates a cross-process RWX flip
+  followed by an APC from the same image. <code>inject-apc</code> is documented as
+  high-volume and is not chained on its own.</li>
+<li>README no longer claims WHIDS kills or contains: the shipped config is
+  detect-only (<code>report</code>), and containment lives in the plan-gated response
+  plane.</li>
+<li>492 passed / 21 skipped.</li>
+</ul>
+<h2 id="194-2026-11-14">1.9.4 — 2026-11-14<a class="headerlink" href="#194-2026-11-14" title="Permanent link">&para;</a></h2>
+<p>Injection evidence precision, with positive controls on both hosts.</p>
+<ul>
+<li><code>inject-rwx</code> matches RWX with modifier bits (<code>arg3 &amp; 0xff == 0x40</code>) and
+  records whether the caller targeted itself or another process. Self-RWX
+  scores 5 (JIT warm-up); cross-process RWX scores 8.</li>
+<li><code>injection_chain</code> requires a cross-process RWX row (<code>"self": 0</code>), so a
+  process warming up its own JIT pages can never satisfy the first step.</li>
+<li><code>inject-remote-thread</code> compares only the low 32 bits of the target handle,
+  avoiding an untyped 64-bit literal; <code>inject-apc</code> covers the
+  <code>NtQueueApcThread</code> family, including <code>NtQueueApcThreadEx2</code>.</li>
+<li>Positive controls on WS1 and WS2: local RWX produced <code>self=1</code> score 5;
+  <code>VirtualProtectEx</code> on a scratch notepad produced <code>self=0</code> score 8;
+  <code>CreateRemoteThread</code> produced a remote-thread row; <code>QueueUserAPC</code>
+  produced an <code>NtQueueApcThreadEx2</code> row. All three scripts compile and pass
+  <code>trace selftest</code> on both hosts.</li>
+<li>488 passed / 21 skipped.</li>
+</ul>
+<h2 id="193-2026-11-14">1.9.3 — 2026-11-14<a class="headerlink" href="#193-2026-11-14" title="Permanent link">&para;</a></h2>
+<p>Kernel-boundary process-injection evidence (T1055).</p>
+<ul>
+<li>New reviewed DTrace scripts: <code>inject-rwx</code> (<code>NtProtectVirtualMemory</code> with
+  PAGE_EXECUTE_READWRITE) and <code>inject-remote-thread</code> (<code>NtCreateThreadEx</code>
+  into another process). Both use the stable syscall provider and compile
+  plus pass <code>trace selftest</code> on WS1 and WS2; firing was positively
+  controlled in 1.9.4.</li>
+<li><code>injection_chain</code> (score 9, 120 s) binds both halves to the same image,
+  so ordinary system thread creation cannot collide with a JIT RWX page.</li>
+<li>DTrace remains on-demand and is excluded from always-on coverage:
+  91.7 / 75.0 / 83.3, blind T1056, T1056.001, T1112.</li>
+<li>484 passed / 21 skipped.</li>
+</ul>
+<h2 id="162-2026-11-13">1.6.2 — 2026-11-13<a class="headerlink" href="#162-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>DTrace readiness is capability-based</strong> — the "2.0" package still calls
+  itself 1.1.0 / Sun D 1.13.1, so <code>trace check</code>/<code>provision</code> no longer chase
+  a version string; installed + enabled means ready.</li>
+</ul>
+<h2 id="161-2026-11-13">1.6.1 — 2026-11-13<a class="headerlink" href="#161-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>DTrace version probe</strong> — <code>trace check</code> runs the resolved <code>dtrace.exe</code>.</li>
+<li><strong>Trace rows use <code>tid</code></strong> — <code>pid</code> is not portable across the DTrace builds
+  on the estate; <code>tid</code> works on both hosts.</li>
+</ul>
+<h2 id="192-2026-11-14">1.9.2 — 2026-11-14<a class="headerlink" href="#192-2026-11-14" title="Permanent link">&para;</a></h2>
+<ul>
+<li>DTrace normalized descriptions pass through the credential redactor.</li>
+<li>475 passed / 21 skipped.</li>
+</ul>
+<h2 id="191-2026-11-14">1.9.1 — 2026-11-14<a class="headerlink" href="#191-2026-11-14" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Fix ACL hardening on existing installs: recursive inheritable ACEs left
+  files with an empty effective DACL and blocked execution. Add explicit
+  Full Control to existing children after the root inheritance change.</li>
+<li>475 passed / 21 skipped.</li>
+</ul>
+<h2 id="190-2026-11-14">1.9.0 — 2026-11-14<a class="headerlink" href="#190-2026-11-14" title="Permanent link">&para;</a></h2>
+<p>Secure-code review release.</p>
+<ul>
+<li>MCP tenant/scopes are server-authoritative; client <code>_meta</code> claims are
+  ignored unless PLASMA_TRUST_CLIENT_META=1. Tenant-filtered reads, local
+  health ownership, local-only isolate_host.</li>
+<li>Allow lists cannot bypass assist/supervised approvals. Malformed params
+  and approval ids are refused; oversized JSON-RPC lines are bounded.</li>
+<li>DTrace MSI requires a valid Microsoft Authenticode signature.</li>
+<li>Webhook URLs must be HTTPS; Telegram tokens redacted from errors.</li>
+<li>Plasma root ACL restricted to SYSTEM/Administrators at install.</li>
+<li>WinRM fleet transport requires HTTPS unless explicitly opted out.</li>
+<li>Isolation adds outbound management allows; loopback/broadcast block
+  targets refused; current user protected; gene domains escaped.</li>
+<li>474 passed / 21 skipped.</li>
+</ul>
+<h2 id="187-2026-11-14">1.8.7 — 2026-11-14<a class="headerlink" href="#187-2026-11-14" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Suppress PowerShell's <code>__PSScriptPolicyTest_*.ps1</code> scratch-file deletes
+  in whids and exclude their identical hashes from fleet shared_hash.</li>
+<li>454 passed / 21 skipped.</li>
+</ul>
+<h2 id="186-2026-11-14">1.8.6 — 2026-11-14<a class="headerlink" href="#186-2026-11-14" title="Permanent link">&para;</a></h2>
+<ul>
+<li>fleet WinRM pull reads a bounded tail instead of the whole store; large
+  stores no longer exceed the WinRM envelope (HTTP 400).</li>
+<li>452 passed / 21 skipped.</li>
+</ul>
+<h2 id="185-2026-11-14">1.8.5 — 2026-11-14<a class="headerlink" href="#185-2026-11-14" title="Permanent link">&para;</a></h2>
+<ul>
+<li>whids.pull updates watch-alerts-state so a pull is not immediately
+  reported as an unpulled backlog.</li>
+<li>Legacy inverted storm summaries are normalised for coverage.</li>
+<li>452 passed / 21 skipped.</li>
+</ul>
+<h2 id="184-2026-11-14">1.8.4 — 2026-11-14<a class="headerlink" href="#184-2026-11-14" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Storm groups are sorted by timestamp before sampling/summary; rotated
+  logs are scanned by path, so the window could otherwise be inverted.</li>
+<li>451 passed / 21 skipped.</li>
+</ul>
+<h2 id="183-2026-11-14">1.8.3 — 2026-11-14<a class="headerlink" href="#183-2026-11-14" title="Permanent link">&para;</a></h2>
+<ul>
+<li>whids.pull coalesces repeated identical alerts into samples + a storm
+  summary (count, first/last, max score). Re-pulling is idempotent.</li>
+<li>watch collapses identical high-criticality findings with an occurrence
+  count, so one loop cannot consume the ten-item budget.</li>
+<li>450 passed / 21 skipped.</li>
+</ul>
+<h2 id="182-2026-11-14">1.8.2 — 2026-11-14<a class="headerlink" href="#182-2026-11-14" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Service-registry suppression now covers Windows service binaries under
+  ADFS and Microsoft.NET as well as System32/SysWOW64. Temp/Tasks/Debug are
+  excluded; reg.exe/sc.exe/powershell.exe keep full severity.</li>
+<li>448 passed / 21 skipped.</li>
+</ul>
+<h2 id="181-2026-11-14">1.8.1 — 2026-11-14<a class="headerlink" href="#181-2026-11-14" title="Permanent link">&para;</a></h2>
+<p>Follow-up from the live 1.8.0 estate run.</p>
+<ul>
+<li>Service-registry alerts from Windows' own service binaries (dns.exe,
+  lsass.exe, DFSRs.exe, AD WebServices) are suppressed by System32 path
+  evidence; reg.exe/sc.exe/powershell.exe keep full severity.</li>
+<li>Fleet no longer treats shared cmd.exe/powershell.exe hashes as cross-host
+  indicators; user-path hashes still produce shared_hash.</li>
+<li>watch initializes new alert files at end-of-file (no history flood) and
+  ignores .gz/.old-* logs in counts.</li>
+<li>Run-key suppression no longer covers Microsoft-signed LOLBins.</li>
+<li>447 passed / 21 skipped.</li>
+</ul>
+<h2 id="180-2026-11-14">1.8.0 — 2026-11-14<a class="headerlink" href="#180-2026-11-14" title="Permanent link">&para;</a></h2>
+<p>Production-hardening release from a full Windows-estate re-test.</p>
+<ul>
+<li>WHIDS startup hang root-caused: 145k dump files / 2.3 GB inside the
+  install directory made the startup ACL reset exceed the SCM timeout.
+  Dump hooks are off in detect-only mode; <code>plasma whids prune</code> and the
+  watchdog move oversized/legacy trees out of the install path.</li>
+<li>watch: a single criticality-8+ WHIDS alert is surfaced immediately;
+  per-file offsets handle append, truncation and rotation.</li>
+<li>fleet: lateral movement requires network auth logons and reports a
+  source-address link; shared domains/IPs require at least one scored row.</li>
+<li>chain: brute-force success must belong to the same user as the burst.</li>
+<li>actuate: kill switch enforced on CLI/playbook applies; rotate_credential
+  passwords redacted from the journal; quarantine hash-pinned with protected
+  paths; WMI undo by name; isolation fail-closed; journal lock/fsync/id-safety.</li>
+<li>MCP: rate limit counts actions, not reads; approvals are tenant-scoped.</li>
+<li>identity/deep/health/store edge cases fixed.</li>
+<li>440 passed / 21 skipped.</li>
+</ul>
+<h2 id="172-2026-11-13">1.7.2 — 2026-11-13<a class="headerlink" href="#172-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Explicit state machines</strong> — update phases, single-use plans and
+  approvals, undo gates, exclusive tenant ownership, atomic bin/manifest
+  writes. See <a href="../state-machines/">State machines</a>.</li>
+</ul>
+<h2 id="171-2026-11-13">1.7.1 — 2026-11-13<a class="headerlink" href="#171-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Ring gate wired</strong> — <code>update apply --ring</code> refuses a host outside the
+  ring before downloading.</li>
+</ul>
+<h2 id="170-2026-11-13">1.7.0 — 2026-11-13<a class="headerlink" href="#170-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Agent-native trust layer</strong> — typed capability contract, deterministic
+  policy engine (assist/supervised/autonomous), approval queue, hash-chained
+  provenance, kill switch, tenants and an MCP server.</li>
+<li><strong>Evidence and assurance</strong> — CBN/NDPA/PCI/ISO control matrices, SBOM,
+  safety case, support bundle and a safety eval suite.</li>
+<li><strong>Rings and rollback</strong> — canary/broad assignment and one-command rollback.</li>
+</ul>
+<h2 id="160-2026-11-13">1.6.0 — 2026-11-13<a class="headerlink" href="#160-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>WHIDS watchdog</strong> — <code>plasma whids ensure</code> heals a hung StartPending or a
+  stopped sensor; the installer registers <code>PlasmaWhidsWatchdog</code> (SYSTEM,
+  every 2 minutes).</li>
+<li><strong>DTrace 2.0 provisioning</strong> — <code>trace provision</code> downloads the official
+  MSI when winget is absent and upgrades 1.x in place; scripts emit
+  <code>pid</code> + <code>tid</code>.</li>
+</ul>
+<h2 id="1510-2026-11-13">1.5.10 — 2026-11-13<a class="headerlink" href="#1510-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Gene alerts keep their technique</strong> — WHIDS 1.7 omits the ATTACK block,
+  so <code>normalize_alert()</code> maps the rule name to its technique. FileDelete
+  drills now land as <code>T1070.004</code> in the store.</li>
+</ul>
+<h2 id="159-2026-11-13">1.5.9 — 2026-11-13<a class="headerlink" href="#159-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Coverage resolves the bundled sensors</strong> — <code>plasma coverage</code> works on
+  installed nodes, not just in a repo checkout.</li>
+</ul>
+<h2 id="158-2026-11-13">1.5.8 — 2026-11-13<a class="headerlink" href="#158-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>D scripts run on Windows DTrace</strong> — <code>/* */</code> comments, a terminated
+  predicate, <code>tid</code> instead of the unreadable <code>pid</code>, and no tracer
+  self-noise. Verified live on WS1.</li>
+</ul>
+<h2 id="157-2026-11-13">1.5.7 — 2026-11-13<a class="headerlink" href="#157-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>DTrace enabled state parsed correctly</strong> — <code>bcdedit</code> prints
+  <code>dtrace Yes</code>; <code>trace check</code> now recognises it instead of advising another
+  <code>trace provision</code>.</li>
+</ul>
+<h2 id="156-2026-11-13">1.5.6 — 2026-11-13<a class="headerlink" href="#156-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Config file lookup matches the bundle layout</strong> — <code>sensors/whids.toml</code>
+  is now found one level above the WHIDS payload, so upgrades rewrite a
+  stale <code>config.toml</code> as well as the rules.</li>
+</ul>
+<h2 id="155-2026-11-13">1.5.5 — 2026-11-13<a class="headerlink" href="#155-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Baseline rules actually reach the engine</strong> — rule lookup accepts both
+  <code>sensors/whids/</code> and <code>sensors/</code>; stale <code>*.bak.gen</code> files count as drift
+  and are cleaned on install.</li>
+</ul>
+<h2 id="154-2026-11-13">1.5.4 — 2026-11-13<a class="headerlink" href="#154-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Sysmon config convergence</strong> — <code>install --force</code> re-applies the baseline
+  Sysmon config (hot reload), so old nodes gain FileDelete and the other
+  telemetry added since v1.3.</li>
+</ul>
+<h2 id="153-2026-11-13">1.5.3 — 2026-11-13<a class="headerlink" href="#153-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>DTrace payload actually ships</strong> — the frozen bundle now carries
+  <code>sensors/dtrace/*.d</code>; installed nodes can <code>trace list|selftest|run</code>.</li>
+<li><strong>DTrace outside PATH</strong> — <code>trace check</code> finds
+  <code>%ProgramFiles%\DTrace\dtrace.exe</code> (the MSI does not touch PATH).</li>
+<li>Installer convergence fix from 1.5.2: existing WHIDS installs are
+  re-staged from the bundle; stale configs no longer survive upgrades.</li>
+</ul>
+<h2 id="152-2026-11-13">1.5.2 — 2026-11-13<a class="headerlink" href="#152-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>WHIDS convergence</strong> — <code>install --force</code> rewrites <code>config.toml</code>, rules
+  and the binary from the bundle, restarts only on drift, and rolls back the
+  config once if the new one cannot start.</li>
+</ul>
+<h2 id="150-2026-11-13">1.5.0 — 2026-11-13<a class="headerlink" href="#150-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>DTrace integration</strong> — <code>plasma trace list|check|selftest|run|provision</code>:
+  reviewed D scripts (syscall errors, process creation, ETW kernel-process),
+  bounded runs (window + row cap), normalized <code>kind: "trace"</code> rows in the
+  same store. Explicit provisioning (Microsoft.DTrace via winget +
+  <code>bcdedit /set dtrace on</code>) — never installed silently.</li>
+<li>Docs: new DTrace page; detection/troubleshooting updated.</li>
+</ul>
+<h2 id="140-2026-11-13">1.4.0 — 2026-11-13<a class="headerlink" href="#140-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>WHIDS init-hang handling</strong> — explicit channel list, supervised start
+  with bounded wait, force-stop + degraded recording, <code>plasma whids diagnose</code>.</li>
+<li><strong>Canary files</strong> — <code>canary deploy|verify|status</code>; watch verifies decoys and
+  reports score-10 impact findings. Coverage now attributes T1486 to
+  <code>canary:verify</code>.</li>
+<li><strong>MSI + GPO packaging</strong> — release adds <code>plasma-&lt;version&gt;-windows-x64.msi</code>;
+  silent install, <code>PLASMA_ROOT</code> property, GPO instructions, upgrade in place.</li>
+<li>Coverage: 91.7% rollup / 75.0% exact / 83.3% weighted; blind spots are
+  T1056, T1056.001 and T1112.</li>
+</ul>
+<h2 id="130-2026-11-13">1.3.0 — 2026-11-13<a class="headerlink" href="#130-2026-11-13" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>ATT&amp;CK parent rollup</strong> — coverage now reports both the exact count
+  (72.2%) and the rollup count (88.9%).</li>
+<li><strong>Fidelity-aware coverage</strong> — every tap and gene rule carries a fidelity
+  (high/medium/low); <code>weighted_pct</code> (80.6%) discounts weak rules.</li>
+<li><strong>Five new gene rules</strong> — File Delete by LOLBin (T1070.004), Run Key
+  Persistence (T1547.001), Service Registry Persistence (T1543.003),
+  Privileged Group Add (T1098), Execution From User Paths (T1204.002).</li>
+<li><strong>Sysmon baseline</strong> — bounded FileDelete include filter so the deletion
+  rule has real telemetry; existing nodes apply it with <code>Sysmon64.exe -c</code>.</li>
+<li>Remaining blind spots are explicit: T1056/T1056.001, T1112, T1486.</li>
+</ul>
+<h2 id="120-2026-11-12">1.2.0 — 2026-11-12<a class="headerlink" href="#120-2026-11-12" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Pinned-signer update verification</strong> — <code>update apply</code> refuses any binary
+  whose Authenticode signer is not in the pinned set; override via
+  <code>PLASMA_SIGNER_THUMBPRINTS</code>.</li>
+<li><strong>Anonymous updates</strong> — public repository, no token required.</li>
+<li><strong>Release signing in CI</strong> — signtool + DigiCert timestamp before hashing,
+  when the signing secrets exist.</li>
+<li><strong>SignPath Foundation application</strong> prepared (<code>docs/SIGNPATH_APPLICATION.md</code>).</li>
+<li><strong>Reproducible engine fetch</strong> — pinned upstream revision
+  (<code>tools/fetch_engine.py</code>) after the engine bundles disappeared upstream.</li>
+</ul>
+<h2 id="110-2026-11-05">1.1.0 — 2026-11-05<a class="headerlink" href="#110-2026-11-05" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Chain detection</strong> — phish spawn, brute-force success,
+  persistence-after-privilege; runs inside <code>watch</code>.</li>
+<li><strong>ATT&amp;CK coverage</strong> — <code>plasma coverage</code> (58.3% of the curated core, blind
+  spots named).</li>
+<li><strong>Deep persistence probe</strong> — every auto-start location + signature status.</li>
+<li><strong>Store hygiene</strong> — <code>store rotate|compact|stats</code>.</li>
+<li><strong>Playbooks</strong> — <code>contain-user</code>, <code>isolate-box</code> (one plan gates the sequence).</li>
+<li><strong>New actions</strong> — <code>disable_task</code>, <code>remove_run_key</code>.</li>
+<li><strong>Watch throttling</strong>, <code>sensor_heartbeat</code>, <code>rdp_hardening_drift</code>.</li>
+</ul>
+<h2 id="100-2026-10-19">1.0.0 — 2026-10-19<a class="headerlink" href="#100-2026-10-19" title="Permanent link">&para;</a></h2>
+<p>First stable release after a full audit: 24 defects fixed (dead detection
+rule, WHIDS confidence-scale bug that could wipe the IOC file, UTC
+timestamp corruption, update downgrade bug, plan-gated actuate, journal
+robustness, and more). 202 tests at release.</p>
+<h2 id="011x">0.11.x<a class="headerlink" href="#011x" title="Permanent link">&para;</a></h2>
+<p>Auto-update, alerting, health/watch, deeper detection rules.</p>
+<h2 id="010x">0.10.x<a class="headerlink" href="#010x" title="Permanent link">&para;</a></h2>
+<p>Intelligent installer (FULL/MINIMAL decision, Sysmon auto-download, repair
+semantics), BOM-tolerant config reads.</p>
+<h2 id="09x">0.9.x<a class="headerlink" href="#09x" title="Permanent link">&para;</a></h2>
+<p>Identity plane (Event Log API) and fleet correlation scoring.</p>
+<h2 id="08x">0.8.x<a class="headerlink" href="#08x" title="Permanent link">&para;</a></h2>
+<p><code>plasma fleet</code>: desk-side cross-host pull/correlate/report.</p>
+<h2 id="070">0.7.0<a class="headerlink" href="#070" title="Permanent link">&para;</a></h2>
+<p>krabsetw ETW tap (<code>plasma-tap.exe</code>), manifest-verified rules, matches-only.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/DrOlu/plasma" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["search.suggest", "search.highlight", "navigation.tabs", "navigation.sections", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+    
+  </body>
+</html>

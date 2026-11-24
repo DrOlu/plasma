@@ -35,6 +35,7 @@ from . import (
     deep,
     drift,
     enforce,
+    estate,
     evals,
     evidence,
     fim,
@@ -2268,6 +2269,79 @@ def cmd_plugin_undo(args) -> int:
     return 0 if result.get("ok") else 2
 
 
+def cmd_estate_build(args) -> int:
+    try:
+        ledger = estate.build(
+            args.events, host=args.host, role=args.role,
+            window_minutes=args.window, max_rows=args.max_rows)
+    except (OSError, ValueError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    if args.out:
+        saved = estate.save(args.out, ledger)
+        _emit({"ok": True, **saved, "summary": estate.status(ledger)})
+    else:
+        _emit(ledger)
+    return 0
+
+
+def cmd_estate_merge(args) -> int:
+    try:
+        paths = list(args.ledgers or [])
+        if args.dir:
+            paths.extend(str(path) for path in sorted(Path(args.dir).glob("*.json"))
+                         if path.name != "estate.json")
+        ledgers = [estate.load(path) for path in paths]
+        merged = estate.merge(ledgers, max_age_minutes=args.max_age)
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    saved = estate.save(args.out, merged)
+    _emit({"ok": True, **saved, "summary": estate.status(merged)})
+    return 0
+
+
+def cmd_estate_findings(args) -> int:
+    try:
+        ledger = estate.load(args.ledger)
+        baseline = None
+        if args.baseline:
+            baseline = json.loads(Path(args.baseline).read_text(
+                encoding="utf-8-sig"))
+        result = estate.findings(ledger, threshold=args.threshold,
+                                 baseline=baseline)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit(result)
+    return 0
+
+
+def cmd_estate_sync(args) -> int:
+    try:
+        result = estate.sync(
+            args.inventory, args.out_dir, window_minutes=args.window,
+            workers=args.workers, threshold=args.threshold,
+            max_age_minutes=args.max_age, role=args.role,
+            loop=args.loop, interval=args.interval, baseline=args.baseline)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    if not args.loop:
+        _emit(result)
+    return 0 if result.get("ok") else 2
+
+
+def cmd_estate_status(args) -> int:
+    try:
+        ledger = estate.load(args.ledger)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        _emit({"ok": False, "error": str(exc)[:500]})
+        return 1
+    _emit(estate.status(ledger))
+    return 0
+
+
 def cmd_plugin_list(args) -> int:
     _emit(plugins.list_plugins(args.root))
     return 0
@@ -4092,6 +4166,54 @@ def build_parser() -> argparse.ArgumentParser:
     expsl.add_argument("--max-events", dest="max_events", type=int,
                        default=plugin_io.DEFAULT_MAX_EVENTS)
     expsl.set_defaults(func=cmd_export_syslog)
+
+    est = sub.add_parser(
+        "estate",
+        help="compact cross-host edge ledgers and estate-wide correlation")
+    ests = est.add_subparsers(dest="estate_action", required=True)
+    _estate_root = "C:\\ProgramData\\Plasma" if os.name == "nt" else ".plasma"
+
+    estb = ests.add_parser("build", help="reduce one host's store to a ledger")
+    estb.add_argument("--events", required=True)
+    estb.add_argument("--out", default=None)
+    estb.add_argument("--window", type=int, default=estate.DEFAULT_WINDOW_MINUTES)
+    estb.add_argument("--max-rows", dest="max_rows", type=int,
+                      default=estate.DEFAULT_MAX_ROWS)
+    estb.add_argument("--host", default=None)
+    estb.add_argument("--role", default="member")
+    estb.set_defaults(func=cmd_estate_build)
+
+    estm = ests.add_parser("merge", help="merge host ledgers into an estate ledger")
+    estm.add_argument("--ledgers", nargs="*", default=None)
+    estm.add_argument("--dir", default=None)
+    estm.add_argument("--out", required=True)
+    estm.add_argument("--max-age", dest="max_age", type=int,
+                      default=estate.DEFAULT_MAX_AGE_MINUTES)
+    estm.set_defaults(func=cmd_estate_merge)
+
+    estf = ests.add_parser("findings", help="correlate the estate ledger")
+    estf.add_argument("--ledger", required=True)
+    estf.add_argument("--threshold", type=int, default=estate.DEFAULT_THRESHOLD)
+    estf.add_argument("--baseline", default=None)
+    estf.set_defaults(func=cmd_estate_findings)
+
+    estsy = ests.add_parser("sync", help="pull, merge and correlate the estate")
+    estsy.add_argument("--inventory", required=True)
+    estsy.add_argument("--out-dir", dest="out_dir", required=True)
+    estsy.add_argument("--window", type=int, default=estate.DEFAULT_WINDOW_MINUTES)
+    estsy.add_argument("--workers", type=int, default=8)
+    estsy.add_argument("--threshold", type=int, default=estate.DEFAULT_THRESHOLD)
+    estsy.add_argument("--max-age", dest="max_age", type=int,
+                       default=estate.DEFAULT_MAX_AGE_MINUTES)
+    estsy.add_argument("--role", default="member")
+    estsy.add_argument("--baseline", default=None)
+    estsy.add_argument("--loop", action="store_true")
+    estsy.add_argument("--interval", type=int, default=300)
+    estsy.set_defaults(func=cmd_estate_sync)
+
+    estst = ests.add_parser("status", help="estate ledger summary")
+    estst.add_argument("--ledger", required=True)
+    estst.set_defaults(func=cmd_estate_status)
 
     plg = sub.add_parser(
         "plugin",

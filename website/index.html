@@ -65,6 +65,7 @@ code{font-family:var(--mono);font-size:.84em;background:var(--paper);border:1.5p
 .nav-menu a:hover,.nav-menu a.active{background:var(--yellow);border-bottom:0}
 @media (min-width:1151px) and (hover:hover){.nav-group:hover .nav-menu{display:flex}}
 .header-actions{display:flex;align-items:center;gap:9px;flex:0 0 auto}
+.nav-docs{display:none}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-family:var(--sans);font-weight:700;font-size:13.8px;line-height:1.2;padding:10px 16px;border:2px solid var(--ink);border-radius:8px;background:var(--paper);color:var(--ink);box-shadow:var(--shadow-sm);cursor:pointer;transition:transform .14s ease,box-shadow .14s ease,background .14s ease}
 .btn:hover{transform:translate(2px,2px);box-shadow:2px 2px 0 var(--ink);background:var(--yellow)}
 .btn.pink{background:var(--pink)}
@@ -326,14 +327,15 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
   .nav-menu{position:static;transform:none;min-width:0;display:flex;border:0;box-shadow:none;background:transparent;padding:2px 0 6px 12px}
   .nav-menu a{font-size:13px;padding:6px 0;white-space:normal}
   .nav-menu a:hover,.nav-menu a.active{background:transparent;text-decoration:underline;text-underline-offset:3px}
+  .nav-docs{display:block}
   .menu-btn{display:flex}
-  .header-actions .btn.docs{display:none}
   .hero{padding:44px 0 46px}
   h1 .hl{white-space:normal}
   .c3{grid-template-columns:1fr 1fr}
 }
 @media (max-width:600px){
   body{font-size:15.5px}
+  .header-actions .btn.docs{display:none}
   .wrap{width:calc(100% - 28px)}
   .stats-grid{grid-template-columns:1fr 1fr}
   .c2,.c3,.c4{grid-template-columns:1fr}
@@ -356,7 +358,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <a class="skip" href="#main">Skip to content</a>
 
 <div class="announce">
-  <b>v1.28.1 is out</b> &nbsp;·&nbsp; A signed plugin ABI for sensors, detectors and responders — profiles, traces and TTPForge-validated detection, still no log lake &nbsp;·&nbsp;
+  <b>v1.29.0 is out</b> &nbsp;·&nbsp; A continuously updated estate edge ledger — hash-sealed, mergeable cross-host identity at 1,000-host scale, still no log lake &nbsp;·&nbsp;
   <a href="https://drolu.github.io/plasma/changelog/">read the changelog</a>
 </div>
 
@@ -364,7 +366,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
   <div class="wrap header-inner">
     <a class="brand" href="#top" aria-label="Plasma home">
       <span class="brand-mark" aria-hidden="true">P</span>
-      <span>Plasma</span><em>v1.28.1</em>
+      <span>Plasma</span><em>v1.29.0</em>
     </a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
       <a href="#architecture">Architecture</a>
@@ -392,6 +394,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
         <button class="nav-trigger" type="button" aria-haspopup="true" aria-expanded="false">Operate</button>
         <div class="nav-menu">
           <a href="#fleet">Fleet</a>
+          <a href="#estate">Estate ledger</a>
           <a href="#deploy">Deploy</a>
           <a href="#dtrace">DTrace</a>
           <a href="#cli">CLI</a>
@@ -407,6 +410,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
         </div>
       </div>
       <a href="#security">Security</a>
+      <a class="nav-docs" href="https://drolu.github.io/plasma/">Documentation</a>
     </nav>
     <div class="header-actions">
       <a class="btn docs" href="https://drolu.github.io/plasma/">Docs</a>
@@ -422,7 +426,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <section class="hero">
   <div class="wrap hero-grid">
     <div class="reveal">
-      <span class="pill"><i></i> Windows EDR · on-device · v1.28.1</span>
+      <span class="pill"><i></i> Windows EDR · on-device · v1.29.0</span>
       <h1>No log lake.<br>No cloud.<br><span class="hl">No blind trust.</span></h1>
       <p class="sub">
         <strong>Detects always. Contains only when armed. Blocks only through Microsoft's own
@@ -486,7 +490,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <div class="stat"><div class="num"><span data-count="2">0</span></div><div class="lbl">prevention tiers</div></div>
       <div class="stat"><div class="num"><span data-count="25">0</span></div><div class="lbl">baseline rules</div></div>
       <div class="stat"><div class="num"><span data-count="4">0</span></div><div class="lbl">plugin kinds</div></div>
-      <div class="stat"><div class="num"><span data-count="1036">0</span></div><div class="lbl">tests passing</div></div>
+      <div class="stat"><div class="num"><span data-count="1051">0</span></div><div class="lbl">tests passing</div></div>
     </div>
   </div>
 </section>
@@ -674,7 +678,7 @@ plasma control audit verify</pre>
         <div class="cap"><span>Event parse</span><b>100%</b></div>
         <h3>Contract clean</h3>
         <p>DTrace, WHIDS storm rows and long command lines now validate. Both estate hosts parse every event in the store.</p>
-        <div class="tags"><span>WS1 + WS2</span><span>1.28.1</span></div>
+        <div class="tags"><span>WS1 + WS2</span><span>1.29.0</span></div>
       </article>
     </div>
 
@@ -1362,6 +1366,49 @@ plasma fleet report --case estate-01</pre>
   </div>
 </section>
 
+<!-- ESTATE LEDGER -->
+<section class="block" id="estate">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Estate ledger</span>
+      <h2>Continuous cross-host correlation without a lake.</h2>
+      <p class="lede">Each host reduces its own store to a small hash-sealed count ledger. The desk replaces the previous copy, merges the newest ledger per host, and raises identity fan-out, shared sources, shared file hashes and stale hosts &mdash; in seconds, at estate scale.</p>
+    </div>
+
+    <div class="grid c2 reveal">
+      <div class="card">
+        <h3>Counts leave. Events do not.</h3>
+        <p>A ledger holds accounts, first/last seen, bounded source addresses, logon types, <code>user&gt;process</code> pairs and hashes. No command lines, no file paths, no event rows. Caps are absolute: 200 users, 10 sources per user, 200 process pairs and 256 KiB per host.</p>
+        <p>Every ledger carries a SHA-256 over its canonical body; <code>merge</code> and <code>status</code> refuse a modified file. This is integrity, not a signature &mdash; the trust boundary is the desk ACL and WinRM. The desk keeps one current ledger per host and replaces it on each pull.</p>
+        <div class="mini">replace-in-place &middot; current snapshot &middot; no central index</div>
+      </div>
+      <div class="card">
+        <h3>Five findings that need more than one box</h3>
+        <p><b>User fan-out</b> scores 9 only when a source address links at least two appearances; otherwise 7, flagged as a same-name pattern to verify. <b>Source fan-out</b> catches one address touching many hosts. <b>Hash fan-out</b> scores a shared file hash on many hosts at 8. <b>Stale host</b> is a finding, not a silent gap. <b>New host edge</b> compares against an optional baseline.</p>
+        <p>One account on fifty machines in an hour is exactly the question a per-endpoint diary cannot answer alone.</p>
+        <div class="mini">threshold default 5 &middot; stale after 180 min</div>
+      </div>
+    </div>
+
+    <div class="grid c2 reveal" style="margin-top:16px">
+      <div class="term">
+        <div class="term-bar"><i></i><i></i><i></i><span class="path">desk &middot; estate</span><button class="copy" type="button">Copy</button></div>
+<pre><span class="c"># every 5 minutes, pulled in parallel</span>
+plasma estate sync --inventory hosts.json \
+  --out-dir C:\PlasmaEstate --interval 300 --loop
+plasma estate findings --ledger C:\PlasmaEstate\estate.json
+plasma estate status   --ledger C:\PlasmaEstate\estate.json</pre>
+      </div>
+      <div class="card c-lime">
+        <h3>Scale, measured</h3>
+        <p>1,000 host ledgers with 10,000 distinct accounts merge and correlate in a couple of seconds on a laptop. The estate ledger stays in the low megabytes; a 300-second cadence is about 3.3 pulls per second.</p>
+        <p>A failed host is recorded in <code>failures</code> and the cycle continues. A cycle only fails when no host ledger could be built. Large estates shard by site and merge the shard ledgers.</p>
+        <div class="mini">1,000 hosts &middot; 10,000 identities &middot; 8 MiB bound</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- DEPLOY -->
 <section class="block" id="deploy">
   <div class="wrap">
@@ -1582,7 +1629,7 @@ POST /v1/exec        run one CLI argv</pre>
       <div class="card c-lime">
         <h3>Tested on a live estate</h3>
         <p>Two Windows Server hosts: signed updates, 25 baseline + 259 Sigma rules, behavioural profiles, Sysmon FileDelete, canaries, fleet correlation, AppLocker/egress apply-and-rollback drills, DTrace runs, Atomic Red Team and TTPForge/ForgeArmory simulations — plus the field WHIDS dump-tree hang, recovered and permanently bounded.</p>
-        <div class="mini">1036 unit tests · 21 skipped</div>
+        <div class="mini">1051 unit tests · 21 skipped</div>
       </div>
       <div class="card c-orange">
         <h3>Known limits</h3>
@@ -1654,13 +1701,13 @@ POST /v1/exec        run one CLI argv</pre>
       <div class="card c-lime">
         <div class="cap"><span>Product Guide</span><b>PDF · 23 pages</b></div>
         <h3>What it is and what it does</h3>
-        <p>Architecture, detection, coverage, prevention, response, neuralOSd orchestration, the HTTP API and the honest limits. Version 1.28.1.</p>
+        <p>Architecture, detection, coverage, prevention, response, neuralOSd orchestration, the HTTP API and the honest limits. Version 1.29.0.</p>
         <div class="mini"><a class="btn dark" href="https://drolu.github.io/plasma/Plasma_Product_Guide.pdf">Download the Product Guide</a></div>
       </div>
       <div class="card c-lav">
         <div class="cap"><span>Operations Guide</span><b>PDF · 20 pages</b></div>
         <h3>Install, operate, respond</h3>
-        <p>Install, configuration, daily operations, the prevention runbook, fleet, neuralOSd orchestration, the HTTP API, troubleshooting and cheat sheet. Version 1.28.1.</p>
+        <p>Install, configuration, daily operations, the prevention runbook, fleet, neuralOSd orchestration, the HTTP API, troubleshooting and cheat sheet. Version 1.29.0.</p>
         <div class="mini"><a class="btn dark" href="https://drolu.github.io/plasma/Plasma_Operations_Guide.pdf">Download the Operations Guide</a></div>
       </div>
     </div>
@@ -1675,7 +1722,7 @@ POST /v1/exec        run one CLI argv</pre>
       <p>Install the signed release, point the harness at the MCP server, and let the policy engine decide what the model is allowed to do.</p>
     </div>
     <div class="cta-actions">
-      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.28.1</a>
+      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.29.0</a>
       <a class="btn pink" href="https://drolu.github.io/plasma/getting-started/">Read the docs</a>
     </div>
   </div>
