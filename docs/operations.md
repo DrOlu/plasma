@@ -175,7 +175,15 @@ plasma estate status   --ledger C:\PlasmaEstate\estate.json
 Run it on the same cadence as `watch` (typically 5–15 minutes). Check
 `failures` in each sync summary: a host that cannot build a ledger is a
 coverage problem, not a quiet host. A `stale_host` finding means the desk has
-not refreshed that host inside `--max-age`. A score-7 user fan-out is a
+not refreshed that host inside `--max-age`.
+
+Check the coverage findings as well. `estate_identity_blind` (9) means the
+identity pull failed or stopped inside the window; `estate_identity_unverified`
+(7) means other telemetry flowed but there was no identity evidence at all.
+Neither is a clean result. `estate_no_telemetry` (8) means a fresh ledger with
+zero rows. `estate_kerberos_blind` (8) is role-aware: only hosts marked
+`--role dc` are expected to produce 4768/4769. `estate_identity_stale` (8)
+means the pull marker is older than `--max-identity-age`. A score-7 user fan-out is a
 same-name pattern until a shared source address proves otherwise; escalate to
 `plasma fleet pull` for the hosts involved before acting.
 

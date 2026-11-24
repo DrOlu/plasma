@@ -2932,16 +2932,20 @@ plasma fleet report    --case NAME
 <h3 id="estate">estate<a class="headerlink" href="#estate" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>plasma estate build    --events FILE [--out FILE] [--window MIN] [--max-rows N] [--host NAME] [--role ROLE]
 plasma estate merge    (--ledgers FILE... | --dir DIR) --out FILE [--max-age MIN]
-plasma estate findings --ledger FILE [--threshold N] [--baseline FILE]
+plasma estate findings --ledger FILE [--threshold N] [--baseline FILE] [--max-identity-age MIN]
 plasma estate sync     --inventory FILE --out-dir DIR [--window MIN] [--workers N]
                        [--threshold N] [--max-age MIN] [--role ROLE]
-                       [--baseline FILE] [--loop] [--interval SECONDS]
+                       [--baseline FILE] [--max-identity-age MIN] [--loop] [--interval SECONDS]
 plasma estate status   --ledger FILE
 </code></pre></div>
-<p>The estate edge ledger: each host reduces its own store to a small signed
+<p>The estate edge ledger: each host reduces its own store to a small hash-sealed
 identity ledger, the desk merges the newest ledger per host and correlates
-user/source fan-out, stale hosts and new host edges. <code>sync</code> is the continuous
-form; <code>--loop</code> runs until stopped. See <a href="../estate-ledger/">Estate edge ledger</a>.</p>
+user/source/hash fan-out, stale hosts and new host edges. Coverage findings
+(<code>estate_identity_blind</code>, <code>estate_identity_unverified</code>, <code>estate_no_telemetry</code>,
+<code>estate_kerberos_blind</code>, <code>estate_identity_stale</code>) separate a quiet estate from
+a blind or unverified identity feed. <code>--max-identity-age</code> defaults to 180
+minutes. <code>sync</code> is the continuous form; <code>--loop</code> runs until stopped. See
+<a href="../estate-ledger/">Estate edge ledger</a>.</p>
 <h3 id="actuate-playbook">actuate / playbook<a class="headerlink" href="#actuate-playbook" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>plasma actuate apply &lt;action&gt; [--target T] --reason TEXT [--apply --plan ID]
 plasma actuate undo  --id ID [--apply]

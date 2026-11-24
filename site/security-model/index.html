@@ -2205,9 +2205,13 @@ an integrity check, <strong>not a signature</strong>: it detects corruption and 
 edits, while the trust boundary remains the desk's filesystem ACL and the
 WinRM channel. The desk stores one current ledger per host under <code>hosts/</code> and
 replaces it on each pull; retention is an explicit copy, not an implicit
-history.
-Transport to the desk is WinRM (HTTPS recommended) or a local file for
-air-gapped estates.</p>
+history. Transport to the desk is WinRM (HTTPS recommended) or a local file
+for air-gapped estates.</p>
+<p>The <code>coverage</code> block adds event counts, event kinds, last-seen timestamps and
+the result of the last identity pull — including its error string, which can
+name a channel or RPC failure but carries no credentials. The marker lives
+beside the store as <code>&lt;events-dir&gt;\identity-pull.json</code> and is replaced on every
+pull attempt.</p>
 <h2 id="update-integrity">Update integrity<a class="headerlink" href="#update-integrity" title="Permanent link">&para;</a></h2>
 <p>From 1.2.0 the update path verifies <strong>two independent anchors</strong>: the
 published SHA-256 and the pinned signer thumbprint. A release that is not

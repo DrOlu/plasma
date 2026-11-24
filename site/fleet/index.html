@@ -2104,8 +2104,26 @@ ledger, merges everything and raises:</p>
 <td>7</td>
 <td>a user/host pair absent from <code>--baseline</code></td>
 </tr>
+<tr>
+<td><code>estate_identity_blind</code></td>
+<td>9</td>
+<td>the identity pull failed, or identity events stopped inside the window</td>
+</tr>
+<tr>
+<td><code>estate_identity_unverified</code></td>
+<td>7</td>
+<td>other telemetry flowed but there is no identity evidence</td>
+</tr>
+<tr>
+<td><code>estate_no_telemetry</code></td>
+<td>8</td>
+<td>the host returned zero rows</td>
+</tr>
 </tbody>
 </table>
+<p>Coverage findings keep “no fan-out” separate from “the identity source could
+not answer”. Each ledger carries the last identity pull result and a
+<code>--max-identity-age</code> check. See <a href="../estate-ledger/#coverage-quiet-is-not-clean">Estate edge ledger</a>.</p>
 <p>The event diary never leaves the box; only the counts do. See
 <a href="../estate-ledger/">Estate edge ledger</a> for the schema, caps, scale and
 residency model.</p>

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.30.0 — 2026-11-24
+
+- **Coverage, not silence.** Host ledgers now include `coverage`: rows seen, identity and Kerberos counts, event kinds, last event/identity times, whether identity events existed before the window, and the last identity pull result.
+- **Identity pull marker.** `identity.pull` writes `identity-pull.json` beside the event store on every attempt, with `ok`, `events_seen`, `written` and the error when the Security channel could not answer.
+- **Quiet vs blind.** `estate_identity_blind` (9) fires when the pull failed or the identity feed stopped inside the window; `estate_identity_unverified` (7) when other telemetry flows but no identity evidence exists; `estate_no_telemetry` (8) for zero rows; `estate_kerberos_blind` (8) for a `--role dc` host with no 4768/4769; `estate_identity_stale` (8) when the pull marker is older than `--max-identity-age` (default 180 minutes).
+- **Role-aware.** Member servers with zero Kerberos events are not flagged.
+- 1060 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.29.1 — 2026-11-24
 
 - **Remote ledger integrity.** `estate sync` verifies the SHA-256 of every ledger returned by a host before accepting it; a corrupted reply is recorded as a host failure instead of being merged.

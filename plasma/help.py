@@ -3771,7 +3771,9 @@ users, hosts, source addresses, logon types, a few process pairs and file
 hashes. Counts only — no command lines, paths or raw events. The desk pulls
 one ledger per host, replaces the previous copy, merges them and answers
 questions no single box can: one account on fifty hosts, one source across a
-subnet, a host that stopped reporting.""",
+subnet, a host that stopped reporting. Each ledger also carries a coverage
+block (rows seen, identity and Kerberos counts, last identity pull and its
+error) so a calm result can be told apart from a blind identity feed.""",
     [
         ("Build on a host", "plasma estate build --events C:\\ProgramData\\Plasma\\data\\events.jsonl --window 60 --out ledger.json"),
         ("Merge", "plasma estate merge --dir estate\\hosts --out estate\\estate.json"),
@@ -3791,25 +3793,28 @@ _add("estate build", _c(
     [("One hour", "plasma estate build --events events.jsonl --window 60 --out ledger.json")],
     safety=LOCAL_WRITE,
     notes=["Caps users, sources, process pairs and hashes; trims hashes if the ledger exceeds 256 KB.",
-           "Includes a SHA-256 integrity hash over the body."],
+           "Includes a SHA-256 integrity hash over the body.",
+           "Coverage records rows, identity/Kerberos counts, the last identity pull marker (data\\identity-pull.json) and its error, if any."],
     see_also=["estate merge"],
 ))
 
 _add("estate merge", _c(
     "merge host ledgers into an estate ledger",
-    "Load signed host ledgers, keep the newest copy per host, merge users/hosts/sources and flag stale hosts.",
+    "Load hash-sealed host ledgers, keep the newest copy per host, merge users/hosts/sources/coverage and flag stale hosts.",
     [("Merge a directory", "plasma estate merge --dir estate\\hosts --out estate\\estate.json")],
     safety=LOCAL_WRITE,
 ))
 
 _add("estate findings", _c(
     "correlate the estate ledger",
-    "Report account fan-out (a user on many hosts), source-address fan-out, stale hosts and new user/host edges against an optional baseline.",
+    "Report account/source/hash fan-out, stale hosts and new user/host edges, and separate \"no fan-out\" from \"identity coverage was blind\".",
     [("Fan-out", "plasma estate findings --ledger estate.json --threshold 5"),
-     ("Against a baseline", "plasma estate findings --ledger estate.json --baseline baseline.json")],
+     ("Against a baseline", "plasma estate findings --ledger estate.json --baseline baseline.json"),
+     ("Strict identity age", "plasma estate findings --ledger estate.json --max-identity-age 120")],
     safety=READ_ONLY,
     notes=["A same-name pattern without a shared source scores 7 and says to verify; a linked source scores 9.",
-           "Stale host ledger scores 8."],
+           "Stale host ledger scores 8.",
+           "estate_identity_blind scores 9 when the pull failed or other telemetry flowed with zero identity events; estate_no_telemetry scores 8; estate_kerberos_blind and estate_identity_stale score 8."],
 ))
 
 _add("estate sync", _c(
@@ -3819,13 +3824,14 @@ _add("estate sync", _c(
      ("Every five minutes", "plasma estate sync --inventory fleet.json --out-dir estate --loop --interval 300")],
     safety=LOCAL_WRITE,
     notes=["File transport builds locally; WinRM runs estate build on the endpoint and returns only the ledger.",
-           "Workers default to 8; failures are reported per host and do not abort the cycle."],
+           "Workers default to 8; failures are reported per host and do not abort the cycle.",
+           "Coverage findings use --max-identity-age (default 180 minutes) to flag a pull that stopped running."],
     see_also=["fleet pull", "estate findings"],
 ))
 
 _add("estate status", _c(
     "estate ledger summary",
-    "Show host count, stale hosts, user/process/hash counts, size and integrity verdict.",
+    "Show host count, stale hosts, user/process/hash counts, coverage gaps, size and integrity verdict.",
     [("Status", "plasma estate status --ledger estate.json")],
     safety=READ_ONLY,
 ))

@@ -27,8 +27,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 
 from . import agentstate
@@ -370,6 +372,34 @@ def normalize_event(row: dict, host: str) -> dict:
     return normalize_logon(row, host)
 
 
+def _write_pull_marker(events_path, result: dict) -> None:
+    """Record the last identity pull beside the store.
+
+    Estate coverage needs to tell "the DC returned no events" from "the pull
+    could not answer". The store cannot carry that distinction, so the result
+    of every attempt — success or failure — lands in one small sidecar file.
+    """
+    path = Path(events_path).parent / "identity-pull.json"
+    error = result.get("error")
+    payload = {
+        "ts": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "ok": not bool(error),
+        "since_minutes": result.get("since_minutes"),
+        "ids": list(result.get("ids") or [])[:64] or None,
+        "events_seen": int(result.get("events_seen") or 0),
+        "written": int(result.get("written") or 0),
+        "error": str(error)[:500] if error else None,
+    }
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(json.dumps(payload, sort_keys=True) + "\n",
+                       encoding="utf-8")
+        os.replace(tmp, path)
+    except OSError:
+        return
+
+
 def pull(events_path, host: str, since_minutes: int = 15,
          ids=DEFAULT_IDS, max_events: int = MAX_EVENTS) -> dict:
     """Read recent identity events from the Security channel into the store."""
@@ -380,10 +410,13 @@ def pull(events_path, host: str, since_minutes: int = 15,
     try:
         ids = parse_ids(ids)
     except ValueError as exc:
-        return {"error": str(exc), "written": 0}
+        failed = {"error": str(exc), "written": 0}
+        _write_pull_marker(events_path, failed)
+        return failed
     result = _run_ps(since_minutes, ids=ids, max_events=max_events)
     if "error" in result:
         result.setdefault("written", 0)
+        _write_pull_marker(events_path, result)
         return result
     rows = result["events"]
 
@@ -422,10 +455,12 @@ def pull(events_path, host: str, since_minutes: int = 15,
             by_id[key] = by_id.get(key, 0) + 1
     # `logons_seen` is kept for existing callers; `events_seen` is the
     # accurate name now that the collector covers more than logons.
-    return {"since_minutes": since_minutes, "ids": list(ids),
-            "events_seen": len(rows), "logons_seen": len(rows),
-            "written": written, "written_by_id": dict(sorted(by_id.items())),
-            "store": str(events)}
+    result = {"since_minutes": since_minutes, "ids": list(ids),
+              "events_seen": len(rows), "logons_seen": len(rows),
+              "written": written, "written_by_id": dict(sorted(by_id.items())),
+              "store": str(events)}
+    _write_pull_marker(events_path, result)
+    return result
 
 
 def _ps_task(script: str, timeout: int = 120) -> tuple[int, str]:

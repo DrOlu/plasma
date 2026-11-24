@@ -32,6 +32,7 @@ file paths, raw descriptions, or the event diary itself.
 | `processes` | `user>process` counts, capped at 200 |
 | `hashes` | file hash counts, capped at 100 |
 | `truncated` | how many identities were dropped by the caps |
+| `coverage` | rows seen, identity/Kerberos counts, last event times, event kinds, and the last identity pull result |
 | `integrity` | SHA-256 over the ledger body |
 
 Caps are absolute: 200 users, 10 source addresses per user, 200 process pairs,
@@ -83,6 +84,11 @@ been refreshed; stale is a finding, not a silent gap.
 | `estate_hash_fanout` | 8 | the same file hash on ≥ threshold hosts |
 | `estate_stale_host` | 8 | ledger older than `--max-age` |
 | `estate_new_host_edge` | 7 | a user/host pair absent from `--baseline`, for users seen on 2+ hosts |
+| `estate_identity_blind` | 9 | identity pull failed, or identity events existed before the window but none inside it |
+| `estate_identity_unverified` | 7 | non-identity rows flowed but there is no identity evidence — quiet, unconfigured, or blocked |
+| `estate_no_telemetry` | 8 | the host reported zero rows in the window |
+| `estate_kerberos_blind` | 8 | a host with `--role dc` recorded no 4768/4769 events |
+| `estate_identity_stale` | 8 | the last identity pull is older than `--max-identity-age` |
 
 The score split matters. A name appearing in many places is not proof of one
 identity: `Administrator`, `admin` and `svc-backup` are reused across estates
@@ -93,11 +99,72 @@ source address** links at least two of those appearances. Otherwise it reports
 `--baseline` points at a previous `estate.json`. New user/host edges are the
 drift signal — an account that has never been on a host before.
 
+## Coverage: quiet is not clean
+
+A zero-fan-out result is only meaningful if the identity feed was actually
+answering. The ledger therefore carries a `coverage` block:
+
+```json
+"coverage": {
+  "rows": 498,
+  "identity_events": 15,
+  "kerberos_events": 4,
+  "last_event": "2026-11-24T00:24:02Z",
+  "last_identity_event": "2026-11-24T00:23:51Z",
+  "kinds": {"auth": 15, "process": 480, "network": 3},
+  "identity_before_window": true,
+  "identity_pull": {
+    "ts": "2026-11-24T00:25:01Z",
+    "ok": true,
+    "events_seen": 22,
+    "written": 15,
+    "error": null
+  }
+}
+```
+
+`identity_pull` comes from a small sidecar file —
+`<events-dir>\identity-pull.json` — that `plasma identity pull` writes on
+**every attempt**, success or failure. The event store cannot express “the
+Security channel query failed”, so the marker carries that fact:
+
+| Marker state | Meaning |
+|---|---|
+| `ok: true`, `events_seen > 0` | the identity source answered |
+| `ok: true`, `events_seen: 0` | it answered and there were no events |
+| `ok: false` | it could not answer; `error` says why |
+
+That gives the desk three honest outcomes instead of one ambiguous silence:
+
+1. **No fan-out** — identity events were seen on the hosts, nothing crossed them.
+2. **Blind** — the pull failed, or identity events existed before the window
+   and stopped inside it. Score 9; do not treat the estate as clean.
+3. **Unverified** — other telemetry flowed but there is no identity evidence
+   at all. Score 7; the estate cannot claim there was no fan-out.
+
+Two related checks cover the rest:
+
+- `estate_no_telemetry` (8) — the host reported a fresh ledger with zero rows.
+  That is a coverage question, not a clean bill of health.
+- `estate_kerberos_blind` (8) — only when the inventory/role says `dc`. Member
+  servers legitimately have no 4768/4769 events; flagging them would be noise.
+- `estate_identity_stale` (8) — the last pull marker is older than
+  `--max-identity-age` (default 180 minutes), so the coverage evidence is old.
+
+```powershell
+plasma estate findings --ledger estate.json --max-identity-age 120
+```
+
+A failed pull is not silently re-sealed by the desk: `sync` verifies each
+remote ledger's SHA-256 before accepting it, and the marker's error travels
+with the coverage block.
+
 ## Continuous sync
 
 ```powershell
 plasma estate sync --inventory inventory.json --out-dir C:\PlasmaEstate `
-  --window 60 --workers 8 --threshold 5 --max-age 180 --interval 300 --loop
+  --window 60 --workers 8 --threshold 5 --max-age 180 `
+  --max-identity-age 180 --interval 300 --loop
 ```
 
 `sync` pulls one ledger per host in parallel, saves `hosts/<name>.json`,
@@ -161,8 +228,11 @@ site and merge the shard ledgers with `plasma estate merge --ledgers`.
 
 ## Limits
 
-- The ledger correlates what sensors record. A host that is blind produces a
-  small ledger, not an error — pair it with `plasma fleet` attestation.
+- The ledger correlates what sensors record. Coverage findings name a blind or
+  unverified identity feed, but pair them with `plasma fleet` attestation for
+  the full sensor picture.
+- On a member server, zero Kerberos events are normal. Set `--role dc` only
+  for domain controllers that should be producing 4768/4769.
 - Counts cannot explain *why*. When a fan-out finding matters, pull the
   bounded event tail for those hosts with `plasma fleet pull` and read it.
 - Same-name accounts are common. Treat score 7 as a question, not a verdict.

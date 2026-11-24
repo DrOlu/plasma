@@ -2308,9 +2308,10 @@ def cmd_estate_findings(args) -> int:
         if args.baseline:
             baseline = json.loads(Path(args.baseline).read_text(
                 encoding="utf-8-sig"))
-        result = estate.findings(ledger, threshold=args.threshold,
-                                 baseline=baseline)
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        result = estate.findings(
+            ledger, threshold=args.threshold, baseline=baseline,
+            max_identity_age_minutes=args.max_identity_age)
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
         _emit({"ok": False, "error": str(exc)[:500]})
         return 1
     _emit(result)
@@ -2323,7 +2324,8 @@ def cmd_estate_sync(args) -> int:
             args.inventory, args.out_dir, window_minutes=args.window,
             workers=args.workers, threshold=args.threshold,
             max_age_minutes=args.max_age, role=args.role,
-            loop=args.loop, interval=args.interval, baseline=args.baseline)
+            loop=args.loop, interval=args.interval, baseline=args.baseline,
+            max_identity_age_minutes=args.max_identity_age)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         _emit({"ok": False, "error": str(exc)[:500]})
         return 1
@@ -2335,7 +2337,7 @@ def cmd_estate_sync(args) -> int:
 def cmd_estate_status(args) -> int:
     try:
         ledger = estate.load(args.ledger)
-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
         _emit({"ok": False, "error": str(exc)[:500]})
         return 1
     _emit(estate.status(ledger))
@@ -4195,6 +4197,8 @@ def build_parser() -> argparse.ArgumentParser:
     estf.add_argument("--ledger", required=True)
     estf.add_argument("--threshold", type=int, default=estate.DEFAULT_THRESHOLD)
     estf.add_argument("--baseline", default=None)
+    estf.add_argument("--max-identity-age", dest="max_identity_age", type=int,
+                      default=estate.DEFAULT_MAX_IDENTITY_AGE_MINUTES)
     estf.set_defaults(func=cmd_estate_findings)
 
     estsy = ests.add_parser("sync", help="pull, merge and correlate the estate")
@@ -4207,6 +4211,8 @@ def build_parser() -> argparse.ArgumentParser:
                        default=estate.DEFAULT_MAX_AGE_MINUTES)
     estsy.add_argument("--role", default="member")
     estsy.add_argument("--baseline", default=None)
+    estsy.add_argument("--max-identity-age", dest="max_identity_age", type=int,
+                       default=estate.DEFAULT_MAX_IDENTITY_AGE_MINUTES)
     estsy.add_argument("--loop", action="store_true")
     estsy.add_argument("--interval", type=int, default=300)
     estsy.set_defaults(func=cmd_estate_sync)

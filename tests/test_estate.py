@@ -14,9 +14,10 @@ def _ts(minutes_ago=0):
     return (datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)).isoformat().replace("+00:00", "Z")
 
 
-def _row(user=None, source=None, process="cmd.exe", file_hash=None, minutes=1):
-    row = {"ts": _ts(minutes), "host": "WS1", "kind": "auth",
-           "event_id": 4624, "description": "logon type=3"}
+def _row(user=None, source=None, process="cmd.exe", file_hash=None, minutes=1,
+         kind="auth", event_id=4624):
+    row = {"ts": _ts(minutes), "host": "WS1", "kind": kind,
+           "event_id": event_id, "description": "logon type=3"}
     if user:
         row["user"] = user
     if source:
@@ -35,7 +36,7 @@ def _write(path, rows):
 
 
 def _ledger(host, users, sources=None, generated_at=None, window=60,
-            hashes=None):
+            hashes=None, coverage=None):
     body = {
         "schema": estate.SCHEMA,
         "kind": "host-edge-ledger",
@@ -48,6 +49,7 @@ def _ledger(host, users, sources=None, generated_at=None, window=60,
         "processes": {},
         "hashes": dict(hashes or {}),
         "truncated": {},
+        "coverage": coverage or {},
     }
     for user in users:
         body["users"][user] = {
@@ -90,6 +92,104 @@ def test_build_caps_users_and_keeps_integrity(tmp_path):
     assert len(ledger["users"]) == estate.MAX_USERS
     assert ledger["truncated"]["users"] == 320 - estate.MAX_USERS
     assert estate.verify_ledger(ledger)["ok"] is True
+
+
+def test_build_coverage_counts_identity_and_kerberos(tmp_path):
+    path = _write(tmp_path / "events.jsonl", [
+        _row("CORP\\alice", "10.0.0.5", event_id=4624, minutes=2),
+        _row("CORP\\bob", "10.0.0.6", event_id=4768, minutes=1),
+        _row(None, None, "powershell.exe", kind="process", event_id=1, minutes=3),
+    ])
+    coverage = estate.build(path, host="WS1")["coverage"]
+    assert coverage["rows"] == 3
+    assert coverage["identity_events"] == 2
+    assert coverage["kerberos_events"] == 1
+    assert coverage["last_identity_event"]
+    assert coverage["kinds"] == {"auth": 2, "process": 1}
+
+
+def test_no_identity_evidence_is_unverified_not_a_clean_result(tmp_path):
+    path = _write(tmp_path / "events.jsonl", [
+        _row(None, None, "powershell.exe", kind="process", event_id=1),
+    ])
+    result = estate.findings(estate.build(path, host="WS1"), threshold=2)
+    item = next(item for item in result["findings"]
+                if item["type"] == "estate_identity_unverified")
+    assert item["score"] == 7 and item["reason"] == "no_identity_evidence"
+    assert item["rows"] == 1
+
+
+def test_identity_feed_that_stopped_inside_the_window_is_blind(tmp_path):
+    path = _write(tmp_path / "events.jsonl", [
+        _row("CORP\\alice", minutes=120),   # identity worked before the window
+        _row(None, None, "powershell.exe", kind="process", event_id=1),
+    ])
+    result = estate.findings(estate.build(path, host="WS1"), threshold=2)
+    blind = next(item for item in result["findings"]
+                 if item["type"] == "estate_identity_blind")
+    assert blind["score"] == 9 and blind["reason"] == "identity_stopped"
+
+
+def test_empty_window_is_no_telemetry_not_a_clean_result(tmp_path):
+    path = _write(tmp_path / "events.jsonl", [])
+    result = estate.findings(estate.build(path, host="WS1"), threshold=2)
+    types = {item["type"] for item in result["findings"]}
+    assert "estate_no_telemetry" in types
+    assert "estate_identity_blind" not in types
+    empty = next(item for item in result["findings"]
+                 if item["type"] == "estate_no_telemetry")
+    assert empty["score"] == 8
+
+
+def test_failed_identity_pull_is_blind(tmp_path):
+    path = _write(tmp_path / "events.jsonl", [_row("CORP\\alice")])
+    (tmp_path / "identity-pull.json").write_text(json.dumps({
+        "ts": _ts(1), "ok": False, "events_seen": 0, "written": 0,
+        "error": "Get-WinEvent: RPC server unavailable"}))
+    result = estate.findings(estate.build(path, host="WS1"), threshold=2)
+    blind = next(item for item in result["findings"]
+                 if item["type"] == "estate_identity_blind")
+    assert blind["score"] == 9 and blind["reason"] == "identity_pull_failed"
+    assert "RPC server unavailable" in blind["error"]
+
+
+def test_dc_without_kerberos_is_flagged_but_member_is_not(tmp_path):
+    path = _write(tmp_path / "events.jsonl", [_row("CORP\\alice")])
+    dc = estate.findings(estate.build(path, host="DC1", role="dc"), threshold=2)
+    assert any(item["type"] == "estate_kerberos_blind"
+               for item in dc["findings"])
+    member = estate.findings(estate.build(path, host="WS1"), threshold=2)
+    assert not any(item["type"] == "estate_kerberos_blind"
+                   for item in member["findings"])
+
+
+def test_stale_identity_pull_is_flagged(tmp_path):
+    path = _write(tmp_path / "events.jsonl", [_row("CORP\\alice")])
+    (tmp_path / "identity-pull.json").write_text(json.dumps({
+        "ts": _ts(400), "ok": True, "events_seen": 1, "written": 1}))
+    result = estate.findings(estate.build(path, host="WS1"), threshold=2,
+                             max_identity_age_minutes=180)
+    stale = next(item for item in result["findings"]
+                 if item["type"] == "estate_identity_stale")
+    assert stale["score"] == 8 and stale["age_minutes"] >= 399
+
+
+def test_stale_host_does_not_duplicate_coverage_findings():
+    old = _ledger("WS1", ["alice"], generated_at=_ts(600),
+                  coverage={"rows": 10, "identity_events": 0})
+    result = estate.findings(estate.merge([old], max_age_minutes=180),
+                             threshold=2)
+    types = {item["type"] for item in result["findings"]}
+    assert "estate_stale_host" in types
+    assert "estate_identity_blind" not in types
+
+
+def test_merge_preserves_coverage():
+    coverage = {"rows": 10, "identity_events": 3, "kerberos_events": 1,
+                "last_identity_event": _ts(1), "last_event": _ts(1),
+                "kinds": {"auth": 3}, "identity_pull": {"ok": True}}
+    merged = estate.merge([_ledger("WS1", ["alice"], coverage=coverage)])
+    assert merged["hosts"]["WS1"]["coverage"] == coverage
 
 
 def test_tampered_ledger_is_refused(tmp_path):

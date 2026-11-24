@@ -146,9 +146,14 @@ an integrity check, **not a signature**: it detects corruption and casual
 edits, while the trust boundary remains the desk's filesystem ACL and the
 WinRM channel. The desk stores one current ledger per host under `hosts/` and
 replaces it on each pull; retention is an explicit copy, not an implicit
-history.
-Transport to the desk is WinRM (HTTPS recommended) or a local file for
-air-gapped estates.
+history. Transport to the desk is WinRM (HTTPS recommended) or a local file
+for air-gapped estates.
+
+The `coverage` block adds event counts, event kinds, last-seen timestamps and
+the result of the last identity pull — including its error string, which can
+name a channel or RPC failure but carries no credentials. The marker lives
+beside the store as `<events-dir>\identity-pull.json` and is replaced on every
+pull attempt.
 
 ## Update integrity
 

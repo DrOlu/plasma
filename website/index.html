@@ -358,7 +358,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <a class="skip" href="#main">Skip to content</a>
 
 <div class="announce">
-  <b>v1.29.1 is out</b> &nbsp;·&nbsp; A continuously updated estate edge ledger — hash-sealed, mergeable cross-host identity at 1,000-host scale, still no log lake &nbsp;·&nbsp;
+  <b>v1.30.0 is out</b> &nbsp;·&nbsp; A continuously updated estate edge ledger with coverage that tells a quiet estate from a blind identity feed, still no log lake &nbsp;·&nbsp;
   <a href="https://drolu.github.io/plasma/changelog/">read the changelog</a>
 </div>
 
@@ -366,7 +366,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
   <div class="wrap header-inner">
     <a class="brand" href="#top" aria-label="Plasma home">
       <span class="brand-mark" aria-hidden="true">P</span>
-      <span>Plasma</span><em>v1.29.1</em>
+      <span>Plasma</span><em>v1.30.0</em>
     </a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
       <a href="#architecture">Architecture</a>
@@ -426,7 +426,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
 <section class="hero">
   <div class="wrap hero-grid">
     <div class="reveal">
-      <span class="pill"><i></i> Windows EDR · on-device · v1.29.1</span>
+      <span class="pill"><i></i> Windows EDR · on-device · v1.30.0</span>
       <h1>No log lake.<br>No cloud.<br><span class="hl">No blind trust.</span></h1>
       <p class="sub">
         <strong>Detects always. Contains only when armed. Blocks only through Microsoft's own
@@ -490,7 +490,7 @@ footer{background:var(--ink);color:var(--cream);padding:56px 0 30px;border-top:2
       <div class="stat"><div class="num"><span data-count="2">0</span></div><div class="lbl">prevention tiers</div></div>
       <div class="stat"><div class="num"><span data-count="25">0</span></div><div class="lbl">baseline rules</div></div>
       <div class="stat"><div class="num"><span data-count="4">0</span></div><div class="lbl">plugin kinds</div></div>
-      <div class="stat"><div class="num"><span data-count="1051">0</span></div><div class="lbl">tests passing</div></div>
+      <div class="stat"><div class="num"><span data-count="1060">0</span></div><div class="lbl">tests passing</div></div>
     </div>
   </div>
 </section>
@@ -1372,7 +1372,7 @@ plasma fleet report --case estate-01</pre>
     <div class="section-head reveal">
       <span class="kicker">Estate ledger</span>
       <h2>Continuous cross-host correlation without a lake.</h2>
-      <p class="lede">Each host reduces its own store to a small hash-sealed count ledger. The desk replaces the previous copy, merges the newest ledger per host, and raises identity fan-out, shared sources, shared file hashes and stale hosts &mdash; in seconds, at estate scale.</p>
+      <p class="lede">Each host reduces its own store to a small hash-sealed count ledger. The desk replaces the previous copy, merges the newest ledger per host, and raises identity fan-out, shared sources, shared file hashes and stale hosts &mdash; and separates a quiet result from a blind identity feed.</p>
     </div>
 
     <div class="grid c2 reveal">
@@ -1383,11 +1383,18 @@ plasma fleet report --case estate-01</pre>
         <div class="mini">replace-in-place &middot; current snapshot &middot; no central index</div>
       </div>
       <div class="card">
-        <h3>Five findings that need more than one box</h3>
+        <h3>Findings that need more than one box</h3>
         <p><b>User fan-out</b> scores 9 only when a source address links at least two appearances; otherwise 7, flagged as a same-name pattern to verify. <b>Source fan-out</b> catches one address touching many hosts. <b>Hash fan-out</b> scores a shared file hash on many hosts at 8. <b>Stale host</b> is a finding, not a silent gap. <b>New host edge</b> compares against an optional baseline.</p>
         <p>One account on fifty machines in an hour is exactly the question a per-endpoint diary cannot answer alone.</p>
         <div class="mini">threshold default 5 &middot; stale after 180 min</div>
       </div>
+    </div>
+
+    <div class="card reveal" style="margin-top:16px">
+      <h3>Quiet is not clean.</h3>
+      <p>A zero-fan-out result only means something if the identity source answered. Every host ledger carries a <code>coverage</code> block: rows seen, identity and Kerberos counts, event kinds, last event times, and the result of the last identity pull. <code>plasma identity pull</code> writes a small marker beside the store on every attempt, success or failure, so the desk can tell &ldquo;the source answered with no events&rdquo; from &ldquo;the source could not answer&rdquo;.</p>
+      <p><b>Identity blind</b> scores 9 when the pull failed or the feed stopped inside the window. <b>Unverified</b> scores 7 when other telemetry flowed but there is no identity evidence at all. <b>No telemetry</b> scores 8 for a fresh ledger with zero rows. <b>Kerberos blind</b> scores 8 only on a host declared as a DC. <b>Identity stale</b> scores 8 when the pull marker is older than <code>--max-identity-age</code>.</p>
+      <div class="mini">pull ok &middot; pull failed &middot; pull stale &middot; never configured — four different answers</div>
     </div>
 
     <div class="grid c2 reveal" style="margin-top:16px">
@@ -1629,7 +1636,7 @@ POST /v1/exec        run one CLI argv</pre>
       <div class="card c-lime">
         <h3>Tested on a live estate</h3>
         <p>Two Windows Server hosts: signed updates, 25 baseline + 259 Sigma rules, behavioural profiles, Sysmon FileDelete, canaries, fleet correlation, AppLocker/egress apply-and-rollback drills, DTrace runs, Atomic Red Team and TTPForge/ForgeArmory simulations — plus the field WHIDS dump-tree hang, recovered and permanently bounded.</p>
-        <div class="mini">1051 unit tests · 21 skipped</div>
+        <div class="mini">1060 unit tests · 21 skipped</div>
       </div>
       <div class="card c-orange">
         <h3>Known limits</h3>
@@ -1722,7 +1729,7 @@ POST /v1/exec        run one CLI argv</pre>
       <p>Install the signed release, point the harness at the MCP server, and let the policy engine decide what the model is allowed to do.</p>
     </div>
     <div class="cta-actions">
-      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.29.1</a>
+      <a class="btn dark" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.30.0</a>
       <a class="btn pink" href="https://drolu.github.io/plasma/getting-started/">Read the docs</a>
     </div>
   </div>

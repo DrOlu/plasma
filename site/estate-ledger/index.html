@@ -1347,6 +1347,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#coverage-quiet-is-not-clean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coverage: quiet is not clean
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#continuous-sync" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1931,6 +1942,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#coverage-quiet-is-not-clean" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coverage: quiet is not clean
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#continuous-sync" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2052,6 +2074,10 @@ file paths, raw descriptions, or the event diary itself.</p>
 <td>how many identities were dropped by the caps</td>
 </tr>
 <tr>
+<td><code>coverage</code></td>
+<td>rows seen, identity/Kerberos counts, last event times, event kinds, and the last identity pull result</td>
+</tr>
+<tr>
 <td><code>integrity</code></td>
 <td>SHA-256 over the ledger body</td>
 </tr>
@@ -2125,6 +2151,31 @@ been refreshed; stale is a finding, not a silent gap.</p>
 <td>7</td>
 <td>a user/host pair absent from <code>--baseline</code>, for users seen on 2+ hosts</td>
 </tr>
+<tr>
+<td><code>estate_identity_blind</code></td>
+<td>9</td>
+<td>identity pull failed, or identity events existed before the window but none inside it</td>
+</tr>
+<tr>
+<td><code>estate_identity_unverified</code></td>
+<td>7</td>
+<td>non-identity rows flowed but there is no identity evidence — quiet, unconfigured, or blocked</td>
+</tr>
+<tr>
+<td><code>estate_no_telemetry</code></td>
+<td>8</td>
+<td>the host reported zero rows in the window</td>
+</tr>
+<tr>
+<td><code>estate_kerberos_blind</code></td>
+<td>8</td>
+<td>a host with <code>--role dc</code> recorded no 4768/4769 events</td>
+</tr>
+<tr>
+<td><code>estate_identity_stale</code></td>
+<td>8</td>
+<td>the last identity pull is older than <code>--max-identity-age</code></td>
+</tr>
 </tbody>
 </table>
 <p>The score split matters. A name appearing in many places is not proof of one
@@ -2134,9 +2185,78 @@ source address</strong> links at least two of those appearances. Otherwise it re
 7 and says <code>same-name pattern; verify</code>.</p>
 <p><code>--baseline</code> points at a previous <code>estate.json</code>. New user/host edges are the
 drift signal — an account that has never been on a host before.</p>
+<h2 id="coverage-quiet-is-not-clean">Coverage: quiet is not clean<a class="headerlink" href="#coverage-quiet-is-not-clean" title="Permanent link">&para;</a></h2>
+<p>A zero-fan-out result is only meaningful if the identity feed was actually
+answering. The ledger therefore carries a <code>coverage</code> block:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">"coverage"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nt">"rows"</span><span class="p">:</span><span class="w"> </span><span class="mi">498</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"identity_events"</span><span class="p">:</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"kerberos_events"</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"last_event"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-11-24T00:24:02Z"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"last_identity_event"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-11-24T00:23:51Z"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"kinds"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"auth"</span><span class="p">:</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span><span class="w"> </span><span class="nt">"process"</span><span class="p">:</span><span class="w"> </span><span class="mi">480</span><span class="p">,</span><span class="w"> </span><span class="nt">"network"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">},</span>
+<span class="w">  </span><span class="nt">"identity_before_window"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"identity_pull"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"ts"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2026-11-24T00:25:01Z"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"ok"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"events_seen"</span><span class="p">:</span><span class="w"> </span><span class="mi">22</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"written"</span><span class="p">:</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"error"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>identity_pull</code> comes from a small sidecar file —
+<code>&lt;events-dir&gt;\identity-pull.json</code> — that <code>plasma identity pull</code> writes on
+<strong>every attempt</strong>, success or failure. The event store cannot express “the
+Security channel query failed”, so the marker carries that fact:</p>
+<table>
+<thead>
+<tr>
+<th>Marker state</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ok: true</code>, <code>events_seen &gt; 0</code></td>
+<td>the identity source answered</td>
+</tr>
+<tr>
+<td><code>ok: true</code>, <code>events_seen: 0</code></td>
+<td>it answered and there were no events</td>
+</tr>
+<tr>
+<td><code>ok: false</code></td>
+<td>it could not answer; <code>error</code> says why</td>
+</tr>
+</tbody>
+</table>
+<p>That gives the desk three honest outcomes instead of one ambiguous silence:</p>
+<ol>
+<li><strong>No fan-out</strong> — identity events were seen on the hosts, nothing crossed them.</li>
+<li><strong>Blind</strong> — the pull failed, or identity events existed before the window
+   and stopped inside it. Score 9; do not treat the estate as clean.</li>
+<li><strong>Unverified</strong> — other telemetry flowed but there is no identity evidence
+   at all. Score 7; the estate cannot claim there was no fan-out.</li>
+</ol>
+<p>Two related checks cover the rest:</p>
+<ul>
+<li><code>estate_no_telemetry</code> (8) — the host reported a fresh ledger with zero rows.
+  That is a coverage question, not a clean bill of health.</li>
+<li><code>estate_kerberos_blind</code> (8) — only when the inventory/role says <code>dc</code>. Member
+  servers legitimately have no 4768/4769 events; flagging them would be noise.</li>
+<li><code>estate_identity_stale</code> (8) — the last pull marker is older than
+  <code>--max-identity-age</code> (default 180 minutes), so the coverage evidence is old.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">estate</span> <span class="n">findings</span> <span class="p">-</span><span class="n">-ledger</span> <span class="n">estate</span><span class="p">.</span><span class="n">json</span> <span class="p">-</span><span class="n">-max-identity-age</span> <span class="n">120</span>
+</code></pre></div>
+<p>A failed pull is not silently re-sealed by the desk: <code>sync</code> verifies each
+remote ledger's SHA-256 before accepting it, and the marker's error travels
+with the coverage block.</p>
 <h2 id="continuous-sync">Continuous sync<a class="headerlink" href="#continuous-sync" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">estate</span> <span class="n">sync</span> <span class="p">-</span><span class="n">-inventory</span> <span class="n">inventory</span><span class="p">.</span><span class="n">json</span> <span class="p">-</span><span class="n">-out-dir</span> <span class="n">C</span><span class="p">:\</span><span class="n">PlasmaEstate</span> <span class="p">`</span>
-  <span class="p">-</span><span class="n">-window</span> <span class="n">60</span> <span class="p">-</span><span class="n">-workers</span> <span class="n">8</span> <span class="p">-</span><span class="n">-threshold</span> <span class="n">5</span> <span class="p">-</span><span class="n">-max-age</span> <span class="n">180</span> <span class="p">-</span><span class="n">-interval</span> <span class="n">300</span> <span class="p">-</span><span class="n">-loop</span>
+  <span class="p">-</span><span class="n">-window</span> <span class="n">60</span> <span class="p">-</span><span class="n">-workers</span> <span class="n">8</span> <span class="p">-</span><span class="n">-threshold</span> <span class="n">5</span> <span class="p">-</span><span class="n">-max-age</span> <span class="n">180</span> <span class="p">`</span>
+  <span class="p">-</span><span class="n">-max-identity-age</span> <span class="n">180</span> <span class="p">-</span><span class="n">-interval</span> <span class="n">300</span> <span class="p">-</span><span class="n">-loop</span>
 </code></pre></div>
 <p><code>sync</code> pulls one ledger per host in parallel, saves <code>hosts/&lt;name&gt;.json</code>,
 merges to <code>estate.json</code>, writes <code>findings.json</code>, and returns one JSON summary.
@@ -2192,8 +2312,11 @@ site and merge the shard ledgers with <code>plasma estate merge --ledgers</code>
 </ul>
 <h2 id="limits">Limits<a class="headerlink" href="#limits" title="Permanent link">&para;</a></h2>
 <ul>
-<li>The ledger correlates what sensors record. A host that is blind produces a
-  small ledger, not an error — pair it with <code>plasma fleet</code> attestation.</li>
+<li>The ledger correlates what sensors record. Coverage findings name a blind or
+  unverified identity feed, but pair them with <code>plasma fleet</code> attestation for
+  the full sensor picture.</li>
+<li>On a member server, zero Kerberos events are normal. Set <code>--role dc</code> only
+  for domain controllers that should be producing 4768/4769.</li>
 <li>Counts cannot explain <em>why</em>. When a fan-out finding matters, pull the
   bounded event tail for those hosts with <code>plasma fleet pull</code> and read it.</li>
 <li>Same-name accounts are common. Treat score 7 as a question, not a verdict.</li>

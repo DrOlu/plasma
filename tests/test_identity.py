@@ -53,12 +53,17 @@ def test_pull_appends_with_dedupe(tmp_path, monkeypatch):
     stored = [json.loads(l) for l in events.read_text().splitlines() if l.strip()]
     assert len(stored) == 2
     assert all(PlasmaEvent(**r) for r in stored)
+    marker = json.loads((tmp_path / "identity-pull.json").read_text())
+    assert marker["ok"] is True and marker["events_seen"] == 3
+    assert marker["written"] == 0 and marker["error"] is None
 
 
 def test_pull_collector_failure_is_data(tmp_path, monkeypatch):
     monkeypatch.setattr(identity, "_run_ps", lambda m, **kw: {"error": "timeout"})
     out = identity.pull(tmp_path / "e.jsonl", host="WS1")
     assert "error" in out and out["written"] == 0
+    marker = json.loads((tmp_path / "identity-pull.json").read_text())
+    assert marker["ok"] is False and marker["error"] == "timeout"
 
 
 # --- Kerberos, NTLM and process lineage -----------------------------------

@@ -106,6 +106,13 @@ ledger, merges everything and raises:
 | `estate_stale_host` | 8 | a host stopped refreshing its ledger |
 | `estate_hash_fanout` | 8 | the same file hash on many hosts |
 | `estate_new_host_edge` | 7 | a user/host pair absent from `--baseline` |
+| `estate_identity_blind` | 9 | the identity pull failed, or identity events stopped inside the window |
+| `estate_identity_unverified` | 7 | other telemetry flowed but there is no identity evidence |
+| `estate_no_telemetry` | 8 | the host returned zero rows |
+
+Coverage findings keep “no fan-out” separate from “the identity source could
+not answer”. Each ledger carries the last identity pull result and a
+`--max-identity-age` check. See [Estate edge ledger](estate-ledger.md#coverage-quiet-is-not-clean).
 
 The event diary never leaves the box; only the counts do. See
 [Estate edge ledger](estate-ledger.md) for the schema, caps, scale and

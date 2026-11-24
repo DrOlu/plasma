@@ -360,17 +360,21 @@ Correlates lateral hops, shared indicators, canaries and blind hosts.
 ```text
 plasma estate build    --events FILE [--out FILE] [--window MIN] [--max-rows N] [--host NAME] [--role ROLE]
 plasma estate merge    (--ledgers FILE... | --dir DIR) --out FILE [--max-age MIN]
-plasma estate findings --ledger FILE [--threshold N] [--baseline FILE]
+plasma estate findings --ledger FILE [--threshold N] [--baseline FILE] [--max-identity-age MIN]
 plasma estate sync     --inventory FILE --out-dir DIR [--window MIN] [--workers N]
                        [--threshold N] [--max-age MIN] [--role ROLE]
-                       [--baseline FILE] [--loop] [--interval SECONDS]
+                       [--baseline FILE] [--max-identity-age MIN] [--loop] [--interval SECONDS]
 plasma estate status   --ledger FILE
 ```
 
-The estate edge ledger: each host reduces its own store to a small signed
+The estate edge ledger: each host reduces its own store to a small hash-sealed
 identity ledger, the desk merges the newest ledger per host and correlates
-user/source fan-out, stale hosts and new host edges. `sync` is the continuous
-form; `--loop` runs until stopped. See [Estate edge ledger](estate-ledger.md).
+user/source/hash fan-out, stale hosts and new host edges. Coverage findings
+(`estate_identity_blind`, `estate_identity_unverified`, `estate_no_telemetry`,
+`estate_kerberos_blind`, `estate_identity_stale`) separate a quiet estate from
+a blind or unverified identity feed. `--max-identity-age` defaults to 180
+minutes. `sync` is the continuous form; `--loop` runs until stopped. See
+[Estate edge ledger](estate-ledger.md).
 
 ### actuate / playbook
 

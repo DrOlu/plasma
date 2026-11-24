@@ -31,6 +31,7 @@ DEFAULT_WINDOW_MINUTES = 60
 DEFAULT_MAX_ROWS = 20000
 DEFAULT_THRESHOLD = 5
 DEFAULT_MAX_AGE_MINUTES = 180
+DEFAULT_MAX_IDENTITY_AGE_MINUTES = 180
 MAX_USERS = 200
 MAX_SOURCES = 10
 MAX_PROCESSES = 200
@@ -40,6 +41,17 @@ ESTATE_MAX_USERS = 5000
 ESTATE_MAX_PROCESSES = 5000
 ESTATE_MAX_HASHES = 5000
 ESTATE_MAX_HASH_HOST_PAIRS = 20000
+
+# Audit IDs that make a row part of the identity feed. The identity collector
+# normalises most of these to kind="auth"; the ID set also catches imported
+# rows from other sources.
+AUTH_IDS = frozenset({
+    4624, 4625, 4648, 4662, 4672, 4720, 4722, 4724, 4725, 4726, 4728,
+    4732, 4738, 4740, 4756, 4767, 4768, 4769, 4770, 4771, 4776,
+})
+KERBEROS_IDS = frozenset({4768, 4769, 4770, 4771})
+MAX_KINDS = 8
+DC_ROLES = frozenset({"dc", "domain-controller", "domain_controller", "kdc"})
 
 
 def _now() -> str:
@@ -98,6 +110,27 @@ def _top(counter: Counter, limit: int) -> dict:
     return dict(sorted(counter.items(), key=lambda item: (-item[1], item[0]))[:limit])
 
 
+def _identity_pull(events_path) -> dict | None:
+    """Read the sidecar written by the last identity pull, if any."""
+    path = Path(events_path).parent / "identity-pull.json"
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    error = data.get("error")
+    return {
+        "ts": data.get("ts"),
+        "ok": bool(data["ok"]) if "ok" in data else not bool(error),
+        "events_seen": int(data.get("events_seen") or 0),
+        "written": int(data.get("written") or 0),
+        "error": str(error)[:300] if error else None,
+    }
+
+
 def build(events_path, host: str | None = None, role: str = "member",
           window_minutes: int = DEFAULT_WINDOW_MINUTES,
           max_rows: int = DEFAULT_MAX_ROWS) -> dict:
@@ -111,12 +144,36 @@ def build(events_path, host: str | None = None, role: str = "member",
     users: dict[str, dict] = {}
     processes: Counter = Counter()
     hashes: Counter = Counter()
+    kinds: Counter = Counter()
+    identity_events = 0
+    kerberos_events = 0
+    last_identity = None
+    last_event = None
+    identity_before_window = False
     used = 0
     for row in rows:
         stamp = _stamp(row.get("ts"))
-        if stamp is None or stamp < start:
+        if stamp is None:
+            continue
+        kind = str(row.get("kind") or "unknown").strip().lower() or "unknown"
+        try:
+            event_id = int(row.get("event_id") or 0)
+        except (TypeError, ValueError):
+            event_id = 0
+        is_identity = kind == "auth" or event_id in AUTH_IDS
+        if stamp < start:
+            if is_identity:
+                identity_before_window = True
             continue
         used += 1
+        last_event = stamp if last_event is None else max(last_event, stamp)
+        kinds[kind] += 1
+        if is_identity:
+            identity_events += 1
+            last_identity = (stamp if last_identity is None
+                             else max(last_identity, stamp))
+            if event_id in KERBEROS_IDS:
+                kerberos_events += 1
         user = _user(row.get("user"))
         if not user:
             continue
@@ -170,6 +227,18 @@ def build(events_path, host: str | None = None, role: str = "member",
             "users": max(0, len(users) - len(rendered)),
             "processes": max(0, len(processes) - MAX_PROCESSES),
             "hashes": max(0, len(hashes) - MAX_HASHES),
+        },
+        "coverage": {
+            "rows": used,
+            "identity_events": identity_events,
+            "kerberos_events": kerberos_events,
+            "last_event": (last_event.isoformat().replace("+00:00", "Z")
+                           if last_event else None),
+            "last_identity_event": (last_identity.isoformat().replace(
+                "+00:00", "Z") if last_identity else None),
+            "kinds": _top(kinds, MAX_KINDS),
+            "identity_before_window": identity_before_window,
+            "identity_pull": _identity_pull(events_path),
         },
     }
     ledger = sign_ledger(ledger)
@@ -241,6 +310,7 @@ def merge(ledgers: list[dict], max_age_minutes: int = DEFAULT_MAX_AGE_MINUTES,
             "n": int(ledger.get("n") or 0),
             "users": len(ledger.get("users") or {}),
             "stale": bool(stale),
+            "coverage": ledger.get("coverage") or {},
         }
         window = max(window, int((ledger.get("window") or {}).get("minutes") or 0))
         for user, entry in (ledger.get("users") or {}).items():
@@ -289,8 +359,118 @@ def merge(ledgers: list[dict], max_age_minutes: int = DEFAULT_MAX_AGE_MINUTES,
     return sign_ledger(estate)
 
 
+def _hosts_view(estate: dict) -> dict:
+    """Hosts map for a merged estate ledger or a single host ledger."""
+    hosts = estate.get("hosts")
+    if hosts:
+        return hosts
+    if estate.get("kind") == "host-edge-ledger":
+        host = str(estate.get("host") or "local")
+        return {host: {
+            "role": estate.get("role", "member"),
+            "generated_at": estate.get("generated_at"),
+            "n": int(estate.get("n") or 0),
+            "users": len(estate.get("users") or {}),
+            "stale": False,
+            "coverage": estate.get("coverage") or {},
+        }}
+    return {}
+
+
+def _coverage_findings(hosts: dict, now: datetime,
+                       max_identity_age_minutes: int) -> list[dict]:
+    """Distinguish "nothing happened" from "the identity feed was blind"."""
+    found = []
+    max_age = max(1, int(max_identity_age_minutes))
+    for host, details in hosts.items():
+        if details.get("stale"):
+            continue
+        coverage = details.get("coverage")
+        if not isinstance(coverage, dict) or not coverage:
+            continue
+        rows = int(coverage.get("rows") or 0)
+        identity = int(coverage.get("identity_events") or 0)
+        kerberos = int(coverage.get("kerberos_events") or 0)
+        pull = coverage.get("identity_pull") or {}
+        role = str(details.get("role") or "").lower()
+        if pull.get("ok") is False:
+            found.append({
+                "type": "estate_identity_blind",
+                "key": f"host:{host}",
+                "score": 9,
+                "host": host,
+                "reason": "identity_pull_failed",
+                "rows": rows,
+                "identity_events": identity,
+                "error": pull.get("error"),
+                "detail": (f"host {host} identity pull failed"
+                           + (f": {pull.get('error')}" if pull.get("error") else "")),
+            })
+        elif rows > 0 and identity == 0:
+            if coverage.get("identity_before_window"):
+                found.append({
+                    "type": "estate_identity_blind",
+                    "key": f"host:{host}",
+                    "score": 9,
+                    "host": host,
+                    "reason": "identity_stopped",
+                    "rows": rows,
+                    "identity_events": 0,
+                    "detail": (f"host {host} had identity events before this "
+                               "window but none inside it — the feed stopped"),
+                })
+            else:
+                found.append({
+                    "type": "estate_identity_unverified",
+                    "key": f"host:{host}",
+                    "score": 7,
+                    "host": host,
+                    "reason": "no_identity_evidence",
+                    "rows": rows,
+                    "identity_events": 0,
+                    "detail": (f"host {host} recorded {rows} non-identity rows "
+                               "and no identity evidence — no fan-out cannot be "
+                               "claimed"),
+                })
+        if rows == 0 and pull.get("ok") is not False:
+            found.append({
+                "type": "estate_no_telemetry",
+                "key": f"host:{host}",
+                "score": 8,
+                "host": host,
+                "rows": 0,
+                "detail": (f"host {host} reported no rows in the window — "
+                           "quiet or blind; verify the sensor"),
+            })
+        if role in DC_ROLES and rows > 0 and kerberos == 0:
+            found.append({
+                "type": "estate_kerberos_blind",
+                "key": f"host:{host}",
+                "score": 8,
+                "host": host,
+                "role": role,
+                "rows": rows,
+                "detail": (f"domain controller {host} recorded no 4768/4769 "
+                           "events — Kerberos auditing may be missing"),
+            })
+        pulled = _stamp(pull.get("ts"))
+        if pulled is not None and now - pulled > timedelta(minutes=max_age):
+            found.append({
+                "type": "estate_identity_stale",
+                "key": f"host:{host}",
+                "score": 8,
+                "host": host,
+                "last_pull": pull.get("ts"),
+                "age_minutes": int((now - pulled).total_seconds() // 60),
+                "detail": (f"host {host} identity pull has not run for "
+                           f"{int((now - pulled).total_seconds() // 60)} minutes"),
+            })
+    return found
+
+
 def findings(estate: dict, threshold: int = DEFAULT_THRESHOLD,
-             baseline: dict | None = None) -> dict:
+             baseline: dict | None = None,
+             max_identity_age_minutes: int = DEFAULT_MAX_IDENTITY_AGE_MINUTES) -> dict:
     """Correlate the estate ledger into cross-host findings."""
     threshold = max(2, min(int(threshold), 10000))
     found = []
@@ -363,6 +543,9 @@ def findings(estate: dict, threshold: int = DEFAULT_THRESHOLD,
                 "generated_at": details.get("generated_at"),
                 "detail": f"host {host} ledger is stale",
             })
+    found.extend(_coverage_findings(_hosts_view(estate),
+                                    datetime.now(timezone.utc),
+                                    max_identity_age_minutes))
     if baseline:
         old_edges = _baseline_edges(baseline)
         new_edges = []
@@ -422,8 +605,21 @@ def status(estate: dict) -> dict:
         "hashes": len(estate.get("hashes") or {}),
         "bytes": len(json.dumps(estate, separators=(",", ":"))),
         "truncated": estate.get("truncated") or {},
+        "coverage": _coverage_summary(_hosts_view(estate)),
         "integrity": verify_ledger(estate),
     }
+
+
+def _coverage_summary(hosts: dict) -> dict:
+    items = _coverage_findings(hosts, datetime.now(timezone.utc),
+                               DEFAULT_MAX_IDENTITY_AGE_MINUTES)
+    summary = {"identity_blind": [], "identity_unverified": [],
+               "no_telemetry": [], "kerberos_blind": [],
+               "identity_stale": []}
+    for item in items:
+        key = item["type"].removeprefix("estate_")
+        summary.setdefault(key, []).append(item["host"])
+    return summary
 
 
 # ---------------------------------------------------------------------------
@@ -505,7 +701,8 @@ def sync(inventory_path, out_dir, window_minutes: int = DEFAULT_WINDOW_MINUTES,
          workers: int = 8, threshold: int = DEFAULT_THRESHOLD,
          max_age_minutes: int = DEFAULT_MAX_AGE_MINUTES,
          role: str = "member", loop: bool = False,
-         interval: int = 300, baseline=None) -> dict:
+         interval: int = 300, baseline=None,
+         max_identity_age_minutes: int = DEFAULT_MAX_IDENTITY_AGE_MINUTES) -> dict:
     """Pull one ledger per host, merge, correlate and persist the snapshot."""
     from . import fleet
 
@@ -550,7 +747,8 @@ def sync(inventory_path, out_dir, window_minutes: int = DEFAULT_WINDOW_MINUTES,
                     "failures": failures, "hosts": len(entries)}
         estate = merge(ledgers, max_age_minutes=max_age_minutes)
         saved = save(out / "estate.json", estate)
-        report = findings(estate, threshold=threshold, baseline=base)
+        report = findings(estate, threshold=threshold, baseline=base,
+                          max_identity_age_minutes=max_identity_age_minutes)
         finding_path = out / "findings.json"
         finding_tmp = out / "findings.json.tmp"
         finding_tmp.write_text(

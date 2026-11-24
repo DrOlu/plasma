@@ -1,19 +1,19 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.29.1</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.30.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.29.1</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.30.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
 <span class="raft-badge">25 baseline rules</span>
-<span class="raft-badge">1051 tests</span>
+<span class="raft-badge">1060 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -137,6 +137,9 @@ hash-sealed counts, the desk merges and correlates them, and no event diary move
 | `estate_stale_host` | 8 | ledger older than `--max-age` |
 | `estate_hash_fanout` | 8 | the same file hash on many hosts |
 | `estate_new_host_edge` | 7 | user/host pair absent from the baseline |
+| `estate_identity_blind` | 9 | identity pull failed, or the feed stopped inside the window |
+| `estate_identity_unverified` | 7 | other telemetry flowed but there is no identity evidence |
+| `estate_no_telemetry` | 8 | the host reported zero rows |
 
 ```powershell
 plasma estate sync --inventory inventory.json --out-dir C:\PlasmaEstate --loop
@@ -175,6 +178,14 @@ Inbound adapters bring other systems in: `plasma ingest jsonl|evtx|webhook`.
 Outbound adapters push bounded batches: `plasma export webhook|syslog`.
 See [Plugins](plugin-api.md) for the manifest, protocol, lifecycle, security
 model and schemas.
+
+## What's new in 1.30.0
+
+- **Quiet is not clean.** Every host ledger now carries a `coverage` block: rows seen, identity and Kerberos counts, last event times, event kinds and the result of the last identity pull.
+- **Identity pull marker.** `plasma identity pull` writes `identity-pull.json` beside the store on every attempt, success or failure, so the desk can tell "the source answered with no events" from "the source could not answer".
+- **Coverage findings.** `estate_identity_blind` (9) for a failed pull or an identity feed that stopped inside the window; `estate_identity_unverified` (7) when other telemetry flowed but there is no identity evidence; `estate_no_telemetry` (8) for zero rows; `estate_kerberos_blind` (8) on a declared DC; `estate_identity_stale` (8) when the pull marker is old.
+- **Role-aware.** Member servers are not expected to produce 4768/4769; only hosts marked `--role dc` are checked for Kerberos coverage.
+- **One more knob.** `--max-identity-age` (default 180 minutes) controls when a pull marker is stale.
 
 ## What's new in 1.29.1
 

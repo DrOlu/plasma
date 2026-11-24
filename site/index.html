@@ -525,6 +525,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#whats-new-in-1300" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's new in 1.30.0
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#whats-new-in-1291" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2611,6 +2622,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#whats-new-in-1300" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's new in 1.30.0
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#whats-new-in-1291" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3302,21 +3324,21 @@
 
 
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.29.1</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.30.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.29.1</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.30.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
 <span class="raft-badge">25 baseline rules</span>
-<span class="raft-badge">1051 tests</span>
+<span class="raft-badge">1060 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -3478,6 +3500,21 @@ hash-sealed counts, the desk merges and correlates them, and no event diary move
 <td>7</td>
 <td>user/host pair absent from the baseline</td>
 </tr>
+<tr>
+<td><code>estate_identity_blind</code></td>
+<td>9</td>
+<td>identity pull failed, or the feed stopped inside the window</td>
+</tr>
+<tr>
+<td><code>estate_identity_unverified</code></td>
+<td>7</td>
+<td>other telemetry flowed but there is no identity evidence</td>
+</tr>
+<tr>
+<td><code>estate_no_telemetry</code></td>
+<td>8</td>
+<td>the host reported zero rows</td>
+</tr>
 </tbody>
 </table>
 <div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">estate</span> <span class="n">sync</span> <span class="p">-</span><span class="n">-inventory</span> <span class="n">inventory</span><span class="p">.</span><span class="n">json</span> <span class="p">-</span><span class="n">-out-dir</span> <span class="n">C</span><span class="p">:\</span><span class="n">PlasmaEstate</span> <span class="p">-</span><span class="n">-loop</span>
@@ -3533,6 +3570,14 @@ write <code>events.jsonl</code> directly and never get a shell.</p>
 Outbound adapters push bounded batches: <code>plasma export webhook|syslog</code>.
 See <a href="plugin-api/">Plugins</a> for the manifest, protocol, lifecycle, security
 model and schemas.</p>
+<h2 id="whats-new-in-1300">What's new in 1.30.0<a class="headerlink" href="#whats-new-in-1300" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Quiet is not clean.</strong> Every host ledger now carries a <code>coverage</code> block: rows seen, identity and Kerberos counts, last event times, event kinds and the result of the last identity pull.</li>
+<li><strong>Identity pull marker.</strong> <code>plasma identity pull</code> writes <code>identity-pull.json</code> beside the store on every attempt, success or failure, so the desk can tell "the source answered with no events" from "the source could not answer".</li>
+<li><strong>Coverage findings.</strong> <code>estate_identity_blind</code> (9) for a failed pull or an identity feed that stopped inside the window; <code>estate_identity_unverified</code> (7) when other telemetry flowed but there is no identity evidence; <code>estate_no_telemetry</code> (8) for zero rows; <code>estate_kerberos_blind</code> (8) on a declared DC; <code>estate_identity_stale</code> (8) when the pull marker is old.</li>
+<li><strong>Role-aware.</strong> Member servers are not expected to produce 4768/4769; only hosts marked <code>--role dc</code> are checked for Kerberos coverage.</li>
+<li><strong>One more knob.</strong> <code>--max-identity-age</code> (default 180 minutes) controls when a pull marker is stale.</li>
+</ul>
 <h2 id="whats-new-in-1291">What's new in 1.29.1<a class="headerlink" href="#whats-new-in-1291" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Remote ledger integrity.</strong> <code>estate sync</code> verifies the SHA-256 of every ledger returned by a host before accepting it; a corrupted reply becomes a recorded host failure, not a merged finding.</li>

@@ -2390,7 +2390,14 @@ the newest ledger per host and correlates identity fan-out and stale hosts.</p>
 <p>Run it on the same cadence as <code>watch</code> (typically 5–15 minutes). Check
 <code>failures</code> in each sync summary: a host that cannot build a ledger is a
 coverage problem, not a quiet host. A <code>stale_host</code> finding means the desk has
-not refreshed that host inside <code>--max-age</code>. A score-7 user fan-out is a
+not refreshed that host inside <code>--max-age</code>.</p>
+<p>Check the coverage findings as well. <code>estate_identity_blind</code> (9) means the
+identity pull failed or stopped inside the window; <code>estate_identity_unverified</code>
+(7) means other telemetry flowed but there was no identity evidence at all.
+Neither is a clean result. <code>estate_no_telemetry</code> (8) means a fresh ledger with
+zero rows. <code>estate_kerberos_blind</code> (8) is role-aware: only hosts marked
+<code>--role dc</code> are expected to produce 4768/4769. <code>estate_identity_stale</code> (8)
+means the pull marker is older than <code>--max-identity-age</code>. A score-7 user fan-out is a
 same-name pattern until a shared source address proves otherwise; escalate to
 <code>plasma fleet pull</code> for the hosts involved before acting.</p>
 <p>Keep <code>estate.json</code> and <code>hosts/</code> on the desk, not on endpoints. Replace-in-place
