@@ -4,6 +4,12 @@ The canonical history lives in
 [CHANGELOG.md](https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md).
 Highlights by release:
 
+## 1.29.1 — 2026-11-24
+
+- **Remote ledger integrity.** `estate sync` verifies the SHA-256 of every ledger returned by a host before accepting it; a corrupted reply is recorded as a host failure instead of being merged.
+- **Atomic findings.** `findings.json` is replaced atomically, like `estate.json` and per-host ledgers.
+- 1051 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.29.0 — 2026-11-24
 
 - **Estate edge ledger.** `plasma estate build` reduces a bounded window to a small hash-sealed count ledger: users, first/last seen, bounded sources, logon types, `user>process` pairs and hashes. No command lines, file paths or event rows leave the host.

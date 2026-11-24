@@ -1,12 +1,12 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.29.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.29.1</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.29.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.29.1</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
@@ -175,6 +175,11 @@ Inbound adapters bring other systems in: `plasma ingest jsonl|evtx|webhook`.
 Outbound adapters push bounded batches: `plasma export webhook|syslog`.
 See [Plugins](plugin-api.md) for the manifest, protocol, lifecycle, security
 model and schemas.
+
+## What's new in 1.29.1
+
+- **Remote ledger integrity.** `estate sync` verifies the SHA-256 of every ledger returned by a host before accepting it; a corrupted reply becomes a recorded host failure, not a merged finding.
+- **Atomic findings.** `findings.json` is replaced atomically, like `estate.json` and the per-host ledgers, so a reader never sees a half-written cycle.
 
 ## What's new in 1.29.0
 

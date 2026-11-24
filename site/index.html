@@ -525,6 +525,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#whats-new-in-1291" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's new in 1.29.1
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#whats-new-in-1290" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2600,6 +2611,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#whats-new-in-1291" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's new in 1.29.1
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#whats-new-in-1290" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3280,14 +3302,14 @@
 
 
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.29.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.29.1</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.29.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.29.1</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
@@ -3511,6 +3533,11 @@ write <code>events.jsonl</code> directly and never get a shell.</p>
 Outbound adapters push bounded batches: <code>plasma export webhook|syslog</code>.
 See <a href="plugin-api/">Plugins</a> for the manifest, protocol, lifecycle, security
 model and schemas.</p>
+<h2 id="whats-new-in-1291">What's new in 1.29.1<a class="headerlink" href="#whats-new-in-1291" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Remote ledger integrity.</strong> <code>estate sync</code> verifies the SHA-256 of every ledger returned by a host before accepting it; a corrupted reply becomes a recorded host failure, not a merged finding.</li>
+<li><strong>Atomic findings.</strong> <code>findings.json</code> is replaced atomically, like <code>estate.json</code> and the per-host ledgers, so a reader never sees a half-written cycle.</li>
+</ul>
 <h2 id="whats-new-in-1290">What's new in 1.29.0<a class="headerlink" href="#whats-new-in-1290" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Estate edge ledger.</strong> Each host reduces its own store to a small hash-sealed count ledger — users, sources, <code>user&gt;process</code> pairs and hashes, never command lines or file paths. The desk replaces the newest ledger per host, merges and correlates.</li>

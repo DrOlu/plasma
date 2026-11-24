@@ -412,7 +412,9 @@ def status(estate: dict) -> dict:
         "generated_at": estate.get("generated_at"),
         "window_minutes": estate.get("window_minutes")
         or (estate.get("window") or {}).get("minutes"),
-        "hosts": len(hosts),
+        "host": estate.get("host"),
+        "hosts": len(hosts) if hosts else (
+            1 if estate.get("kind") == "host-edge-ledger" else 0),
         "stale_hosts": sorted(host for host, details in hosts.items()
                               if details.get("stale")),
         "users": len(estate.get("users") or {}),
@@ -468,6 +470,9 @@ def _profile_from_winrm(entry, window_minutes: int, role: str) -> dict:
             except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
                 continue
             if isinstance(ledger, dict):
+                verdict = verify_ledger(ledger)
+                if not verdict.get("ok"):
+                    return {"error": "remote ledger integrity failed"}
                 return ledger
         return {"error": "remote returned no ledger JSON"}
     except Exception as exc:  # noqa: BLE001 — endpoint failures are data
@@ -546,9 +551,12 @@ def sync(inventory_path, out_dir, window_minutes: int = DEFAULT_WINDOW_MINUTES,
         estate = merge(ledgers, max_age_minutes=max_age_minutes)
         saved = save(out / "estate.json", estate)
         report = findings(estate, threshold=threshold, baseline=base)
-        (out / "findings.json").write_text(
+        finding_path = out / "findings.json"
+        finding_tmp = out / "findings.json.tmp"
+        finding_tmp.write_text(
             json.dumps(report, indent=1, sort_keys=True) + "\n",
             encoding="utf-8")
+        os.replace(finding_tmp, finding_path)
         return {
             "ok": True,
             "out_dir": str(out),
