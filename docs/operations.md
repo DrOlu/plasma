@@ -183,7 +183,11 @@ identity pull failed or stopped inside the window; `estate_identity_unverified`
 Neither is a clean result. `estate_no_telemetry` (8) means a fresh ledger with
 zero rows. `estate_kerberos_blind` (8) is role-aware: only hosts marked
 `--role dc` are expected to produce 4768/4769. `estate_identity_stale` (8)
-means the pull marker is older than `--max-identity-age`. A score-7 user fan-out is a
+means the pull marker is older than `--max-identity-age`. A pull that answered
+with events is *unverified*, not blind: the feed is alive even when the window
+holds no auth rows. And `estate status` lists hosts whose ledger predates
+coverage blocks under `coverage.unknown` — upgrade those endpoints rather than
+trusting their silence. A score-7 user fan-out is a
 same-name pattern until a shared source address proves otherwise; escalate to
 `plasma fleet pull` for the hosts involved before acting.
 

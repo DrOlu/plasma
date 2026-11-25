@@ -1755,6 +1755,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#1310-2026-11-24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.31.0 — 2026-11-24
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1300-2026-11-24" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2963,6 +2974,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#1310-2026-11-24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.31.0 — 2026-11-24
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1300-2026-11-24" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4152,6 +4174,16 @@
 <p>The canonical history lives in
 <a href="https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md">CHANGELOG.md</a>.
 Highlights by release:</p>
+<h2 id="1310-2026-11-24">1.31.0 — 2026-11-24<a class="headerlink" href="#1310-2026-11-24" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>FP fix — answered feeds are not blind.</strong> When the last identity pull answered with events, zero in-window auth rows now score <code>estate_identity_unverified</code> (7, reason <code>identity_outside_window</code>); <code>estate_identity_blind</code> (9) is reserved for a failed pull or a stopped feed whose last pull brought nothing.</li>
+<li><strong>FN fix — coverage gaps are visible.</strong> Hosts whose ledger predates coverage blocks are listed in <code>estate status</code> under <code>coverage.unknown</code> rather than silently skipped.</li>
+<li><strong>Attribution guard.</strong> <code>sync</code> verifies the remote ledger's host and kind, not just its integrity hash; a mismatched reply is a recorded per-host failure.</li>
+<li><strong>Race fix.</strong> <code>estate save</code>, <code>findings.json</code> and the identity marker write to per-process temp files before <code>os.replace</code>, so overlapping writers cannot corrupt each other.</li>
+<li><strong>Performance.</strong> Identity dedupe hashes a bounded 64 MB tail of the store instead of the whole file — a large win on hosts with hundreds of thousands of rows.</li>
+<li><strong>Robustness.</strong> <code>merge</code> and <code>findings</code> skip malformed ledger sections (wrong types) instead of raising.</li>
+<li>1070 tests collected; full suite, ruff and bandit (0 medium/high) pass.</li>
+</ul>
 <h2 id="1300-2026-11-24">1.30.0 — 2026-11-24<a class="headerlink" href="#1300-2026-11-24" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Coverage, not silence.</strong> Host ledgers now include <code>coverage</code>: rows seen, identity and Kerberos counts, event kinds, last event/identity times, whether identity events existed before the window, and the last identity pull result.</li>

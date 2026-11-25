@@ -2154,12 +2154,12 @@ been refreshed; stale is a finding, not a silent gap.</p>
 <tr>
 <td><code>estate_identity_blind</code></td>
 <td>9</td>
-<td>identity pull failed, or identity events existed before the window but none inside it</td>
+<td>identity pull failed, or identity events existed before the window, none inside it, <strong>and the last pull brought nothing</strong></td>
 </tr>
 <tr>
 <td><code>estate_identity_unverified</code></td>
 <td>7</td>
-<td>non-identity rows flowed but there is no identity evidence — quiet, unconfigured, or blocked</td>
+<td>non-identity rows flowed but there is no identity evidence in the window — quiet, unconfigured, or the events sit outside the window</td>
 </tr>
 <tr>
 <td><code>estate_no_telemetry</code></td>
@@ -2239,6 +2239,12 @@ Security channel query failed”, so the marker carries that fact:</p>
 <li><strong>Unverified</strong> — other telemetry flowed but there is no identity evidence
    at all. Score 7; the estate cannot claim there was no fan-out.</li>
 </ol>
+<p>A pull that <strong>answered with events</strong> keeps the feed alive even when the
+correlation window itself holds no auth rows — a 24-hour pull over a 1-hour
+ledger window is quiet, not broken — so that state scores
+<code>estate_identity_unverified</code> with reason <code>identity_outside_window</code> instead of
+blind. Blind means one of two things only: the pull failed, or the feed
+stopped and its last pull brought nothing back.</p>
 <p>Two related checks cover the rest:</p>
 <ul>
 <li><code>estate_no_telemetry</code> (8) — the host reported a fresh ledger with zero rows.
@@ -2251,8 +2257,14 @@ Security channel query failed”, so the marker carries that fact:</p>
 <div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">estate</span> <span class="n">findings</span> <span class="p">-</span><span class="n">-ledger</span> <span class="n">estate</span><span class="p">.</span><span class="n">json</span> <span class="p">-</span><span class="n">-max-identity-age</span> <span class="n">120</span>
 </code></pre></div>
 <p>A failed pull is not silently re-sealed by the desk: <code>sync</code> verifies each
-remote ledger's SHA-256 before accepting it, and the marker's error travels
-with the coverage block.</p>
+remote ledger's SHA-256 <strong>and its host and kind</strong> before accepting it, and the
+marker's error travels with the coverage block. All atomic writes —
+<code>estate.json</code>, the per-host ledgers, <code>findings.json</code> and the marker — use
+per-process temp names, so two overlapping sync cycles cannot corrupt each
+other.</p>
+<p>Hosts whose ledger predates coverage blocks cannot be checked at all.
+<code>plasma estate status</code> lists them under <code>coverage.unknown</code>; upgrade those
+endpoints rather than trusting the silence.</p>
 <h2 id="continuous-sync">Continuous sync<a class="headerlink" href="#continuous-sync" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="n">plasma</span> <span class="n">estate</span> <span class="n">sync</span> <span class="p">-</span><span class="n">-inventory</span> <span class="n">inventory</span><span class="p">.</span><span class="n">json</span> <span class="p">-</span><span class="n">-out-dir</span> <span class="n">C</span><span class="p">:\</span><span class="n">PlasmaEstate</span> <span class="p">`</span>
   <span class="p">-</span><span class="n">-window</span> <span class="n">60</span> <span class="p">-</span><span class="n">-workers</span> <span class="n">8</span> <span class="p">-</span><span class="n">-threshold</span> <span class="n">5</span> <span class="p">-</span><span class="n">-max-age</span> <span class="n">180</span> <span class="p">`</span>

@@ -163,6 +163,99 @@ def test_dc_without_kerberos_is_flagged_but_member_is_not(tmp_path):
                    for item in member["findings"])
 
 
+def test_feed_that_answered_is_not_blind(tmp_path):
+    path = _write(tmp_path / "events.jsonl", [
+        _row("CORP\\alice", minutes=120),   # auth before the window
+        _row(None, None, "powershell.exe", kind="process", event_id=1),
+    ])
+    (tmp_path / "identity-pull.json").write_text(json.dumps({
+        "ts": _ts(1), "ok": True, "events_seen": 500, "written": 10}))
+    result = estate.findings(estate.build(path, host="WS1"), threshold=2)
+    types = {item["type"]: item for item in result["findings"]}
+    assert "estate_identity_blind" not in types
+    unverified = types["estate_identity_unverified"]
+    assert unverified["score"] == 7
+    assert unverified["reason"] == "identity_outside_window"
+
+
+def test_pull_that_answered_with_zero_keeps_stop_detection(tmp_path):
+    path = _write(tmp_path / "events.jsonl", [
+        _row("CORP\\alice", minutes=120),
+        _row(None, None, "powershell.exe", kind="process", event_id=1),
+    ])
+    (tmp_path / "identity-pull.json").write_text(json.dumps({
+        "ts": _ts(1), "ok": True, "events_seen": 0, "written": 0}))
+    result = estate.findings(estate.build(path, host="WS1"), threshold=2)
+    blind = next(item for item in result["findings"]
+                 if item["type"] == "estate_identity_blind")
+    assert blind["reason"] == "identity_stopped" and blind["score"] == 9
+
+
+def _fake_winrm(monkeypatch, ledger_b64):
+    import sys
+    import types
+
+    class FakeResult:
+        status_code = 0
+        std_out = ledger_b64 if isinstance(ledger_b64, bytes) else ledger_b64.encode()
+        std_err = b""
+
+    class FakeSession:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def run_ps(self, script):
+            return FakeResult()
+
+    module = types.ModuleType("winrm")
+    module.Session = FakeSession
+    monkeypatch.setitem(sys.modules, "winrm", module)
+
+
+def _remote_entry(monkeypatch):
+    entry = {"name": "WS1", "endpoint": "10.0.0.5:5985",
+             "username": "Administrator", "password_env": "ESTATE_TEST_PW"}
+    monkeypatch.setenv("ESTATE_TEST_PW", "secret")
+    return entry
+
+
+def test_winrm_refuses_a_ledger_for_another_host(monkeypatch):
+    import base64
+    import json as _json
+    wrong = estate.sign_ledger({
+        "schema": estate.SCHEMA, "kind": "host-edge-ledger",
+        "host": "OTHER", "role": "member",
+        "generated_at": _ts(0), "window": {"minutes": 60}, "n": 1,
+        "users": {}, "processes": {}, "hashes": {}, "truncated": {}})
+    _fake_winrm(monkeypatch, base64.b64encode(_json.dumps(wrong).encode()))
+    out = estate._profile_from_winrm(_remote_entry(monkeypatch), 60, "member")
+    assert "expected 'WS1'" in out["error"]
+
+
+def test_winrm_refuses_a_modified_ledger(monkeypatch):
+    import base64
+    import json as _json
+    broken = {"schema": estate.SCHEMA, "kind": "host-edge-ledger",
+              "host": "WS1", "generated_at": _ts(0), "n": 1, "users": {}}
+    broken["integrity"] = {"sha256": "0" * 64}
+    _fake_winrm(monkeypatch, base64.b64encode(_json.dumps(broken).encode()))
+    out = estate._profile_from_winrm(_remote_entry(monkeypatch), 60, "member")
+    assert out["error"] == "remote ledger integrity failed"
+
+
+def test_winrm_accepts_a_matching_ledger(monkeypatch):
+    import base64
+    import json as _json
+    good = estate.sign_ledger({
+        "schema": estate.SCHEMA, "kind": "host-edge-ledger",
+        "host": "WS1", "role": "member", "generated_at": _ts(0),
+        "window": {"minutes": 60}, "n": 1,
+        "users": {}, "processes": {}, "hashes": {}, "truncated": {}})
+    _fake_winrm(monkeypatch, base64.b64encode(_json.dumps(good).encode()))
+    out = estate._profile_from_winrm(_remote_entry(monkeypatch), 60, "member")
+    assert out["host"] == "WS1"
+
+
 def test_stale_identity_pull_is_flagged(tmp_path):
     path = _write(tmp_path / "events.jsonl", [_row("CORP\\alice")])
     (tmp_path / "identity-pull.json").write_text(json.dumps({
@@ -182,6 +275,33 @@ def test_stale_host_does_not_duplicate_coverage_findings():
     types = {item["type"] for item in result["findings"]}
     assert "estate_stale_host" in types
     assert "estate_identity_blind" not in types
+
+
+def test_merge_tolerates_malformed_ledger_sections():
+    bad = _ledger("WS1", [])
+    bad["users"] = ["alice"]  # wrong shape; must be skipped, not crash
+    bad = estate.sign_ledger(bad)
+    merged = estate.merge([bad, _ledger("WS2", ["bob"])])
+    assert "bob" in merged["users"] and "alice" not in merged["users"]
+
+
+def test_findings_tolerates_malformed_tables():
+    crafted = estate.sign_ledger({
+        "schema": estate.SCHEMA, "kind": "estate-edge-ledger",
+        "generated_at": _ts(0), "window_minutes": 60,
+        "hosts": {}, "users": [], "processes": {}, "hashes": {},
+        "hash_hosts": [], "truncated": {}})
+    result = estate.findings(crafted, threshold=2)
+    assert result["ok"] is True and result["findings"] == []
+
+
+def test_status_names_hosts_without_coverage_data():
+    old = _ledger("WS1", ["alice"])  # built before coverage existed
+    merged = estate.merge([old, _ledger(
+        "WS2", ["bob"], coverage={"rows": 5, "identity_events": 1})])
+    summary = estate.status(merged)["coverage"]
+    assert summary["unknown"] == ["WS1"]
+    assert summary["identity_blind"] == []
 
 
 def test_merge_preserves_coverage():

@@ -141,7 +141,9 @@ source addresses, logon types, `user>process` pairs and file hashes. It does
 rows themselves. Machine and service accounts are excluded.
 
 Every ledger carries a SHA-256 over its canonical body. `plasma estate load`,
-`merge --dir` and `status` recompute it and refuse a modified ledger. This is
+`merge --dir` and `status` recompute it and refuse a modified ledger; `sync`
+additionally refuses a remote ledger that names another host or the wrong
+ledger kind. This is
 an integrity check, **not a signature**: it detects corruption and casual
 edits, while the trust boundary remains the desk's filesystem ACL and the
 WinRM channel. The desk stores one current ledger per host under `hosts/` and

@@ -525,6 +525,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#whats-new-in-1310" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's new in 1.31.0
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#whats-new-in-1300" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2622,6 +2633,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#whats-new-in-1310" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's new in 1.31.0
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#whats-new-in-1300" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3324,21 +3346,21 @@
 
 
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.30.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.31.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.30.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.31.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
 <span class="raft-badge">25 baseline rules</span>
-<span class="raft-badge">1060 tests</span>
+<span class="raft-badge">1070 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -3570,6 +3592,15 @@ write <code>events.jsonl</code> directly and never get a shell.</p>
 Outbound adapters push bounded batches: <code>plasma export webhook|syslog</code>.
 See <a href="plugin-api/">Plugins</a> for the manifest, protocol, lifecycle, security
 model and schemas.</p>
+<h2 id="whats-new-in-1310">What's new in 1.31.0<a class="headerlink" href="#whats-new-in-1310" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Fewer false blinds.</strong> A host whose last pull answered with events is <code>estate_identity_unverified</code> (7), not blind (9) — the feed is alive even when the correlation window holds no auth rows. Blind now means "the pull failed" or "the feed stopped <strong>and</strong> the last pull brought nothing".</li>
+<li><strong>Upgrade visibility.</strong> <code>estate status</code> lists hosts whose ledger predates coverage blocks under <code>coverage.unknown</code>, instead of silently skipping their checks.</li>
+<li><strong>Attribution guard.</strong> <code>estate sync</code> refuses a remote ledger that names another host or the wrong ledger kind; it becomes a recorded failure, never a merged row.</li>
+<li><strong>Concurrent-safe writes.</strong> All atomic writes (estate, host ledgers, findings, identity marker) use per-process temp names, so two overlapping writers cannot interleave.</li>
+<li><strong>Cheaper dedupe.</strong> <code>identity pull</code> hashes a bounded 64 MB tail instead of reading the whole store, which matters on hosts with large diaries.</li>
+<li><strong>Robust merges.</strong> Malformed ledger sections are skipped instead of crashing merge or findings.</li>
+</ul>
 <h2 id="whats-new-in-1300">What's new in 1.30.0<a class="headerlink" href="#whats-new-in-1300" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Quiet is not clean.</strong> Every host ledger now carries a <code>coverage</code> block: rows seen, identity and Kerberos counts, last event times, event kinds and the result of the last identity pull.</li>

@@ -372,7 +372,8 @@ identity ledger, the desk merges the newest ledger per host and correlates
 user/source/hash fan-out, stale hosts and new host edges. Coverage findings
 (`estate_identity_blind`, `estate_identity_unverified`, `estate_no_telemetry`,
 `estate_kerberos_blind`, `estate_identity_stale`) separate a quiet estate from
-a blind or unverified identity feed. `--max-identity-age` defaults to 180
+a blind or unverified identity feed, and `status` reports `coverage.unknown`
+for hosts whose ledger predates coverage blocks. `--max-identity-age` defaults to 180
 minutes. `sync` is the continuous form; `--loop` runs until stopped. See
 [Estate edge ledger](estate-ledger.md).
 

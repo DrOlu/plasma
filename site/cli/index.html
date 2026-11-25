@@ -2943,7 +2943,8 @@ identity ledger, the desk merges the newest ledger per host and correlates
 user/source/hash fan-out, stale hosts and new host edges. Coverage findings
 (<code>estate_identity_blind</code>, <code>estate_identity_unverified</code>, <code>estate_no_telemetry</code>,
 <code>estate_kerberos_blind</code>, <code>estate_identity_stale</code>) separate a quiet estate from
-a blind or unverified identity feed. <code>--max-identity-age</code> defaults to 180
+a blind or unverified identity feed, and <code>status</code> reports <code>coverage.unknown</code>
+for hosts whose ledger predates coverage blocks. <code>--max-identity-age</code> defaults to 180
 minutes. <code>sync</code> is the continuous form; <code>--loop</code> runs until stopped. See
 <a href="../estate-ledger/">Estate edge ledger</a>.</p>
 <h3 id="actuate-playbook">actuate / playbook<a class="headerlink" href="#actuate-playbook" title="Permanent link">&para;</a></h3>

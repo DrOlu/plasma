@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.31.0 — 2026-11-24
+
+- **FP fix — answered feeds are not blind.** When the last identity pull answered with events, zero in-window auth rows now score `estate_identity_unverified` (7, reason `identity_outside_window`); `estate_identity_blind` (9) is reserved for a failed pull or a stopped feed whose last pull brought nothing.
+- **FN fix — coverage gaps are visible.** Hosts whose ledger predates coverage blocks are listed in `estate status` under `coverage.unknown` rather than silently skipped.
+- **Attribution guard.** `sync` verifies the remote ledger's host and kind, not just its integrity hash; a mismatched reply is a recorded per-host failure.
+- **Race fix.** `estate save`, `findings.json` and the identity marker write to per-process temp files before `os.replace`, so overlapping writers cannot corrupt each other.
+- **Performance.** Identity dedupe hashes a bounded 64 MB tail of the store instead of the whole file — a large win on hosts with hundreds of thousands of rows.
+- **Robustness.** `merge` and `findings` skip malformed ledger sections (wrong types) instead of raising.
+- 1070 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.30.0 — 2026-11-24
 
 - **Coverage, not silence.** Host ledgers now include `coverage`: rows seen, identity and Kerberos counts, event kinds, last event/identity times, whether identity events existed before the window, and the last identity pull result.

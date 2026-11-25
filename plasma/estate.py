@@ -106,6 +106,11 @@ def verify_ledger(ledger: dict) -> dict:
             "reason": None if stored == expected else "integrity mismatch"}
 
 
+def _table(value) -> dict:
+    """A dict view of an untrusted JSON field, or an empty dict."""
+    return value if isinstance(value, dict) else {}
+
+
 def _top(counter: Counter, limit: int) -> dict:
     return dict(sorted(counter.items(), key=lambda item: (-item[1], item[0]))[:limit])
 
@@ -270,7 +275,7 @@ def save(path, ledger: dict) -> dict:
     target.parent.mkdir(parents=True, exist_ok=True)
     signed = sign_ledger({key: value for key, value in ledger.items()
                           if key != "integrity"})
-    tmp = target.with_name(target.name + ".tmp")
+    tmp = target.with_name(f"{target.name}.{os.getpid()}.tmp")
     tmp.write_text(json.dumps(signed, indent=1, sort_keys=True) + "\n",
                    encoding="utf-8")
     os.replace(tmp, target)
@@ -313,19 +318,21 @@ def merge(ledgers: list[dict], max_age_minutes: int = DEFAULT_MAX_AGE_MINUTES,
             "coverage": ledger.get("coverage") or {},
         }
         window = max(window, int((ledger.get("window") or {}).get("minutes") or 0))
-        for user, entry in (ledger.get("users") or {}).items():
+        for user, entry in _table(ledger.get("users")).items():
+            if not isinstance(entry, dict):
+                continue
             target = users.setdefault(user, {"total": 0, "hosts": {}})
             target["total"] += int(entry.get("count") or 0)
             target["hosts"][host] = {
                 "count": int(entry.get("count") or 0),
                 "first": entry.get("first"),
                 "last": entry.get("last"),
-                "sources": dict(entry.get("sources") or {}),
-                "logon_types": dict(entry.get("logon_types") or {}),
+                "sources": dict(_table(entry.get("sources"))),
+                "logon_types": dict(_table(entry.get("logon_types"))),
             }
-        for key, count in (ledger.get("processes") or {}).items():
+        for key, count in _table(ledger.get("processes")).items():
             processes[key] += int(count or 0)
-        for key, count in (ledger.get("hashes") or {}).items():
+        for key, count in _table(ledger.get("hashes")).items():
             hashes[key] += int(count or 0)
             hash_hosts[key].add(host)
     ordered_users = dict(sorted(users.items(), key=lambda item: (
@@ -388,10 +395,12 @@ def _coverage_findings(hosts: dict, now: datetime,
         coverage = details.get("coverage")
         if not isinstance(coverage, dict) or not coverage:
             continue
+        pull = coverage.get("identity_pull")
+        if not isinstance(pull, dict):
+            pull = {}
         rows = int(coverage.get("rows") or 0)
         identity = int(coverage.get("identity_events") or 0)
         kerberos = int(coverage.get("kerberos_events") or 0)
-        pull = coverage.get("identity_pull") or {}
         role = str(details.get("role") or "").lower()
         if pull.get("ok") is False:
             found.append({
@@ -407,7 +416,12 @@ def _coverage_findings(hosts: dict, now: datetime,
                            + (f": {pull.get('error')}" if pull.get("error") else "")),
             })
         elif rows > 0 and identity == 0:
-            if coverage.get("identity_before_window"):
+            # A pull that answered with events proves the feed is alive even
+            # when the correlation window itself holds no auth rows; treat
+            # that as unverified, not blind.
+            answered = bool(pull.get("ok")) and int(
+                pull.get("events_seen") or 0) > 0
+            if coverage.get("identity_before_window") and not answered:
                 found.append({
                     "type": "estate_identity_blind",
                     "key": f"host:{host}",
@@ -417,7 +431,8 @@ def _coverage_findings(hosts: dict, now: datetime,
                     "rows": rows,
                     "identity_events": 0,
                     "detail": (f"host {host} had identity events before this "
-                               "window but none inside it — the feed stopped"),
+                               "window but none inside it and the last pull "
+                               "brought nothing — the feed may have stopped"),
                 })
             else:
                 found.append({
@@ -425,12 +440,14 @@ def _coverage_findings(hosts: dict, now: datetime,
                     "key": f"host:{host}",
                     "score": 7,
                     "host": host,
-                    "reason": "no_identity_evidence",
+                    "reason": ("identity_outside_window"
+                               if coverage.get("identity_before_window")
+                               else "no_identity_evidence"),
                     "rows": rows,
                     "identity_events": 0,
                     "detail": (f"host {host} recorded {rows} non-identity rows "
-                               "and no identity evidence — no fan-out cannot be "
-                               "claimed"),
+                               "and no identity evidence in the window — no "
+                               "fan-out cannot be claimed"),
                 })
         if rows == 0 and pull.get("ok") is not False:
             found.append({
@@ -474,7 +491,7 @@ def findings(estate: dict, threshold: int = DEFAULT_THRESHOLD,
     """Correlate the estate ledger into cross-host findings."""
     threshold = max(2, min(int(threshold), 10000))
     found = []
-    users = estate.get("users") or {}
+    users = _table(estate.get("users"))
     for user, entry in users.items():
         hosts = entry.get("hosts") or {}
         if len(hosts) < threshold:
@@ -483,7 +500,7 @@ def findings(estate: dict, threshold: int = DEFAULT_THRESHOLD,
             str(item[1].get("first") or ""), item[0]))
         source_hosts: dict[str, set] = defaultdict(set)
         for host, details in hosts.items():
-            for source in (details.get("sources") or {}):
+            for source in _table(details.get("sources")):
                 source_hosts[source].add(host)
         linked = any(len(value) >= 2 for value in source_hosts.values())
         shared = sorted(source for source, value in source_hosts.items()
@@ -504,8 +521,8 @@ def findings(estate: dict, threshold: int = DEFAULT_THRESHOLD,
     source_hosts: dict[str, set] = defaultdict(set)
     source_users: dict[str, set] = defaultdict(set)
     for user, entry in users.items():
-        for host, details in (entry.get("hosts") or {}).items():
-            for source in (details.get("sources") or {}):
+        for host, details in _table(entry.get("hosts")).items():
+            for source in _table(details.get("sources")):
                 source_hosts[source].add(host)
                 source_users[source].add(user)
     for source, hosts in source_hosts.items():
@@ -521,7 +538,7 @@ def findings(estate: dict, threshold: int = DEFAULT_THRESHOLD,
             "users": sorted(source_users[source])[:10],
             "detail": f"source {source} touched {len(hosts)} hosts",
         })
-    for digest, hosts in (estate.get("hash_hosts") or {}).items():
+    for digest, hosts in _table(estate.get("hash_hosts")).items():
         if len(hosts) < threshold:
             continue
         found.append({
@@ -615,10 +632,15 @@ def _coverage_summary(hosts: dict) -> dict:
                                DEFAULT_MAX_IDENTITY_AGE_MINUTES)
     summary = {"identity_blind": [], "identity_unverified": [],
                "no_telemetry": [], "kerberos_blind": [],
-               "identity_stale": []}
+               "identity_stale": [], "unknown": []}
     for item in items:
         key = item["type"].removeprefix("estate_")
         summary.setdefault(key, []).append(item["host"])
+    # Hosts whose ledger predates coverage blocks cannot be checked at all;
+    # name them instead of letting the gap hide inside a clean summary.
+    summary["unknown"] = sorted(
+        host for host, details in hosts.items()
+        if not details.get("stale") and not (details.get("coverage") or {}))
     return summary
 
 
@@ -669,6 +691,13 @@ def _profile_from_winrm(entry, window_minutes: int, role: str) -> dict:
                 verdict = verify_ledger(ledger)
                 if not verdict.get("ok"):
                     return {"error": "remote ledger integrity failed"}
+                if str(ledger.get("host") or "") != str(host):
+                    return {"error": (f"remote ledger is for host "
+                                      f"{ledger.get('host')!r}, expected {host!r}")}
+                if ledger.get("kind") != "host-edge-ledger":
+                    return {"error": (f"remote returned kind "
+                                      f"{ledger.get('kind')!r}, expected "
+                                      "host-edge-ledger")}
                 return ledger
         return {"error": "remote returned no ledger JSON"}
     except Exception as exc:  # noqa: BLE001 — endpoint failures are data
@@ -750,7 +779,7 @@ def sync(inventory_path, out_dir, window_minutes: int = DEFAULT_WINDOW_MINUTES,
         report = findings(estate, threshold=threshold, baseline=base,
                           max_identity_age_minutes=max_identity_age_minutes)
         finding_path = out / "findings.json"
-        finding_tmp = out / "findings.json.tmp"
+        finding_tmp = out / f"findings.json.{os.getpid()}.tmp"
         finding_tmp.write_text(
             json.dumps(report, indent=1, sort_keys=True) + "\n",
             encoding="utf-8")

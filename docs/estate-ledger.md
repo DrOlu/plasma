@@ -84,8 +84,8 @@ been refreshed; stale is a finding, not a silent gap.
 | `estate_hash_fanout` | 8 | the same file hash on ≥ threshold hosts |
 | `estate_stale_host` | 8 | ledger older than `--max-age` |
 | `estate_new_host_edge` | 7 | a user/host pair absent from `--baseline`, for users seen on 2+ hosts |
-| `estate_identity_blind` | 9 | identity pull failed, or identity events existed before the window but none inside it |
-| `estate_identity_unverified` | 7 | non-identity rows flowed but there is no identity evidence — quiet, unconfigured, or blocked |
+| `estate_identity_blind` | 9 | identity pull failed, or identity events existed before the window, none inside it, **and the last pull brought nothing** |
+| `estate_identity_unverified` | 7 | non-identity rows flowed but there is no identity evidence in the window — quiet, unconfigured, or the events sit outside the window |
 | `estate_no_telemetry` | 8 | the host reported zero rows in the window |
 | `estate_kerberos_blind` | 8 | a host with `--role dc` recorded no 4768/4769 events |
 | `estate_identity_stale` | 8 | the last identity pull is older than `--max-identity-age` |
@@ -142,6 +142,13 @@ That gives the desk three honest outcomes instead of one ambiguous silence:
 3. **Unverified** — other telemetry flowed but there is no identity evidence
    at all. Score 7; the estate cannot claim there was no fan-out.
 
+A pull that **answered with events** keeps the feed alive even when the
+correlation window itself holds no auth rows — a 24-hour pull over a 1-hour
+ledger window is quiet, not broken — so that state scores
+`estate_identity_unverified` with reason `identity_outside_window` instead of
+blind. Blind means one of two things only: the pull failed, or the feed
+stopped and its last pull brought nothing back.
+
 Two related checks cover the rest:
 
 - `estate_no_telemetry` (8) — the host reported a fresh ledger with zero rows.
@@ -156,8 +163,15 @@ plasma estate findings --ledger estate.json --max-identity-age 120
 ```
 
 A failed pull is not silently re-sealed by the desk: `sync` verifies each
-remote ledger's SHA-256 before accepting it, and the marker's error travels
-with the coverage block.
+remote ledger's SHA-256 **and its host and kind** before accepting it, and the
+marker's error travels with the coverage block. All atomic writes —
+`estate.json`, the per-host ledgers, `findings.json` and the marker — use
+per-process temp names, so two overlapping sync cycles cannot corrupt each
+other.
+
+Hosts whose ledger predates coverage blocks cannot be checked at all.
+`plasma estate status` lists them under `coverage.unknown`; upgrade those
+endpoints rather than trusting the silence.
 
 ## Continuous sync
 

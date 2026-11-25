@@ -1,19 +1,19 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.30.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.31.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.30.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.31.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
 <span class="raft-badge">25 baseline rules</span>
-<span class="raft-badge">1060 tests</span>
+<span class="raft-badge">1070 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -178,6 +178,15 @@ Inbound adapters bring other systems in: `plasma ingest jsonl|evtx|webhook`.
 Outbound adapters push bounded batches: `plasma export webhook|syslog`.
 See [Plugins](plugin-api.md) for the manifest, protocol, lifecycle, security
 model and schemas.
+
+## What's new in 1.31.0
+
+- **Fewer false blinds.** A host whose last pull answered with events is `estate_identity_unverified` (7), not blind (9) — the feed is alive even when the correlation window holds no auth rows. Blind now means "the pull failed" or "the feed stopped **and** the last pull brought nothing".
+- **Upgrade visibility.** `estate status` lists hosts whose ledger predates coverage blocks under `coverage.unknown`, instead of silently skipping their checks.
+- **Attribution guard.** `estate sync` refuses a remote ledger that names another host or the wrong ledger kind; it becomes a recorded failure, never a merged row.
+- **Concurrent-safe writes.** All atomic writes (estate, host ledgers, findings, identity marker) use per-process temp names, so two overlapping writers cannot interleave.
+- **Cheaper dedupe.** `identity pull` hashes a bounded 64 MB tail instead of reading the whole store, which matters on hosts with large diaries.
+- **Robust merges.** Malformed ledger sections are skipped instead of crashing merge or findings.
 
 ## What's new in 1.30.0
 

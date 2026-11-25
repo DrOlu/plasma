@@ -149,6 +149,19 @@ def test_pull_dispatches_by_event_family(tmp_path, monkeypatch):
     assert identity.PROCESS_ID in captured["ids"]
 
 
+def test_dedupe_hashes_reads_a_bounded_tail(tmp_path):
+    events = tmp_path / "events.jsonl"
+    lines = ["{\"ts\": \"2026-10-19T13:00:00Z\", \"pad\": \"" + "x" * 200 + "\"}"]
+    lines += [f'{{"ts": "2026-10-19T13:0{i}:00Z"}}' for i in range(5)]
+    events.write_text("\n".join(lines) + "\n")
+    hashes = identity._dedupe_hashes(events, tail_bytes=150)
+    assert 1 <= len(hashes) <= 5  # partial first line dropped, tail parsed
+
+
+def test_dedupe_hashes_missing_file(tmp_path):
+    assert identity._dedupe_hashes(tmp_path / "nope.jsonl") == set()
+
+
 @pytest.mark.parametrize("bad", ["4624,9999", "4624;x", "abc"])
 def test_pull_refuses_unsupported_event_ids(tmp_path, bad):
     out = identity.pull(tmp_path / "e.jsonl", host="WS1", ids=bad)

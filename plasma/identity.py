@@ -392,12 +392,48 @@ def _write_pull_marker(events_path, result: dict) -> None:
     }
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_name(path.name + ".tmp")
+        tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
         tmp.write_text(json.dumps(payload, sort_keys=True) + "\n",
                        encoding="utf-8")
         os.replace(tmp, path)
     except OSError:
         return
+
+
+DEDUPE_TAIL_BYTES = 64 << 20
+
+
+def _dedupe_hashes(events_path, tail_bytes: int = DEDUPE_TAIL_BYTES) -> set:
+    """Hashes from the tail of the store.
+
+    Duplicates are recent repeats by construction (each pull covers a short
+    window), so hashing the whole store on every run is wasted work on hosts
+    with large diaries. The tail comfortably exceeds the per-pull event cap
+    (50,000 rows) without reading the rest of the file.
+    """
+    path = Path(events_path)
+    if not path.exists():
+        return set()
+    size = path.stat().st_size
+    start = max(0, size - max(1, int(tail_bytes)))
+    with path.open("rb") as handle:
+        handle.seek(start)
+        blob = handle.read()
+    if start:
+        cut = blob.find(b"\n")
+        blob = blob[cut + 1:] if cut >= 0 else b""
+    hashes = set()
+    for ln in blob.splitlines():
+        if not ln.strip():
+            continue
+        try:
+            hashes.add(hashlib.sha256(
+                json.dumps(json.loads(ln.decode("utf-8", "replace")),
+                           ensure_ascii=False, sort_keys=True).encode()
+            ).hexdigest())
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            continue
+    return hashes
 
 
 def pull(events_path, host: str, since_minutes: int = 15,
@@ -423,16 +459,7 @@ def pull(events_path, host: str, since_minutes: int = 15,
     from pathlib import Path
     events = Path(events_path)
 
-    existing = set()
-    if events.exists():
-        for ln in events.read_text(encoding="utf-8-sig", errors="replace").splitlines():
-            if ln.strip():
-                try:
-                    existing.add(hashlib.sha256(
-                        json.dumps(json.loads(ln), ensure_ascii=False,
-                                   sort_keys=True).encode()).hexdigest())
-                except json.JSONDecodeError:
-                    continue
+    existing = _dedupe_hashes(events)
 
     written = 0
     by_id: dict[str, int] = {}
