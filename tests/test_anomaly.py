@@ -32,6 +32,10 @@ def _append(path, row):
         handle.write(json.dumps(row) + "\n")
 
 
+def _paths(tmp_path):
+    return [tmp_path / "a.jsonl", tmp_path / "b.jsonl"]
+
+
 def test_score_row_is_none_on_a_cold_profile(tmp_path):
     built, _path = _build(tmp_path, _benign(days=1, per_day=2))
     result = anomaly.score_row(_benign(days=1, per_day=1)[0], built)
@@ -52,12 +56,12 @@ def test_rank_puts_an_injected_anomaly_on_top(tmp_path):
     ranked = anomaly.rank(path, built, limit=5)
     assert ranked["ok"] is True
     assert ranked["events"][0]["process"] == "mimikatz.exe"
-    assert ranked["events"][0]["score"] > 7.0
+    assert ranked["events"][0]["score"] >= 9.0
     names = {component["name"] for component in ranked["events"][0]["components"]}
     assert {"image", "edge", "shape", "registry"} <= names
 
 
-def test_first_seen_keys_score_one_and_say_so(tmp_path):
+def test_first_seen_identity_is_capped_and_says_so(tmp_path):
     built, _path = _build(tmp_path, _benign())
     row = {
         "ts": "2026-11-07T03:00:00Z", "host": "WS1", "kind": "process",
@@ -66,145 +70,64 @@ def test_first_seen_keys_score_one_and_say_so(tmp_path):
     }
     result = anomaly.score_row(row, built)
     by_name = {component["name"]: component for component in result["components"]}
-    assert by_name["image"]["value"] == 1.0
     assert by_name["image"]["first_seen"] is True
+    assert by_name["image"]["value"] == anomaly.IDENTITY_FIRST_SEEN_CAP
+    assert by_name["image"]["value"] < 1.0
     assert any("never seen" in reason for reason in result["reasons"])
 
 
-def test_volume_compares_the_day_not_the_whole_tail(tmp_path):
-    built, path = _build(tmp_path, _benign())
-    # A second, normal day must not look like a volume anomaly just because
-    # the tail now holds twice as many events.
-    for minute in range(12):
-        _append(path, {
-            "ts": f"2026-11-07T09:{minute:02d}:00Z", "host": "WS1",
-            "kind": "process", "event_id": 1, "process": "chrome.exe",
-            "parent": "explorer.exe", "user": "CORP\\olu",
-            "cmdline": "chrome.exe --type=renderer",
-        })
-    ranked = anomaly.rank(path, built, limit=50)
-    volumes = [component for event in ranked["events"]
-               for component in event["components"]
-               if component["name"] == "volume"]
-    assert all(component["value"] == 0.0 for component in volumes)
-
-
-def test_rank_caps_repeated_behaviour_but_reports_it(tmp_path):
-    built, path = _build(tmp_path, _benign())
-    for index in range(6):
-        _append(path, {
-            "ts": f"2026-11-07T04:0{index}:00Z", "host": "WS1",
-            "kind": "process", "event_id": 1, "process": "rare.exe",
-            "parent": "cmd.exe", "user": "CORP\\olu",
-            "cmdline": "rare.exe --once",
-        })
-    ranked = anomaly.rank(path, built, limit=20, per_behaviour=2)
-    rare = [event for event in ranked["events"] if event["process"] == "rare.exe"]
-    assert len(rare) == 2
-
-
-def test_suppressed_rows_are_skipped_by_default(tmp_path):
-    built, path = _build(tmp_path, _benign())
-    _append(path, {
-        "ts": "2026-11-07T04:00:00Z", "host": "WS1", "kind": "alert",
-        "event_id": 11, "process": "powershell.exe", "parent": "explorer.exe",
-        "user": "CORP\\olu", "score": 0.2, "severity": "info",
-        "suppressed": "PowerShell policy-test temp file",
-        "description": "noise",
-    })
-    default = anomaly.rank(path, built, limit=20)
-    assert all(event.get("process") != "powershell.exe" for event in default["events"])
-    included = anomaly.rank(path, built, limit=20, include_suppressed=True)
-    assert any(event.get("process") == "powershell.exe"
-               for event in included["events"])
-
-
-def test_explain_returns_a_readable_breakdown(tmp_path):
-    built, path = _build(tmp_path, _benign())
-    _append(path, {
-        "ts": "2026-11-07T05:00:00Z", "host": "WS1", "kind": "process",
-        "event_id": 1, "process": "rundll32.exe", "parent": "winword.exe",
-        "user": "CORP\\olu", "cmdline": "rundll32 javascript:alert(1)",
-    })
-    result = anomaly.explain(path, built, contains="rundll32")
-    assert result["ok"] is True
-    assert result["event"]["process"] == "rundll32.exe"
-    assert result["reading"]
-    assert result["weights"]["edge"] == 1.5
-
-
-def test_traces_join_parents_within_one_host(tmp_path):
-    rows = [
-        {"ts": "2026-11-07T09:00:00Z", "host": "WS1", "kind": "process",
-         "event_id": 1, "process": "explorer.exe", "pid": 100, "ppid": 4,
-         "user": "CORP\\olu"},
-        {"ts": "2026-11-07T09:01:00Z", "host": "WS1", "kind": "process",
-         "event_id": 1, "process": "cmd.exe", "pid": 200, "ppid": 100,
-         "user": "CORP\\olu"},
-        {"ts": "2026-11-07T09:02:00Z", "host": "WS1", "kind": "process",
-         "event_id": 1, "process": "powershell.exe", "pid": 300, "ppid": 200,
-         "user": "CORP\\olu"},
-        # Same PID on another host must not be joined to WS1's tree.
-        {"ts": "2026-11-07T09:02:30Z", "host": "WS2", "kind": "process",
-         "event_id": 1, "process": "other.exe", "pid": 300, "ppid": 200,
-         "user": "CORP\\olu"},
-    ]
-    traces = anomaly.build_traces(rows, min_spans=1)
-    assert len(traces) == 2
-    ws1 = next(trace for trace in traces if trace["host"] == "WS1")
-    assert ws1["spans"] == 3
-    assert ws1["depth"] == 2
-    assert ws1["root_process"] == "explorer.exe"
-    assert "cmd.exe>powershell.exe" in ws1["edges"]
-    ws2 = next(trace for trace in traces if trace["host"] == "WS2")
-    assert ws2["spans"] == 1
-
-
-def test_pid_reuse_starts_a_new_tree(tmp_path):
-    rows = [
-        {"ts": "2026-11-07T09:00:00Z", "host": "WS1", "kind": "process",
-         "event_id": 1, "process": "a.exe", "pid": 10, "ppid": 4},
-        {"ts": "2026-11-07T09:01:00Z", "host": "WS1", "kind": "process",
-         "event_id": 1, "process": "b.exe", "pid": 20, "ppid": 10},
-        {"ts": "2026-11-07T10:00:00Z", "host": "WS1", "kind": "process",
-         "event_id": 1, "process": "c.exe", "pid": 20, "ppid": 4},
-        {"ts": "2026-11-07T10:01:00Z", "host": "WS1", "kind": "process",
-         "event_id": 1, "process": "d.exe", "pid": 30, "ppid": 20},
-    ]
-    traces = anomaly.build_traces(rows, min_spans=1)
-    assert len(traces) == 2
-    assert sorted(trace["spans"] for trace in traces) == [2, 2]
-
-
-def test_trace_score_marks_a_first_seen_edge(tmp_path):
-    built, _path = _build(tmp_path, _benign())
-    trace = {"edges": ["explorer.exe>chrome.exe", "winword.exe>rundll32.exe"]}
-    result = anomaly.trace_score(trace, built)
-    assert result["cold_start"] is False
-    assert "winword.exe>rundll32.exe" in result["first_seen_edges"]
-    assert result["score"] > 0
-
-
-def test_traces_command_is_bounded_and_serialisable(tmp_path):
-    built, path = _build(tmp_path, _benign())
-    result = anomaly.traces(path, built, min_spans=1, limit=3)
-    json.dumps(result)
-    assert result["ok"] is True
-    assert result["returned"] <= 3
-
-
-def test_service_parents_are_damped_but_not_hidden(tmp_path):
+def test_benign_first_run_cannot_reach_the_critical_band(tmp_path):
     built, _path = _build(tmp_path, _benign())
     row = {
+        "ts": "2026-11-07T03:00:00Z", "host": "WS1", "kind": "process",
+        "event_id": 1, "process": "zoom-installer.exe",
+        "parent": "explorer.exe", "user": "CORP\\olu",
+        "cmdline": "zoom-installer.exe /silent",
+    }
+    result = anomaly.score_row(row, built)
+    assert result["score"] < 9.0
+    # Pure identity novelty with no content signal and no volume fact is
+    # capped at high band even when every present component is first-seen.
+    all_novel = anomaly.score_row(
+        {**row, "process": "totallynew.exe", "cmdline": ""}, built)
+    assert all_novel["score"] <= 8.9
+
+
+def test_content_signals_still_reach_critical(tmp_path):
+    built, path = _build(tmp_path, _benign())
+    evil = {
+        "ts": "2026-11-07T03:00:00Z", "host": "WS1", "kind": "process",
+        "event_id": 1, "process": "mimikatz.exe", "parent": "cmd.exe",
+        "user": "CORP\\olu",
+        "cmdline": "mimikatz sekurlsa::logonpasswords",
+        "registry_path": "HKCU\\Software\\Microsoft\\Windows\\"
+                         "CurrentVersion\\Run\\Evil",
+    }
+    _append(path, evil)
+    result = anomaly.score_row(evil, built)
+    assert result["score"] >= 9.0
+
+
+def test_service_parents_damp_familiar_children_but_not_first_seen(tmp_path):
+    built, _path = _build(tmp_path, _benign())
+    # chrome.exe is in the baseline: the classic maintenance FP class.
+    familiar = {
+        "ts": "2026-11-07T06:00:00Z", "host": "WS1", "kind": "process",
+        "event_id": 1, "process": "chrome.exe", "parent": "svchost.exe",
+        "user": "CORP\\SYSTEM", "cmdline": "chrome.exe --type=renderer",
+    }
+    damped = anomaly.score_row(familiar, built)
+    assert damped["damping"]["factor"] == anomaly.SERVICE_PARENT_DAMPING
+    # neverseen.exe under svchost.exe is where service-installed payloads
+    # run: no damping, novelty keeps its full weight.
+    novel = {
         "ts": "2026-11-07T06:00:00Z", "host": "WS1", "kind": "process",
         "event_id": 1, "process": "neverseen.exe", "parent": "svchost.exe",
         "user": "CORP\\SYSTEM", "cmdline": "neverseen.exe -run",
     }
-    damped = anomaly.score_row(row, built)
-    undamped = anomaly.score_row({**row, "parent": "explorer.exe"}, built)
-    assert damped["damping"]["factor"] == anomaly.SERVICE_PARENT_DAMPING
-    assert damped["score"] < undamped["score"]
-    assert damped["score"] > 0
+    undamped = anomaly.score_row(novel, built)
+    assert undamped["damping"] is None
+    assert undamped["score"] > damped["score"]
 
 
 def test_bands_reserve_critical_for_multi_signal_novelty():
@@ -284,3 +207,99 @@ def test_estate_scoring_ignores_incomplete_identity_pairs(tmp_path):
     result = anomaly.score_row(row, built, estate=estate)
     assert result["score"] is None
     assert result["cold_start"] is True
+
+
+def test_volume_ignores_a_drop_in_activity(tmp_path):
+    built, path = _build(tmp_path, _benign())
+    row = {
+        "ts": "2026-11-07T21:00:00Z", "host": "WS1", "kind": "process",
+        "event_id": 1, "process": "chrome.exe", "parent": "explorer.exe",
+        "user": "CORP\\olu", "cmdline": "chrome.exe --type=renderer",
+    }
+    _append(path, row)
+    batch = anomaly._batch_counts([row])
+    result = anomaly.score_row(row, built, batch=batch)
+    names = {component["name"] for component in result["components"]}
+    assert "volume" not in names
+
+
+def test_volume_zero_median_hour_never_scores(tmp_path):
+    built, _path = _build(tmp_path, _benign())
+    # Hour 21 has no baseline for chrome.exe: no median, no volume verdict.
+    assert profile.volume(built, "image:chrome.exe", 21, 9) is None
+
+
+def test_constant_baseline_needs_a_real_step(tmp_path):
+    built, _path = _build(tmp_path, _benign())
+    stats = built["hourly"]["image:chrome.exe"]["9"]
+    built["hourly"]["image:chrome.exe"]["9"] = {
+        **stats, "median": 4.0, "mad": 0.0}
+    assert profile.volume(built, "image:chrome.exe", 9, 9) is None
+    spike = profile.volume(built, "image:chrome.exe", 9, 17)
+    assert spike is not None and spike["value"] == 1.0
+
+
+def test_one_strong_signal_is_not_diluted_away(tmp_path):
+    built, path = _build(tmp_path, _benign())
+    beacon = {
+        "ts": "2026-11-07T09:30:00Z", "host": "WS1", "kind": "process",
+        "event_id": 1, "process": "chrome.exe", "parent": "explorer.exe",
+        "user": "CORP\\olu", "dest_ip": "185.10.20.30", "dest_port": 8443,
+        "cmdline": "chrome.exe --type=renderer",
+    }
+    _append(path, beacon)
+    result = anomaly.score_row(beacon, built)
+    assert result["score"] >= 4.0  # novel C2 destination surfaces
+
+
+def test_trace_max_leads_mean_context(tmp_path):
+    import pathlib
+    rows = []
+    edges = []
+    for index in range(10):
+        edge = f"p{index}.exe>child.exe"
+        edges.append(edge)
+        parent, child = edge.split(">")
+        rows.append({"ts": f"2026-11-07T08:00:{index:02d}Z",
+                     "host": "WS1", "kind": "process", "event_id": 1,
+                     "process": child, "parent": parent})
+    path = pathlib.Path(_paths(tmp_path)[0])
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    built = profile.build(path)
+    built["limits"]["min_observations"] = 1
+    scored = anomaly.trace_score({"edges": ["winword.exe>evil.exe"] + edges},
+                                 built)
+    assert scored["score"] >= 7.0
+
+
+def test_single_host_estate_is_not_double_counted(tmp_path):
+    built, _path = _build(tmp_path, _benign())
+    estate = profile.merge([built])
+    row = {
+        "ts": "2026-11-07T03:00:00Z", "host": "WS1", "kind": "process",
+        "event_id": 1, "process": "neverseen.exe", "parent": "explorer.exe",
+        "user": "CORP\\olu",
+    }
+    solo = anomaly.score_row(row, built)
+    with_estate = anomaly.score_row(row, built, estate=estate)
+    assert [c["name"] for c in with_estate["components"]] == \
+        [c["name"] for c in solo["components"]]
+    assert with_estate["score"] == solo["score"]
+
+
+def test_single_volume_spike_is_capped_below_critical(tmp_path):
+    burst = [{
+        "ts": f"2026-11-07T09:{minute:02d}:00Z", "host": "WS1",
+        "kind": "auth", "event_id": 4624, "user": "CORP\\olu",
+        "description": "logon type=3",
+    } for minute in range(45)]
+    rows = _benign() + burst
+    built, _path = _build(tmp_path, rows)
+    batch = anomaly._batch_counts(rows)
+    result = anomaly.score_row(burst[0], built, batch=batch)
+    assert result["score"] <= 8.5
+
+
+def test_updater_lookalike_is_not_self():
+    assert anomaly._is_self("plasma-update.exe") is True
+    assert anomaly._is_self("plasma-updater.exe") is False

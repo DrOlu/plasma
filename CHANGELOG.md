@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.32.0 — 2026-11-25
+
+- **Critical-band de-saturation.** First-seen identity components cap at 0.85; a row whose novelty is only identity caps at 8.9. Benign first-runs land in the high band; the critical band (9.0+) requires a content signal at 0.95+ or a volume spike. Verified before: a benign `zoom-installer.exe /silent` scored exactly 10.0 — the same as mimikatz.
+- **Volume sign fix.** Spikes only (`max(0, z)`); a drop scored max novelty before — one benign logon in a below-median hour reached 10.0. No-baseline hours never score; constant baselines need ≥ 3× median + 5; a lone volume spike caps at 8.5.
+- **Service damping narrowed.** Applies only to familiar children of service hosts; first-seen children (PsExec/service-installed payloads) keep full weight — `services.exe>mimikatz.exe` no longer scores 5.5.
+- **Dilution guard.** Score floors at half the strongest component; a novel C2 destination on familiar chrome.exe surfaces at 5.0 instead of 1.5. Trace scores weight the rarest edge 0.7/mean 0.3.
+- **Poison-resistant rarity.** Counts are trusted only to 50 in the rarity math (tables stay honest for merge/diff); one burst cannot normalise a tool.
+- **Estate hygiene.** `profile merge` keeps the newest profile per host; a single-host estate is skipped instead of double-counting the same evidence at weight 2.5.
+- **Quoted-path shapes** keep the process identity (`"C:\...\evil.exe" x a.zip` no longer shares a shape with 7-Zip).
+- **Updater look-alikes scored.** `plasma-update*` prefix matching is exact now; `plasma-updater.exe` gets no self-damping.
+- 1075 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.31.0 — 2026-11-24
 
 - **FP fix — answered feeds are not blind.** When the last identity pull answered with events, zero in-window auth rows now score `estate_identity_unverified` (7, reason `identity_outside_window`); `estate_identity_blind` (9) is reserved for a failed pull or a stopped feed whose last pull brought nothing.

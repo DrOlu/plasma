@@ -60,12 +60,38 @@ Each component reports `count`/`total`, `first_seen`, and the key that
 produced it. The score is the weighted mean of the components that could be
 computed. Nothing is learned online and no opaque model sits in the path.
 
+Three calibration rules keep the bands honest (1.32.0):
+
+- **Identity novelty is capped.** A name being new in a table is the weakest
+  evidence there is — first-seen `image`/`edge`/`user_image`/`estate`
+  components are capped at 0.85, and a row whose novelty is *only* identity
+  (no behaviour shape, no destination/registry/file family, no volume fact)
+  cannot cross 8.9. A benign first-run of software lands in the high band,
+  not the critical band; the critical band needs a content signal
+  (`shape`/`dest`/`registry`/`file` at 0.95+) or a volume spike.
+- **Volume is spikes only.** A drop in activity is quiet, not novel. Hours
+  with no baseline never score, and a constant baseline needs a real step
+  (≥ 3× the median + 5). A lone volume spike with nothing else caps at 8.5.
+- **One strong signal is not diluted away.** The weighted mean no longer
+  lets zero-value components hide a novel C2 destination on a familiar
+  binary; the score floors at half of the strongest component.
+
 Routine Windows servicing (`services.exe`, `svchost.exe`, `wuauclt.exe` and
-similar) is damped by 0.55. A rare child of a service host still appears, at
-triage level, instead of turning a patched server red. Only the shipped Plasma binaries
-are skipped by default (`--include-self` shows them), so an upgrade cannot
-dominate its own ranking while a look-alike name is still scored. Bands are critical at 9.0+, high at 7.5+, medium
-at 6.0+.
+similar) is damped by 0.55 — but only for **familiar** children. A
+first-seen child of a service host is exactly where service-installed
+payloads run, so it keeps its full weight. Only the shipped Plasma binaries
+are skipped by default (`--include-self` shows them; the updater matches
+exactly, so `plasma-updater.exe` is scored like any look-alike). A single
+novel signal on an otherwise familiar row is floored at half its strength
+instead of being averaged into invisibility, and trace scores are led by the
+rarest edge (0.7 max, 0.3 mean) so one malicious hop among familiar ones is
+visible.
+
+Two poisoning guards: a table count is trusted only up to 50 inside the
+rarity math (500 planted runs cannot buy familiarity), and a merged estate
+profile deduplicates repeated hosts. A merged estate that contains only the
+scored host is not used at all — the same evidence twice is not corroboration.
+Bands are critical at 9.0+, high at 7.5+, medium at 6.0+.
 
 **Cold start is explicit.** Below 50 observations, or when no table has
 data, the score is `null` with `cold_start: true`. Plasma would rather say
@@ -98,9 +124,10 @@ edges. First-seen edges are listed explicitly.
   plan-gated and explicit.
 - **Not a replacement for rules or chains.** A signature still catches the
   obvious intrusion faster than a baseline notices the shape.
-- **Not poison-proof by itself.** Sign profiles, and re-baseline through a
-  change window rather than during one. An attacker who can rewrite the
-  baseline can normalise themselves.
+- **Not poison-proof by itself.** Rarity trusts at most 50 occurrences of a
+  key regardless of how many times it ran, but a determined insider can still
+  shape what the baseline thinks is normal. Sign profiles, and re-baseline
+  through a change window rather than during one.
 - **Not a log shipper.** Only counts cross the wire.
 
 ## Related commands

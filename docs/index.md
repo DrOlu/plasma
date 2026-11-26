@@ -1,19 +1,19 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.31.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.32.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.31.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.32.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
 <span class="raft-badge">25 baseline rules</span>
-<span class="raft-badge">1070 tests</span>
+<span class="raft-badge">1075 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -178,6 +178,16 @@ Inbound adapters bring other systems in: `plasma ingest jsonl|evtx|webhook`.
 Outbound adapters push bounded batches: `plasma export webhook|syslog`.
 See [Plugins](plugin-api.md) for the manifest, protocol, lifecycle, security
 model and schemas.
+
+## What's new in 1.32.0
+
+- **Calibration pass on anomaly scoring** after an independent FP/FN audit. Identity novelty is capped at 0.85 and pure identity novelty caps at 8.9 — a benign first-run of software no longer scores exactly 10.0, and the critical band requires a content signal (shape/dest/registry/file) or a volume spike.
+- **Volume scores spikes only.** A quiet hour no longer scores as maximum novelty (a single benign logon could hit 10.0); no-baseline hours never score, and constant baselines need a real step.
+- **Service damping narrowed.** `services.exe`/`msiexec.exe` parents damp only familiar children; a first-seen child — where service-installed payloads run — keeps full weight instead of scoring 5.5.
+- **Dilution and trace fixes.** One novel C2 destination on a familiar binary is no longer averaged into invisibility; trace scores are led by the rarest edge, so one malicious hop among ten familiar ones is visible.
+- **Poison resistance.** Rarity trusts at most 50 occurrences per key; a single burst cannot permanently normalise a tool.
+- **Profile merge dedupes repeated hosts**, and a single-host estate is no longer double-counted as corroboration.
+- **Updater match is exact** — `plasma-updater.exe` no longer hides behind Plasma's own process tree.
 
 ## What's new in 1.31.0
 

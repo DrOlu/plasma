@@ -57,6 +57,11 @@ BENIGN_SERVICE_PARENTS = {
     "msmpeng.exe", "ngentask.exe", "mrt.exe",
 }
 SERVICE_PARENT_DAMPING = 0.55
+# Pure identity novelty (a new name in a table) is the weakest evidence the
+# model has; cap it so a benign first-run cannot saturate the critical band.
+IDENTITY_FIRST_SEEN_CAP = 0.85
+IDENTITY_TABLES = ("image", "edge", "user_image", "estate")
+CONTENT_TABLES = ("shape", "dest", "registry", "file")
 
 
 def _is_self(image) -> bool:
@@ -67,7 +72,10 @@ def _is_self(image) -> bool:
     start with "plasma" — an attacker can name a payload anything.
     """
     name = str(image or "").lower()
-    if name == "plasma.exe" or name.startswith("plasma-update"):
+    if name == "plasma.exe":
+        return True
+    if name == "plasma-update.exe" or re.fullmatch(
+            r"plasma-update-\d+(?:\.\d+)*\.exe", name):
         return True
     if name.startswith("plasma-") and name.endswith("-windows-x64.exe"):
         return True
@@ -80,10 +88,13 @@ MAX_LIMIT = 200
 
 
 def _component(name, rarity_row, weight, detail=None):
+    value = float(rarity_row["value"])
+    if rarity_row.get("first_seen") and name in IDENTITY_TABLES:
+        value = min(value, IDENTITY_FIRST_SEEN_CAP)
     return {
         "name": name,
         "weight": weight,
-        "value": round(float(rarity_row["value"]), 3),
+        "value": round(value, 3),
         "first_seen": bool(rarity_row.get("first_seen")),
         "table": rarity_row.get("table"),
         "key": rarity_row.get("key"),
@@ -189,6 +200,14 @@ def score_row(row: dict, profile: dict, estate: dict | None = None,
                 })
 
     if estate:
+        estate_hosts = {str(host) for host in (estate.get("hosts") or [])}
+        local = {str(row.get("host") or ""), str(profile.get("host") or "")}
+        if estate_hosts and estate_hosts <= local:
+            # A merged estate that contains only this host is the same
+            # evidence twice at combined weight 2.5; skip it. Real
+            # multi-host estates keep their estate component.
+            estate = None
+    if estate:
         # Only complete pairs: an auth row has a user but no image, and
         # "user>" is a first-seen key that would score itself 10/10.
         estate_keys = []
@@ -220,14 +239,41 @@ def score_row(row: dict, profile: dict, estate: dict | None = None,
     raw = sum(component["weight"] * component["value"]
               for component in usable)
     score = 10.0 * raw / weight_sum if weight_sum else 0.0
+    # Dilution guard: one strong signal on a familiar binary must not be
+    # divided into invisibility by zero-value components in the denominator.
+    strongest = max(component["value"] for component in usable)
+    if score < 5.0 and strongest >= 0.85:
+        score = max(score, 5.0 * strongest)
     damping = None
-    if parent in BENIGN_SERVICE_PARENTS or _is_self(parent):
+    if _is_self(parent):
         damping = {
             "parent": parent, "factor": SERVICE_PARENT_DAMPING,
-            "reason": ("Plasma's own process tree" if _is_self(parent)
-                       else "routine Windows service parent"),
+            "reason": "Plasma's own process tree",
         }
         score *= SERVICE_PARENT_DAMPING
+    elif parent in BENIGN_SERVICE_PARENTS:
+        image_component = next((component for component in usable
+                                if component["name"] == "image"), None)
+        if image_component is not None and not image_component["first_seen"]:
+            # Routine child of a service host: the classic maintenance FP.
+            damping = {
+                "parent": parent, "factor": SERVICE_PARENT_DAMPING,
+                "reason": "routine Windows service parent",
+            }
+            score *= SERVICE_PARENT_DAMPING
+        # A FIRST-SEEN child of services.exe/msiexec.exe is exactly where
+        # service-installed payloads run; do not damp it.
+    # Band guard: pure identity novelty (all names new, no behaviour, no
+    # volume fact) caps at high, not critical — critical requires a content
+    # signal (shape/dest/registry/file) or a volume spike.
+    has_content = any(component["name"] in CONTENT_TABLES
+                      and component["value"] >= 0.95
+                      for component in usable)
+    has_volume = any(component["name"] == "volume" for component in usable)
+    if score >= 9.0 and not (has_content or has_volume):
+        score = 8.9
+    if len(usable) == 1 and usable[0]["name"] == "volume" and score > 8.5:
+        score = 8.5
     score = round(score, 1)
     reasons = [_reason(component) for component in
                sorted(usable, key=lambda item: -(item["weight"] * item["value"]))
@@ -493,7 +539,9 @@ def trace_score(trace: dict, profile: dict) -> dict:
     if not components:
         return {"score": None, "cold_start": True, "components": []}
     values = [component["value"] for component in components]
-    score = round(10.0 * sum(values) / len(values), 1)
+    # Mean alone dilutes: one malicious hop among ten familiar edges scored
+    # 0.9/10. Max leads; the mean keeps multi-hop context.
+    score = round(10.0 * (0.7 * max(values) + 0.3 * (sum(values) / len(values))), 1)
     return {
         "score": score,
         "cold_start": False,

@@ -37,6 +37,7 @@ TOP_K = 2000
 SHAPE_TOP_K = 500
 MAX_SHAPE_CHARS = 160
 MAX_ENTITY_BUCKETS = 200
+RARITY_COUNT_CAP = 50
 MIN_OBSERVATIONS = 50
 MIN_BUCKET_DAYS = 3
 
@@ -181,7 +182,11 @@ def cmd_shape(cmdline, image=None) -> str:
     tokens = [token for token in _SPACE.split(text.strip()) if token]
     if not tokens:
         return ""
-    head = _basename(tokens[0]) or _basename(image) or "<cmd>"
+    head = _basename(tokens[0]) or ""
+    if head in ("", "<s>"):
+        # A quoted full path collapsed to <s>; keep the process identity by
+        # falling back to the image name so shapes separate binaries.
+        head = _basename(image) or tokens[0] or "<cmd>"
     shaped = " ".join([head] + tokens[1:11])
     return shaped[:MAX_SHAPE_CHARS]
 
@@ -268,6 +273,7 @@ def build(events_path, host: str | None = None, role: str = "unknown",
     hourly: dict[str, dict[int, Counter]] = defaultdict(
         lambda: defaultdict(Counter))
     entity_totals: Counter = Counter()
+    last_seen: dict[str, object] = {}
     dates: set = set()
 
     for row in rows:
@@ -282,6 +288,7 @@ def build(events_path, host: str | None = None, role: str = "unknown",
             _bump(tables["image"], image)
             entity_totals[f"image:{image}"] += 1
             hourly[f"image:{image}"][hour][day] += 1
+            last_seen[f"image:{image}"] = stamp
         if parent and image:
             _bump(tables["parent_child"], f"{parent}>{image}")
         if user and image:
@@ -302,12 +309,28 @@ def build(events_path, host: str | None = None, role: str = "unknown",
             _bump(shape_table, shape, SHAPE_TOP_K)
         if user:
             hourly[f"user:{user}"][hour][day] += 1
+            last_seen[f"user:{user}"] = stamp
 
     days = sorted(dates)
     buckets: dict[str, dict[str, dict]] = {}
-    top_entities = [name for name, _ in
-                    sorted(hourly.items(), key=lambda item: (-entity_totals.get(item[0], 0), item[0]))[:MAX_ENTITY_BUCKETS]]
-    for entity in top_entities:
+    ranked_entities = [name for name, _ in
+                       sorted(hourly.items(), key=lambda item: (-entity_totals.get(item[0], 0), item[0]))[:MAX_ENTITY_BUCKETS]]
+    # Lifetime top-K alone excludes exactly the rare, low-and-slow entities
+    # volume exists to watch. Add anything active near the fresh end of the
+    # tail so the volume family can see it too (bounded, rate-neutral).
+    chosen = set(ranked_entities)
+    if rows:
+        stamps = [stamp for stamp in (_row_time(row) for row in rows)
+                  if stamp is not None]
+        if stamps:
+            cutoff = min(stamps) + 0.8 * (max(stamps) - min(stamps))
+            for entity, hourly_stamps in last_seen.items():
+                if len(chosen) >= MAX_ENTITY_BUCKETS + 100:
+                    break
+                if entity not in chosen and hourly_stamps >= cutoff:
+                    ranked_entities.append(entity)
+                    chosen.add(entity)
+    for entity in ranked_entities:
         buckets[entity] = {}
         for hour in range(24):
             samples = hourly[entity].get(hour) or Counter()
@@ -399,7 +422,15 @@ def rarity(profile, table: str, key: str) -> dict | None:
     if count == 0:
         return {"table": table, "key": key, "count": 0, "total": total,
                 "value": 1.0, "first_seen": True}
-    value = 1.0 - (math.log2(count + 1) / math.log2(total + 1))
+    # The count is capped inside the math, not in the table: counts stay
+    # honest for merge and diff, while a single burst (or deliberate
+    # poisoning — 500 runs to look "common") cannot push a key past
+    # RARITY_COUNT_CAP towards the familiar end of the scale.
+    if int(count) >= int(total):
+        return {"table": table, "key": key, "count": count, "total": total,
+                "value": 0.0, "first_seen": False}
+    capped = min(int(count), RARITY_COUNT_CAP)
+    value = 1.0 - (math.log2(capped + 1) / math.log2(total + 1))
     return {"table": table, "key": key, "count": count, "total": total,
             "value": max(0.0, min(1.0, value)), "first_seen": False}
 
@@ -417,13 +448,17 @@ def volume(profile, entity: str, hour: int, observed: int) -> dict | None:
     median = float(stats.get("median") or 0)
     mad = float(stats.get("mad") or 0)
     if mad <= 0:
-        # Constant baseline: only a clear step over the median counts.
-        if observed > max(median, 0) * 2 and observed >= median + 5:
-            return {"entity": entity, "hour": hour, "observed": observed,
-                    "median": median, "mad": mad, "z": None, "value": 1.0}
-        return None
+        # Constant baseline: only a clear step counts, and an hour that has
+        # never seen the entity has no baseline to step over — bursts at
+        # quiet hours are the rarity families' job, not volume's.
+        if median <= 0 or observed < median * 3 + 5:
+            return None
+        return {"entity": entity, "hour": hour, "observed": observed,
+                "median": median, "mad": mad, "z": None, "value": 1.0}
     z = 0.6745 * (observed - median) / mad
-    value = max(0.0, min(abs(z), 6.0)) / 6.0
+    # Spikes only: a volume DROP is quiet, not novel — abs(z) here scored
+    # silence at full novelty (up to 10.0 on a lone benign logon).
+    value = max(0.0, min(z, 6.0)) / 6.0
     return {"entity": entity, "hour": hour, "observed": observed,
             "median": median, "mad": mad, "z": round(z, 2),
             "value": round(value, 3)}
@@ -438,6 +473,16 @@ def merge(profiles: list[dict], name: str = "estate") -> dict:
     """
     if not profiles:
         raise ValueError("no profiles to merge")
+    # One host can appear twice (two pulls, two windows); adding both would
+    # double its counts. Keep the newest profile per host.
+    newest: dict[str, dict] = {}
+    for profile in profiles:
+        host = str(profile.get("host") or "unknown")
+        kept = newest.get(host)
+        if kept is None or str(profile.get("built_at") or "") >= str(
+                kept.get("built_at") or ""):
+            newest[host] = profile
+    profiles = list(newest.values())
     tables = {table: Counter() for table in TABLES}
     hosts, roles = [], []
     total = 0

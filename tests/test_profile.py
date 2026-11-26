@@ -175,3 +175,37 @@ def test_cli_build_and_score_round_trip(tmp_path, capsys):
 
     assert cli.main(["profile", "verify", "--profile", str(target)]) == 0
     assert json.loads(capsys.readouterr().out)["ok"] is True
+
+
+def test_merge_does_not_double_count_a_repeated_host(tmp_path):
+    first = profile.build(_write(tmp_path, _rows(), "a.jsonl"), host="WS1")
+    again = profile.build(_write(tmp_path, _rows(), "b.jsonl"), host="WS1")
+    merged = profile.merge([first, again])
+    assert merged["hosts"] == ["WS1"]
+    assert merged["tables"]["image"]["counts"]["chrome.exe"] == first[
+        "tables"]["image"]["counts"]["chrome.exe"]
+
+
+def test_rarity_count_cap_resists_poisoning(tmp_path):
+    crafted = {
+        "kind": "host-profile", "host": "WS1", "n": 1000,
+        "limits": {"min_observations": 10},
+        "tables": {"image": {"counts": {"evil.exe": 500, "chrome.exe": 500},
+                             "total": 1000}},
+    }
+    result = profile.rarity(crafted, "image", "evil.exe")
+    # 500 fake runs cannot buy familiarity: the value stays on the novel
+    # half of the scale (uncapped it would collapse to ~0.10).
+    assert result["value"] >= 0.3
+
+
+def test_quoted_command_shape_keeps_process_identity():
+    sevenzip = profile.cmd_shape(
+        '"C:\\Program Files\\7-Zip\\7z.exe" x a.zip -oC:\\out',
+        image="7z.exe")
+    evil = profile.cmd_shape(
+        '"C:\\Users\\Public\\evil.exe" x b.zip -oC:\\out',
+        image="evil.exe")
+    assert sevenzip.startswith("7z.exe ")
+    assert evil.startswith("evil.exe ")
+    assert sevenzip != evil
