@@ -162,10 +162,11 @@ def test_brute_force_success_must_be_the_same_user():
     wrong = failures + [_auth("2026-11-05T02:10:00Z", 4624, "bob")]
     assert not [f for f in chain.scan(wrong)
                 if f["type"] == "chain_brute_force_success"]
-    right = failures + [_auth("2026-11-05T02:10:00Z", 4624, "alice")]
+    right = failures + [_auth("2026-11-05T02:10:00Z", 4624, "CORP\\alice")]
     finding = next(f for f in chain.scan(right)
                    if f["type"] == "chain_brute_force_success")
-    assert finding["users"] == ["alice"]
+    # Identity binding keeps the domain: CORP\alice is one identity.
+    assert finding["users"] == ["corp\\alice"]
 
 
 def test_brute_force_does_not_borrow_another_users_failures():

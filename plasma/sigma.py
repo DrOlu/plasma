@@ -65,13 +65,49 @@ def _yaml():
     return yaml
 
 
+def _sigma_pattern(text: str) -> str:
+    """Translate a Sigma value into an RE2 body.
+
+    Sigma value semantics: a bare ``*`` matches any sequence, ``?`` matches
+    one character, and a backslash escapes the next character (``\\*`` is a
+    literal star, ``\\\\`` a literal backslash). A backslash before anything
+    else is a literal backslash — Windows paths in values rely on that.
+    """
+    out: list[str] = []
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if ch == "\\" and i + 1 < len(text):
+            nxt = text[i + 1]
+            if nxt in "*?\\":
+                out.append(re.escape(nxt))
+            else:
+                out.append(re.escape(ch))
+                out.append(re.escape(nxt))
+            i += 2
+        elif ch == "*":
+            out.append(".*")
+            i += 1
+        elif ch == "?":
+            out.append(".")
+            i += 1
+        else:
+            out.append(re.escape(ch))
+            i += 1
+    return "".join(out)
+
+
 def _regex(value, modifier: str) -> str:
     text = str(value)
     if modifier == "re":
         if "'" in text or "\n" in text or "\r" in text:
             raise SigmaError("Sigma |re value cannot contain quotes or newlines")
+        # An author-supplied regex keeps its own flags; wrapping it in (?i:)
+        # silently overrode deliberate case sensitivity.
+        if text.startswith("(?"):
+            return text
         return f"(?i:{text})"
-    escaped = re.escape(text)
+    escaped = _sigma_pattern(text)
     if modifier == "contains":
         return f"(?i:{escaped})"
     if modifier == "startswith":
@@ -95,6 +131,7 @@ def _selection(name: str, spec) -> tuple[list[str], str]:
     """One selection -> (match variables, gene-side expression)."""
     if isinstance(spec, dict):
         variables, exprs = [], []
+        seen_bases: dict[str, int] = {}
         for field, values in spec.items():
             parts = str(field).split("|")
             base, modifiers = parts[0], [p.lower() for p in parts[1:]]
@@ -105,8 +142,21 @@ def _selection(name: str, spec) -> tuple[list[str], str]:
             modifier = next((m for m in modifiers
                              if m in ("contains", "startswith", "endswith",
                                       "re")), "equals")
+            if base.lower() in ("eventid", "event_id"):
+                # EventID lives under /Event/System in the EV tree; gene
+                # match operands resolve /Event/EventData/<field>, so an
+                # EventID criterion could never be true. It is already
+                # captured as Meta.EventIDs by _logsource.
+                continue
+            seen = seen_bases.get(base.lower(), 0)
+            seen_bases[base.lower()] = seen + 1
             prefix = "$" + re.sub(r"[^A-Za-z0-9]+", "_",
                                   name + "_" + base).lower()
+            if seen:
+                # Gene match variables live in one map per rule: two
+                # criteria on the same field (contains + endswith) used to
+                # collide and the engine kept only the last one.
+                prefix = f"{prefix}_{seen + 1}"
             if "all" in modifiers and isinstance(values, (list, tuple)) \
                     and len(values) > 1:
                 # Sigma `|all` means every listed value must match the field.
@@ -164,11 +214,15 @@ def _logsource(logsource: dict, selections: dict) -> tuple[list[int], str]:
         raise SigmaError(f"unsupported logsource {logsource!r}")
     if category in CATEGORIES:
         ids, channel = CATEGORIES[category]
-    elif service == "sysmon" or product == "windows":
+    elif service == "sysmon":
         ids, channel = [], CHANNEL_SYSMON
     elif service == "security":
         ids, channel = [], CHANNEL_SECURITY
     else:
+        # Any unknown windows service (application, powershell,
+        # msexchange-management, ...) used to be silently rerouted to the
+        # Sysmon channel, producing rules whose fields do not exist there.
+        # Refuse: the skip list says why, nothing is mistranslated.
         raise SigmaError(f"unsupported logsource {logsource!r}")
 
     # An explicit EventID in a selection wins over the category default.

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.33.0 — 2026-11-25
+
+- **Chains.** Host binding on every chain (cross-host stitching was FP class #1); domain-preserving identity binding; `exclude_parent` basename matching; `min_score` gate so WHIDS benign rows (0.2) cannot complete persistence; step 0 accepts 4732/4728/4756; persistence step 2 action-shaped with WMI/COM/task-scheduler run-key variants; brute-force floor 5 → 4 failures; every non-overlapping story reported (bounded 10/chain).
+- **Watch.** Chain stories reported once per signature (`watch-chain-state.json`); a long-lived story no longer re-fires every sweep.
+- **Baseline rules.** SAM `+security`; quoted group names; `\psexesvc`/`MSSE-*` pipes; masquerade anchored to the directory boundary (deep System32 paths fire, WinSxS nesting allowed); `iwr`/`wget` with URL anchor; `ControlSet00\d` service writes with depth anchor; certutil `/urlcache`/`/verifyctl`; ProgramData/Roaming user paths; LSASS caller allowlist (WerFault/Defender).
+- **Sigma converter.** Wildcards translate; Sigma escape layer honored; duplicate match variables uniquified; EventID selections become metadata; unknown services refused; `|re` flags preserved. Corpus regenerated at the pinned commit: 259 → 257, 36 repaired, 2 refused honestly.
+- **Engine.** `validate` coerces string criticality; `replay` validates candidate rules (`ok: false` on errors); `coverage` reports PowerShell-channel rules live and unsubscribed channels unknown; Sysmon empty-exclude pass-all semantics verified against the live estate (registry telemetry confirmed flowing — the audit's headline claim was refuted, not fixed).
+- 1097 tests collected; full suite, ruff and bandit (0 medium/high) pass.
+
 ## 1.32.0 — 2026-11-25
 
 - **Critical-band de-saturation.** First-seen identity components cap at 0.85; a row whose novelty is only identity caps at 8.9. Benign first-runs land in the high band; the critical band (9.0+) requires a content signal at 0.95+ or a volume spike. Verified before: a benign `zoom-installer.exe /silent` scored exactly 10.0 — the same as mimikatz.

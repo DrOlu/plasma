@@ -1,19 +1,19 @@
 <div class="raft-hero" markdown="0">
-<p class="raft-eyebrow">Windows EDR &middot; v1.32.0</p>
+<p class="raft-eyebrow">Windows EDR &middot; v1.33.0</p>
 <h1>No log lake.<br>No cloud.<br>No blind trust.</h1>
 <p class="raft-lede">Plasma keeps the telemetry on the box, answers questions with a
 121M on-device model, and makes every response named, journaled, and reversible.
 The endpoint can explain itself &mdash; without shipping its diary anywhere.</p>
 <div class="raft-actions">
 <a class="raft-btn primary" href="getting-started/">Get started</a>
-<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.32.0</a>
+<a class="raft-btn" href="https://github.com/DrOlu/plasma/releases/latest">Download v1.33.0</a>
 <a class="raft-btn" href="agent-native/">Agent-native operation</a>
 </div>
 <div class="raft-badges">
 <span class="raft-badge">94.6% rollup coverage</span>
 <span class="raft-badge">13 reversible actions</span>
 <span class="raft-badge">25 baseline rules</span>
-<span class="raft-badge">1075 tests</span>
+<span class="raft-badge">1097 tests</span>
 <span class="raft-badge">Signed MSI + SHA256SUMS</span>
 </div>
 </div>
@@ -178,6 +178,16 @@ Inbound adapters bring other systems in: `plasma ingest jsonl|evtx|webhook`.
 Outbound adapters push bounded batches: `plasma export webhook|syslog`.
 See [Plugins](plugin-api.md) for the manifest, protocol, lifecycle, security
 model and schemas.
+
+## What's new in 1.33.0
+
+- **Independent detection audit applied** (chains, baseline rules, Sigma converter — every finding verified against the live engines before fixing).
+- **Chains are host-bound.** No story is stitched from events on different machines; `CORP\olu` and `EVIL\olu` are different identities; `exclude_parent` matches basenames; brute-force detection floors at 4 failures (a spray that succeeds on the 5th attempt is no longer invisible).
+- **Persistence chain hardened.** Step 1 accepts 4732/4728/4756 audit events; step 2 is action-shaped only (no more `run ?key` noun matches) and covers WMI/COM/`New-ScheduledTask`/run-key writes; rows WHIDS benign-downgraded to 0.2 cannot complete a story; the created account must appear in the group-add narrative.
+- **Watch reports each chain story once** (`watch-chain-state.json`), ending per-sweep re-fire spam.
+- **Baseline rules fixed.** SAM dump covers the SECURITY hive; quoted group names (`"Domain Admins"`) match; the pipe rule covers `\psexesvc` and `MSSE-*`; the masquerade rule fires on deep System32 paths (`spool\drivers\color\svchost.exe`) while allowing WinSxS nesting; PowerShell download covers `iwr`/`wget` with a URL anchor; service registry covers `ControlSet00\d` and anchors depth; certutil covers `/urlcache`/`/verifyctl`; user-path execution covers ProgramData/Roaming/Local; LSASS exempts WerFault/Defender callers.
+- **Sigma converter repaired.** Value wildcards now translate (`*`→`.*`); the Sigma escape layer is honored; duplicate match variables no longer collapse (the gene engine kept only the last — 21 rules lost a criterion); `EventID` selections become metadata, not impossible EventData matches; unknown Windows services are refused instead of silently rerouted to Sysmon; `|re` keeps author flags. Corpus regenerated at the pinned upstream commit: 259 → 257 rules, 36 repaired, 2 channel-misrouted dead rules now honestly refused.
+- **Engine honesty.** `detect validate` coerces string criticality (Sigma rules); `detect replay` validates the candidate rules and fails on errors; `coverage` reports PowerShell-channel rules as live and unsubscribed channels as unknown. The audit's headline claim (Sysmon registry telemetry off) was **refuted against the live estate**: an empty `onmatch="exclude"` filter passes everything, and EIDs 12/13 dominate WS1's channel.
 
 ## What's new in 1.32.0
 

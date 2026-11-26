@@ -96,8 +96,13 @@ def validate(rules_path) -> dict:
         names.setdefault(name, []).append(index)
         meta = rule.get("Meta")
         if isinstance(meta, dict):
-            criticality = meta.get("Criticality")
-            if (isinstance(criticality, int)
+            # Sigma-converted rules store Criticality as a string ("9");
+            # coerce before comparing or the warning is a silent no-op.
+            try:
+                criticality = int(meta.get("Criticality"))
+            except (TypeError, ValueError):
+                criticality = None
+            if (criticality is not None
                     and criticality <= MIN_FORWARDED_CRITICALITY):
                 warnings.append({
                     "rule": name,
@@ -160,18 +165,28 @@ def diff(old_path, new_path) -> dict:
 
 
 def replay(events_path, rules_path=None, max_rows: int = 5000) -> dict:
-    """Run the deterministic story engine and summary over a captured store."""
+    """Run the deterministic story engine and summary over a captured store.
+
+    With `--rules`, the candidate rule file is validated first and the
+    verdict is part of the output: replay is the pre-promotion review, so a
+    broken rule file must not look identical to a clean one."""
     rules = None
+    validation = None
     if rules_path:
         rules = load_rules(rules_path)
+        validation = validate(rules_path)
     chains = chain.scan_store(events_path, max_rows=max_rows)
     digest = summarize.summarize(events_path, max_rows=max_rows)
+    ok = True
+    if validation is not None:
+        ok = not validation.get("errors")
     return {
-        "ok": True,
+        "ok": ok,
         "events": str(events_path),
         "rules": {"path": str(rules_path), "count": len(rules)} if rules
         else {"path": None, "count": 0},
         "chains": chains,
+        "validation": validation,
         "summary": {
             "checked": digest.get("checked"),
             "counts": digest.get("counts"),
@@ -328,7 +343,22 @@ BUILTIN_CASES = [
             _row("2026-11-20T10:00:00Z", kind="auth", event_id=4720,
                  user="CORP\\svc-temp"),
             _row("2026-11-20T10:05:00Z", kind="auth", event_id=4728,
-                 user="CORP\\Domain Admins"),
+                 user="CORP\\Domain Admins",
+                 description="global group membership added: CORP\\svc-temp "
+                             "to Domain Admins by CORP\\admin"),
+        ],
+    },
+    {
+        "name": "group add of a different member misses",
+        "chain": "account_creation_privilege",
+        "expect": "miss",
+        "events": [
+            _row("2026-11-20T10:00:00Z", kind="auth", event_id=4720,
+                 user="CORP\\svc-temp"),
+            _row("2026-11-20T10:05:00Z", kind="auth", event_id=4732,
+                 user="CORP\\Sales-RO",
+                 description="local group membership added: CORP\\sales-ro "
+                             "to Sales-RO by CORP\\admin"),
         ],
     },
     {

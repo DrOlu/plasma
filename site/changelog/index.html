@@ -1755,6 +1755,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#1330-2026-11-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.33.0 — 2026-11-25
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1320-2026-11-25" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2985,6 +2996,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#1330-2026-11-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.33.0 — 2026-11-25
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1320-2026-11-25" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4196,6 +4218,15 @@
 <p>The canonical history lives in
 <a href="https://github.com/DrOlu/plasma/blob/main/CHANGELOG.md">CHANGELOG.md</a>.
 Highlights by release:</p>
+<h2 id="1330-2026-11-25">1.33.0 — 2026-11-25<a class="headerlink" href="#1330-2026-11-25" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Chains.</strong> Host binding on every chain (cross-host stitching was FP class #1); domain-preserving identity binding; <code>exclude_parent</code> basename matching; <code>min_score</code> gate so WHIDS benign rows (0.2) cannot complete persistence; step 0 accepts 4732/4728/4756; persistence step 2 action-shaped with WMI/COM/task-scheduler run-key variants; brute-force floor 5 → 4 failures; every non-overlapping story reported (bounded 10/chain).</li>
+<li><strong>Watch.</strong> Chain stories reported once per signature (<code>watch-chain-state.json</code>); a long-lived story no longer re-fires every sweep.</li>
+<li><strong>Baseline rules.</strong> SAM <code>+security</code>; quoted group names; <code>\psexesvc</code>/<code>MSSE-*</code> pipes; masquerade anchored to the directory boundary (deep System32 paths fire, WinSxS nesting allowed); <code>iwr</code>/<code>wget</code> with URL anchor; <code>ControlSet00\d</code> service writes with depth anchor; certutil <code>/urlcache</code>/<code>/verifyctl</code>; ProgramData/Roaming user paths; LSASS caller allowlist (WerFault/Defender).</li>
+<li><strong>Sigma converter.</strong> Wildcards translate; Sigma escape layer honored; duplicate match variables uniquified; EventID selections become metadata; unknown services refused; <code>|re</code> flags preserved. Corpus regenerated at the pinned commit: 259 → 257, 36 repaired, 2 refused honestly.</li>
+<li><strong>Engine.</strong> <code>validate</code> coerces string criticality; <code>replay</code> validates candidate rules (<code>ok: false</code> on errors); <code>coverage</code> reports PowerShell-channel rules live and unsubscribed channels unknown; Sysmon empty-exclude pass-all semantics verified against the live estate (registry telemetry confirmed flowing — the audit's headline claim was refuted, not fixed).</li>
+<li>1097 tests collected; full suite, ruff and bandit (0 medium/high) pass.</li>
+</ul>
 <h2 id="1320-2026-11-25">1.32.0 — 2026-11-25<a class="headerlink" href="#1320-2026-11-25" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Critical-band de-saturation.</strong> First-seen identity components cap at 0.85; a row whose novelty is only identity caps at 8.9. Benign first-runs land in the high band; the critical band (9.0+) requires a content signal at 0.95+ or a volume spike. Verified before: a benign <code>zoom-installer.exe /silent</code> scored exactly 10.0 — the same as mimikatz.</li>

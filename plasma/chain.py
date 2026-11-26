@@ -48,11 +48,11 @@ BUILTIN_CHAINS = [
         "name": "brute_force_success",
         "score": 8,
         "gap_seconds": 3600,
-        "min_failures": 5,
+        "min_failures": 4,
         "bind_user": True,
         "detail": "repeated failed logons against one user, then a success for that same user",
         "steps": [
-            {"kind": "auth", "event_id": 4625, "user": r".+", "min_count": 5},
+            {"kind": "auth", "event_id": 4625, "user": r".+", "min_count": 4},
             {"kind": "auth", "event_id": 4624, "user": r".+"},
         ],
     },
@@ -60,12 +60,12 @@ BUILTIN_CHAINS = [
         "name": "kerberos_brute_force",
         "score": 9,
         "gap_seconds": 1800,
-        "min_failures": 5,
+        "min_failures": 4,
         "bind_user": True,
         "detail": "repeated Kerberos pre-auth failures for one account, then a "
                   "TGT success for that same account (password spray)",
         "steps": [
-            {"kind": "auth", "event_id": 4771, "user": r".+", "min_count": 5},
+            {"kind": "auth", "event_id": 4771, "user": r".+", "min_count": 4},
             {"kind": "auth", "event_id": 4768, "user": r".+"},
         ],
     },
@@ -75,9 +75,17 @@ BUILTIN_CHAINS = [
         "gap_seconds": 3600,
         "detail": "account/admin change followed by a persistence-shaped alert",
         "steps": [
-            {"description": r"(?i)(net1? .*(user|localgroup).*(/add| add)|add-localgroupmember|new-localuser)"},
-            {"description": r"(?i)(schtasks(?:\.exe)?[^|]*?/create|new-service|register-scheduledtask|run ?key|eventfilter|bindversion|sc(?:\.exe)?\s+create|reg(?:\.exe)?\s+add.*\\run)",
-             "exclude_parent": r"(?i)^plasma[^\\]*\.exe$"},
+            {"any_of": [
+                {"description": r"(?i)(net1? .*(user|localgroup).*(/add| add)|add-localgroupmember|new-localuser)"},
+                {"kind": "auth", "event_id": 4732},
+                {"kind": "auth", "event_id": 4728},
+                {"kind": "auth", "event_id": 4756},
+            ]},
+            {"description": r"(?i)(schtasks(?:\.exe)?[^|]*?/create|new-service|register-scheduledtask|sc(?:\.exe)?\s+create|reg(?:\.exe)?\s+add[^\n]*\\run|new-itemproperty[^\n]*\\run|set-itemproperty[^\n]*\\run|win32_scheduledjob|new-scheduledtask(?:trigger)?)",
+             "exclude_parent": r"(?i)^plasma[^\\]*\.exe$",
+             # WHIDS downgrades benign installer/servicing rows to 0.2; a
+             # chain story must not be completed by one of those.
+             "min_score": 0.2},
         ],
     },
     {
@@ -87,11 +95,12 @@ BUILTIN_CHAINS = [
         "detail": "a new account was created, then added to a privileged group",
         "steps": [
             {"kind": "auth", "event_id": 4720},
-            {"any_of": [
-                {"kind": "auth", "event_id": 4728},
-                {"kind": "auth", "event_id": 4732},
-                {"kind": "auth", "event_id": 4756},
-            ]},
+            {"mentions_prev_user": True,
+             "any_of": [
+                 {"kind": "auth", "event_id": 4728},
+                 {"kind": "auth", "event_id": 4732},
+                 {"kind": "auth", "event_id": 4756},
+             ]},
         ],
     },
     {
@@ -188,11 +197,23 @@ def _match_step(step: dict, row: dict) -> bool:
             return False
     excluded_parent = step.get("exclude_parent")
     if excluded_parent:
+        # Match the parent's basename: Windows paths arrive both as bare
+        # names and as full paths, and an anchored pattern against the full
+        # path silently skipped the exclusion.
         parent = str(row.get("parent") or "")
+        base = parent.replace("/", "\\").split("\\")[-1]
         try:
-            if parent and re.search(excluded_parent, parent):
+            if base and re.search(excluded_parent, base):
                 return False
         except re.error:
+            return False
+    min_score = step.get("min_score")
+    if min_score is not None:
+        try:
+            row_score = float(row.get("score"))
+        except (TypeError, ValueError):
+            row_score = None
+        if row_score is not None and row_score <= float(min_score):
             return False
     for field in ("process", "user", "description"):
         if field in step:
@@ -231,12 +252,16 @@ def _count_back(events, i, step, gap, user_filter=None):
 
 
 def _user_key(row):
-    """Normalized identity for cross-step binding (DOMAIN\\user -> user)."""
+    """Normalized identity for cross-step binding.
+
+    The domain is kept: CORP\\olu and EVIL\\olu are different identities,
+    and a brute force against one must not chain onto a success for the
+    other just because the account name collides."""
     user = row.get("user")
     if not user:
         return None
-    value = str(user).split("\\")[-1].split("@")[0].strip().lower()
-    if not value or value.endswith("$"):
+    value = str(user).strip().lower()
+    if not value or value.endswith("$") or value in ("system", "-"):
         return None
     return value
 
@@ -252,12 +277,14 @@ def _proc_key(row):
 
 def _match_from(steps, events, start, gap, t_prev=None, bound_user=None,
                 bound_process=None, enforce_bound=False,
-                enforce_process=False):
+                enforce_process=False, bound_host=None):
     """Ordered forward match of steps against events[start:], full
     backtracking on step candidates. Returns indices or None. Each adjacent
     pair must sit within `gap` seconds. When `enforce_bound` is set, every
     step must belong to the same normalized user as the first step. When
-    `enforce_process` is set, every step must carry the same image name."""
+    `enforce_process` is set, every step must carry the same image name.
+    Steps are always bound to one host: a story stitched from events on
+    different machines is not a story (PID/user spaces do not join)."""
     if not steps:
         return []
     step = steps[0]
@@ -277,6 +304,21 @@ def _match_from(steps, events, start, gap, t_prev=None, bound_user=None,
                 continue
             if bound_process is not None and row_process != bound_process:
                 continue
+        row_host = str(row.get("host") or "").strip().lower()
+        if bound_host and row_host and row_host != bound_host:
+            continue
+        if step.get("mentions_prev_user") and bound_user:
+            # Bind on the bare account name: the group-add narrative
+            # carries the member as a DN or bare name, not DOMAIN\\user.
+            mention = bound_user.split("\\")[-1]
+            narrative = (str(row.get("description") or "") + "\n"
+                         + str(row.get("cmdline") or ""))
+            try:
+                if not re.search(rf"\b{re.escape(mention)}\b", narrative,
+                                 re.IGNORECASE):
+                    continue
+            except re.error:
+                continue
         t = _ts(row)
         if t_prev is not None and (t - t_prev).total_seconds() > gap:
             break          # sorted input: every later candidate is later still
@@ -292,7 +334,8 @@ def _match_from(steps, events, start, gap, t_prev=None, bound_user=None,
         rest = _match_from(steps[1:], events, i + 1, gap, t_prev=t,
                            bound_user=user, bound_process=process,
                            enforce_bound=enforce_bound,
-                           enforce_process=enforce_process)
+                           enforce_process=enforce_process,
+                           bound_host=row_host or bound_host)
         if rest is not None:
             return [i] + rest
     return None
@@ -307,10 +350,17 @@ def scan(rows: list[dict], chains: list[dict] | None = None,
     findings: list[dict] = []
     for chain in chains:
         gap = int(chain.get("gap_seconds", gap_seconds))
-        idxs = _match_from(chain["steps"], events, 0, gap,
-                           enforce_bound=bool(chain.get("bind_user")),
-                           enforce_process=bool(chain.get("bind_process")))
-        if idxs:
+        # A store can hold several independent stories for one chain (two
+        # users sprayed in the same hour). Report each non-overlapping
+        # story, bounded so one noisy chain cannot flood the diary.
+        start = 0
+        for _ in range(10):
+            idxs = _match_from(chain["steps"], events, start, gap,
+                               enforce_bound=bool(chain.get("bind_user")),
+                               enforce_process=bool(chain.get("bind_process")))
+            if not idxs:
+                break
+            start = idxs[-1] + 1
             matched = [events[i] for i in idxs]
             t0, t1 = _ts(matched[0]), _ts(matched[-1])
             span_min = int((t1 - t0).total_seconds() / 60)

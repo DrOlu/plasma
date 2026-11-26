@@ -100,9 +100,9 @@ window between adjacent steps, plus optional **count** steps.
 | Chain | Score | Story (in time order) |
 |---|---|---|
 | `phish_spawn_chain` | 9 | Office app → script host (powershell/wscript/cscript/mshta) → encoded command or egress, all within 15 min |
-| `brute_force_success` | 8 | ≥5 failed logons for one user, then a success, within 60 min |
-| `persistence_after_privilege` | 9 | account/group change → persistence-shaped command (schtasks, service, run key, WMI), within 60 min |
-| `account_creation_privilege` | 9 | a new account (4720) → privileged group membership (4728/4732/4756), within 30 min |
+| `brute_force_success` | 8 | ≥4 failed logons for one identity, then a success, within 60 min |
+| `persistence_after_privilege` | 9 | privilege grant (command or 4732/4728/4756) → a persistence action (schtasks create, service create, run key write, WMI/COM task), within 60 min |
+| `account_creation_privilege` | 9 | a new account (4720) → that account added to a privileged group (4728/4732/4756), within 30 min |
 
 ```powershell
 plasma chain score --events C:\ProgramData\Plasma\data\events.jsonl
@@ -113,10 +113,22 @@ Semantics worth knowing:
 
 - Matching is on **timestamps**, not file order; input order is irrelevant.
 - The matcher backtracks: a dead-end candidate does not hide a later match.
+- **Chains are host-bound**: a story stitched from events on different
+  machines is not a story. PIDs and user spaces do not join across hosts.
+- **Identity binding keeps the domain**: `CORP\olu` and `EVIL\olu` are
+  different accounts, and a spray against one does not chain onto the other.
+- Steps may carry `min_score`: the persistence chain ignores rows WHIDS
+  benign-downgraded to 0.2, so an installer's own task registration cannot
+  complete a story.
 - Each built-in chain carries its own `gap_seconds`; the `--window` flag is
   the default for chains that do not specify one.
 - Every match reports the span, the users involved and the matched rows.
-- Chains also run inside every `watch` sweep.
+  Several independent stories for one chain are all reported (bounded at 10
+  per chain per scan), so the second attacker in the same window is not
+  invisible.
+- Chains also run inside every `watch` sweep, and each story is reported
+  **once** — `watch-chain-state.json` keeps the last-fired signature so a
+  long-lived story is not re-reported every sweep.
 
 ## Drift — what changed since I last looked
 

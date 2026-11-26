@@ -168,3 +168,68 @@ def test_convert_path_records_the_source_file(tmp_path):
         "    Image|endswith: '\\\\cmd.exe'\n  condition: selection\nlevel: low\n")
     result = sigma.convert_path(tmp_path)
     assert "source: one.yml" in result["rules"][0]["Meta"]["Comment"]
+
+
+def test_value_wildcards_translate_and_escapes_are_honored():
+    gene = sigma.convert_rule(_rule(detection={
+        "selection": {"CommandLine": "Compress-Archive -Path* -DestinationPath $env:TEMP"},
+        "condition": "selection"}))
+    body = gene["Matches"][0].split("~=", 1)[1].strip().strip("'")
+    assert "Path.*" in body  # bare * is a wildcard, not a literal star
+    assert not body.endswith("\\\\\\*")
+
+    # Sigma escape layer: \\?\\GLOBALROOT means literal \\ then any char.
+    gene = sigma.convert_rule(_rule(detection={
+        "selection": {"CommandLine": r"\\\\?\\GLOBALROOT"},
+        "condition": "selection"}))
+    body = gene["Matches"][0].split("~=", 1)[1].strip().strip("'")
+    assert "\\\\." in body  # literal double backslash + single wildcard
+
+    # An unknown escape keeps its backslash (Windows paths in values).
+    gene = sigma.convert_rule(_rule(detection={
+        "selection": {"Image": "C:\\Windows\\System32\\cmd.exe"},
+        "condition": "selection"}))
+    body = gene["Matches"][0].split("~=", 1)[1].strip().strip("'")
+    assert "Windows" in body and "\\\\" in body
+
+
+def test_duplicate_field_criteria_keep_distinct_variables():
+    gene = sigma.convert_rule(_rule(detection={
+        "selection": {"TargetObject|contains": "SYSTEM\\",
+                      "TargetObject|endswith": "\\services\\localNETService"},
+        "condition": "selection"}))
+    vars_ = [m.split(":", 1)[0].strip() for m in gene["Matches"]]
+    assert len(set(vars_)) == len(vars_), "duplicate variables collapse"
+    assert gene["Condition"].count("$selection_targetobject") == 2
+
+
+def test_eventid_selection_becomes_metadata_not_a_match():
+    gene = sigma.convert_rule(_rule(detection={
+        "selection": {"EventID": 13, "TargetObject|contains": "Run"},
+        "condition": "selection"}))
+    assert gene["Meta"]["EventIDs"] == [13]
+    assert not any(m.startswith("$selection_eventid") for m in gene["Matches"])
+
+
+def test_selection_with_only_an_eventid_is_refused():
+    import pytest
+    with pytest.raises(sigma.SigmaError):
+        sigma.convert_rule(_rule(detection={
+            "selection": {"EventID": 22},
+            "condition": "selection"}))
+
+
+def test_unknown_windows_service_is_refused_not_rerouted():
+    import pytest
+    with pytest.raises(sigma.SigmaError):
+        sigma.convert_rule(_rule(logsource={
+            "product": "windows", "service": "msexchange-management"},
+            detection={"selection": {"EventID": 6}, "condition": "selection"}))
+
+
+def test_re_values_keep_their_own_flags():
+    gene = sigma.convert_rule(_rule(detection={
+        "selection": {"CommandLine|re": "(?-i:CaseSensitive)"},
+        "condition": "selection"}))
+    body = gene["Matches"][0].split("~=", 1)[1].strip().strip("'")
+    assert body == "(?-i:CaseSensitive)"

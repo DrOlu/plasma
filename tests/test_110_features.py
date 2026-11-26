@@ -223,3 +223,37 @@ def test_watch_once_throttles_by_loudest_finding(tmp_path, monkeypatch):
         assert len(sent) == 1, "same loudest finding must not re-notify"
     finally:
         n._post = orig_post
+
+
+def test_watch_reports_a_chain_story_once(tmp_path, monkeypatch):
+    (tmp_path / "config.json").write_text(json.dumps({
+        "events_path": str(tmp_path / "e.jsonl"), "degraded": True,
+        "sensors": {"whids": {"status": "skipped"}}}))
+    monkeypatch.setattr(health, "verdict",
+                        lambda r: {"status": "ok", "failed": [], "checks": []})
+    monkeypatch.setattr(watch.observatory, "run_question",
+                        lambda q, **k: {"question": q, "blind_count": 0})
+    monkeypatch.setattr("plasma.drift.load", lambda root, name: None)
+    store = tmp_path / "data" / "events.jsonl"
+    store.parent.mkdir(parents=True)
+    story = [
+        {"ts": "2026-11-05T10:00:00Z", "kind": "process", "user": "sam",
+         "process": r"C:\Program Files\Microsoft Office\winword.exe"},
+        {"ts": "2026-11-05T10:01:00Z", "kind": "process", "user": "sam",
+         "process": r"C:\Windows\System32\powershell.exe",
+         "description": "powershell -enc SQBFAFgA"},
+        {"ts": "2026-11-05T10:02:00Z", "kind": "network", "user": "sam",
+         "dest_ip": "203.0.113.9"},
+    ]
+    store.write_text("\n".join(json.dumps(r) for r in story) + "\n")
+
+    def chain_findings(res):
+        return [f for f in res["findings"]
+                if f["type"] == "chain_phish_spawn_chain"]
+
+    first = watch.sweep(tmp_path)
+    assert chain_findings(first), "first sweep reports the story"
+    second = watch.sweep(tmp_path)
+    assert not chain_findings(second), "second sweep must not re-report it"
+    third = watch.sweep(tmp_path)
+    assert not chain_findings(third), "state survives repeated sweeps"

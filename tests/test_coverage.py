@@ -218,3 +218,18 @@ def test_pipe_telemetry_honours_the_event_type_filter(tmp_path):
         '<EventType condition="is">ConnectPipe</EventType>'
         '</PipeEvent></EventFiltering></Sysmon>')
     assert coverage.enabled_event_ids(sensors) == {17, 18}
+
+
+def test_powershell_channel_rules_report_live():
+    from plasma import coverage
+    sensors = coverage._repo_sensors()
+    enabled = coverage.enabled_event_ids(sensors)
+    powershell = {"EventIDs": [4104],
+                  "Channels": ["Microsoft-Windows-PowerShell/Operational"]}
+    sysmon = {"EventIDs": [13],
+              "Channels": ["Microsoft-Windows-Sysmon/Operational"]}
+    unsubscribed = {"EventIDs": [4104], "Channels": ["Some-Other/Channel"]}
+    assert coverage.gene_telemetry(powershell, enabled) == "live"
+    assert coverage.gene_telemetry(sysmon, enabled) == coverage._telemetry(
+        [13], enabled)
+    assert coverage.gene_telemetry(unsubscribed, enabled) == "unknown"

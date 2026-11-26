@@ -79,10 +79,17 @@ def test_brute_force_success_fires_after_burst():
 
 
 def test_brute_force_needs_the_full_burst():
+    # Four failures then a success is the detection floor: a spray that
+    # succeeds on its 5th attempt must not slip past (audit FN).
     rows = [_auth(f"2026-11-05T02:{m:02d}:00Z", 4625, "bob") for m in range(4)]
     rows.append(_auth("2026-11-05T02:10:00Z", 4624, "bob"))
     findings = chain.scan(rows)
-    assert not [f for f in findings if f["type"] == "chain_brute_force_success"]
+    assert [f for f in findings if f["type"] == "chain_brute_force_success"]
+    # Three failures is noise.
+    rows = [_auth(f"2026-11-05T02:{m:02d}:00Z", 4625, "bob") for m in range(3)]
+    rows.append(_auth("2026-11-05T02:10:00Z", 4624, "bob"))
+    assert not [f for f in chain.scan(rows)
+                if f["type"] == "chain_brute_force_success"]
 
 
 def test_persistence_after_privilege_fires():
@@ -230,12 +237,13 @@ def test_kerberos_spray_then_tgt_success_fires():
     findings = chain.scan(rows)
     k = [f for f in findings if f["type"] == "chain_kerberos_brute_force"]
     assert k and k[0]["score"] == 9
-    assert k[0]["users"] == ["olu"]
+    # Identity binding keeps the domain/UPN: olu@CORP.LOCAL is one account.
+    assert k[0]["users"] == ["olu@corp.local"]
 
 
 def test_kerberos_spray_needs_the_burst_and_the_same_account():
     rows = [_auth(f"2026-11-05T04:{m:02d}:00Z", 4771, "olu@CORP.LOCAL")
-            for m in range(4)]
+            for m in range(3)]
     rows.append(_auth("2026-11-05T04:10:00Z", 4768, "olu@CORP.LOCAL"))
     assert not [f for f in chain.scan(rows)
                 if f["type"] == "chain_kerberos_brute_force"]
@@ -323,12 +331,56 @@ def test_account_creation_then_privileged_group_fires():
         _row("2026-11-05T10:00:00Z", kind="auth", event_id=4720,
              user="CORP\\svc-temp", score=0.8),
         _row("2026-11-05T10:05:00Z", kind="auth", event_id=4728,
-             user="CORP\\Domain Admins", score=0.8),
+             user="CORP\\Domain Admins", score=0.8,
+             description="global group membership added: CORP\\svc-temp "
+                         "to Domain Admins by CORP\\admin"),
     ]
     findings = chain.scan(rows)
     matched = [f for f in findings
                if f["type"] == "chain_account_creation_privilege"]
     assert matched and matched[0]["score"] == 9
+
+
+def test_account_creation_privilege_binds_the_member():
+    # A pre-existing account added to a benign group is onboarding, not a
+    # story: the group-add must mention the created account.
+    rows = [
+        _row("2026-11-05T10:00:00Z", kind="auth", event_id=4720,
+             user="CORP\\svc-temp", score=0.8),
+        _row("2026-11-05T10:05:00Z", kind="auth", event_id=4732,
+             user="CORP\\Sales-RO", score=0.8,
+             description="local group membership added: CORP\\sales-ro "
+                         "to Sales-RO by CORP\\admin"),
+    ]
+    assert not [f for f in chain.scan(rows)
+                if f["type"] == "chain_account_creation_privilege"]
+
+
+def test_chains_do_not_stitch_across_hosts():
+    rows = [
+        _row("2026-11-05T03:00:00Z", kind="process", host="WS1",
+             process="net1.exe", user="admin",
+             description="net1 user backdoor P@ss /add"),
+        _row("2026-11-05T03:05:00Z", kind="process", host="WS2",
+             process="schtasks.exe", user="admin",
+             description="schtasks /create /tn Update /sc onstart"),
+    ]
+    assert not [f for f in chain.scan(rows)
+                if f["type"] == "chain_persistence_after_privilege"]
+
+
+def test_persistence_ignores_benign_scored_rows():
+    rows = [
+        _row("2026-11-05T03:00:00Z", kind="process", host="WS1",
+             process="net1.exe", user="admin", score=0.8,
+             description="net1 user jsmith seasonal /add"),
+        _row("2026-11-05T03:05:00Z", kind="process", host="WS1",
+             process="schtasks.exe", user="SYSTEM", score=0.2,
+             parent="msiexec.exe",
+             description="schtasks /create /tn AgentHealth /sc onstart"),
+    ]
+    assert not [f for f in chain.scan(rows)
+                if f["type"] == "chain_persistence_after_privilege"]
 
 
 def test_account_creation_without_privilege_does_not_fire():

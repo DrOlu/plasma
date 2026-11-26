@@ -100,6 +100,11 @@ def enabled_event_ids(sensors_dir=None,
     if filtering is None:
         return None
     ids: set[int] = set()
+    # Sysmon filter semantics: an EMPTY `onmatch="exclude"` tag excludes
+    # nothing — that event type flows unfiltered (verified live on WS1:
+    # EIDs 12/13 dominate the channel with the shipped config). Non-empty
+    # exclude lists only remove their matched subset, so the EIDs stay
+    # broadly enabled. Only an include tag narrows what is captured.
     for child in filtering:
         if child.tag == "PipeEvent":
             # 17 = CreatePipe, 18 = ConnectPipe. An include filter that
@@ -201,6 +206,24 @@ def _norm_fidelity(value) -> str:
     return value if value in FIDELITY_WEIGHTS else "medium"
 
 
+def gene_telemetry(meta: dict, enabled: set[int] | None) -> str:
+    """Telemetry verdict for one gene rule.
+
+    Sysmon-channel rules are judged against the Sysmon filter set. Rules on
+    any other channel WHIDS subscribes directly (PowerShell script block
+    logs) do not depend on Sysmon: reporting them against the Sysmon set
+    called live PowerShell rules dormant. Channels WHIDS does not subscribe
+    stay "unknown" — a verdict must never be invented.
+    """
+    channels = [str(channel).lower()
+                for channel in (meta or {}).get("Channels") or []]
+    if any("powershell" in channel for channel in channels):
+        return "live"
+    if channels and not any("sysmon" in channel for channel in channels):
+        return "unknown"
+    return _telemetry((meta or {}).get("EventIDs"), enabled)
+
+
 def collect_rule_techniques(sensors_dir=None) -> dict:
     """Technique -> [{"rule": label, "fidelity": high|medium|low}] across
     tap rules + gene baseline + IOC feed."""
@@ -253,7 +276,8 @@ def collect_rule_techniques(sensors_dir=None) -> dict:
                 else:
                     fidelity = GENE_FIDELITY.get(obj.get("Name"), "medium")
                 add(tag, f"{label}:{obj.get('Name')}", fidelity,
-                    event_ids=(obj.get("Meta") or {}).get("EventIDs"))
+                    event_ids=(obj.get("Meta") or {}).get("EventIDs"),
+                    telemetry=gene_telemetry(obj.get("Meta"), enabled))
 
     gene_file(sensors / "plasma-baseline.gen", "gene")
     gene_file(sensors / "plasma-sigma.gen", "sigma")

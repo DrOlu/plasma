@@ -129,3 +129,36 @@ def test_case_file_is_loaded(tmp_path):
         ],
     }]}))
     assert detect.test_cases(detect._load_cases(path))["ok"] is True
+
+
+def test_validate_warns_on_string_criticality(tmp_path):
+    rules_path = _write(tmp_path, "rules.gen", [{
+        "Name": "String criticality",
+        "Tags": [],
+        "Meta": {"Criticality": "4", "EventIDs": [1], "Channels": [],
+                 "Computers": [], "Schema": "1.0.0"},
+        "Matches": ["$a: Image ~= '(?i:x)'"],
+        "Condition": "$a",
+    }])
+    out = detect.validate(rules_path)
+    assert out["ok"] is True
+    assert any("criticality 4" in warning["warning"]
+               for warning in out["warnings"]), out["warnings"]
+
+
+def test_replay_validates_the_candidate_rules(tmp_path):
+    events = tmp_path / "events.jsonl"
+    events.write_text(json.dumps({
+        "ts": "2026-11-20T10:00:00Z", "host": "WS1", "kind": "process",
+        "event_id": 1, "process": "x.exe"}) + "\n")
+    broken = tmp_path / "broken.gen"
+    broken.write_text(json.dumps({
+        "Name": "Broken rule",
+        "Tags": [],
+        "Meta": {"Criticality": 8, "EventIDs": [1], "Channels": [],
+                 "Computers": [], "Schema": "1.0.0"},
+        "Matches": ["$a: Image ~= '(?i:x'"],  # unbalanced regex
+        "Condition": "$a"}) + "\n")
+    out = detect.replay(events, broken)
+    assert out["ok"] is False
+    assert out["validation"]["errors"]
